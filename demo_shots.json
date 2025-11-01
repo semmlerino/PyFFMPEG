@@ -1,0 +1,95 @@
+{
+    "description": "Demo shot data for ShotBot mock mode - matches real VFX environment",
+    "shots": [
+        {
+            "show": "gator",
+            "seq": "012_DC",
+            "shot": "1000",
+            "description": "Gator establishing shot"
+        },
+        {
+            "show": "gator",
+            "seq": "012_DC",
+            "shot": "1070",
+            "description": "Gator medium shot"
+        },
+        {
+            "show": "gator",
+            "seq": "012_DC",
+            "shot": "1050",
+            "description": "Gator close-up"
+        },
+        {
+            "show": "jack_ryan",
+            "seq": "DB_271",
+            "shot": "1760",
+            "description": "Jack Ryan action sequence"
+        },
+        {
+            "show": "jack_ryan",
+            "seq": "FF_278",
+            "shot": "4380",
+            "description": "Jack Ryan VFX shot"
+        },
+        {
+            "show": "jack_ryan",
+            "seq": "DA_280",
+            "shot": "0280",
+            "description": "Jack Ryan dialog scene"
+        },
+        {
+            "show": "jack_ryan",
+            "seq": "DC_278",
+            "shot": "0050",
+            "description": "Jack Ryan transition"
+        },
+        {
+            "show": "broken_eggs",
+            "seq": "BRX_166",
+            "shot": "0010",
+            "description": "Broken Eggs opening"
+        },
+        {
+            "show": "broken_eggs",
+            "seq": "BRX_166",
+            "shot": "0020",
+            "description": "Broken Eggs continuation"
+        },
+        {
+            "show": "broken_eggs",
+            "seq": "BRX_170",
+            "shot": "0100",
+            "description": "Broken Eggs sequence 170"
+        },
+        {
+            "show": "broken_eggs",
+            "seq": "BRX_070",
+            "shot": "0010",
+            "description": "Broken Eggs sequence 70"
+        },
+        {
+            "show": "jack_ryan",
+            "seq": "999_xx",
+            "shot": "999",
+            "description": "Jack Ryan test shot"
+        }
+    ],
+    "other_shots_with_3de": [
+        {
+            "show": "gator",
+            "seq": "019_JF",
+            "shot": "1080",
+            "user": "sarah-b",
+            "plate": "bg01",
+            "description": "Additional shot with 3DE scene"
+        },
+        {
+            "show": "gator",
+            "seq": "012_DC",
+            "shot": "1000",
+            "user": "ryan-p",
+            "plate": "bg01",
+            "description": "Shot with 3DE scene by ryan-p"
+        }
+    ]
+}

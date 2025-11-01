@@ -13,6 +13,7 @@ import pytest
 
 # Local application imports
 from shot_model import Shot
+from config import Config
 from targeted_shot_finder import TargetedShotsFinder
 
 
@@ -251,14 +252,14 @@ class TestParseShotFromPath:
         monkeypatch.setattr(targeted_shot_finder.Config, "SHOWS_ROOT", "/shows")
         finder = TargetedShotsFinder()
 
-        path = "/shows/test_show/shots/010/010_0010/user/john"
+        path = f"{Config.SHOWS_ROOT}/test_show/shots/010/010_0010/user/john"
         shot = finder._parse_shot_from_path(path)
 
         assert shot is not None
         assert shot.show == "test_show"
         assert shot.sequence == "010"
         assert shot.shot == "0010"  # Should extract shot number
-        assert shot.workspace_path == "/shows/test_show/shots/010/010_0010"
+        assert shot.workspace_path == f"{Config.SHOWS_ROOT}/test_show/shots/010/010_0010"
 
     def test_parse_path_without_underscore(
         self, monkeypatch: pytest.MonkeyPatch
@@ -269,7 +270,7 @@ class TestParseShotFromPath:
         monkeypatch.setattr(targeted_shot_finder.Config, "SHOWS_ROOT", "/shows")
         finder = TargetedShotsFinder()
 
-        path = "/shows/test_show/shots/010/0010/user/john"
+        path = f"{Config.SHOWS_ROOT}/test_show/shots/010/0010/user/john"
         shot = finder._parse_shot_from_path(path)
 
         assert shot is not None
@@ -284,7 +285,7 @@ class TestParseShotFromPath:
         monkeypatch.setattr(targeted_shot_finder.Config, "SHOWS_ROOT", "/shows")
         finder = TargetedShotsFinder()
 
-        path = "/shows/test_show/shots/010/010_0010_extra/user/john"
+        path = f"{Config.SHOWS_ROOT}/test_show/shots/010/010_0010_extra/user/john"
         shot = finder._parse_shot_from_path(path)
 
         assert shot is not None
@@ -309,7 +310,7 @@ class TestParseShotFromPath:
         finder = TargetedShotsFinder()
 
         # Create a path that would result in empty shot after processing
-        path = "/shows/test_show/shots/010/010_/user/john"  # Underscore at end
+        path = f"{Config.SHOWS_ROOT}/test_show/shots/010/010_/user/john"  # Underscore at end
 
         with patch.object(finder.logger, "debug") as mock_debug:
             shot = finder._parse_shot_from_path(path)
@@ -329,7 +330,7 @@ class TestParseShotFromPath:
         monkeypatch.setattr(targeted_shot_finder.Config, "SHOWS_ROOT", "/shows")
         finder = TargetedShotsFinder()
 
-        path = "/shows/test_show/shots/010/010_0010/user/john"
+        path = f"{Config.SHOWS_ROOT}/test_show/shots/010/010_0010/user/john"
 
         with (
             patch(
@@ -630,7 +631,7 @@ class TestGetShotDetails:
             show="test_show",
             sequence="010",
             shot="0010",
-            workspace_path="/shows/test_show/shots/010/0010",
+            workspace_path=f"{Config.SHOWS_ROOT}/test_show/shots/010/0010",
         )
 
         details = finder.get_shot_details(shot)
@@ -638,8 +639,8 @@ class TestGetShotDetails:
         assert details["show"] == "test_show"
         assert details["sequence"] == "010"
         assert details["shot"] == "0010"
-        assert details["workspace_path"] == "/shows/test_show/shots/010/0010"
-        assert details["user_path"] == "/shows/test_show/shots/010/0010/user/john"
+        assert details["workspace_path"] == f"{Config.SHOWS_ROOT}/test_show/shots/010/0010"
+        assert details["user_path"] == f"{Config.SHOWS_ROOT}/test_show/shots/010/0010/user/john"
         assert (
             details["status"] == "approved"
         )  # TargetedShotsFinder always returns approved
@@ -738,7 +739,7 @@ class TestEdgeCases:
         finder = TargetedShotsFinder()
 
         # Pass string instead of Path
-        shots = finder._scan_show_for_user("test", "/shows/root")
+        shots = finder._scan_show_for_user("test", f"{Config.SHOWS_ROOT}/root")
 
         # Should handle string gracefully
         assert shots == []  # Empty because path doesn't exist

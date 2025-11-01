@@ -22,6 +22,7 @@ import pytest
 
 # Local application imports
 from shot_model import Shot
+from config import Config
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from threede_scene_model import ThreeDEScene, ThreeDESceneModel
@@ -99,17 +100,16 @@ class TestThreeDEScene:
         assert scene.display_name == "seq01_shot01 - artist1"
 
     @pytest.mark.usefixtures("isolated_test_environment")
-    @pytest.mark.xdist_group("cache_isolation")
     def test_get_thumbnail_path_with_real_files(
         self, tmp_path: Path, monkeypatch: MonkeyPatch
     ) -> None:
         """Test get_thumbnail_path with real thumbnail files.
 
         Following UNIFIED_TESTING_GUIDE: Use isolated_test_environment fixture
-        and xdist_group to ensure complete cache isolation in parallel execution.
-        The xdist_group ensures this test runs in isolation from other cache-sensitive tests.
+        to ensure complete cache isolation in parallel execution.
         """
-        # Explicitly clear all utility caches to prevent parallel test contamination
+        # Clear all utility caches FIRST before any other operations
+        # This must happen before creating paths or importing modules
         from utils import clear_all_caches
         clear_all_caches()
 
@@ -223,7 +223,7 @@ class TestThreeDEScene:
             "show": "test_show",
             "sequence": "seq01",
             "shot": "shot01",
-            "workspace_path": "/shows/test_show/seq01/seq01_shot01",
+            "workspace_path": f"{Config.SHOWS_ROOT}/test_show/seq01/seq01_shot01",
             "user": "artist",
             "plate": "BG01",
             "scene_path": "/path/to/scene.3de",

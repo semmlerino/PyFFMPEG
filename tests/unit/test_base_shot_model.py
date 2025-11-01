@@ -15,6 +15,7 @@ import pytest
 from PySide6.QtTest import QSignalSpy
 
 from base_shot_model import BaseShotModel
+from config import Config
 from core.shot_types import RefreshResult
 from shot_model import Shot
 
@@ -78,8 +79,8 @@ class TestBaseShotModelInitialization:
         """Test that load_cache=True loads from cache."""
         # Pre-populate cache
         test_shots = [
-            Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010"),
-            Shot("TEST", "seq01", "0020", "/shows/TEST/shots/seq01/seq01_0020"),
+            Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"),
+            Shot("TEST", "seq01", "0020", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020"),
         ]
         cache_manager.cache_shots(test_shots)
 
@@ -97,7 +98,7 @@ class TestBaseShotModelInitialization:
         """Test load_cache=False skips cache."""
         # Pre-populate cache
         test_shots = [
-            Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+            Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
         ]
         cache_manager.cache_shots(test_shots)
 
@@ -114,8 +115,8 @@ class TestCacheLoading:
     def test_load_from_cache_success(self, cache_manager: CacheManager) -> None:
         """Test successful cache loading."""
         test_shots = [
-            Shot("SHOW1", "seq01", "0010", "/shows/SHOW1/shots/seq01/seq01_0010"),
-            Shot("SHOW1", "seq01", "0020", "/shows/SHOW1/shots/seq01/seq01_0020"),
+            Shot("SHOW1", "seq01", "0010", f"{Config.SHOWS_ROOT}/SHOW1/shots/seq01/seq01_0010"),
+            Shot("SHOW1", "seq01", "0020", f"{Config.SHOWS_ROOT}/SHOW1/shots/seq01/seq01_0020"),
         ]
         cache_manager.cache_shots(test_shots)
 
@@ -157,7 +158,7 @@ class TestCacheLoading:
 
         # Hit (with cache)
         test_shots = [
-            Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+            Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
         ]
         cache_manager.cache_shots(test_shots)
         model._load_from_cache()
@@ -173,9 +174,10 @@ class TestWSOutputParsing:
         """Test basic ws output parsing."""
         model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
 
-        ws_output = """workspace /shows/TEST/shots/seq01/TEST_seq01_0010
-workspace /shows/TEST/shots/seq01/TEST_seq01_0020
-workspace /shows/TEST/shots/seq02/TEST_seq02_0010"""
+        shows_root = Config.SHOWS_ROOT
+        ws_output = f"""workspace {shows_root}/TEST/shots/seq01/TEST_seq01_0010
+workspace {shows_root}/TEST/shots/seq01/TEST_seq01_0020
+workspace {shows_root}/TEST/shots/seq02/TEST_seq02_0010"""
 
         shots = model._parse_ws_output(ws_output)
 
@@ -198,9 +200,10 @@ workspace /shows/TEST/shots/seq02/TEST_seq02_0010"""
         """Test parsing with invalid/malformed lines."""
         model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
 
-        ws_output = """workspace /shows/TEST/shots/seq01/TEST_seq01_0010
+        shows_root = Config.SHOWS_ROOT
+        ws_output = f"""workspace {shows_root}/TEST/shots/seq01/TEST_seq01_0010
 invalid line without workspace prefix
-workspace /shows/TEST/shots/seq02/TEST_seq02_0020"""
+workspace {shows_root}/TEST/shots/seq02/TEST_seq02_0020"""
 
         shots = model._parse_ws_output(ws_output)
 
@@ -215,11 +218,12 @@ workspace /shows/TEST/shots/seq02/TEST_seq02_0020"""
         """Test parsing with extra whitespace."""
         model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
 
-        ws_output = """
+        shows_root = Config.SHOWS_ROOT
+        ws_output = f"""
 
-workspace /shows/TEST/shots/seq01/TEST_seq01_0010
+workspace {shows_root}/TEST/shots/seq01/TEST_seq01_0010
 
-workspace /shows/TEST/shots/seq01/TEST_seq01_0020
+workspace {shows_root}/TEST/shots/seq01/TEST_seq01_0020
         """
 
         shots = model._parse_ws_output(ws_output)
@@ -235,8 +239,8 @@ class TestChangeDetection:
         model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
 
         shots = [
-            Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010"),
-            Shot("TEST", "seq01", "0020", "/shows/TEST/shots/seq01/seq01_0020"),
+            Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"),
+            Shot("TEST", "seq01", "0020", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020"),
         ]
         model.shots = shots
 
@@ -249,12 +253,12 @@ class TestChangeDetection:
         model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
 
         model.shots = [
-            Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010"),
+            Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"),
         ]
 
         new_shots = [
-            Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010"),
-            Shot("TEST", "seq01", "0020", "/shows/TEST/shots/seq01/seq01_0020"),
+            Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"),
+            Shot("TEST", "seq01", "0020", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020"),
         ]
 
         has_changes = model._check_for_changes(new_shots)
@@ -265,12 +269,12 @@ class TestChangeDetection:
         model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
 
         model.shots = [
-            Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010"),
-            Shot("TEST", "seq01", "0020", "/shows/TEST/shots/seq01/seq01_0020"),
+            Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"),
+            Shot("TEST", "seq01", "0020", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020"),
         ]
 
         new_shots = [
-            Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010"),
+            Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"),
         ]
 
         has_changes = model._check_for_changes(new_shots)
@@ -283,11 +287,11 @@ class TestChangeDetection:
         model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
 
         model.shots = [
-            Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010"),
+            Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"),
         ]
 
         new_shots = [
-            Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01_new/seq01_0010"),
+            Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01_new/seq01_0010"),
         ]
 
         has_changes = model._check_for_changes(new_shots)
@@ -302,7 +306,7 @@ class TestShotManagement:
         model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
 
         test_shots = [
-            Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+            Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
         ]
         model.shots = test_shots
 
@@ -315,8 +319,8 @@ class TestShotManagement:
         assert model.get_shot_count() == 0
 
         model.shots = [
-            Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010"),
-            Shot("TEST", "seq01", "0020", "/shows/TEST/shots/seq01/seq01_0020"),
+            Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"),
+            Shot("TEST", "seq01", "0020", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020"),
         ]
 
         assert model.get_shot_count() == 2
@@ -325,8 +329,8 @@ class TestShotManagement:
         """Test finding shot by full name."""
         model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
 
-        shot1 = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
-        shot2 = Shot("TEST", "seq01", "0020", "/shows/TEST/shots/seq01/seq01_0020")
+        shot1 = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
+        shot2 = Shot("TEST", "seq01", "0020", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020")
         model.shots = [shot1, shot2]
 
         found = model.find_shot_by_name("seq01_0020")
@@ -337,7 +341,7 @@ class TestShotManagement:
         model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
 
         model.shots = [
-            Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+            Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
         ]
 
         found = model.find_shot_by_name("nonexistent")
@@ -351,7 +355,7 @@ class TestShotSelection:
         """Test select_shot emits signal."""
         model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
 
-        shot = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
         spy = QSignalSpy(model.shot_selected)
 
         model.select_shot(shot)
@@ -364,7 +368,7 @@ class TestShotSelection:
         """Test selecting None clears selection."""
         model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
 
-        shot = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
         model.select_shot(shot)
 
         spy = QSignalSpy(model.shot_selected)
@@ -383,9 +387,9 @@ class TestFiltering:
         model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
 
         model.shots = [
-            Shot("SHOW1", "seq01", "0010", "/shows/SHOW1/shots/seq01/seq01_0010"),
-            Shot("SHOW1", "seq01", "0020", "/shows/SHOW1/shots/seq01/seq01_0020"),
-            Shot("SHOW2", "seq01", "0010", "/shows/SHOW2/shots/seq01/seq01_0010"),
+            Shot("SHOW1", "seq01", "0010", f"{Config.SHOWS_ROOT}/SHOW1/shots/seq01/seq01_0010"),
+            Shot("SHOW1", "seq01", "0020", f"{Config.SHOWS_ROOT}/SHOW1/shots/seq01/seq01_0020"),
+            Shot("SHOW2", "seq01", "0010", f"{Config.SHOWS_ROOT}/SHOW2/shots/seq01/seq01_0010"),
         ]
 
         # No filter
@@ -407,9 +411,9 @@ class TestFiltering:
         model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
 
         model.shots = [
-            Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010"),
-            Shot("TEST", "seq01", "0020", "/shows/TEST/shots/seq01/seq01_0020"),
-            Shot("TEST", "seq02", "0010", "/shows/TEST/shots/seq02/seq02_0010"),
+            Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"),
+            Shot("TEST", "seq01", "0020", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020"),
+            Shot("TEST", "seq02", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq02/seq02_0010"),
         ]
 
         # No filter
@@ -432,9 +436,9 @@ class TestFiltering:
         model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
 
         model.shots = [
-            Shot("SHOW1", "seq01", "0010", "/shows/SHOW1/shots/seq01/seq01_0010"),
-            Shot("SHOW1", "seq02", "0020", "/shows/SHOW1/shots/seq02/seq02_0020"),
-            Shot("SHOW2", "seq01", "0010", "/shows/SHOW2/shots/seq01/seq01_0010"),
+            Shot("SHOW1", "seq01", "0010", f"{Config.SHOWS_ROOT}/SHOW1/shots/seq01/seq01_0010"),
+            Shot("SHOW1", "seq02", "0020", f"{Config.SHOWS_ROOT}/SHOW1/shots/seq02/seq02_0020"),
+            Shot("SHOW2", "seq01", "0010", f"{Config.SHOWS_ROOT}/SHOW2/shots/seq01/seq01_0010"),
         ]
 
         # Both filters
@@ -455,8 +459,8 @@ class TestPerformanceMetrics:
         model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
 
         model.shots = [
-            Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010"),
-            Shot("TEST", "seq01", "0020", "/shows/TEST/shots/seq01/seq01_0020"),
+            Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010"),
+            Shot("TEST", "seq01", "0020", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0020"),
         ]
 
         metrics = model.get_performance_metrics()
@@ -488,10 +492,10 @@ class TestAvailableShows:
         model = ConcreteTestModel(cache_manager=cache_manager, load_cache=False)
 
         model.shots = [
-            Shot("SHOW1", "seq01", "0010", "/shows/SHOW1/shots/seq01/seq01_0010"),
-            Shot("SHOW1", "seq01", "0020", "/shows/SHOW1/shots/seq01/seq01_0020"),
-            Shot("SHOW2", "seq01", "0010", "/shows/SHOW2/shots/seq01/seq01_0010"),
-            Shot("SHOW3", "seq01", "0010", "/shows/SHOW3/shots/seq01/seq01_0010"),
+            Shot("SHOW1", "seq01", "0010", f"{Config.SHOWS_ROOT}/SHOW1/shots/seq01/seq01_0010"),
+            Shot("SHOW1", "seq01", "0020", f"{Config.SHOWS_ROOT}/SHOW1/shots/seq01/seq01_0020"),
+            Shot("SHOW2", "seq01", "0010", f"{Config.SHOWS_ROOT}/SHOW2/shots/seq01/seq01_0010"),
+            Shot("SHOW3", "seq01", "0010", f"{Config.SHOWS_ROOT}/SHOW3/shots/seq01/seq01_0010"),
         ]
 
         shows = model.get_available_shows()

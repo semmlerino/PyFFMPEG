@@ -25,6 +25,7 @@ import pytest
 from cache_manager import CacheManager
 from previous_shots_model import PreviousShotsModel
 from shot_model import Shot
+from config import Config
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_doubles_library import TestShot, TestShotModel
@@ -69,7 +70,7 @@ class TestPreviousShootsCacheIntegration:
         # TestShotModel has real methods, not mocked ones
         # Add shots directly to the model
         test_shot = TestShot("active_show", "seq1", "shot1")
-        test_shot.workspace_path = "/shows/active_show/shots/seq1/shot1"
+        test_shot.workspace_path = f"{Config.SHOWS_ROOT}/active_show/shots/seq1/shot1"
         mock_model.add_shot(test_shot)
         return mock_model
 
@@ -114,8 +115,8 @@ class TestPreviousShootsCacheIntegration:
         """Test cache data format consistency."""
         # Original shots from model
         original_shots = [
-            Shot("show1", "seq1", "shot1", "/shows/show1/shots/seq1/shot1"),
-            Shot("show1", "seq1", "shot2", "/shows/show1/shots/seq1/shot2"),
+            Shot("show1", "seq1", "shot1", f"{Config.SHOWS_ROOT}/show1/shots/seq1/shot1"),
+            Shot("show1", "seq1", "shot2", f"{Config.SHOWS_ROOT}/show1/shots/seq1/shot2"),
         ]
 
         # Convert to cache format (as done by model)
@@ -430,7 +431,7 @@ class TestPreviousShootsCachePerformance:
                 "show": f"show_{i:03d}",
                 "sequence": f"seq_{j:03d}",
                 "shot": f"shot_{k:04d}",
-                "workspace_path": f"/shows/show_{i:03d}/shots/seq_{j:03d}/shot_{k:04d}",
+                "workspace_path": f"{Config.SHOWS_ROOT}/show_{i:03d}/shots/seq_{j:03d}/shot_{k:04d}",
             }
             for i in range(10)  # 10 shows
             for j in range(5)  # 5 sequences per show

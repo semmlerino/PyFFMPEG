@@ -216,8 +216,8 @@ class Config:
     # Primary: Lightweight formats that can be loaded directly
     THUMBNAIL_EXTENSIONS: ClassVar[list[str]] = [".jpg", ".jpeg", ".png"]
 
-    # Fallback: Heavy formats that require PIL resizing before use (EXR removed - not supported)
-    THUMBNAIL_FALLBACK_EXTENSIONS: ClassVar[list[str]] = [".tiff", ".tif"]
+    # Fallback: Heavy formats that require PIL resizing before use
+    THUMBNAIL_FALLBACK_EXTENSIONS: ClassVar[list[str]] = [".tiff", ".tif", ".exr"]
 
     # Maximum file size (MB) for direct loading without resizing
     THUMBNAIL_MAX_DIRECT_SIZE_MB = 10

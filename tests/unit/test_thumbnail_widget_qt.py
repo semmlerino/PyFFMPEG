@@ -60,7 +60,7 @@ class TestThumbnailWidgetBase:
     def test_shot(self) -> Shot:
         """Create test shot for widget testing."""
         return Shot(
-            "test_show", "seq01", "0010", "/shows/test_show/shots/seq01/seq01_0010"
+            "test_show", "seq01", "0010", f"{Config.SHOWS_ROOT}/test_show/shots/seq01/seq01_0010"
         )
 
     @pytest.fixture
@@ -195,7 +195,7 @@ class TestThumbnailWidget:
     def test_shot(self) -> Shot:
         """Create test shot for widget testing."""
         return Shot(
-            "test_show", "seq01", "0010", "/shows/test_show/shots/seq01/seq01_0010"
+            "test_show", "seq01", "0010", f"{Config.SHOWS_ROOT}/test_show/shots/seq01/seq01_0010"
         )
 
     @pytest.fixture

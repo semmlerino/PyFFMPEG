@@ -12,7 +12,7 @@ from PySide6.QtCore import QTimer
 # Local application imports
 from shot_model import ShotModel
 
-pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
+pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
 
 class TestQtIntegration:
@@ -85,20 +85,23 @@ class TestQtIntegration:
         timer.timeout.connect(on_refresh)
         timer.start(50)  # 50ms intervals
 
-        # Use waitUntil to properly process Qt events
-        def check_refresh_count():
-            return refresh_count >= 3
-
-        # Wait up to 500ms for at least 3 refreshes
         try:
-            qtbot.waitUntil(check_refresh_count, timeout=500)
-        except Exception:
-            pass  # Continue even if timeout
+            # Use waitUntil to properly process Qt events
+            def check_refresh_count():
+                return refresh_count >= 3
 
-        timer.stop()
+            # Wait up to 500ms for at least 3 refreshes
+            try:
+                qtbot.waitUntil(check_refresh_count, timeout=500)
+            except Exception:
+                pass  # Continue even if timeout
 
-        # Should have completed multiple refreshes
-        assert refresh_count >= 3, f"Only {refresh_count} refreshes in 200ms"
+            # Should have completed multiple refreshes
+            assert refresh_count >= 3, f"Only {refresh_count} refreshes in 200ms"
+        finally:
+            # Ensure timer is always stopped and cleaned up
+            timer.stop()
+            timer.deleteLater()
 
     def test_signal_slot_performance(self, qt_model, qtbot) -> None:
         """Test performance of signal-slot connections."""

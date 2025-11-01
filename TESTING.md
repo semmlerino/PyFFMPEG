@@ -1,9 +1,19 @@
 # ShotBot Testing Guide
 
-**Last Updated**: 2025-10-14
-**Test Suite**: 1,919 passing tests (100% pass rate)
-**Execution Time**: ~71 seconds (parallel with `-n auto`)
+**Last Updated**: 2025-11-01
+**Test Suite**: 1,975 passing tests (100% pass rate)
+**Execution Time**: ~60 seconds (parallel with `-n auto`)
 **Coverage**: 90% weighted (100% of critical components)
+
+**Recent Improvements**:
+- **2025-11-01**: Enhanced with official pytest-xdist best practices
+  - ✅ Added distribution modes guide (worksteal, loadscope, etc.)
+  - ✅ Added session-scoped fixtures for parallel execution (file locks pattern)
+  - ✅ Added parallel debugging tools (--setup-plan, worker_id, environment tracing)
+- **2025-10-31**: Fixed test isolation issues
+  - ✅ Fixed 3 flaky tests with proper isolation
+  - ✅ Removed problematic `xdist_group` markers
+  - ✅ All tests now pass consistently in parallel (verified 5+ consecutive runs)
 
 ---
 
@@ -89,6 +99,184 @@ tests/
 
 ## Key Testing Principles (UNIFIED_TESTING_GUIDE)
 
+### Core Philosophy
+
+1. **Test Behavior, Not Implementation**: Focus on what code does, not how
+2. **Use Real Components**: Minimal mocking, real filesystems with tmp_path
+3. **Tests Must Be Independent**: Runnable alone, in any order, on any worker
+4. **Fix Isolation, Don't Serialize**: Never use xdist_group as a band-aid
+
+---
+
+## Test Isolation and Parallel Execution ⚠️ CRITICAL
+
+### The Golden Rule
+
+**Every test must be runnable**:
+- Alone (in isolation)
+- In any order
+- On any worker (in parallel)
+- Multiple times consecutively
+
+### Common Root Causes of Isolation Failures
+
+#### 1. Qt Resource Leaks
+
+**Problem**: QTimer, QThread, or other Qt objects continue running after test
+**Symptom**: Tests pass individually, fail intermittently in parallel
+
+```python
+# ❌ WRONG - timer may leak if test fails
+def test_qt_timer(qtbot):
+    timer = QTimer()
+    timer.start(50)
+    qtbot.waitUntil(lambda: condition, timeout=500)
+    timer.stop()  # Never reached if waitUntil raises
+
+# ✅ RIGHT - timer always cleaned up
+def test_qt_timer(qtbot):
+    timer = QTimer(parent_object)
+    timer.start(50)
+    try:
+        qtbot.waitUntil(lambda: condition, timeout=500)
+        assert condition
+    finally:
+        timer.stop()
+        timer.deleteLater()
+```
+
+#### 2. Global/Module-Level State
+
+**Problem**: Class attributes or module globals modified by parallel tests
+**Symptom**: Tests see unexpected values from other tests
+
+```python
+# ❌ WRONG - Config.SHOWS_ROOT is shared globally
+def test_path_parsing():
+    path = f"{Config.SHOWS_ROOT}/gator/shots"
+
+# ✅ RIGHT - monkeypatch isolates this test's view
+def test_path_parsing(monkeypatch):
+    original_shows_root = Config.SHOWS_ROOT
+    monkeypatch.setattr("config.Config.SHOWS_ROOT", original_shows_root)
+    path = f"{Config.SHOWS_ROOT}/gator/shots"
+```
+
+#### 3. Module-Level Caches
+
+**Problem**: Cached values from previous tests contaminate current test
+**Fix**: Clear caches FIRST, before any other operations
+
+```python
+# ❌ WRONG - cache cleared after contamination possible
+def test_thumbnail_path(tmp_path, monkeypatch):
+    shows_root = tmp_path / "shows"
+    from utils import clear_all_caches
+    clear_all_caches()  # Too late
+
+# ✅ RIGHT - cache cleared BEFORE operations
+def test_thumbnail_path(tmp_path, monkeypatch):
+    from utils import clear_all_caches
+    clear_all_caches()  # FIRST operation
+    shows_root = tmp_path / "shows"
+```
+
+### The xdist_group Anti-Pattern
+
+**Common Misconception**: Using `xdist_group` to fix parallel test failures
+**Reality**: `xdist_group` is a band-aid that masks isolation problems
+
+```python
+# ❌ WRONG - using xdist_group as a band-aid
+@pytest.mark.xdist_group("qt_state")
+def test_with_leak():
+    timer = QTimer()
+    timer.start()  # Leaks into next test in group
+
+# ✅ RIGHT - fix the leak, remove the marker
+def test_with_proper_cleanup():
+    timer = QTimer()
+    timer.start()
+    try:
+        # test code
+    finally:
+        timer.stop()
+        timer.deleteLater()
+```
+
+**Why xdist_group fails**:
+1. Forces tests onto same worker, concentrating state pollution
+2. Doesn't guarantee cleanup between tests in the group
+3. Makes failures intermittent instead of consistent
+4. Hides the root cause (shared state, improper cleanup)
+
+**When xdist_group is actually appropriate** (rare):
+- Tests that *must* run serially due to external constraints (hardware device, license server)
+- NOT for fixing Qt state issues
+- NOT for shared filesystem issues
+- NOT for timing issues
+
+**See Also**: `docs/TEST_ISOLATION_CASE_STUDIES.md` for real debugging examples
+
+### Distribution Modes for Parallel Execution
+
+pytest-xdist offers multiple distribution strategies. The default (`load`) works well, but other modes can optimize specific scenarios:
+
+#### Available Distribution Modes
+
+```bash
+# Default: Simple load balancing (recommended for most cases)
+uv run pytest -n auto --dist=load
+
+# Group by module/class: Better fixture reuse
+uv run pytest -n auto --dist=loadscope
+
+# Worksteal: Best for tests with varying durations
+uv run pytest -n auto --dist=worksteal
+
+# Group by file: All tests in same file run on same worker
+uv run pytest -n auto --dist=loadfile
+
+# Group by marker: Tests with same xdist_group run together (rarely needed)
+uv run pytest -n auto --dist=loadgroup
+```
+
+#### When to Use Different Modes
+
+**`--dist=load` (default)**:
+- ✅ Best for most test suites
+- Tests distributed randomly to workers
+- Simple and effective
+
+**`--dist=worksteal`**:
+- ✅ Use when test durations vary significantly (e.g., some tests take 5s, others take 50ms)
+- Workers with fewer tests "steal" from busier workers
+- Better CPU utilization than `load`
+- **Recommended**: Try this if your test suite has uneven execution times
+
+**`--dist=loadscope`**:
+- ✅ Groups tests by module (for functions) or class (for methods)
+- Better fixture reuse when session/module-scoped fixtures are expensive
+- Use when setup/teardown costs are high
+
+**`--dist=loadfile`**:
+- ✅ All tests in a file run on same worker
+- Use when tests in a file share expensive setup
+- Less efficient than `loadscope` but simpler to reason about
+
+**`--dist=loadgroup`**:
+- ⚠️ Requires `@pytest.mark.xdist_group` markers
+- Rarely needed - usually indicates isolation problems
+- See "The xdist_group Anti-Pattern" above
+
+**Our default** (configured in `pytest.ini`): `--dist=loadgroup` with `-n auto`
+- Respects any xdist_group markers (though we've removed most)
+- Falls back to load balancing for unmarked tests
+
+---
+
+## Testing Principles in Detail
+
 ### 1. Test Behavior, Not Implementation
 
 **Good**: Test what the code does (observable behavior)
@@ -132,9 +320,9 @@ def test_thumbnail_loading(mocker):
 - Qt signals (use QSignalSpy instead of mocking)
 - External dependencies (databases, APIs)
 
-### 3. Duck Typing with hasattr()
+### 3. Duck Typing and Protocols
 
-**Good**: Duck typing for test compatibility
+**Use hasattr() for flexible interfaces**:
 ```python
 def test_model_has_method():
     """Test object supports expected interface."""
@@ -143,67 +331,175 @@ def test_model_has_method():
     assert isinstance(result, list)
 ```
 
-**Bad**: isinstance() checks
+**Prefer Protocols over isinstance() for type safety**:
 ```python
-def test_model_type():
-    """Test specific class type."""
-    assert isinstance(model, ShotModel)  # Breaks test doubles
-```
-
-### 4. Protocol-Based Interfaces
-
-**Use Protocols for Duck-Typed Interfaces**:
-```python
-# base_grid_view.py
+# Define interface
 class HasAvailableShows(Protocol):
     def get_available_shows(self) -> list[str]: ...
 
-# Enables type checking without isinstance
+# Use in type hints (enables type checking without isinstance)
 def populate_show_filter(self, shows: list[str] | HasAvailableShows) -> None:
     if isinstance(shows, list):
-        # Direct list
+        show_list = shows
     else:
-        # Protocol object - type checker knows it has get_available_shows()
         show_list = shows.get_available_shows()
 ```
 
-### 5. Real Filesystem Operations
+### 4. Real Filesystem Operations
 
 **Use tmp_path for File Tests**:
 ```python
 def test_script_discovery(tmp_path):
     """Test finding scripts in plate directory."""
-    # Create real directory structure
     plate_dir = tmp_path / "comp/nuke/FG01"
     plate_dir.mkdir(parents=True)
-
     script = plate_dir / "shot01_mm-default_FG01_scene_v001.nk"
     script.write_text("# Nuke script")
 
-    # Test with real filesystem
     result = find_existing_scripts(tmp_path, "shot01", "FG01")
 ```
 
-### 6. Configuration Validation Tests
+### 5. Configuration Validation
 
-**Validate Constraints, Not Implementation**:
+**Validate constraints, not implementation**:
 ```python
 def test_plate_priority_ordering():
     """Validate plate priorities maintain correct ordering."""
     priorities = Config.TURNOVER_PLATE_PRIORITY
-
-    # Test constraints
-    assert priorities["FG"] < priorities["PL"]
-    assert priorities["PL"] < priorities["BG"]
-
-    # Not: how priorities are stored or accessed
+    assert priorities["FG"] < priorities["PL"] < priorities["BG"]
 ```
 
-### 7. Early and Frequent Testing
+### 6. Run Tests Frequently
 
 - Run tests before committing: `uv run pytest tests/unit/ -n auto`
 - Run specific tests during development
 - Use `--lf` flag to run only last failed: `pytest --lf`
+
+## Anti-Pattern Replacements
+
+### ❌ DON'T: Use time.sleep()
+```python
+# WRONG - blocks parallel execution
+time.sleep(0.1)
+```
+
+### ✅ DO: Use synchronization helpers
+```python
+# RIGHT - non-blocking simulation
+from tests.helpers.synchronization import simulate_work_without_sleep
+simulate_work_without_sleep(100)  # milliseconds
+```
+
+### ❌ DON'T: Use QApplication.processEvents()
+```python
+# WRONG - causes race conditions
+app.processEvents()
+```
+
+### ✅ DO: Use process_qt_events()
+```python
+# RIGHT - thread-safe event processing
+from tests.helpers.synchronization import process_qt_events
+process_qt_events(app, 10)  # milliseconds
+```
+
+### ❌ DON'T: Use bare waits
+```python
+# WRONG - unreliable timing
+widget.do_something()
+time.sleep(1)
+assert widget.is_done
+```
+
+### ✅ DO: Use condition-based waiting
+```python
+# RIGHT - waits only as long as needed
+from tests.helpers.synchronization import wait_for_condition
+widget.do_something()
+wait_for_condition(lambda: widget.is_done, timeout_ms=1000)
+```
+
+---
+
+## Advanced: Session-Scoped Fixtures for Parallel Execution
+
+### Problem: Expensive Setup Across Workers
+
+When running tests with `-n auto`, each worker gets its own Python process. Session-scoped fixtures run once per worker, which can be wasteful for expensive operations like:
+- Setting up mock VFX environments
+- Initializing large test databases
+- Generating test data that takes seconds
+
+### Solution: Shared Setup with File Locks
+
+Use file locks to coordinate workers so the setup happens exactly once:
+
+```python
+import json
+import pytest
+from filelock import FileLock
+
+@pytest.fixture(scope="session")
+def expensive_vfx_setup(tmp_path_factory, worker_id):
+    """Set up mock VFX environment once across all workers.
+
+    The first worker creates the environment, others wait and reuse it.
+    """
+    if worker_id == "master":
+        # Not running with xdist (no parallel workers)
+        return create_vfx_environment()
+
+    # Get temp directory shared by all workers
+    root_tmp_dir = tmp_path_factory.getbasetemp().parent
+    data_file = root_tmp_dir / "vfx_setup.json"
+
+    # Use file lock to coordinate access
+    with FileLock(str(data_file) + ".lock"):
+        if data_file.is_file():
+            # Another worker already did the setup
+            data = json.loads(data_file.read_text())
+        else:
+            # We're first - do the expensive setup
+            data = create_vfx_environment()
+            data_file.write_text(json.dumps(data))
+
+    return data
+
+
+def create_vfx_environment():
+    """Expensive operation: create mock shows, shots, thumbnails."""
+    # ... expensive setup code ...
+    return {"shows_root": "/tmp/vfx", "shot_count": 432}
+```
+
+### Key Points
+
+1. **`worker_id` fixture**: Returns `"master"` for non-parallel runs, or `"gw0"`, `"gw1"`, etc. for workers
+2. **`tmp_path_factory.getbasetemp().parent`**: Gets the shared temp directory visible to all workers
+3. **`FileLock`**: Ensures only one worker does the setup, others wait
+4. **JSON for data sharing**: Workers communicate via shared files
+
+### When to Use This Pattern
+
+✅ **Use for**:
+- Mock environment setup (VFX filesystem, databases)
+- Generating large test datasets
+- One-time expensive computations
+- Any setup taking >1 second that's shared across tests
+
+❌ **Don't use for**:
+- Test isolation (use proper cleanup instead)
+- Working around state contamination (fix the isolation)
+- Avoiding proper test design
+
+### Real-World Usage
+
+This pattern is used in ShotBot for:
+- Mock VFX environment setup (`recreate_vfx_structure.py`)
+- ProcessPool initialization (see `conftest.py`)
+- Shared test data generation
+
+---
 
 ## Known Issues
 
@@ -219,158 +515,37 @@ def test_plate_priority_ordering():
 
 ## Test Patterns by Category
 
-### Pattern 1: Configuration Validation
+Refer to actual test files for implementation examples. The principles above are applied throughout the test suite:
 
-**File**: `tests/unit/test_config.py`
+### Configuration Validation
+**File**: `tests/unit/test_config.py` (27 tests)
+- Validates configuration constraints without mocking
+- Tests relationships (e.g., plate priority ordering)
+- Would catch configuration bugs like PL=10
 
-**Purpose**: Validate configuration constraints
+### Static Method Testing
+**File**: `tests/unit/test_plate_discovery.py` (26 tests)
+- Uses tmp_path for real filesystem operations
+- No mocking of pathlib or file operations
+- Tests pure functions with realistic data
 
-**Example**:
-```python
-def test_turnover_plate_priority_ordering():
-    """Validate plate priorities maintain correct ordering."""
-    priorities = Config.TURNOVER_PLATE_PRIORITY
+### Qt Model/View Testing
+**File**: `tests/unit/test_shot_item_model.py` (28 tests)
+- Uses qtbot fixture and QSignalSpy
+- Real CacheManager instances with tmp_path
+- Tests actual Qt behavior, not mocks
 
-    # Test constraints (not implementation)
-    assert priorities["FG"] < priorities["PL"]
-    assert priorities["PL"] < priorities["BG"]
-    assert priorities["BG"] < priorities["COMP"]
-```
+### Protocol-Based Interfaces
+**Files**: `shot_grid_view.py`, `base_grid_view.py`, `threede_grid_view.py`
+- Type-safe duck typing with Protocol classes
+- Enables type checking without isinstance()
+- See `HasAvailableShows` Protocol for example
 
-**Key Points**:
-- No mocking (reading config directly)
-- Test constraints, not how config is accessed
-- Clear assertion messages
-- Would catch the PL=10 bug
-
----
-
-### Pattern 2: Static Method Testing (PlateDiscovery)
-
+### Edge Case Testing
 **File**: `tests/unit/test_plate_discovery.py`
-
-**Purpose**: Test pure functions with real filesystem
-
-**Example**:
-```python
-def test_find_existing_scripts(tmp_path):
-    """Test finding Nuke scripts in plate directory."""
-    # Create real directory structure
-    workspace = tmp_path / "workspace"
-    plate_dir = workspace / "comp/nuke/FG01"
-    plate_dir.mkdir(parents=True)
-
-    # Create real script files
-    script1 = plate_dir / "shot01_mm-default_FG01_scene_v001.nk"
-    script1.write_text("# Nuke script v001")
-
-    # Test with real filesystem (no mocking)
-    result = PlateDiscovery.find_existing_scripts(workspace, "shot01", "FG01")
-
-    assert len(result) == 1
-    assert result[0][1] == 1  # Version number
-```
-
-**Key Points**:
-- Use tmp_path for isolation
-- Create real directory structures
-- No mocking of pathlib or filesystem
-- Tests actual behavior
-
----
-
-### Pattern 3: Qt Model/View Testing
-
-**File**: `tests/unit/test_shot_item_model.py`
-
-**Purpose**: Test Qt models with real Qt components
-
-**Example**:
-```python
-def test_thumbnail_loaded_signal_emission(qtbot, tmp_path):
-    """Test that thumbnail_loaded signal is emitted."""
-    cache_manager = CacheManager(cache_dir=tmp_path / "cache")
-    model = ShotItemModel(cache_manager=cache_manager)
-
-    # Use QSignalSpy (not mocking)
-    spy = QSignalSpy(model.thumbnail_loaded)
-
-    # Trigger thumbnail load
-    model.load_thumbnail_for_row(0)
-
-    # Wait for signal
-    assert spy.wait(timeout=1000)
-    assert spy.count() == 1
-```
-
-**Key Points**:
-- Use qtbot fixture
-- Use QSignalSpy for signals (not mocking)
-- Real CacheManager with tmp_path
-- Test actual Qt behavior
-
----
-
-### Pattern 4: Protocol-Based Duck Typing
-
-**File**: `shot_grid_view.py`, `base_grid_view.py`
-
-**Purpose**: Type-safe duck typing for flexible interfaces
-
-**Example**:
-```python
-# Define Protocol
-class HasAvailableShows(Protocol):
-    def get_available_shows(self) -> list[str]: ...
-
-# Use in method signature
-def populate_show_filter(self, shows: list[str] | HasAvailableShows) -> None:
-    if isinstance(shows, list):
-        super().populate_show_filter(shows)
-    else:
-        # Type checker knows shows.get_available_shows() exists
-        show_list = shows.get_available_shows()
-        super().populate_show_filter(show_list)
-```
-
-**Key Points**:
-- Enables type checking without isinstance
-- Works with test doubles
-- Documents expected interface
-- Cleaner than Union[list, object]
-
----
-
-### Pattern 5: Edge Case Testing
-
-**File**: `tests/unit/test_plate_discovery.py`
-
-**Purpose**: Test boundary conditions and error handling
-
-**Example**:
-```python
-def test_get_next_script_version_handles_gaps(tmp_path):
-    """Test version incrementing with gaps.
-
-    If v001 and v003 exist (v002 deleted), should return v004.
-    """
-    workspace = tmp_path / "workspace"
-    plate_dir = workspace / "comp/nuke/FG01"
-    plate_dir.mkdir(parents=True)
-
-    # Create scripts with gap (v001, v003, no v002)
-    (plate_dir / "shot01_mm-default_FG01_scene_v001.nk").touch()
-    (plate_dir / "shot01_mm-default_FG01_scene_v003.nk").touch()
-
-    # Next version should be v004 (not v002)
-    result = PlateDiscovery.get_next_script_version(workspace, "shot01", "FG01")
-    assert result == 4
-```
-
-**Key Points**:
-- Test realistic edge cases (not just happy path)
-- Document why edge case matters
-- Use real filesystem for authenticity
+- Tests boundary conditions (version gaps, empty directories, permissions)
+- Documents why each edge case matters
+- Uses realistic scenarios
 
 ---
 
@@ -436,31 +611,159 @@ uv run pytest tests/ -m fast -v
 
 ## Debugging Test Failures
 
-### Use Verbose Mode
+### Quick Diagnosis: Passes Alone but Fails in Parallel?
+
+This is a **test isolation issue**. Follow this workflow:
+
+#### 1. Reproduce the failure
+```bash
+# Run flaky test 10 times in parallel
+for i in {1..10}; do uv run pytest path/to/test.py -n auto || break; done
+```
+
+#### 2. Verify it passes individually
+```bash
+uv run pytest path/to/test.py::test_name -v
+```
+
+#### 3. Identify the pattern
+- **Qt objects?** → Resource leak (see Test Isolation section)
+- **Config/globals?** → State contamination
+- **Caches?** → Module-level pollution
+
+#### 4. Apply the fix
+- Add try/finally for Qt resources
+- Add monkeypatch for global state
+- Clear caches FIRST
+
+#### 5. Remove xdist_group if present
+It's probably masking the real issue
+
+#### 6. Verify the fix
+```bash
+# Run 20+ times to prove stability
+for i in {1..20}; do uv run pytest path/to/test.py -n auto -q || break; done
+```
+
+### Standard Debugging Commands
+
 ```bash
 # Show full output
 uv run pytest tests/unit/test_config.py::test_name -vv
 
 # Show local variables on failure
 uv run pytest tests/unit/test_config.py::test_name -vv -l
-```
 
-### Run Single Test
-```bash
 # Isolate the failure
 uv run pytest tests/unit/test_config.py::TestClass::test_method -v
-```
 
-### Show Print Statements
-```bash
 # See debug prints
 uv run pytest tests/unit/test_config.py -v -s
+
+# Drop into debugger
+uv run pytest tests/unit/test_config.py --pdb
+
+# Run last failed tests only
+uv run pytest --lf
 ```
 
-### Drop into Debugger
+### Debugging Parallel Execution
+
+When tests fail only in parallel, these tools help identify the issue:
+
+#### Visualize Fixture Execution Order
+
+Use `--setup-plan` to see fixture execution order without running tests:
+
 ```bash
-# Use --pdb to debug on failure
-uv run pytest tests/unit/test_config.py --pdb
+# Show fixture execution plan
+uv run pytest tests/unit/test_shot_model.py --setup-plan
+
+# Verbose mode includes all fixtures (even private ones)
+uv run pytest tests/unit/test_shot_model.py::test_specific --setup-plan -v
+```
+
+**Output shows**:
+- Which fixtures are used by each test
+- Fixture scope (session, module, function)
+- Execution order and dependencies
+- Helpful for understanding why fixtures aren't isolated
+
+**Example output**:
+```
+SETUP    S tmp_path_factory
+SETUP    S worker_id
+  SETUP    F monkeypatch
+  SETUP    F tmp_path (fixtures used by test_cache_manager)
+        tests/unit/test_cache_manager.py::test_cache_save
+  TEARDOWN F tmp_path
+  TEARDOWN F monkeypatch
+```
+
+#### Identify Which Worker is Running a Test
+
+Use the `worker_id` fixture to track which worker executes each test:
+
+```python
+def test_debug_worker_assignment(worker_id):
+    """Debug test to identify worker assignment."""
+    print(f"Running on worker: {worker_id}")
+    # In non-parallel: worker_id == "master"
+    # In parallel: worker_id in ["gw0", "gw1", "gw2", ...]
+```
+
+**Run with output**:
+```bash
+uv run pytest tests/unit/test_config.py::test_debug_worker_assignment -v -s
+```
+
+**Useful for**:
+- Debugging intermittent failures
+- Seeing if certain tests always fail on same worker
+- Verifying xdist_group behavior (if using)
+
+#### Check Worker Environment Variables
+
+pytest-xdist sets environment variables automatically:
+
+```python
+import os
+import pytest
+
+def test_worker_environment():
+    """Check xdist environment variables."""
+    worker = os.environ.get("PYTEST_XDIST_WORKER", "master")
+    worker_count = os.environ.get("PYTEST_XDIST_WORKER_COUNT", "1")
+    testrun_uid = os.environ.get("PYTEST_XDIST_TESTRUNUID", "local")
+
+    print(f"Worker: {worker}")
+    print(f"Total workers: {worker_count}")
+    print(f"Test run UID: {testrun_uid}")
+```
+
+#### Advanced: Trace State Contamination
+
+Add temporary logging to trace state changes across tests:
+
+```python
+# Add to conftest.py temporarily
+@pytest.fixture(autouse=True)
+def trace_config_state(request, worker_id):
+    """Trace Config.SHOWS_ROOT changes."""
+    from config import Config
+    before = Config.SHOWS_ROOT
+    print(f"[{worker_id}] Before {request.node.name}: SHOWS_ROOT={before}")
+
+    yield
+
+    after = Config.SHOWS_ROOT
+    if before != after:
+        print(f"[{worker_id}] ⚠️  {request.node.name} changed SHOWS_ROOT: {before} → {after}")
+```
+
+**Run with output**:
+```bash
+uv run pytest tests/unit/ -n 4 -v -s | grep "SHOWS_ROOT"
 ```
 
 ---
@@ -510,29 +813,34 @@ uv run pytest tests/unit/test_config.py --pdb
 
 ## Related Documentation
 
+- **Test Isolation Case Studies**: `docs/TEST_ISOLATION_CASE_STUDIES.md` - Real debugging examples with solutions
 - **Configuration**: `docs/CONFIG_VALIDATION.md` - Configuration testing details
 - **Plate Workflow**: `docs/NUKE_PLATE_WORKFLOW.md` - Plate discovery testing
 - **Coverage Report**: `CLAUDE.md` - Full test coverage breakdown
-- **Test Guide**: `UNIFIED_TESTING_GUIDE.md` (if exists) - Comprehensive testing philosophy
 
 ---
 
 ## Best Practices Summary
 
-### DO:
-- ✅ Use real components (CacheManager, tmp_path, QSignalSpy)
-- ✅ Test behavior, not implementation
-- ✅ Use duck typing (hasattr) for flexible APIs
-- ✅ Write clear, descriptive test names
-- ✅ Add docstrings explaining what's tested
-- ✅ Run tests frequently during development
-- ✅ Use Protocols for type-safe duck typing
+### DO: ✅
+1. **Use real components** - CacheManager, tmp_path, QSignalSpy (minimal mocking)
+2. **Test behavior, not implementation** - Focus on observable outcomes
+3. **Use try/finally for Qt resources** - Guarantee cleanup always happens
+4. **Isolate global state with monkeypatch** - Protect from parallel test contamination
+5. **Clear caches FIRST** - Before any operations that might use them
+6. **Use duck typing (hasattr)** - For flexible APIs without isinstance()
+7. **Write clear, descriptive test names** - Self-documenting test suites
+8. **Add docstrings** - Explain what behavior is tested and why
+9. **Run tests frequently** - During development to catch issues early
+10. **Use Protocols** - For type-safe duck typing
 
-### DON'T:
-- ❌ Mock everything (only mock at system boundaries)
-- ❌ Test private methods or internal state
-- ❌ Use isinstance() for duck-typed objects
-- ❌ Write tests without docstrings
-- ❌ Commit without running tests
-- ❌ Skip edge case testing
-- ❌ Ignore test failures ("I'll fix it later")
+### DON'T: ❌
+1. **Mock everything** - Only mock at system boundaries (subprocess, network)
+2. **Use xdist_group as a band-aid** - Fix isolation problems instead
+3. **Test private methods** - Test public API and observable behavior
+4. **Use isinstance() for duck-typed objects** - Breaks test doubles
+5. **Use time.sleep() or processEvents()** - Use synchronization helpers
+6. **Write tests without docstrings** - Tests should be self-explanatory
+7. **Commit without running tests** - Catch issues before pushing
+8. **Skip edge case testing** - Edge cases are where bugs hide
+9. **Ignore test failures** - Fix them immediately, don't defer

@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 # Local application imports
+from config import Config
 from finder_utils import FinderUtils
 
 
@@ -129,34 +130,34 @@ class TestBuildUserPath:
         ("workspace", "username", "app", "subdir", "expected"),
         [
             (
-                Path("/shows/test/shots/010/0010"),
+                Path(f"{Config.SHOWS_ROOT}/test/shots/010/0010"),
                 "john",
                 "maya",
                 None,
-                Path("/shows/test/shots/010/0010/user/john/maya/scenes"),
+                Path(f"{Config.SHOWS_ROOT}/test/shots/010/0010/user/john/maya/scenes"),
             ),
             (
-                Path("/shows/test/shots/020/0020"),
+                Path(f"{Config.SHOWS_ROOT}/test/shots/020/0020"),
                 "jane",
                 "nuke",
                 None,
-                Path("/shows/test/shots/020/0020/user/jane/nuke/scenes"),
+                Path(f"{Config.SHOWS_ROOT}/test/shots/020/0020/user/jane/nuke/scenes"),
             ),
             (
-                Path("/shows/test/shots/030/0030"),
+                Path(f"{Config.SHOWS_ROOT}/test/shots/030/0030"),
                 "bob",
                 "3de",
                 None,
                 Path(
-                    "/shows/test/shots/030/0030/user/bob/mm/3de/mm-default/scenes/scene"
+                    f"{Config.SHOWS_ROOT}/test/shots/030/0030/user/bob/mm/3de/mm-default/scenes/scene"
                 ),
             ),
             (
-                Path("/shows/test/shots/040/0040"),
+                Path(f"{Config.SHOWS_ROOT}/test/shots/040/0040"),
                 "alice",
                 "maya",
                 "scripts",
-                Path("/shows/test/shots/040/0040/user/alice/maya/scripts"),
+                Path(f"{Config.SHOWS_ROOT}/test/shots/040/0040/user/alice/maya/scripts"),
             ),
         ],
         ids=["maya_default", "nuke_default", "3de_special", "maya_custom_subdir"],
@@ -178,11 +179,11 @@ class TestBuildUserPath:
 
     def test_3de_ignores_subdir(self) -> None:
         """Test that 3DE ignores custom subdir parameter."""
-        workspace = Path("/shows/test/shots/050/0050")
+        workspace = Path(f"{Config.SHOWS_ROOT}/test/shots/050/0050")
         path = FinderUtils.build_user_path(workspace, "charlie", "3de", "custom")
         # 3DE should still use its special structure
         expected = Path(
-            "/shows/test/shots/050/0050/user/charlie/mm/3de/mm-default/scenes/scene"
+            f"{Config.SHOWS_ROOT}/test/shots/050/0050/user/charlie/mm/3de/mm-default/scenes/scene"
         )
         assert path == expected
 
@@ -360,17 +361,28 @@ class TestParseShotPath:
 class TestGetWorkspaceFromPath:
     """Test workspace extraction from path."""
 
-    def test_extract_workspace(self) -> None:
+    def test_extract_workspace(self, monkeypatch) -> None:
         """Test extracting workspace from full path."""
-        # Local application imports
+        # Import config and patch it directly to avoid environment pollution issues
+        import sys
+        # Force clean import
+        if "config" in sys.modules:
+            del sys.modules["config"]
         from config import Config
 
-        # Use dynamic SHOWS_ROOT to construct test path
+        # Set up test SHOWS_ROOT
+        test_shows_root = "/tmp/mock_vfx/shows"
+        monkeypatch.setattr(Config, "SHOWS_ROOT", test_shows_root)
+
+        # Also clean up finder_utils to ensure it uses the patched Config
+        if "finder_utils" in sys.modules:
+            del sys.modules["finder_utils"]
+        from finder_utils import FinderUtils
+
         # Follow VFX naming convention: {sequence}_{shot}
-        shows_root = Config.SHOWS_ROOT
-        path = f"{shows_root}/test/shots/010/010_0010/user/john/maya/scenes/file.ma"
+        path = f"{test_shows_root}/test/shots/010/010_0010/user/john/maya/scenes/file.ma"
         workspace = FinderUtils.get_workspace_from_path(path)
-        assert workspace == f"{shows_root}/test/shots/010/010_0010"
+        assert workspace == f"{test_shows_root}/test/shots/010/010_0010"
 
     @pytest.mark.parametrize(
         "path",
@@ -449,22 +461,22 @@ class TestGetRelativePath:
 
     def test_valid_relative_path(self) -> None:
         """Test getting relative path with common base."""
-        path = Path("/shows/test/shots/010/0010/user/file.ma")
-        base = Path("/shows/test/shots")
+        path = Path(f"{Config.SHOWS_ROOT}/test/shots/010/0010/user/file.ma")
+        base = Path(f"{Config.SHOWS_ROOT}/test/shots")
         relative = FinderUtils.get_relative_path(path, base)
         assert relative == Path("010/0010/user/file.ma")
 
     def test_no_common_base_returns_original(self) -> None:
         """Test that paths without common base return original."""
         path = Path("/different/root/file.ma")
-        base = Path("/shows/test")
+        base = Path(f"{Config.SHOWS_ROOT}/test")
         result = FinderUtils.get_relative_path(path, base)
         assert result == path
 
     def test_same_path(self) -> None:
         """Test relative path when path equals base."""
-        path = Path("/shows/test")
-        base = Path("/shows/test")
+        path = Path(f"{Config.SHOWS_ROOT}/test")
+        base = Path(f"{Config.SHOWS_ROOT}/test")
         relative = FinderUtils.get_relative_path(path, base)
         assert relative == Path(".")
 

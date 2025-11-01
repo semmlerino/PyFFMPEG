@@ -4,22 +4,28 @@
 # Standard library imports
 import re
 
+# Local application imports
+from config import Config
+
+# Get current shows root
+SHOWS_ROOT = Config.SHOWS_ROOT
+
 # Actual ws -sg output from VFX environment
-WS_OUTPUT = """workspace /shows/gator/shots/012_DC/012_DC_1000
-workspace /shows/gator/shots/012_DC/012_DC_1070
-workspace /shows/gator/shots/012_DC/012_DC_1050
-workspace /shows/jack_ryan/shots/DB_271/DB_271_1760
-workspace /shows/jack_ryan/shots/FF_278/FF_278_4380
-workspace /shows/jack_ryan/shots/DA_280/DA_280_0280
-workspace /shows/jack_ryan/shots/DC_278/DC_278_0050
-workspace /shows/broken_eggs/shots/BRX_166/BRX_166_0010
-workspace /shows/broken_eggs/shots/BRX_166/BRX_166_0020
-workspace /shows/broken_eggs/shots/BRX_170/BRX_170_0100
-workspace /shows/broken_eggs/shots/BRX_070/BRX_070_0010
-workspace /shows/jack_ryan/shots/999_xx/999_xx_999"""
+WS_OUTPUT = f"""workspace {SHOWS_ROOT}/gator/shots/012_DC/012_DC_1000
+workspace {SHOWS_ROOT}/gator/shots/012_DC/012_DC_1070
+workspace {SHOWS_ROOT}/gator/shots/012_DC/012_DC_1050
+workspace {SHOWS_ROOT}/jack_ryan/shots/DB_271/DB_271_1760
+workspace {SHOWS_ROOT}/jack_ryan/shots/FF_278/FF_278_4380
+workspace {SHOWS_ROOT}/jack_ryan/shots/DA_280/DA_280_0280
+workspace {SHOWS_ROOT}/jack_ryan/shots/DC_278/DC_278_0050
+workspace {SHOWS_ROOT}/broken_eggs/shots/BRX_166/BRX_166_0010
+workspace {SHOWS_ROOT}/broken_eggs/shots/BRX_166/BRX_166_0020
+workspace {SHOWS_ROOT}/broken_eggs/shots/BRX_170/BRX_170_0100
+workspace {SHOWS_ROOT}/broken_eggs/shots/BRX_070/BRX_070_0010
+workspace {SHOWS_ROOT}/jack_ryan/shots/999_xx/999_xx_999"""
 
 
-def test_parsing():
+def test_parsing() -> None:
     """Test parsing of actual ws output."""
     parse_pattern = re.compile(
         r"workspace\s+(/shows/(\w+)/shots/(\w+)/(\w+_\w+))",
@@ -63,7 +69,7 @@ def test_parsing():
             print(f"    full_name: {full_name}")
 
             # Build thumbnail path (manually construct it)
-            thumb_path = f"/shows/{show}/shots/{sequence}/{shot_dir}/publish/editorial/cutref/v001/jpg/1920x1080"
+            thumb_path = f"{SHOWS_ROOT}/{show}/shots/{sequence}/{shot_dir}/publish/editorial/cutref/v001/jpg/1920x1080"
             print(f"    thumbnail_dir: {thumb_path}")
 
             # Check for the issue - should NOT contain /shots/shots/
@@ -96,8 +102,14 @@ def test_parsing():
         print("✅ All tests passed!")
     else:
         print("❌ Some tests failed")
-    return all_passed
+    assert all_passed, "Some parsing tests failed - check output above for details"
 
 
 if __name__ == "__main__":
-    test_parsing()
+    try:
+        test_parsing()
+        print("\n✅ Test script completed successfully")
+    except AssertionError as e:
+        print(f"\n❌ Test failed: {e}")
+        import sys
+        sys.exit(1)

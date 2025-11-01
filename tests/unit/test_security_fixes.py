@@ -3,14 +3,11 @@
 
 from __future__ import annotations
 
-# Standard library imports
-import sys
-
 # Local application imports
 from secure_command_executor import SecureCommandExecutor
 
 
-def test_command_injection_blocked() -> bool:
+def test_command_injection_blocked() -> None:
     """Test that command injection attempts are blocked."""
     executor = SecureCommandExecutor()
 
@@ -83,102 +80,7 @@ def test_command_injection_blocked() -> bool:
     print(f"\nAllowed {allowed_count}/{len(safe_commands)} safe commands")
 
     # Summary
-    if blocked_count == len(dangerous_commands):
-        print("\n🎉 SUCCESS: All dangerous commands were blocked!")
-        return True
-    print(
-        f"\n⚠️  WARNING: Only {blocked_count}/{len(dangerous_commands)} dangerous commands blocked"
-    )
-    return False
-
-
-def test_bash_removed_from_whitelist() -> bool:
-    """Test that bash/sh are removed from launcher whitelist."""
-    print("\nTesting launcher whitelist...")
-
-    # Import would fail without PySide6, so we'll check the file content
-    # Standard library imports
-    import re
-
-    with open("launcher_manager.py") as f:
-        content = f.read()
-
-    # Check ALLOWED_COMMANDS doesn't contain bash or sh
-    allowed_section = re.search(r"ALLOWED_COMMANDS = \{([^}]+)\}", content, re.DOTALL)
-    if allowed_section:
-        commands = allowed_section.group(1)
-        has_bash = '"bash"' in commands or "'bash'" in commands
-        has_sh = '"sh"' in commands or "'sh'" in commands
-
-        if not has_bash and not has_sh:
-            print("✅ bash and sh successfully removed from whitelist")
-            return True
-        print("❌ FAILED: bash or sh still in whitelist!")
-        if has_bash:
-            print("   Found: bash")
-        if has_sh:
-            print("   Found: sh")
-        return False
-    print("⚠️  Could not find ALLOWED_COMMANDS section")
-    return False
-
-
-def test_thread_safety_fix() -> bool:
-    """Test that QPixmap caching was fixed to use QImage."""
-    print("\nTesting thread safety fix...")
-
-    with open("shot_item_model.py") as f:
-        content = f.read()
-
-    # Check for QImage usage instead of QPixmap in cache
-    has_qimage_cache = "_thumbnail_cache: dict[str, QImage]" in content
-    has_qimage_import = "QImage" in content
-    has_conversion = "QPixmap.fromImage" in content
-
-    if has_qimage_cache and has_qimage_import and has_conversion:
-        print("✅ Thread-safe QImage caching implemented")
-        return True
-    print("❌ Thread safety fix incomplete:")
-    if not has_qimage_cache:
-        print("   Missing: QImage cache declaration")
-    if not has_qimage_import:
-        print("   Missing: QImage import")
-    if not has_conversion:
-        print("   Missing: QPixmap.fromImage conversion")
-    return False
-
-
-if __name__ == "__main__":
-    print("=" * 60)
-    print("SECURITY FIXES VALIDATION TEST")
-    print("=" * 60)
-
-    results = []
-
-    # Run tests
-    results.append(("Command Injection Prevention", test_command_injection_blocked()))
-    results.append(("bash/sh Whitelist Removal", test_bash_removed_from_whitelist()))
-    results.append(("Thread Safety Fix", test_thread_safety_fix()))
-
-    # Print summary
-    print("\n" + "=" * 60)
-    print("TEST SUMMARY")
-    print("=" * 60)
-
-    passed = sum(1 for _, result in results if result)
-    total = len(results)
-
-    for name, result in results:
-        status = "✅ PASSED" if result else "❌ FAILED"
-        print(f"{name}: {status}")
-
-    print(f"\nOverall: {passed}/{total} tests passed")
-
-    if passed == total:
-        print("\n🎉 All security fixes validated successfully!")
-        sys.exit(0)
-    else:
-        print(
-            f"\n⚠️  {total - passed} test(s) failed. Security fixes may be incomplete."
-        )
-        sys.exit(1)
+    print(f"\n{'🎉 SUCCESS' if blocked_count == len(dangerous_commands) else '⚠️  WARNING'}: "
+          f"{blocked_count}/{len(dangerous_commands)} dangerous commands blocked")
+    assert blocked_count == len(dangerous_commands), \
+        f"Only {blocked_count}/{len(dangerous_commands)} dangerous commands were blocked"

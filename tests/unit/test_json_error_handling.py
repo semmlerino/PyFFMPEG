@@ -11,8 +11,11 @@ from pathlib import Path
 os.environ["SHOWS_ROOT"] = "/tmp/mock_vfx"
 
 
-def test_json_error_handling() -> bool:
+def test_json_error_handling() -> None:
     """Test various JSON error scenarios."""
+    # Standard library imports
+    import tempfile
+
     # Local application imports
     from mock_workspace_pool import create_mock_pool_from_filesystem
 
@@ -20,47 +23,44 @@ def test_json_error_handling() -> bool:
     print("Testing JSON Error Handling in mock_workspace_pool.py")
     print("=" * 60)
 
-    # Save original demo_shots.json path if it exists
-    demo_path = Path(__file__).parent / "demo_shots.json"
-    backup_path = Path(__file__).parent / "demo_shots.json.backup"
+    # Use tempfile for all tests to avoid modifying production files
+    with tempfile.TemporaryDirectory() as tmpdir:
+        demo_path = Path(tmpdir) / "demo_shots.json"
 
-    # Backup existing file if it exists
-    if demo_path.exists():
-        print("\n1. Backing up existing demo_shots.json...")
-        demo_path.rename(backup_path)
-        print("   ✓ Backup created")
-
-    try:
         # Test 1: Invalid JSON syntax
-        print("\n2. Testing invalid JSON syntax...")
+        print("\n1. Testing invalid JSON syntax...")
         with open(demo_path, "w") as f:
             f.write('{"shots": [{"show": "test"')  # Missing closing brackets
-        pool = create_mock_pool_from_filesystem()
-        print("   ✓ Handled invalid JSON gracefully (fallback to filesystem)")
+        pool = create_mock_pool_from_filesystem(demo_shots_path=demo_path)
+        assert pool is not None, "Should create pool even with invalid JSON"
+        print("   ✓ Handled invalid JSON gracefully")
 
         # Test 2: Not a dict at root
-        print("\n3. Testing non-dict root structure...")
+        print("\n2. Testing non-dict root structure...")
         with open(demo_path, "w") as f:
             json.dump(["not", "a", "dict"], f)
-        pool = create_mock_pool_from_filesystem()
+        pool = create_mock_pool_from_filesystem(demo_shots_path=demo_path)
+        assert pool is not None, "Should handle non-dict root gracefully"
         print("   ✓ Handled non-dict root gracefully")
 
         # Test 3: Missing 'shots' key
-        print("\n4. Testing missing 'shots' key...")
+        print("\n3. Testing missing 'shots' key...")
         with open(demo_path, "w") as f:
             json.dump({"other_key": []}, f)
-        pool = create_mock_pool_from_filesystem()
+        pool = create_mock_pool_from_filesystem(demo_shots_path=demo_path)
+        assert pool is not None, "Should handle missing 'shots' key gracefully"
         print("   ✓ Handled missing 'shots' key gracefully")
 
         # Test 4: 'shots' is not a list
-        print("\n5. Testing 'shots' as non-list...")
+        print("\n4. Testing 'shots' as non-list...")
         with open(demo_path, "w") as f:
             json.dump({"shots": "not a list"}, f)
-        pool = create_mock_pool_from_filesystem()
+        pool = create_mock_pool_from_filesystem(demo_shots_path=demo_path)
+        assert pool is not None, "Should handle non-list 'shots' gracefully"
         print("   ✓ Handled non-list 'shots' gracefully")
 
         # Test 5: Shot without required fields
-        print("\n6. Testing shot missing required fields...")
+        print("\n5. Testing shot missing required fields...")
         with open(demo_path, "w") as f:
             json.dump(
                 {
@@ -70,18 +70,20 @@ def test_json_error_handling() -> bool:
                 },
                 f,
             )
-        pool = create_mock_pool_from_filesystem()
+        pool = create_mock_pool_from_filesystem(demo_shots_path=demo_path)
+        assert pool is not None, "Should handle missing shot fields gracefully"
         print("   ✓ Handled missing shot fields gracefully")
 
         # Test 6: Shot is not a dict
-        print("\n7. Testing shot as non-dict...")
+        print("\n6. Testing shot as non-dict...")
         with open(demo_path, "w") as f:
             json.dump({"shots": ["not a dict"]}, f)
-        pool = create_mock_pool_from_filesystem()
+        pool = create_mock_pool_from_filesystem(demo_shots_path=demo_path)
+        assert pool is not None, "Should handle non-dict shot gracefully"
         print("   ✓ Handled non-dict shot gracefully")
 
         # Test 7: Valid JSON structure
-        print("\n8. Testing valid JSON structure...")
+        print("\n7. Testing valid JSON structure...")
         with open(demo_path, "w") as f:
             json.dump(
                 {
@@ -92,34 +94,17 @@ def test_json_error_handling() -> bool:
                 },
                 f,
             )
-        pool = create_mock_pool_from_filesystem()
-        if len(pool.shots) == 2:
-            print("   ✓ Valid JSON loaded successfully (2 shots)")
-        else:
-            print(f"   ✗ Expected 2 shots, got {len(pool.shots)}")
-            return False
+        pool = create_mock_pool_from_filesystem(demo_shots_path=demo_path)
+        assert len(pool.shots) == 2, f"Expected 2 shots, got {len(pool.shots)}"
+        print("   ✓ Valid JSON loaded successfully (2 shots)")
 
         # Test 8: File permissions error (simulate)
-        print("\n9. Testing file permissions error...")
+        print("\n8. Testing file permissions error...")
         # We can't easily simulate this without root, so we'll just verify the error handling code exists
         with open("mock_workspace_pool.py") as f:
             content = f.read()
-            if "except (IOError, OSError) as e:" in content:
-                print("   ✓ IOError/OSError handling code present")
-            else:
-                print("   ✗ Missing IOError/OSError handling")
-                return False
-
-    finally:
-        # Clean up test file
-        if demo_path.exists():
-            demo_path.unlink()
-            print("\n10. Cleaned up test files")
-
-        # Restore original if it existed
-        if backup_path.exists():
-            backup_path.rename(demo_path)
-            print("11. Restored original demo_shots.json")
+            assert "except (IOError, OSError) as e:" in content or "except OSError as e:" in content, "Missing OSError handling"
+            print("   ✓ OSError handling code present")
 
     print("\n" + "=" * 60)
     print("✅ ALL JSON ERROR HANDLING TESTS PASSED!")
@@ -131,13 +116,14 @@ def test_json_error_handling() -> bool:
     print("• File I/O errors")
     print("• Falls back gracefully to filesystem when JSON fails")
 
-    return True
-
 
 if __name__ == "__main__":
     try:
-        success = test_json_error_handling()
-        sys.exit(0 if success else 1)
+        test_json_error_handling()
+        sys.exit(0)
+    except AssertionError as e:
+        print(f"\n❌ Assertion failed: {e}")
+        sys.exit(1)
     except Exception as e:
         print(f"\n❌ Error during testing: {e}")
         # Standard library imports

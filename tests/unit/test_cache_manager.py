@@ -25,6 +25,7 @@ from PySide6.QtGui import QColor, QImage
 # Local application imports
 from cache_manager import CacheManager
 from shot_model import Shot
+from config import Config
 from threede_scene_model import ThreeDEScene
 
 if TYPE_CHECKING:
@@ -55,9 +56,9 @@ def cache_manager(tmp_path: Path) -> CacheManager:
 def sample_shots() -> list[Shot]:
     """Provide realistic shot data for testing."""
     return [
-        Shot("test_show", "seq01", "shot010", "/shows/test_show/seq01/shot010"),
-        Shot("test_show", "seq01", "shot020", "/shows/test_show/seq01/shot020"),
-        Shot("test_show", "seq02", "shot030", "/shows/test_show/seq02/shot030"),
+        Shot("test_show", "seq01", "shot010", f"{Config.SHOWS_ROOT}/test_show/seq01/shot010"),
+        Shot("test_show", "seq01", "shot020", f"{Config.SHOWS_ROOT}/test_show/seq01/shot020"),
+        Shot("test_show", "seq02", "shot030", f"{Config.SHOWS_ROOT}/test_show/seq02/shot030"),
     ]
 
 
@@ -72,7 +73,7 @@ def sample_3de_scenes() -> list[ThreeDEScene]:
             user="artist1",
             plate="bg01",
             scene_path="/path/to/scene1.3de",
-            workspace_path="/shows/test_show/seq01/shot010",
+            workspace_path=f"{Config.SHOWS_ROOT}/test_show/seq01/shot010",
         ),
         ThreeDEScene(
             show="test_show",
@@ -81,7 +82,7 @@ def sample_3de_scenes() -> list[ThreeDEScene]:
             user="artist2",
             plate="fg01",
             scene_path="/path/to/scene2.3de",
-            workspace_path="/shows/test_show/seq01/shot020",
+            workspace_path=f"{Config.SHOWS_ROOT}/test_show/seq01/shot020",
         ),
     ]
 
@@ -217,7 +218,7 @@ class TestJSONCacheOperations:
                 "user": "artist1",
                 "plate": "bg01",
                 "scene_path": "/path/to/scene1.3de",
-                "workspace_path": "/shows/test_show/seq01/shot010",
+                "workspace_path": f"{Config.SHOWS_ROOT}/test_show/seq01/shot010",
             }
         ]
         cache_manager.cache_threede_scenes(scenes)
@@ -241,7 +242,7 @@ class TestJSONCacheOperations:
                 "user": "artist1",
                 "plate": "bg01",
                 "scene_path": "/path/to/scene1.3de",
-                "workspace_path": "/shows/test_show/seq01/shot010",
+                "workspace_path": f"{Config.SHOWS_ROOT}/test_show/seq01/shot010",
             },
             {
                 "show": "test_show",
@@ -250,7 +251,7 @@ class TestJSONCacheOperations:
                 "user": "artist2",
                 "plate": "fg01",
                 "scene_path": "/path/to/scene2.3de",
-                "workspace_path": "/shows/test_show/seq01/shot020",
+                "workspace_path": f"{Config.SHOWS_ROOT}/test_show/seq01/shot020",
             },
         ]
         cache_manager.cache_threede_scenes(scenes)
@@ -1073,14 +1074,14 @@ class TestIncrementalShotMerging:
         (show, sequence, shot) remains the same, so it's a metadata update
         not a new/removed shot.
         """
-        cached = [Shot("show1", "seq01", "shot010", "/shows/show1/seq01/shot010")]
-        fresh = [Shot("show1", "seq01", "shot010", "/shows/show1/seq01_v2/shot010")]
+        cached = [Shot("show1", "seq01", "shot010", f"{Config.SHOWS_ROOT}/show1/seq01/shot010")]
+        fresh = [Shot("show1", "seq01", "shot010", f"{Config.SHOWS_ROOT}/show1/seq01_v2/shot010")]
 
         result = cache_manager.merge_shots_incremental(cached, fresh)
 
         # Workspace path should be updated
         assert len(result.updated_shots) == 1
-        assert result.updated_shots[0]["workspace_path"] == "/shows/show1/seq01_v2/shot010"
+        assert result.updated_shots[0]["workspace_path"] == f"{Config.SHOWS_ROOT}/show1/seq01_v2/shot010"
 
         # But this is metadata-only update, not structural change
         assert len(result.new_shots) == 0, "Should not be treated as new shot"

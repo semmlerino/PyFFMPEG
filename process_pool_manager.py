@@ -598,14 +598,24 @@ class ProcessPoolManager(LoggingMixin, QObject):
                     self.logger.debug(f"Cleared {cache_size} command cache entries")
 
             # Disconnect Qt signals to prevent crashes during destruction
-            # Note: Only disconnect signals that actually exist on this class
+            # Note: Only disconnect signals that have active connections
             try:
-                if hasattr(self, "command_completed"):
-                    self.command_completed.disconnect()
-                if hasattr(self, "command_failed"):
-                    self.command_failed.disconnect()
+                # Standard library imports
+                import warnings
+
+                # Suppress RuntimeWarning about disconnecting signals with no connections
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore",
+                        category=RuntimeWarning,
+                        message=".*Failed to disconnect.*"
+                    )
+                    if hasattr(self, "command_completed"):
+                        self.command_completed.disconnect()
+                    if hasattr(self, "command_failed"):
+                        self.command_failed.disconnect()
             except (RuntimeError, TypeError):
-                # Signals may already be disconnected
+                # Signals may already be disconnected or in invalid state
                 pass
 
         except Exception as e:

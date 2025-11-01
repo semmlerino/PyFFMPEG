@@ -189,7 +189,7 @@ class LauncherWorker(ThreadSafeWorker):
                 try:
                     for _ in stream:
                         pass  # Discard output
-                except Exception:
+                except (OSError, ValueError):
                     pass  # Stream closed or process terminated
 
             # Start daemon threads to drain stdout and stderr

@@ -23,22 +23,26 @@ pytestmark = [
     pytest.mark.xdist_group("qt_state"),  # CRITICAL for parallel safety
 ]
 
-# The actual ws -sg output from the VFX environment
-ACTUAL_OUTPUT = """workspace /shows/gator/shots/012_DC/012_DC_1000
-workspace /shows/gator/shots/012_DC/012_DC_1070
-workspace /shows/gator/shots/012_DC/012_DC_1050
-workspace /shows/jack_ryan/shots/DB_271/DB_271_1760
-workspace /shows/jack_ryan/shots/FF_278/FF_278_4380
-workspace /shows/jack_ryan/shots/DA_280/DA_280_0280
-workspace /shows/jack_ryan/shots/DC_278/DC_278_0050
-workspace /shows/broken_eggs/shots/BRX_166/BRX_166_0010
-workspace /shows/broken_eggs/shots/BRX_166/BRX_166_0020
-workspace /shows/broken_eggs/shots/BRX_170/BRX_170_0100
-workspace /shows/broken_eggs/shots/BRX_070/BRX_070_0010
-workspace /shows/jack_ryan/shots/999_xx/999_xx_999"""
+
+@pytest.fixture
+def actual_output() -> str:
+    """The actual ws -sg output from the VFX environment."""
+    shows_root = Config.SHOWS_ROOT
+    return f"""workspace {shows_root}/gator/shots/012_DC/012_DC_1000
+workspace {shows_root}/gator/shots/012_DC/012_DC_1070
+workspace {shows_root}/gator/shots/012_DC/012_DC_1050
+workspace {shows_root}/jack_ryan/shots/DB_271/DB_271_1760
+workspace {shows_root}/jack_ryan/shots/FF_278/FF_278_4380
+workspace {shows_root}/jack_ryan/shots/DA_280/DA_280_0280
+workspace {shows_root}/jack_ryan/shots/DC_278/DC_278_0050
+workspace {shows_root}/broken_eggs/shots/BRX_166/BRX_166_0010
+workspace {shows_root}/broken_eggs/shots/BRX_166/BRX_166_0020
+workspace {shows_root}/broken_eggs/shots/BRX_170/BRX_170_0100
+workspace {shows_root}/broken_eggs/shots/BRX_070/BRX_070_0010
+workspace {shows_root}/jack_ryan/shots/999_xx/999_xx_999"""
 
 
-def test_parsing() -> None:
+def test_parsing(actual_output: str) -> None:
     """Test the parsing with actual VFX output."""
     print("Testing shot parsing with actual VFX environment output")
     print("=" * 60)
@@ -50,7 +54,7 @@ def test_parsing() -> None:
     print(f"Parser regex pattern: {parser._ws_pattern.pattern}")
     print()
 
-    lines = ACTUAL_OUTPUT.strip().split("\n")
+    lines = actual_output.strip().split("\n")
     successful_shots = []
     failed_lines = []
 
@@ -112,7 +116,7 @@ def test_parsing() -> None:
     )
 
 
-def test_shot_item_model(qapp) -> None:
+def test_shot_item_model(qapp, actual_output: str) -> None:
     """Test ShotItemModel with parsed shots."""
     # Third-party imports
     from PySide6.QtCore import Qt
@@ -125,7 +129,7 @@ def test_shot_item_model(qapp) -> None:
 
     # Parse shots
     parser = OptimizedShotParser()
-    lines = ACTUAL_OUTPUT.strip().split("\n")
+    lines = actual_output.strip().split("\n")
     shots = []
 
     for line in lines:

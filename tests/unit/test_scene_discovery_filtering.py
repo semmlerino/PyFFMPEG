@@ -13,6 +13,7 @@ from pathlib import Path
 
 # Third-party imports
 import pytest
+from config import Config
 
 
 class TestSceneFiltering:
@@ -31,7 +32,7 @@ class TestSceneFiltering:
         Shot = namedtuple("Shot", ["workspace_path", "show", "sequence", "shot"])
 
         def _make(show="test_show", seq="seq01", shot="0010"):
-            return Shot(f"/shows/{show}/shots/{seq}/{seq}_{shot}", show, seq, shot)
+            return Shot(f"{Config.SHOWS_ROOT}/{show}/shots/{seq}/{seq}_{shot}", show, seq, shot)
 
         return _make
 
@@ -47,7 +48,7 @@ class TestSceneFiltering:
             plate="bg01",
         ):
             scene_path = Path(
-                f"/shows/{show}/shots/{seq}/{seq}_{shot}/user/{user}/3de/scene.3de"
+                f"{Config.SHOWS_ROOT}/{show}/shots/{seq}/{seq}_{shot}/user/{user}/3de/scene.3de"
             )
             return (scene_path, show, seq, shot, user, plate)
 
@@ -76,11 +77,11 @@ class TestSceneFiltering:
 
         # THIS SHOULD PASS: User is assigned to this shot
         assert matching_shot is not None
-        assert matching_shot.workspace_path == "/shows/gator/shots/013_DC/013_DC_2120"
+        assert matching_shot.workspace_path == f"{Config.SHOWS_ROOT}/gator/shots/013_DC/013_DC_2120"
 
         # Scene should be created with user's workspace path
         workspace_path = matching_shot.workspace_path
-        assert workspace_path == "/shows/gator/shots/013_DC/013_DC_2120"
+        assert workspace_path == f"{Config.SHOWS_ROOT}/gator/shots/013_DC/013_DC_2120"
 
     def test_scene_creation_for_non_matching_shot(
         self, make_shot, make_file_tuple
@@ -124,7 +125,7 @@ class TestSceneFiltering:
             workspace_path = f"{shows_root}/{show_name}/shots/{seq}/{seq}_{shot}"
 
         # Scene should still be created with constructed path
-        assert workspace_path == "/shows/gator/shots/019_JF/019_JF_1060"
+        assert workspace_path == f"{Config.SHOWS_ROOT}/gator/shots/019_JF/019_JF_1060"
 
     def test_all_scenes_created_regardless_of_assignment(
         self, make_shot, make_file_tuple
@@ -201,7 +202,7 @@ class TestSceneFiltering:
         )
         assert (
             broken_eggs_scene["workspace_path"]
-            == "/shows/broken_eggs/shots/BRX_119/BRX_119_0010"
+            == f"{Config.SHOWS_ROOT}/broken_eggs/shots/BRX_119/BRX_119_0010"
         )
 
     def test_excluded_users_still_filtered(self, make_file_tuple) -> None:
@@ -214,9 +215,9 @@ class TestSceneFiltering:
 
         # Create file path that would be from excluded user
         threede_file = Path(
-            "/shows/gator/shots/013_DC/013_DC_2120/user/gabriel-h/3de/scene.3de"
+            f"{Config.SHOWS_ROOT}/gator/shots/013_DC/013_DC_2120/user/gabriel-h/3de/scene.3de"
         )
-        show_path = Path("/shows/gator")
+        show_path = Path(f"{Config.SHOWS_ROOT}/gator")
         show = "gator"
 
         # Parser should return None for excluded user
@@ -229,18 +230,18 @@ class TestSceneFiltering:
     @pytest.mark.parametrize(
         ("show", "seq", "shot", "expected_path"),
         [
-            ("gator", "013_DC", "2120", "/shows/gator/shots/013_DC/013_DC_2120"),
+            ("gator", "013_DC", "2120", f"{Config.SHOWS_ROOT}/gator/shots/013_DC/013_DC_2120"),
             (
                 "jack_ryan",
                 "DM_062",
                 "3220",
-                "/shows/jack_ryan/shots/DM_062/DM_062_3220",
+                f"{Config.SHOWS_ROOT}/jack_ryan/shots/DM_062/DM_062_3220",
             ),
             (
                 "broken_eggs",
                 "BRX_119",
                 "0010",
-                "/shows/broken_eggs/shots/BRX_119/BRX_119_0010",
+                f"{Config.SHOWS_ROOT}/broken_eggs/shots/BRX_119/BRX_119_0010",
             ),
         ],
     )

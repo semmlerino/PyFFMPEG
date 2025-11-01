@@ -12,6 +12,7 @@ from PySide6.QtGui import QImage
 # Local application imports
 from previous_shots_item_model import PreviousShotsItemModel
 from shot_model import Shot
+from config import Config
 
 # Following UNIFIED_TESTING_GUIDE: Use test doubles instead of Mock(spec=)
 from tests.test_doubles_library import SignalDouble, TestCacheManager
@@ -61,19 +62,19 @@ def test_shots():
             show="proj1",
             sequence="010",
             shot="0010",
-            workspace_path="/shows/proj1/shots/010/010_0010",
+            workspace_path=f"{Config.SHOWS_ROOT}/proj1/shots/010/010_0010",
         ),
         Shot(
             show="proj2",
             sequence="020",
             shot="0020",
-            workspace_path="/shows/proj2/shots/020/020_0020",
+            workspace_path=f"{Config.SHOWS_ROOT}/proj2/shots/020/020_0020",
         ),
         Shot(
             show="proj3",
             sequence="030",
             shot="0030",
-            workspace_path="/shows/proj3/shots/030/030_0030",
+            workspace_path=f"{Config.SHOWS_ROOT}/proj3/shots/030/030_0030",
         ),
     ]
 
@@ -112,7 +113,7 @@ class TestPreviousShotsThreadSafety:
                 show="testshow",
                 sequence=f"{i:03d}",
                 shot=f"{i:04d}",
-                workspace_path=f"/shows/testshow/shots/{i:03d}/{i:03d}_{i:04d}",
+                workspace_path=f"{Config.SHOWS_ROOT}/testshow/shots/{i:03d}/{i:03d}_{i:04d}",
             )
             many_shots.append(shot)
 

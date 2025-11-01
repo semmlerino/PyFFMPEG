@@ -49,136 +49,131 @@ def test_shows_root_dynamic_configuration():
 
             importlib.reload(config)
 
-            # Test shot_finder_base.py
+            # Test targeted_shot_finder.py
             try:
                 # Local application imports
-                from shot_finder_base import ShotFinderBase
+                import targeted_shot_finder
 
-                class TestFinder(ShotFinderBase):
-                    def find_shots(self) -> None:
-                        pass  # Abstract method implementation
+                # Reload the module to pick up new SHOWS_ROOT
+                importlib.reload(targeted_shot_finder)
 
-                finder = TestFinder()
+                from targeted_shot_finder import TargetedShotsFinder
+
+                finder = TargetedShotsFinder()
                 pattern = finder._shot_pattern.pattern
 
                 # Check pattern contains escaped SHOWS_ROOT
                 shows_root_escaped = re.escape(shows_root)
-                if shows_root_escaped in pattern:
-                    print(
-                        f"  ✓ shot_finder_base.py: Pattern contains {shows_root_escaped}"
-                    )
-                    success_count += 1
-                else:
-                    print(
-                        f"  ✗ shot_finder_base.py: Pattern missing {shows_root_escaped}"
-                    )
-                    print(f"    Got: {pattern}")
+                assert shows_root_escaped in pattern, (
+                    f"targeted_shot_finder.py: Pattern missing {shows_root_escaped}. Got: {pattern}"
+                )
+                print(
+                    f"  ✓ targeted_shot_finder.py: Pattern contains {shows_root_escaped}"
+                )
+                success_count += 1
 
                 # Test pattern matching
                 test_path = f"{shows_root}/show1/shots/seq1/seq1_0010/user/test"
                 match = finder._shot_pattern.search(test_path)
-                if match and match.groups() == ("show1", "seq1", "0010"):
-                    print("  ✓ shot_finder_base.py: Pattern matches correctly")
-                    success_count += 1
-                else:
-                    print("  ✗ shot_finder_base.py: Pattern match failed")
+                assert match and match.groups() == ("show1", "seq1", "seq1_0010"), (
+                    "targeted_shot_finder.py: Pattern match failed"
+                )
+                print("  ✓ targeted_shot_finder.py: Pattern matches correctly")
+                success_count += 1
 
             except Exception as e:
-                print(f"  ✗ Error testing shot_finder_base.py: {e}")
+                print(f"  ✗ Error testing targeted_shot_finder.py: {e}")
+                raise
 
-            # Test base_shot_model.py
+            # Test optimized_shot_parser.py
             try:
                 # Local application imports
-                from base_shot_model import BaseShotModel
+                import optimized_shot_parser
 
-                # Create a mock implementation
-                class TestShotModel(BaseShotModel):
-                    def load_shots(self) -> None:
-                        pass
+                # Reload the module to pick up new SHOWS_ROOT
+                importlib.reload(optimized_shot_parser)
 
-                    def refresh_strategy(self) -> None:
-                        pass
+                from optimized_shot_parser import OptimizedShotParser
 
-                model = TestShotModel()
-                pattern = model._parse_pattern.pattern
+                parser = OptimizedShotParser()
+                pattern = parser._ws_pattern.pattern
 
                 # Check pattern contains escaped SHOWS_ROOT
-                if shows_root_escaped in pattern:
-                    print(
-                        f"  ✓ base_shot_model.py: Pattern contains {shows_root_escaped}"
-                    )
-                    success_count += 1
-                else:
-                    print(
-                        f"  ✗ base_shot_model.py: Pattern missing {shows_root_escaped}"
-                    )
-                    print(f"    Got: {pattern}")
+                assert shows_root_escaped in pattern, (
+                    f"optimized_shot_parser.py: Pattern missing {shows_root_escaped}. Got: {pattern}"
+                )
+                print(
+                    f"  ✓ optimized_shot_parser.py: Pattern contains {shows_root_escaped}"
+                )
+                success_count += 1
 
                 # Test pattern matching
                 test_line = f"workspace {shows_root}/show1/shots/seq1/seq1_0010"
-                match = model._parse_pattern.search(test_line)
-                if match:
-                    print("  ✓ base_shot_model.py: Workspace pattern matches")
-                    success_count += 1
-                else:
-                    print("  ✗ base_shot_model.py: Workspace pattern failed")
+                match = parser._ws_pattern.search(test_line)
+                assert match, "optimized_shot_parser.py: Workspace pattern failed"
+                print("  ✓ optimized_shot_parser.py: Workspace pattern matches")
+                success_count += 1
 
             except Exception as e:
-                print(f"  ✗ Error testing base_shot_model.py: {e}")
+                print(f"  ✗ Error testing optimized_shot_parser.py: {e}")
+                raise
 
-    print(f"\n✅ Dynamic SHOWS_ROOT tests: {success_count}/8 passed")
-    return success_count == 8
+    print(f"\n✅ Dynamic SHOWS_ROOT tests: {success_count}/12 passed")
+    assert success_count == 12, f"Expected 12 tests to pass, got {success_count}"
 
 
 def test_previous_shots_model_cleanup():
-    """Test that PreviousShotsModel is properly cleaned up in main_window closeEvent."""
+    """Test that PreviousShotsModel is properly cleaned up via CleanupManager."""
     print("\n=== Testing PreviousShotsModel Cleanup ===")
 
-    # Read main_window.py and check for cleanup code
-    main_window_path = Path(__file__).parent / "main_window.py"
-    if not main_window_path.exists():
-        print("✗ main_window.py not found")
-        return False
+    # Check that main_window uses CleanupManager
+    main_window_path = Path(__file__).parent.parent.parent / "main_window.py"
+    assert main_window_path.exists(), f"main_window.py not found at {main_window_path}"
 
     with open(main_window_path) as f:
+        main_window_content = f.read()
+
+    # Verify closeEvent delegates to CleanupManager
+    if "self.cleanup_manager.perform_cleanup()" in main_window_content:
+        print("  ✓ closeEvent delegates to CleanupManager")
+        success_count = 1
+    else:
+        print("  ✗ closeEvent does not delegate to CleanupManager")
+        success_count = 0
+
+    # Check cleanup_manager.py for actual cleanup code
+    cleanup_manager_path = Path(__file__).parent.parent.parent / "cleanup_manager.py"
+    assert cleanup_manager_path.exists(), f"cleanup_manager.py not found"
+
+    with open(cleanup_manager_path) as f:
         content = f.read()
 
     checks = [
         (
             "PreviousShotsModel cleanup exists",
-            "if hasattr(self, 'previous_shots_model') and self.previous_shots_model:",
+            'hasattr(self.main_window, "previous_shots_model")',
         ),
-        ("Cleanup method called", "self.previous_shots_model.cleanup()"),
+        ("Cleanup method called", "self.main_window.previous_shots_model.cleanup()"),
         ("Error handling present", "except Exception as e:"),
         ("Error logging", 'logger.error(f"Error cleaning up PreviousShotsModel: {e}")'),
         (
             "PreviousShotsItemModel cleanup",
-            "if hasattr(self, 'previous_shots_item_model')",
+            'hasattr(self.main_window, "previous_shots_item_model")',
         ),
-        ("ItemModel cleanup call", "self.previous_shots_item_model.cleanup()"),
+        ("ItemModel cleanup call", "self.main_window.previous_shots_item_model.cleanup()"),
     ]
 
-    success_count = 0
+    failed_checks = []
     for check_name, check_string in checks:
         if check_string in content:
             print(f"  ✓ {check_name}")
             success_count += 1
         else:
             print(f"  ✗ {check_name} not found")
-
-    # Verify cleanup is in closeEvent method
-    # Standard library imports
-    import re
-
-    pattern = r"def closeEvent\(self.*?\).*?previous_shots_model.*?cleanup\(\)"
-    if re.search(pattern, content, re.DOTALL):
-        print("  ✓ Cleanup is in closeEvent method")
-        success_count += 1
-    else:
-        print("  ✗ Cleanup not found in closeEvent method")
+            failed_checks.append(check_name)
 
     print(f"\n✅ PreviousShotsModel cleanup tests: {success_count}/7 passed")
-    return success_count == 7
+    assert success_count == 7, f"Expected 7 checks to pass, got {success_count}. Failed: {', '.join(failed_checks)}"
 
 
 def test_json_error_handling():
@@ -196,82 +191,60 @@ def test_json_error_handling():
 
     success_count = 0
 
-    # Test 1: Missing demo_shots.json (should fall back gracefully)
+    # Test 1: Missing demo_shots.json (should handle gracefully)
     print("\n1. Testing missing demo_shots.json")
-    with mock.patch("pathlib.Path.exists", return_value=False):
-        pool = create_mock_pool_from_filesystem()
-        if pool is not None:
-            print("  ✓ Handles missing file gracefully")
-            success_count += 1
-        else:
-            print("  ✗ Failed to handle missing file")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        missing_path = Path(tmpdir) / "nonexistent.json"
+        pool = create_mock_pool_from_filesystem(demo_shots_path=missing_path)
+        assert pool is not None, "Failed to handle missing file"
+        assert len(pool.shots) == 0, "Should have no shots with missing file"
+        print("  ✓ Handles missing file gracefully")
+        success_count += 1
 
     # Test 2: Invalid JSON syntax
     print("\n2. Testing invalid JSON syntax")
     with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
         f.write("{invalid json}")
-        temp_path = f.name
+        temp_path = Path(f.name)
 
     try:
-        with mock.patch("pathlib.Path", return_value=Path(temp_path)):
-            with mock.patch("pathlib.Path.exists", return_value=True):
-                # Capture log output
-                with mock.patch.object(logger, "error") as mock_error:
-                    pool = create_mock_pool_from_filesystem()
-                    if any(
-                        "JSONDecodeError" in str(call)
-                        for call in mock_error.call_args_list
-                    ):
-                        print("  ✓ JSONDecodeError handled and logged")
-                        success_count += 1
-                    else:
-                        print("  ✗ JSONDecodeError not properly handled")
+        pool = create_mock_pool_from_filesystem(demo_shots_path=temp_path)
+        assert pool is not None, "Failed to handle invalid JSON"
+        assert len(pool.shots) == 0, "Should have no shots with invalid JSON"
+        print("  ✓ JSONDecodeError handled gracefully")
+        success_count += 1
     finally:
-        os.unlink(temp_path)
+        temp_path.unlink()
 
     # Test 3: Wrong JSON structure (not a dict)
     print("\n3. Testing wrong JSON structure (array instead of dict)")
     with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
         json.dump([], f)  # Array instead of dict
-        temp_path = f.name
+        temp_path = Path(f.name)
 
     try:
-        with mock.patch("pathlib.Path.__new__", return_value=Path(temp_path)):
-            with mock.patch("pathlib.Path.exists", return_value=True):
-                with mock.patch.object(logger, "error") as mock_error:
-                    pool = create_mock_pool_from_filesystem()
-                    if any(
-                        "Expected dict" in str(call)
-                        for call in mock_error.call_args_list
-                    ):
-                        print("  ✓ Wrong structure handled")
-                        success_count += 1
-                    else:
-                        print("  ✗ Wrong structure not handled")
+        pool = create_mock_pool_from_filesystem(demo_shots_path=temp_path)
+        assert pool is not None, "Failed to handle wrong structure"
+        assert len(pool.shots) == 0, "Should have no shots with wrong structure"
+        print("  ✓ Wrong structure handled")
+        success_count += 1
     finally:
-        os.unlink(temp_path)
+        temp_path.unlink()
 
     # Test 4: Missing 'shots' key
     print("\n4. Testing missing 'shots' key")
     with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
         json.dump({"other_key": "value"}, f)
-        temp_path = f.name
+        temp_path = Path(f.name)
 
     try:
-        with mock.patch("pathlib.Path.__new__", return_value=Path(temp_path)):
-            with mock.patch("pathlib.Path.exists", return_value=True):
-                with mock.patch.object(logger, "error") as mock_error:
-                    pool = create_mock_pool_from_filesystem()
-                    if any(
-                        "Missing 'shots' key" in str(call)
-                        for call in mock_error.call_args_list
-                    ):
-                        print("  ✓ Missing 'shots' key handled")
-                        success_count += 1
-                    else:
-                        print("  ✗ Missing 'shots' key not handled")
+        pool = create_mock_pool_from_filesystem(demo_shots_path=temp_path)
+        assert pool is not None, "Failed to handle missing 'shots' key"
+        assert len(pool.shots) == 0, "Should have no shots with missing 'shots' key"
+        print("  ✓ Missing 'shots' key handled")
+        success_count += 1
     finally:
-        os.unlink(temp_path)
+        temp_path.unlink()
 
     # Test 5: Invalid shot structure (missing required fields)
     print("\n5. Testing invalid shot structure")
@@ -285,23 +258,16 @@ def test_json_error_handling():
             },
             f,
         )
-        temp_path = f.name
+        temp_path = Path(f.name)
 
     try:
-        with mock.patch("pathlib.Path.__new__", return_value=Path(temp_path)):
-            with mock.patch("pathlib.Path.exists", return_value=True):
-                with mock.patch.object(logger, "error") as mock_error:
-                    pool = create_mock_pool_from_filesystem()
-                    if any(
-                        "missing fields" in str(call)
-                        for call in mock_error.call_args_list
-                    ):
-                        print("  ✓ Invalid shot structure handled")
-                        success_count += 1
-                    else:
-                        print("  ✗ Invalid shot structure not handled")
+        pool = create_mock_pool_from_filesystem(demo_shots_path=temp_path)
+        assert pool is not None, "Failed to handle invalid shot structure"
+        assert len(pool.shots) == 0, "Should have no shots with invalid structure"
+        print("  ✓ Invalid shot structure handled")
+        success_count += 1
     finally:
-        os.unlink(temp_path)
+        temp_path.unlink()
 
     # Test 6: Valid JSON structure
     print("\n6. Testing valid JSON structure")
@@ -315,28 +281,19 @@ def test_json_error_handling():
             },
             f,
         )
-        temp_path = f.name
+        temp_path = Path(f.name)
 
     try:
-        # Need to properly mock the path
-        with (
-            mock.patch.object(Path, "parent", property(lambda self: Path("/mock/dir"))),
-            mock.patch(
-                "builtins.open", mock.mock_open(read_data=open(temp_path).read())
-            ),
-            mock.patch("pathlib.Path.exists", return_value=True),
-        ):
-            pool = create_mock_pool_from_filesystem()
-            if pool and len(pool.shots) == 2:
-                print("  ✓ Valid JSON processed correctly")
-                success_count += 1
-            else:
-                print("  ✗ Valid JSON not processed correctly")
+        pool = create_mock_pool_from_filesystem(demo_shots_path=temp_path)
+        assert pool is not None, "Valid JSON not processed"
+        assert len(pool.shots) == 2, f"Expected 2 shots, got {len(pool.shots)}"
+        print("  ✓ Valid JSON processed correctly")
+        success_count += 1
     finally:
-        os.unlink(temp_path)
+        temp_path.unlink()
 
     print(f"\n✅ JSON error handling tests: {success_count}/6 passed")
-    return success_count == 6
+    assert success_count == 6, f"Expected 6 tests to pass, got {success_count}"
 
 
 def run_all_tests():
@@ -345,38 +302,44 @@ def run_all_tests():
     print("SHOTBOT CRITICAL FIXES TEST SUITE")
     print("=" * 60)
 
-    all_passed = True
+    failed_tests = []
 
     # Test 1: Dynamic SHOWS_ROOT configuration
-    if not test_shows_root_dynamic_configuration():
-        all_passed = False
-        print("❌ Dynamic SHOWS_ROOT tests FAILED")
-    else:
+    try:
+        test_shows_root_dynamic_configuration()
         print("✅ Dynamic SHOWS_ROOT tests PASSED")
+    except AssertionError as e:
+        failed_tests.append(f"Dynamic SHOWS_ROOT: {e}")
+        print(f"❌ Dynamic SHOWS_ROOT tests FAILED: {e}")
 
     # Test 2: PreviousShotsModel cleanup
-    if not test_previous_shots_model_cleanup():
-        all_passed = False
-        print("❌ PreviousShotsModel cleanup tests FAILED")
-    else:
+    try:
+        test_previous_shots_model_cleanup()
         print("✅ PreviousShotsModel cleanup tests PASSED")
+    except AssertionError as e:
+        failed_tests.append(f"PreviousShotsModel cleanup: {e}")
+        print(f"❌ PreviousShotsModel cleanup tests FAILED: {e}")
 
     # Test 3: JSON error handling
-    if not test_json_error_handling():
-        all_passed = False
-        print("❌ JSON error handling tests FAILED")
-    else:
+    try:
+        test_json_error_handling()
         print("✅ JSON error handling tests PASSED")
+    except AssertionError as e:
+        failed_tests.append(f"JSON error handling: {e}")
+        print(f"❌ JSON error handling tests FAILED: {e}")
 
     print("\n" + "=" * 60)
-    if all_passed:
+    if not failed_tests:
         print("🎉 ALL CRITICAL FIX TESTS PASSED! 🎉")
         print("The application is stable and ready for use.")
     else:
         print("⚠️ SOME TESTS FAILED - Please review the output above")
+        for failure in failed_tests:
+            print(f"  - {failure}")
     print("=" * 60)
 
-    return all_passed
+    if failed_tests:
+        raise AssertionError(f"{len(failed_tests)} test suite(s) failed")
 
 
 if __name__ == "__main__":
@@ -385,5 +348,14 @@ if __name__ == "__main__":
 
     logging.basicConfig(level=logging.WARNING)  # Reduce noise during tests
 
-    success = run_all_tests()
-    sys.exit(0 if success else 1)
+    try:
+        run_all_tests()
+        sys.exit(0)
+    except AssertionError as e:
+        print(f"\n❌ Test suite failed: {e}")
+        sys.exit(1)
+    except Exception as e:
+        print(f"\n❌ Unexpected error: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)

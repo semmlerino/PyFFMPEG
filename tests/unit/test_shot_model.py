@@ -8,6 +8,7 @@ This refactored version:
 """
 
 from __future__ import annotations
+from config import Config
 
 # Standard library imports
 from pathlib import Path
@@ -200,11 +201,12 @@ class TestShot:
 
     def test_shot_from_dict_deserialization(self) -> None:
         """Test Shot from_dict deserialization."""
+        shows_root = Config.SHOWS_ROOT
         shot_data = {
             "show": "testshow",
             "sequence": "101_ABC",
             "shot": "0010",
-            "workspace_path": "/shows/testshow/shots/101_ABC/101_ABC_0010",
+            "workspace_path": f"{shows_root}/testshow/shots/101_ABC/101_ABC_0010",
         }
 
         shot = Shot.from_dict(shot_data)
@@ -212,7 +214,7 @@ class TestShot:
         assert shot.show == "testshow"
         assert shot.sequence == "101_ABC"
         assert shot.shot == "0010"
-        assert shot.workspace_path == "/shows/testshow/shots/101_ABC/101_ABC_0010"
+        assert shot.workspace_path == f"{shows_root}/testshow/shots/101_ABC/101_ABC_0010"
 
     def test_shot_serialization_roundtrip(
         self, make_test_shot: TestShotFactory
@@ -285,8 +287,8 @@ class TestShotModel:
         """Test successful shot refresh with test double at boundary."""
         # Set up test double with expected output
         test_process_pool.set_outputs(
-            "workspace /shows/test/shots/seq1/seq1_0010\n"
-            "workspace /shows/test/shots/seq1/seq1_0020\n"
+            f"workspace {Config.SHOWS_ROOT}/test/shots/seq1/seq1_0010\n"
+            f"workspace {Config.SHOWS_ROOT}/test/shots/seq1/seq1_0020\n"
         )
         real_shot_model._process_pool = test_process_pool
 
@@ -315,7 +317,7 @@ class TestShotModel:
         self, real_shot_model, test_process_pool
     ) -> None:
         """Test RefreshResult supports tuple unpacking for backwards compatibility."""
-        test_process_pool.set_outputs("workspace /shows/test/shots/seq1/seq1_0010\n")
+        test_process_pool.set_outputs(f"workspace {Config.SHOWS_ROOT}/test/shots/seq1/seq1_0010\n")
         real_shot_model._process_pool = test_process_pool
 
         # Test tuple unpacking
@@ -442,8 +444,8 @@ class TestShotModelErrorHandling:
 
         # Return same shots
         test_process_pool.set_outputs(
-            "workspace /shows/show1/shots/seq1/seq1_0010\n"
-            "workspace /shows/show1/shots/seq1/seq1_0020"
+            f"workspace {Config.SHOWS_ROOT}/show1/shots/seq1/seq1_0010\n"
+            f"workspace {Config.SHOWS_ROOT}/show1/shots/seq1/seq1_0020"
         )
         real_shot_model._process_pool = test_process_pool
 
@@ -452,7 +454,7 @@ class TestShotModelErrorHandling:
         # Note: has_changes may be True due to workspace_path differences
 
         # Now return different shots
-        test_process_pool.set_outputs("workspace /shows/newshow/shots/seq1/seq1_0010")
+        test_process_pool.set_outputs(f"workspace {Config.SHOWS_ROOT}/newshow/shots/seq1/seq1_0010")
 
         result = real_shot_model.refresh_shots()
         assert result.success is True
@@ -495,10 +497,11 @@ Not a workspace line"""
 
     def test_parse_ws_output_mixed_valid_invalid(self, real_shot_model) -> None:
         """Test parser with mix of valid and invalid lines."""
-        output = """Invalid line
-workspace /shows/test1/shots/seq1/seq1_0010
+        shows_root = Config.SHOWS_ROOT
+        output = f"""Invalid line
+workspace {shows_root}/test1/shots/seq1/seq1_0010
 Another invalid line
-workspace /shows/test2/shots/seq2/seq2_0020
+workspace {shows_root}/test2/shots/seq2/seq2_0020
 Yet another invalid"""
 
         shots = real_shot_model.test_parse_ws_output(output)
@@ -508,9 +511,10 @@ Yet another invalid"""
 
     def test_parse_ws_output_empty_lines(self, real_shot_model) -> None:
         """Test parser skips empty lines."""
-        output = """workspace /shows/test1/shots/seq1/seq1_0010
+        shows_root = Config.SHOWS_ROOT
+        output = f"""workspace {shows_root}/test1/shots/seq1/seq1_0010
 
-workspace /shows/test2/shots/seq2/seq2_0020
+workspace {shows_root}/test2/shots/seq2/seq2_0020
 
 """
 
@@ -519,9 +523,10 @@ workspace /shows/test2/shots/seq2/seq2_0020
 
     def test_parse_ws_output_complex_shot_names(self, real_shot_model) -> None:
         """Test parser handles complex shot name parsing."""
-        output = """workspace /shows/test/shots/seq1/001_ABC_0010
-workspace /shows/test/shots/seq2/simple_name
-workspace /shows/test/shots/seq3/very_long_complex_shot_name_0050"""
+        shows_root = Config.SHOWS_ROOT
+        output = f"""workspace {shows_root}/test/shots/seq1/001_ABC_0010
+workspace {shows_root}/test/shots/seq2/simple_name
+workspace {shows_root}/test/shots/seq3/very_long_complex_shot_name_0050"""
 
         shots = real_shot_model.test_parse_ws_output(output)
         assert len(shots) == 3

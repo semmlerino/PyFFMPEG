@@ -12,7 +12,7 @@ os.environ["SHOWS_ROOT"] = "/tmp/mock_vfx/shows"
 
 # Local application imports
 # Import modules
-from process_pool_factory import get_process_pool
+from mock_workspace_pool import create_mock_pool_from_filesystem
 
 from maya_latest_finder import MayaLatestFinder
 from shot_model import Shot, ShotModel
@@ -27,7 +27,7 @@ def test_mock_pool() -> None:
     print("=" * 70)
 
     # Get mock pool
-    pool = get_process_pool()
+    pool = create_mock_pool_from_filesystem()
     print(f"✅ Pool type: {type(pool).__name__}")
 
     # Execute mock ws command

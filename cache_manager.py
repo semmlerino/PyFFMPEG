@@ -191,7 +191,7 @@ class CacheManager(LoggingMixin, QObject):
             self.cache_dir.mkdir(parents=True, exist_ok=True)
             self.thumbnails_dir.mkdir(parents=True, exist_ok=True)
             self.logger.debug(f"Ensured cache directory: {self.cache_dir}")
-        except Exception as e:
+        except OSError as e:
             self.logger.error(f"Failed to create cache directories: {e}")
 
     def ensure_cache_directory(self) -> bool:
@@ -203,7 +203,7 @@ class CacheManager(LoggingMixin, QObject):
         try:
             self._ensure_cache_dirs()
             return True
-        except Exception:
+        except OSError:
             return False
 
     # ========================================================================
@@ -900,7 +900,7 @@ class CacheManager(LoggingMixin, QObject):
                     os.unlink(temp_path)
                 raise
 
-        except Exception as e:
+        except (OSError, TypeError, ValueError) as e:
             self.logger.error(f"Failed to write cache file {cache_file}: {e}")
             return False
 

@@ -21,6 +21,9 @@ from hypothesis import HealthCheck, assume, given, settings
 from hypothesis import strategies as st
 from hypothesis.strategies import composite
 
+# Local application imports
+from config import Config
+
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
@@ -53,7 +56,7 @@ def shot_path(draw) -> str:
     seq = draw(sequence_name())
     shot = draw(shot_number())
     # Standard VFX shot path structure
-    return f"/shows/{show}/shots/{seq}/{seq}_{shot}"
+    return f"{Config.SHOWS_ROOT}/{show}/shots/{seq}/{seq}_{shot}"
 
 
 class TestShotPathProperties:
@@ -92,7 +95,7 @@ class TestShotPathProperties:
         from shot_model import Shot
 
         # Create shot with explicit workspace path
-        workspace = f"/shows/{show}/shots/{seq}/{seq}_{shot}"
+        workspace = f"{Config.SHOWS_ROOT}/{show}/shots/{seq}/{seq}_{shot}"
         shot1 = Shot(show, seq, f"{seq}_{shot}", workspace)
 
         # Verify all properties are set correctly

@@ -21,7 +21,7 @@ os.environ["QT_LOGGING_RULES"] = "*.debug=false"
 pytestmark = pytest.mark.performance
 
 
-def test_original_startup() -> dict[str, Any]:
+def test_original_startup() -> None:
     """Measure original ShotModel startup time."""
     # Local application imports
     from cache_manager import CacheManager
@@ -45,10 +45,13 @@ workspace /shows/TEST/seq02/0010"""
         result = model.refresh_shots()
         elapsed = time.perf_counter() - start
 
-        return {"time": elapsed, "shots": len(model.shots), "success": result.success}
+        # Performance metrics (for manual analysis)
+        metrics = {"time": elapsed, "shots": len(model.shots), "success": result.success}
+        # Test passes if no exceptions raised
+        assert result.success, "Shot model refresh should succeed"
 
 
-def test_optimized_startup() -> dict[str, Any]:
+def test_optimized_startup() -> None:
     """Measure optimized ShotModel startup time."""
     # Local application imports
     from cache_manager import CacheManager
@@ -89,15 +92,18 @@ workspace /shows/TEST/seq02/0010"""
             # Give it a moment to process
             time.sleep(0.1)
 
-        return {
+        # Performance metrics (for manual analysis)
+        metrics = {
             "time": elapsed,
             "initial_shots": initial_shots,
             "success": result.success,
             "cached_data_used": initial_shots > 0,
         }
+        # Test passes if no exceptions raised
+        assert result.success, "Optimized shot model refresh should succeed"
 
 
-def test_with_session_warming() -> dict[str, Any]:
+def test_with_session_warming() -> None:
     """Test with session pre-warming strategy."""
     # Local application imports
     from cache_manager import CacheManager
@@ -129,12 +135,15 @@ def test_with_session_warming() -> dict[str, Any]:
         result = model.initialize_async()
         elapsed = time.perf_counter() - start
 
-        return {
+        # Performance metrics (for manual analysis)
+        metrics = {
             "warm_time": warm_time,
             "load_time": elapsed,
             "total_time": warm_time + elapsed,
             "success": result.success,
         }
+        # Test passes if no exceptions raised
+        assert result.success, "Session warming strategy should succeed"
 
 
 def main() -> dict[str, dict[str, Any]]:

@@ -887,7 +887,7 @@ class PersistentBashSession(LoggingMixin):
             if self._process and self._process.stderr:
                 try:
                     self._process.stderr.close()
-                except Exception:
+                except (OSError, ValueError):
                     # Ignore errors during stream close
                     pass
 

@@ -534,8 +534,8 @@ class TestFileExtensionConfigurationValidation:
                 f"Primary THUMBNAIL_EXTENSIONS contains heavy format: {ext}"
             )
 
-        # Fallback should contain heavy formats (EXR removed - not supported for thumbnails)
-        heavy = {".tiff", ".tif"}
+        # Fallback should contain heavy formats (EXR, TIFF)
+        heavy = {".tiff", ".tif", ".exr"}
         for ext in fallback:
             assert ext.lower() in heavy, (
                 f"THUMBNAIL_FALLBACK_EXTENSIONS should only contain heavy formats, got: {ext}"

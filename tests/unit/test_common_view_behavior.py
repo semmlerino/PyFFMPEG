@@ -63,7 +63,7 @@ def make_shot() -> Callable[[str, str, str], Shot]:
         from type_definitions import Shot
 
         # Use correct VFX path format
-        return Shot(show, seq, shot, f"/shows/{show}/shots/{seq}/{seq}_{shot}")
+        return Shot(show, seq, shot, f"{Config.SHOWS_ROOT}/{show}/shots/{seq}/{seq}_{shot}")
 
     return _make
 

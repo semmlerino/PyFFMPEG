@@ -17,6 +17,7 @@ from PySide6.QtCore import QObject, Signal
 
 from command_launcher import CommandLauncher
 from shot_model import Shot
+from config import Config
 from threede_scene_model import ThreeDEScene
 
 # Mark Qt tests for serial execution in same worker (prevents Qt crashes)
@@ -175,7 +176,7 @@ class TestCommandLauncher:
     @pytest.fixture
     def test_shot(self) -> Shot:
         """Create a test shot."""
-        return Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+        return Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
 
     @pytest.fixture
     def test_scene(self) -> ThreeDEScene:
@@ -184,7 +185,7 @@ class TestCommandLauncher:
             show="TEST",
             sequence="seq01",
             shot="0010",
-            workspace_path="/shows/TEST/shots/seq01/seq01_0010",
+            workspace_path=f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
             user="testuser",
             plate="plate_v001",
             scene_path=Path("/path/to/scene.3de"),
@@ -485,7 +486,7 @@ class TestCommandLauncher:
             persistent_terminal=terminal,
         )
 
-        shot = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
         launcher.set_current_shot(shot)
 
         # Launch app - should use persistent terminal
@@ -521,7 +522,7 @@ class TestCommandLauncher:
             persistent_terminal=terminal,
         )
 
-        shot = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
         launcher.set_current_shot(shot)
 
         with (
@@ -557,7 +558,7 @@ class TestCommandLauncherSignals:
 
     def test_signal_data_format(self, launcher: CommandLauncher, qtbot: QtBot) -> None:
         """Test basic launcher functionality."""
-        shot = Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
         launcher.set_current_shot(shot)
 
         with (

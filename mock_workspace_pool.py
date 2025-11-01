@@ -21,8 +21,12 @@ from logging_mixin import LoggingMixin
 class MockWorkspacePool(LoggingMixin):
     """Mock ProcessPool that simulates real workspace commands."""
 
-    def __init__(self) -> None:
-        """Initialize mock workspace pool."""
+    def __init__(self, demo_shots_path: Path | None = None) -> None:
+        """Initialize mock workspace pool.
+
+        Args:
+            demo_shots_path: Optional path to demo_shots.json for testing (default: ./demo_shots.json)
+        """
         super().__init__()
         self.shots: list[str] = []
         self._cache: dict[str, str] = {}
@@ -35,6 +39,8 @@ class MockWorkspacePool(LoggingMixin):
         self.shows_root_for_parser = Config.SHOWS_ROOT
         # Actual filesystem location for file operations
         self.shows_root = self.mock_root / "shows"
+        # Demo shots path for testing flexibility
+        self.demo_shots_path = demo_shots_path or (Path(__file__).parent / "demo_shots.json")
 
     def set_shots_from_filesystem(self, mock_root: Path | None = None) -> None:
         """Scan the mock filesystem and set up all available shots.
@@ -222,12 +228,15 @@ class MockWorkspacePool(LoggingMixin):
         )
 
 
-def create_mock_pool_from_filesystem() -> MockWorkspacePool:
+def create_mock_pool_from_filesystem(demo_shots_path: Path | None = None) -> MockWorkspacePool:
     """Create a mock pool that simulates user-assigned shots only.
 
     In a real VFX environment, 'ws -sg' only returns shots assigned to the
     current user, not all shots in the facility. We simulate this by using
     the curated demo shots that represent a realistic user workload.
+
+    Args:
+        demo_shots_path: Optional path to demo_shots.json for testing (default: ./demo_shots.json)
 
     Returns:
         MockWorkspacePool configured with user's assigned shots only
@@ -237,14 +246,13 @@ def create_mock_pool_from_filesystem() -> MockWorkspacePool:
     import logging
 
     logger = logging.getLogger(__name__)
-    pool = MockWorkspacePool()
+    pool = MockWorkspacePool(demo_shots_path=demo_shots_path)
 
     # Use demo shots first (realistic user assignment of ~12 shots)
-    demo_shots_path = Path(__file__).parent / "demo_shots.json"
-    if demo_shots_path.exists():
+    if pool.demo_shots_path.exists():
         logger.info("Loading demo shots for user-assigned simulation")
         try:
-            with open(demo_shots_path, encoding="utf-8") as f:
+            with open(pool.demo_shots_path, encoding="utf-8") as f:
                 # json.load() returns Any - cast to object for type safety
                 raw_data = cast("object", json.load(f))
 

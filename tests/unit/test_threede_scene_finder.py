@@ -432,14 +432,20 @@ class TestPerformance:
 
 
 @pytest.mark.unit
-def test_show_root_path_extraction_no_double_slash() -> None:
+def test_show_root_path_extraction_no_double_slash(monkeypatch) -> None:
     """Test that show root path extraction doesn't create double slashes.
 
     Regression test for bug where path extraction created '//shows' instead of '/shows'.
     This follows UNIFIED_TESTING_GUIDE by testing behavior with real Shot objects.
     """
     # Local application imports
+    from config import Config
     from shot_model import Shot
+
+    # Ensure Config.SHOWS_ROOT is isolated from other tests
+    # Use monkeypatch to protect against modifications by parallel tests
+    original_shows_root = Config.SHOWS_ROOT
+    monkeypatch.setattr("config.Config.SHOWS_ROOT", original_shows_root)
 
     # Create test shots with realistic workspace paths
     test_shots = [
@@ -447,13 +453,13 @@ def test_show_root_path_extraction_no_double_slash() -> None:
             show="gator",
             sequence="019_JF",
             shot="019_JF_1020",
-            workspace_path="/shows/gator/shots/019_JF/019_JF_1020",
+            workspace_path=f"{Config.SHOWS_ROOT}/gator/shots/019_JF/019_JF_1020",
         ),
         Shot(
             show="broken_eggs",
             sequence="BRX_170",
             shot="BRX_170_0100",
-            workspace_path="/shows/broken_eggs/shots/BRX_170/BRX_170_0100",
+            workspace_path=f"{Config.SHOWS_ROOT}/broken_eggs/shots/BRX_170/BRX_170_0100",
         ),
     ]
 
@@ -498,13 +504,14 @@ def test_path_parsing_for_deep_nested_structure() -> None:
     from pathlib import Path
 
     # Local application imports
+    from config import Config
     from threede_scene_finder import OptimizedThreeDESceneFinder
 
     # Create realistic file path that was causing issues
     target_file = Path(
-        "/shows/gator/shots/019_JF/019_JF_1080/user/sarah-b/mm/3de/mm-default/scenes/scene/bg01/019_JF_1080_mm_default_bg01_scene_v001.3de"
+        f"{Config.SHOWS_ROOT}/gator/shots/019_JF/019_JF_1080/user/sarah-b/mm/3de/mm-default/scenes/scene/bg01/019_JF_1080_mm_default_bg01_scene_v001.3de"
     )
-    show_path = Path("/shows/gator")
+    show_path = Path(f"{Config.SHOWS_ROOT}/gator")
     show = "gator"
     excluded_users = {"gabrielh"}  # Current user, not sarah-b
 

@@ -11,6 +11,7 @@ from PySide6.QtTest import QSignalSpy
 
 # Local application imports
 from base_shot_model import BaseShotModel
+from config import Config
 from shot_model import AsyncShotLoader, ShotModel
 from tests.test_doubles_extended import TestProcessPoolDouble as TestProcessPool
 
@@ -29,10 +30,11 @@ class TestAsyncShotLoader:
     def test_process_pool(self):
         """Create test process pool for testing."""
         pool = TestProcessPool()
+        shows_root = Config.SHOWS_ROOT
         pool.set_outputs(
-            "workspace /shows/TEST/shots/seq01/TEST_seq01_0010\n"
-            "workspace /shows/TEST/shots/seq01/TEST_seq01_0020\n"
-            "workspace /shows/TEST/shots/seq02/TEST_seq02_0010"
+            f"workspace {shows_root}/TEST/shots/seq01/TEST_seq01_0010\n"
+            f"workspace {shows_root}/TEST/shots/seq01/TEST_seq01_0020\n"
+            f"workspace {shows_root}/TEST/shots/seq02/TEST_seq02_0010"
         )
         return pool
 
@@ -109,7 +111,8 @@ class TestAsyncShotLoader:
         # Create slow process pool
         slow_pool = TestProcessPool()
         slow_pool.simulated_delay = 0.1  # Simulate slow operation
-        slow_pool.set_outputs("workspace /shows/TEST/shots/seq01/TEST_seq01_0010")
+        shows_root = Config.SHOWS_ROOT
+        slow_pool.set_outputs(f"workspace {shows_root}/TEST/shots/seq01/TEST_seq01_0010")
 
         base_model = BaseShotModel(cache_manager=cache_manager)
         loader = AsyncShotLoader(slow_pool, parse_function=base_model._parse_ws_output)
@@ -140,11 +143,12 @@ class TestAsyncShotLoader:
 
     def test_concurrent_loader_instances(self, qtbot, cache_manager) -> None:
         """Test multiple AsyncShotLoader instances don't interfere."""
+        shows_root = Config.SHOWS_ROOT
         pool1 = TestProcessPool()
-        pool1.set_outputs("workspace /shows/SHOW1/shots/seq01/SHOW1_seq01_0010")
+        pool1.set_outputs(f"workspace {shows_root}/SHOW1/shots/seq01/SHOW1_seq01_0010")
 
         pool2 = TestProcessPool()
-        pool2.set_outputs("workspace /shows/SHOW2/shots/seq01/SHOW2_seq01_0020")
+        pool2.set_outputs(f"workspace {shows_root}/SHOW2/shots/seq01/SHOW2_seq01_0020")
 
         base_model1 = BaseShotModel(cache_manager=cache_manager)
         base_model2 = BaseShotModel(cache_manager=cache_manager)
@@ -197,7 +201,8 @@ class TestShotModelSignals:
 
         # Use TestProcessPool boundary mock to avoid real subprocess
         test_pool = TestProcessPool()
-        test_pool.set_outputs("workspace /shows/TEST/shots/seq01/TEST_seq01_0010")
+        shows_root = Config.SHOWS_ROOT
+        test_pool.set_outputs(f"workspace {shows_root}/TEST/shots/seq01/TEST_seq01_0010")
         optimized_model._process_pool = test_pool
 
         # Initialize async
@@ -224,7 +229,8 @@ class TestShotModelSignals:
 
         # Use TestProcessPool with new data
         test_pool = TestProcessPool()
-        test_pool.set_outputs("workspace /shows/NEW/shots/seq01/NEW_seq01_0010")
+        shows_root = Config.SHOWS_ROOT
+        test_pool.set_outputs(f"workspace {shows_root}/NEW/shots/seq01/NEW_seq01_0010")
         optimized_model._process_pool = test_pool
 
         optimized_model.initialize_async()
@@ -259,9 +265,10 @@ class TestShotModelSignals:
 
         # Set up test process pool with shot data
         test_pool = TestProcessPool()
+        shows_root = Config.SHOWS_ROOT
         test_pool.set_outputs(
-            "workspace /shows/TEST/shots/seq01/TEST_seq01_0010\n"
-            "workspace /shows/TEST/shots/seq01/TEST_seq01_0020"
+            f"workspace {shows_root}/TEST/shots/seq01/TEST_seq01_0010\n"
+            f"workspace {shows_root}/TEST/shots/seq01/TEST_seq01_0020"
         )
         model._process_pool = test_pool
 

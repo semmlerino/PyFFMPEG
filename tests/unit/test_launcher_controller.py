@@ -19,6 +19,7 @@ from PySide6.QtWidgets import QMenu, QMessageBox, QStatusBar
 # Local application imports
 from controllers.launcher_controller import LauncherController
 from shot_model import Shot
+from config import Config
 from threede_scene_model import ThreeDEScene
 
 
@@ -167,7 +168,7 @@ def test_shot() -> Shot:
         show="TEST",
         sequence="seq01",
         shot="0010",
-        workspace_path="/shows/TEST/shots/seq01/seq01_0010",
+        workspace_path=f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
     )
 
 
@@ -177,11 +178,11 @@ def test_scene() -> ThreeDEScene:
     from pathlib import Path
 
     return ThreeDEScene(
-        scene_path=Path("/shows/TEST/shots/seq01/seq01_0010/3de/v001/scene.3de"),
+        scene_path=Path(f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010/3de/v001/scene.3de"),
         show="TEST",
         sequence="seq01",
         shot="0010",
-        workspace_path="/shows/TEST/shots/seq01/seq01_0010",
+        workspace_path=f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
         user="testuser",
         plate="plate_v001",
     )

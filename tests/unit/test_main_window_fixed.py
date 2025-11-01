@@ -125,9 +125,12 @@ class TestMainWindowNoHang:
 
     def test_refresh_shots_with_test_pool(self, safe_main_window) -> None:
         """Test shot refresh with test process pool."""
-        # Configure test pool response - must use /shows/ format for parser to recognize it
+        # Configure test pool response - use Config.SHOWS_ROOT for proper test isolation
+        from config import Config
+
         test_pool = safe_main_window.shot_model._process_pool
-        test_pool.set_outputs("workspace /shows/test_show/shots/seq01/seq01_0010\n")
+        shows_root = Config.SHOWS_ROOT
+        test_pool.set_outputs(f"workspace {shows_root}/test_show/shots/seq01/seq01_0010\n")
 
         # Clear any existing shots
         safe_main_window.shot_model.shots = []

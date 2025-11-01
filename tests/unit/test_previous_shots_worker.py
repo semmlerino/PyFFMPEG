@@ -39,6 +39,7 @@ from PySide6.QtTest import QSignalSpy
 # Local application imports
 from previous_shots_worker import PreviousShotsWorker
 from shot_model import Shot
+from config import Config
 from tests.test_doubles_library import TestCompletedProcess
 
 # Mark Qt tests for serial execution in same worker (prevents Qt crashes)
@@ -68,8 +69,8 @@ class TestPreviousShotsWorkerBasics:
     def mock_active_shots(self) -> list[Shot]:
         """Create mock active shots for filtering."""
         return [
-            Shot("active_show", "seq1", "shot1", "/shows/active_show/shots/seq1/shot1"),
-            Shot("active_show", "seq1", "shot2", "/shows/active_show/shots/seq1/shot2"),
+            Shot("active_show", "seq1", "shot1", f"{Config.SHOWS_ROOT}/active_show/shots/seq1/shot1"),
+            Shot("active_show", "seq1", "shot2", f"{Config.SHOWS_ROOT}/active_show/shots/seq1/shot2"),
         ]
 
     @pytest.fixture
@@ -119,7 +120,7 @@ class TestPreviousShotsWorkerBasics:
         """Test that get_found_shots returns a copy of internal list."""
         # Add some shots to internal list
         test_shots = [
-            Shot("show1", "seq1", "shot1", "/shows/show1/shots/seq1/shot1"),
+            Shot("show1", "seq1", "shot1", f"{Config.SHOWS_ROOT}/show1/shots/seq1/shot1"),
         ]
         worker._found_shots = test_shots
 
@@ -142,7 +143,7 @@ class TestPreviousShotsWorkerWorkflow:
         shows_root.mkdir(exist_ok=True)
 
         active_shots = [
-            Shot("active_show", "seq1", "shot1", "/shows/active_show/shots/seq1/shot1"),
+            Shot("active_show", "seq1", "shot1", f"{Config.SHOWS_ROOT}/active_show/shots/seq1/shot1"),
         ]
 
         worker = PreviousShotsWorker(
@@ -167,9 +168,9 @@ class TestPreviousShotsWorkerWorkflow:
         # Mock subprocess.run (system boundary) to simulate find command output
         # Must use VFX path format: /shows/{show}/shots/{seq}/{seq}_{shot}/user/{user}
         find_output = [
-            "/shows/show1/shots/seq1/seq1_shot1/user/testuser",
-            "/shows/show1/shots/seq1/seq1_shot2/user/testuser",
-            "/shows/show2/shots/seq2/seq2_shot1/user/testuser",
+            f"{Config.SHOWS_ROOT}/show1/shots/seq1/seq1_shot1/user/testuser",
+            f"{Config.SHOWS_ROOT}/show1/shots/seq1/seq1_shot2/user/testuser",
+            f"{Config.SHOWS_ROOT}/show2/shots/seq2/seq2_shot1/user/testuser",
         ]
 
         test_result = TestCompletedProcess(
@@ -277,7 +278,7 @@ class TestPreviousShotsWorkerWorkflow:
             return TestCompletedProcess(
                 args=args[0] if args else [],
                 returncode=0,
-                stdout="/shows/show1/shots/seq1/seq1_shot1/user/testuser\n",
+                stdout=f"{Config.SHOWS_ROOT}/show1/shots/seq1/seq1_shot1/user/testuser\n",
             )
 
         QSignalSpy(worker.scan_finished)
@@ -366,7 +367,7 @@ class TestPreviousShotsWorkerWorkflow:
         test_result = TestCompletedProcess(
             args=[],
             returncode=0,
-            stdout="/shows/different_show/shots/testseq/testseq_testshot/user/testuser\n",
+            stdout=f"{Config.SHOWS_ROOT}/different_show/shots/testseq/testseq_testshot/user/testuser\n",
         )
 
         shot_found_spy = QSignalSpy(worker.shot_found)
@@ -400,7 +401,7 @@ class TestPreviousShotsWorkerWorkflow:
         assert shot_dict["shot"] == "testshot"
         assert (
             shot_dict["workspace_path"]
-            == "/shows/different_show/shots/testseq/testseq_testshot"
+            == f"{Config.SHOWS_ROOT}/different_show/shots/testseq/testseq_testshot"
         )
 
         # Verify scan_finished signal data structure

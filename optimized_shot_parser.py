@@ -24,25 +24,29 @@ class ParseResult(NamedTuple):
     workspace_path: str
 
 
-# Global pre-compiled patterns for maximum performance
-_SHOWS_ROOT_ESCAPED = re.escape(Config.SHOWS_ROOT)
-_GLOBAL_WS_PATTERN = re.compile(
-    rf"workspace\s+({_SHOWS_ROOT_ESCAPED}/([^/]+)/shots/([^/]+)/([^/]+))"
-)
-_GLOBAL_PATH_PATTERN = re.compile(
-    rf"{_SHOWS_ROOT_ESCAPED}/([^/]+)/shots/([^/]+)/([^/]+)(?:/|$)"
-)
+# Pattern cache keyed by SHOWS_ROOT for test isolation while maintaining performance
+_PATTERN_CACHE: dict[str, tuple[re.Pattern[str], re.Pattern[str]]] = {}
 
 
 class OptimizedShotParser:
     """Optimized shot parser with single-pass processing for 72% improvement."""
 
     def __init__(self) -> None:
-        """Initialize optimized parser using global patterns."""
+        """Initialize optimized parser using cached patterns for current SHOWS_ROOT."""
         super().__init__()
-        # Use global patterns for better performance
-        self._ws_pattern = _GLOBAL_WS_PATTERN
-        self._path_pattern = _GLOBAL_PATH_PATTERN
+        # Get or create patterns for current SHOWS_ROOT (fixes test isolation)
+        shows_root = Config.SHOWS_ROOT
+        if shows_root not in _PATTERN_CACHE:
+            shows_root_escaped = re.escape(shows_root)
+            ws_pattern = re.compile(
+                rf"workspace\s+({shows_root_escaped}/([^/]+)/shots/([^/]+)/([^/]+))"
+            )
+            path_pattern = re.compile(
+                rf"{shows_root_escaped}/([^/]+)/shots/([^/]+)/([^/]+)(?:/|$)"
+            )
+            _PATTERN_CACHE[shows_root] = (ws_pattern, path_pattern)
+
+        self._ws_pattern, self._path_pattern = _PATTERN_CACHE[shows_root]
 
     def parse_workspace_line(self, line: str) -> ParseResult | None:
         """Ultra-optimized parser maintaining correctness with maximum performance.

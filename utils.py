@@ -387,6 +387,72 @@ class PathUtils:
         return None
 
     @staticmethod
+    def find_any_publish_thumbnail(
+        shows_root: str,
+        show: str,
+        sequence: str,
+        shot: str,
+        max_depth: int = 5,
+    ) -> Path | None:
+        """Find any EXR file with frame 1001 in the publish directory.
+
+        This is a fallback thumbnail finder that recursively searches the publish
+        directory for any EXR file containing "1001" in the filename (typically
+        the first frame of a sequence).
+
+        Args:
+            shows_root: Root shows directory
+            show: Show name
+            sequence: Sequence name
+            shot: Shot name
+            max_depth: Maximum depth to search (default 5)
+
+        Returns:
+            Path to first matching EXR file, or None if not found
+        """
+        # Build path to publish directory
+        shot_dir = f"{sequence}_{shot}"
+        publish_path = PathUtils.build_path(
+            shows_root,
+            show,
+            "shots",
+            sequence,
+            shot_dir,
+            "publish",
+        )
+
+        # Check if publish directory exists
+        if not publish_path.exists():
+            logger.debug(f"Publish directory does not exist: {publish_path}")
+            return None
+
+        try:
+            # Walk the directory tree with depth limiting
+            for root, dirs, files in os.walk(publish_path):
+                # Calculate current depth relative to publish_path
+                rel_path = Path(root).relative_to(publish_path)
+                depth = len(rel_path.parts) if str(rel_path) != "." else 0
+
+                # Stop descending if we've reached max depth
+                if depth >= max_depth:
+                    dirs.clear()  # Don't descend further
+                    continue
+
+                # Look for EXR files with 1001 in the name
+                for filename in files:
+                    if "1001" in filename and filename.lower().endswith(".exr"):
+                        result = Path(root) / filename
+                        logger.debug(f"Found publish thumbnail: {result}")
+                        return result
+
+        except (OSError, PermissionError) as e:
+            logger.debug(f"Error searching publish directory: {e}")
+            return None
+
+        logger.debug(f"No 1001.exr files found in {publish_path}")
+        return None
+
+    @staticmethod
     def build_raw_plate_path(workspace_path: str) -> Path:
         """Build raw plate base path.
 
@@ -806,38 +872,56 @@ class PathUtils:
             "cutref",
         )
 
-        if not PathUtils.validate_path_exists(editorial_base, "Editorial cutref directory"):
+        # Try to find editorial cutref thumbnail
+        if PathUtils.validate_path_exists(editorial_base, "Editorial cutref directory"):
+            # Find latest version directory (v001, v002, etc.)
+            latest_version = VersionUtils.get_latest_version(editorial_base)
+            if latest_version:
+                # Build path to jpg subdirectory
+                jpg_base_path = editorial_base / latest_version / "jpg"
+                if PathUtils.validate_path_exists(jpg_base_path, "JPEG base path"):
+                    # Find any resolution directory (1920x1080, 3840x2160, etc.)
+                    try:
+                        for resolution_dir in jpg_base_path.iterdir():
+                            if resolution_dir.is_dir():
+                                # Find first .jpg/.jpeg file in this resolution
+                                jpeg_file = FileUtils.get_first_image_file(resolution_dir)
+                                if jpeg_file and jpeg_file.suffix.lower() in [".jpg", ".jpeg"]:
+                                    logger.info(
+                                        f"Found editorial cutref thumbnail: {jpeg_file.name} "
+                                        f"(version: {latest_version}, resolution: {resolution_dir.name})"
+                                    )
+                                    return jpeg_file
+                    except (OSError, PermissionError) as e:
+                        logger.debug(f"Error scanning editorial cutref JPEG directory {jpg_base_path}: {e}")
+                else:
+                    logger.debug(f"No jpg directory found in {editorial_base}/{latest_version}")
+            else:
+                logger.debug(f"No version directories found in {editorial_base}")
+        else:
             logger.debug(f"No editorial cutref directory found for {sequence}_{shot}")
-            return None
-
-        # Find latest version directory (v001, v002, etc.)
-        latest_version = VersionUtils.get_latest_version(editorial_base)
-        if not latest_version:
-            logger.debug(f"No version directories found in {editorial_base}")
-            return None
-
-        # Build path to jpg subdirectory
-        jpg_base_path = editorial_base / latest_version / "jpg"
-        if not PathUtils.validate_path_exists(jpg_base_path, "JPEG base path"):
-            logger.debug(f"No jpg directory found in {editorial_base}/{latest_version}")
-            return None
-
-        # Find any resolution directory (1920x1080, 3840x2160, etc.)
-        try:
-            for resolution_dir in jpg_base_path.iterdir():
-                if resolution_dir.is_dir():
-                    # Find first .jpg/.jpeg file in this resolution
-                    jpeg_file = FileUtils.get_first_image_file(resolution_dir)
-                    if jpeg_file and jpeg_file.suffix.lower() in [".jpg", ".jpeg"]:
-                        logger.info(
-                            f"Found editorial cutref thumbnail: {jpeg_file.name} "
-                            f"(version: {latest_version}, resolution: {resolution_dir.name})"
-                        )
-                        return jpeg_file
-        except (OSError, PermissionError) as e:
-            logger.debug(f"Error scanning editorial cutref JPEG directory {jpg_base_path}: {e}")
 
         logger.debug(f"No editorial cutref JPEGs found for {show}/{sequence}/{shot}")
+
+        # Fall back to turnover plate thumbnail if editorial cutref not found
+        logger.debug(f"Attempting turnover plate fallback for {show}/{sequence}/{shot}")
+        turnover_thumbnail = PathUtils.find_turnover_plate_thumbnail(
+            shows_root, show, sequence, shot
+        )
+        if turnover_thumbnail:
+            logger.info(f"Found turnover plate thumbnail: {turnover_thumbnail}")
+            return turnover_thumbnail
+
+        # Third fallback: any EXR with 1001 in publish folder
+        logger.debug(f"Attempting publish directory fallback for {show}/{sequence}/{shot}")
+        publish_thumbnail = PathUtils.find_any_publish_thumbnail(
+            shows_root, show, sequence, shot
+        )
+        if publish_thumbnail:
+            logger.info(f"Found publish thumbnail: {publish_thumbnail}")
+            return publish_thumbnail
+
+        logger.debug(f"No thumbnails found for {show}/{sequence}/{shot}")
         return None
 
     @staticmethod

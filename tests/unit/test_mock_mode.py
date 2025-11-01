@@ -12,16 +12,14 @@ import sys
 from pathlib import Path
 
 
-def test_mock_setup() -> bool:
+def test_mock_setup() -> None:
     """Test that mock mode can be set up correctly."""
     print("Testing ShotBot Mock Mode Setup")
     print("=" * 50)
 
     # 1. Check demo_shots.json exists and is valid
     demo_shots_path = Path("demo_shots.json")
-    if not demo_shots_path.exists():
-        print("❌ ERROR: demo_shots.json not found!")
-        return False
+    assert demo_shots_path.exists(), "demo_shots.json not found!"
 
     try:
         with open(demo_shots_path) as f:
@@ -36,8 +34,7 @@ def test_mock_setup() -> bool:
             for shot in shots[:3]:
                 print(f"     - {shot['show']}/{shot['seq']}_{shot['shot']}")
     except Exception as e:
-        print(f"❌ ERROR: Failed to load demo_shots.json: {e}")
-        return False
+        raise AssertionError(f"Failed to load demo_shots.json: {e}")
 
     # 2. Check that mock flag is recognized
     print("\n2. Testing command-line argument parsing...")
@@ -50,22 +47,15 @@ def test_mock_setup() -> bool:
 
         # Test with --mock flag
         args = parser.parse_args(["--mock"])
-        if args.mock:
-            print("✅ --mock flag recognized")
-        else:
-            print("❌ --mock flag not working")
-            return False
+        assert args.mock, "--mock flag not working"
+        print("✅ --mock flag recognized")
 
         # Test without flag
         args = parser.parse_args([])
-        if not args.mock:
-            print("✅ Default (no mock) mode works")
-        else:
-            print("❌ Default mode incorrectly enables mock")
-            return False
+        assert not args.mock, "Default mode incorrectly enables mock"
+        print("✅ Default (no mock) mode works")
     except Exception as e:
-        print(f"❌ ERROR: Argument parsing failed: {e}")
-        return False
+        raise AssertionError(f"Argument parsing failed: {e}")
 
     # 3. Test environment variable
     print("\n3. Testing environment variable...")
@@ -99,9 +89,17 @@ def test_mock_setup() -> bool:
     print("or:")
     print("  SHOTBOT_MOCK=1 python3 shotbot.py")
     print("\nNote: The GUI will still require PySide6 to be installed.")
-    return True
 
 
 if __name__ == "__main__":
-    success = test_mock_setup()
-    sys.exit(0 if success else 1)
+    try:
+        test_mock_setup()
+        sys.exit(0)
+    except AssertionError as e:
+        print(f"\n❌ Assertion failed: {e}")
+        sys.exit(1)
+    except Exception as e:
+        print(f"\n❌ Error during testing: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)

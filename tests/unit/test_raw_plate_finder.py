@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 
 # Third-party imports
 import pytest
+from config import Config
 
 # Local application imports
 from raw_plate_finder import RawPlateFinder
@@ -512,7 +513,7 @@ class TestRawPlateFinder:
         # Test various path formats
         test_cases = [
             ("/path/to/plate_v002.exr", "v002"),
-            ("/shows/test/shot_v010_final.exr", "v010"),
+            (f"{Config.SHOWS_ROOT}/test/shot_v010_final.exr", "v010"),
             ("/data/v001/exr/plate.exr", "v001"),
             ("/path/without/version.exr", None),
         ]

@@ -174,16 +174,18 @@ class TestErrorRecovery:
         # Test the parsing directly without async complications
         # Local application imports
         from cache_manager import CacheManager
+        from config import Config
 
-        # Use test double returning partial data
+        # Use test double returning partial data with dynamic SHOWS_ROOT
         class TestProcessPool:  # Named to match the check in refresh_strategy
             def execute_workspace_command(self, command=None, **kwargs) -> str:
-                # Return proper VFX path format: /shows/{show}/shots/{seq}/{seq}_{shot}
-                return """workspace /shows/test/shots/seq01/seq01_0010
+                # Use Config.SHOWS_ROOT for proper test isolation
+                shows_root = Config.SHOWS_ROOT
+                return f"""workspace {shows_root}/test/shots/seq01/seq01_0010
 invalid line without workspace prefix
-workspace /shows/test/shots/seq02/seq02_0020
+workspace {shows_root}/test/shots/seq02/seq02_0020
 workspace incomplete_path_without_enough_parts
-workspace /shows/test/shots/seq03/seq03_0030"""
+workspace {shows_root}/test/shots/seq03/seq03_0030"""
 
         # Use regular ShotModel (not Optimized) for simpler synchronous testing
         # Local application imports

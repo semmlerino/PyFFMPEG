@@ -24,6 +24,7 @@ from PySide6.QtTest import QSignalSpy
 
 # Local application imports
 from shot_model import Shot
+from config import Config
 
 # Test doubles for behavior testing
 from threede_scene_model import ThreeDEScene
@@ -213,8 +214,8 @@ class TestThreeDESceneWorker:
     def test_shots(self) -> list[Shot]:
         """Create test shots (renamed from mock_shots to follow UNIFIED_TESTING_GUIDE)."""
         return [
-            Shot("test_show", "seq01", "0010", "/shows/test_show/shots/seq01/0010"),
-            Shot("test_show", "seq01", "0020", "/shows/test_show/shots/seq01/0020"),
+            Shot("test_show", "seq01", "0010", f"{Config.SHOWS_ROOT}/test_show/shots/seq01/0010"),
+            Shot("test_show", "seq01", "0020", f"{Config.SHOWS_ROOT}/test_show/shots/seq01/0020"),
         ]
 
     @pytest.fixture
@@ -331,7 +332,7 @@ class TestThreeDESceneWorker:
                 show="test_show",
                 sequence="seq01",
                 shot="0010",
-                workspace_path="/shows/test_show/shots/seq01/0010",
+                workspace_path=f"{Config.SHOWS_ROOT}/test_show/shots/seq01/0010",
                 user="testuser",
                 plate="plate01",
                 scene_path=Path("/test/path/scene1.3de"),
@@ -340,7 +341,7 @@ class TestThreeDESceneWorker:
                 show="test_show",
                 sequence="seq01",
                 shot="0010",
-                workspace_path="/shows/test_show/shots/seq01/0010",
+                workspace_path=f"{Config.SHOWS_ROOT}/test_show/shots/seq01/0010",
                 user="testuser",
                 plate="plate02",
                 scene_path=Path("/test/path/scene2.3de"),
@@ -414,7 +415,7 @@ class TestThreeDESceneWorker:
             show="test_show",
             sequence="seq01",
             shot="0010",
-            workspace_path="/shows/test_show/shots/seq01/0010",
+            workspace_path=f"{Config.SHOWS_ROOT}/test_show/shots/seq01/0010",
             user="testuser",
             plate="plate01",
             scene_path=Path("/test/scene.3de"),

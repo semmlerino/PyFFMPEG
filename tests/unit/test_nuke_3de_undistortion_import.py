@@ -1,6 +1,7 @@
+from __future__ import annotations
 """Test 3DE undistortion import with realistic node types."""
 
-from __future__ import annotations
+from config import Config
 
 # Standard library imports
 from pathlib import Path
@@ -201,7 +202,7 @@ class TestNuke3DEUndistortionImport:
         undist_file.write_text(MOCK_3DE_UNDISTORTION)
 
         # Create mock plate path
-        plate_path = "/shows/test/plates/shot_001.####.exr"
+        plate_path = f"{Config.SHOWS_ROOT}/test/plates/shot_001.####.exr"
 
         # Generate full script
         script_path = NukeScriptGenerator.create_plate_script_with_undistortion(

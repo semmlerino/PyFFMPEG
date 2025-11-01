@@ -6,15 +6,12 @@ import os
 import sys
 from collections import defaultdict
 
-from process_pool_factory import ProcessPoolFactory
-
 # Local application imports
 from cache_manager import CacheManager
 from shot_model import ShotModel
 
 # Enable mock mode
 os.environ["SHOTBOT_MOCK"] = "1"
-ProcessPoolFactory.set_mock_mode(True)
 
 print("🎬 SHOTBOT MOCK VFX ENVIRONMENT")
 print("=" * 70)

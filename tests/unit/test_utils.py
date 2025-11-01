@@ -93,7 +93,7 @@ class TestPathUtils:
         result = PathUtils.build_thumbnail_path("/shows", "myshow", "seq01", "shot01")
 
         # Shot directory should be named {sequence}_{shot}
-        expected = Path("/shows/myshow/shots/seq01/seq01_shot01") / Path(
+        expected = Path(f"{Config.SHOWS_ROOT}/myshow/shots/seq01/seq01_shot01") / Path(
             *Config.THUMBNAIL_SEGMENTS,
         )
         assert result == expected

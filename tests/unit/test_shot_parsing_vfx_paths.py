@@ -11,6 +11,7 @@ the UNIFIED_TESTING_GUIDE principles:
 import pytest
 
 # Local application imports
+from config import Config
 from shot_model import ShotModel
 from tests.test_doubles_library import TestProcessPool
 
@@ -216,7 +217,8 @@ workspace /shows/jack_ryan/shots/999_xx/999_xx_999"""
         from utils import PathUtils
 
         # Test 3DE scene path construction
-        workspace = "/shows/jack_ryan/shots/DB_256/DB_256_1200"
+        shows_root = Config.SHOWS_ROOT
+        workspace = f"{shows_root}/jack_ryan/shots/DB_256/DB_256_1200"
         username = "gabriel-h"
 
         threede_path = PathUtils.build_threede_scene_path(workspace, username)
@@ -261,34 +263,36 @@ workspace /shows/jack_ryan/shots/999_xx/999_xx_999"""
         # Standard library imports
         from pathlib import Path
 
+        shows_root = Config.SHOWS_ROOT
+
         # Test data from actual VFX pipeline
         test_cases = [
             {
                 "description": "3DE scene for Maya",
-                "path": "/shows/jack_ryan/shots/DB_256/DB_256_1200/user/gabriel-h/mm/3de/mm-default/exports/scene/FG01/mel_script/v002/DB_256_1200_mm_default_scene_v002.mel",
-                "workspace": "/shows/jack_ryan/shots/DB_256/DB_256_1200",
+                "path": f"{shows_root}/jack_ryan/shots/DB_256/DB_256_1200/user/gabriel-h/mm/3de/mm-default/exports/scene/FG01/mel_script/v002/DB_256_1200_mm_default_scene_v002.mel",
+                "workspace": f"{shows_root}/jack_ryan/shots/DB_256/DB_256_1200",
                 "plate": "FG01",
                 "version": "v002",
             },
             {
                 "description": "Nuke undistortion script",
-                "path": "/shows/jack_ryan/shots/DB_256/DB_256_1200/user/gabriel-h/mm/3de/mm-default/exports/scene/FG01/nuke_lens_distortion/v002/GF_256_1200_turnover-plate_FG01_lin_sgamut3cine_v001/DB_256_1200_mm_default_FG01_LD_v002.nk",
-                "workspace": "/shows/jack_ryan/shots/DB_256/DB_256_1200",
+                "path": f"{shows_root}/jack_ryan/shots/DB_256/DB_256_1200/user/gabriel-h/mm/3de/mm-default/exports/scene/FG01/nuke_lens_distortion/v002/GF_256_1200_turnover-plate_FG01_lin_sgamut3cine_v001/DB_256_1200_mm_default_FG01_LD_v002.nk",
+                "workspace": f"{shows_root}/jack_ryan/shots/DB_256/DB_256_1200",
                 "plate": "FG01",
                 "version": "v002",
             },
             {
                 "description": "Raw plate sequence",
-                "path": "/shows/jack_ryan/shots/DB_256/DB_256_1200/publish/turnover/plate/input_plate/FG01/v001/exr/4312x2304/DB_256_1200_turnover-plate_FG01_lin_sgamut3cine_v001.####.exr",
-                "workspace": "/shows/jack_ryan/shots/DB_256/DB_256_1200",
+                "path": f"{shows_root}/jack_ryan/shots/DB_256/DB_256_1200/publish/turnover/plate/input_plate/FG01/v001/exr/4312x2304/DB_256_1200_turnover-plate_FG01_lin_sgamut3cine_v001.####.exr",
+                "workspace": f"{shows_root}/jack_ryan/shots/DB_256/DB_256_1200",
                 "plate": "FG01",
                 "version": "v001",
                 "frame_range": "1001-1128",
             },
             {
                 "description": "3DE scene file",
-                "path": "/shows/gator/shots/012_DC/012_DC_1000/user/gabriel-h/mm/3de/mm-default/scenes/scene/bg01/012_DC_1000_mm_default_bg01_scene_v001.3de",
-                "workspace": "/shows/gator/shots/012_DC/012_DC_1000",
+                "path": f"{shows_root}/gator/shots/012_DC/012_DC_1000/user/gabriel-h/mm/3de/mm-default/scenes/scene/bg01/012_DC_1000_mm_default_bg01_scene_v001.3de",
+                "workspace": f"{shows_root}/gator/shots/012_DC/012_DC_1000",
                 "plate": "bg01",
                 "version": "v001",
             },
@@ -296,8 +300,8 @@ workspace /shows/jack_ryan/shots/999_xx/999_xx_999"""
 
         for case in test_cases:
             path = Path(case["path"])
-            assert path.parts[0] == "/"
-            assert path.parts[1] == "shows"
+            # Check that path starts with shows_root (path structure depends on shows_root)
+            assert str(path).startswith(shows_root)
             assert case["workspace"] in str(path)
             assert case["plate"] in str(path)
             assert case["version"] in str(path)

@@ -40,9 +40,9 @@ if TYPE_CHECKING:
 # Local application imports
 from base_shot_model import BaseShotModel
 from cache_manager import ShotMergeResult
+from core.shot_types import RefreshResult
 from exceptions import WorkspaceError
 from thread_safe_worker import ThreadSafeWorker
-from core.shot_types import RefreshResult
 from type_definitions import Shot
 
 # Re-export Shot for backward compatibility with existing imports

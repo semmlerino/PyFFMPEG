@@ -52,7 +52,7 @@ def create_test_shot(
     show: str = "testshow", sequence: str = "seq01", shot: str = "0010"
 ) -> Shot:
     """Create test shot for testing."""
-    return Shot(show, sequence, shot, f"/shows/{show}")
+    return Shot(show, sequence, shot, f"{Config.SHOWS_ROOT}/{show}")
 
 
 def create_test_shots(count: int = 3) -> list[Shot]:

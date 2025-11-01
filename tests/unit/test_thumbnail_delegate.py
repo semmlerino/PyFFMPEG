@@ -19,7 +19,6 @@ from PySide6.QtCore import Qt
 from PySide6.QtTest import QSignalSpy
 from PySide6.QtWidgets import QListView
 
-from base_item_model import BaseItemRole
 from base_thumbnail_delegate import BaseThumbnailDelegate, DelegateTheme
 from shot_item_model import ShotItemModel
 from shot_model import Shot
@@ -35,8 +34,8 @@ pytestmark = [
 ]
 
 
-class TestThumbnailDelegate(BaseThumbnailDelegate):
-    """Concrete implementation for testing."""
+class ConcreteThumbnailDelegate(BaseThumbnailDelegate):
+    """Concrete implementation for testing (not a test class itself)."""
 
     def get_theme(self) -> DelegateTheme:
         """Get default theme."""
@@ -86,7 +85,7 @@ class TestLoadingAnimationTargetedRepaint:
         qtbot.addWidget(view)
 
         # Create delegate with view as parent (critical for parent() to work)
-        delegate = TestThumbnailDelegate(parent=view)
+        delegate = ConcreteThumbnailDelegate(parent=view)
         view.setItemDelegate(delegate)
 
         # Add 30 shots to simulate realistic grid
@@ -130,7 +129,7 @@ class TestLoadingAnimationTargetedRepaint:
         view.setModel(model)
         qtbot.addWidget(view)
 
-        delegate = TestThumbnailDelegate(parent=view)
+        delegate = ConcreteThumbnailDelegate(parent=view)
         view.setItemDelegate(delegate)
 
         # Add shots but don't mark any as loading
@@ -153,7 +152,7 @@ class TestLoadingAnimationTargetedRepaint:
         view.setModel(model)
         qtbot.addWidget(view)
 
-        delegate = TestThumbnailDelegate(parent=view)
+        delegate = ConcreteThumbnailDelegate(parent=view)
         view.setItemDelegate(delegate)
 
         # Add 5 shots
@@ -184,7 +183,7 @@ class TestLoadingAnimationTargetedRepaint:
         view.setModel(model)
         qtbot.addWidget(view)
 
-        delegate = TestThumbnailDelegate(parent=view)
+        delegate = ConcreteThumbnailDelegate(parent=view)
         view.setItemDelegate(delegate)
 
         # Add shots
@@ -212,7 +211,7 @@ class TestLoadingAnimationTargetedRepaint:
         qtbot.addWidget(view)
 
         # Create delegate with view as parent
-        delegate = TestThumbnailDelegate(parent=view)
+        delegate = ConcreteThumbnailDelegate(parent=view)
         view.setItemDelegate(delegate)
 
         # Initial angle

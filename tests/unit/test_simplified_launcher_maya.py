@@ -16,6 +16,7 @@ import pytest
 
 # Local application imports
 from shot_model import Shot
+from config import Config
 from simplified_launcher import SimplifiedLauncher
 
 
@@ -32,7 +33,7 @@ def test_shot() -> Shot:
         show="test_show",
         sequence="010",
         shot="0010",
-        workspace_path="/shows/test_show/shots/010/0010",
+        workspace_path=f"{Config.SHOWS_ROOT}/test_show/shots/010/0010",
     )
 
 

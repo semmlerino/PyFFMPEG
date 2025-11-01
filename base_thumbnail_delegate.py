@@ -475,7 +475,7 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
             return
 
         # Check if parent is a view with a model() method
-        if not hasattr(parent, 'model') or not callable(getattr(parent, 'model', None)):
+        if not hasattr(parent, "model") or not callable(getattr(parent, "model", None)):
             return
 
         model = parent.model()  # type: ignore[attr-defined]
@@ -503,7 +503,7 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
             return loading_rows
 
         # Check if parent is a view with a model() method
-        if not hasattr(parent, 'model') or not callable(getattr(parent, 'model', None)):
+        if not hasattr(parent, "model") or not callable(getattr(parent, "model", None)):
             return loading_rows
 
         model = parent.model()  # type: ignore[attr-defined]

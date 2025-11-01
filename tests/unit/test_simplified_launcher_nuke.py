@@ -8,13 +8,14 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from shot_model import Shot
+from config import Config
 from simplified_launcher import SimplifiedLauncher
 
 
 @pytest.fixture
 def mock_shot():
     """Create a mock shot for testing."""
-    return Shot("TEST", "seq01", "0010", "/shows/TEST/shots/seq01/seq01_0010")
+    return Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
 
 
 @pytest.fixture

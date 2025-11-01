@@ -168,8 +168,9 @@ class TestShotModelThreadSafety:
             # Start background load
             self.model.initialize_async()
 
-            # Give it time to start
-            time.sleep(0.01)
+            # Give it time to start - increased from 0.01 to 0.1 for loaded test environments
+            # In a full suite with 900+ tests, 10ms may not be enough for thread to start
+            time.sleep(0.1)
 
             # Cleanup should handle running thread
             start_time = time.time()

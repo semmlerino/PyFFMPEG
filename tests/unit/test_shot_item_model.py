@@ -19,6 +19,7 @@ from PySide6.QtTest import QSignalSpy
 from base_item_model import BaseItemRole
 from shot_item_model import ShotItemModel
 from shot_model import Shot
+from config import Config
 
 if TYPE_CHECKING:
 
@@ -46,10 +47,10 @@ pytestmark = [
 def test_shots() -> list[Shot]:
     """Create test Shot objects for testing."""
     return [
-        Shot("show1", "seq01", "0010", "/shows/show1/shots/seq01/seq01_0010"),
-        Shot("show1", "seq01", "0020", "/shows/show1/shots/seq01/seq01_0020"),
-        Shot("show2", "seq02", "0030", "/shows/show2/shots/seq02/seq02_0030"),
-        Shot("show2", "seq02", "0040", "/shows/show2/shots/seq02/seq02_0040"),
+        Shot("show1", "seq01", "0010", f"{Config.SHOWS_ROOT}/show1/shots/seq01/seq01_0010"),
+        Shot("show1", "seq01", "0020", f"{Config.SHOWS_ROOT}/show1/shots/seq01/seq01_0020"),
+        Shot("show2", "seq02", "0030", f"{Config.SHOWS_ROOT}/show2/shots/seq02/seq02_0030"),
+        Shot("show2", "seq02", "0040", f"{Config.SHOWS_ROOT}/show2/shots/seq02/seq02_0040"),
     ]
 
 

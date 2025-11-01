@@ -37,6 +37,7 @@ from shot_grid_view import ShotGridView  # Modern Model/View
 # from shot_grid import ShotGrid  # Module deleted during Model/View migration
 from shot_item_model import ShotItemModel
 from shot_model import Shot
+from config import Config
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_doubles_library import (
@@ -60,9 +61,9 @@ class TestShotGridView:
     def test_shots(self) -> list[TestShot]:
         """Create test shots for Model/View testing."""
         return [
-            TestShot("show1", "seq1", "0010", "/shows/show1/shots/seq1/seq1_0010"),
-            TestShot("show1", "seq1", "0020", "/shows/show1/shots/seq1/seq1_0020"),
-            TestShot("show2", "seq2", "0030", "/shows/show2/shots/seq2/seq2_0030"),
+            TestShot("show1", "seq1", "0010", f"{Config.SHOWS_ROOT}/show1/shots/seq1/seq1_0010"),
+            TestShot("show1", "seq1", "0020", f"{Config.SHOWS_ROOT}/show1/shots/seq1/seq1_0020"),
+            TestShot("show2", "seq2", "0030", f"{Config.SHOWS_ROOT}/show2/shots/seq2/seq2_0030"),
         ]
 
     @pytest.fixture
@@ -199,7 +200,7 @@ class TestShotGridView:
         # Add more shots to model
         new_shots = [
             *test_shots,
-            TestShot("show3", "seq3", "0040", "/shows/show3/shots/seq3/seq3_0040"),
+            TestShot("show3", "seq3", "0040", f"{Config.SHOWS_ROOT}/show3/shots/seq3/seq3_0040"),
         ]
 
         # Update model data - convert TestShot to Shot objects
