@@ -1530,6 +1530,7 @@ class ImageUtils:
         try:
             # Extract first frame using FFmpeg
             # -i: input file
+            # -an: disable audio (avoids audio codec library issues)
             # -vframes 1: extract only 1 frame
             # -q:v 2: quality (2 is high quality for JPEG)
             # -y: overwrite output file
@@ -1537,6 +1538,7 @@ class ImageUtils:
                 "ffmpeg",
                 "-i",
                 str(mov_path),
+                "-an",  # Disable audio - only need video frame
                 "-vframes",
                 "1",
                 "-q:v",
