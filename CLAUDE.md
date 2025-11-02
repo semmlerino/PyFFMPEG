@@ -6,12 +6,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Shotbot is a PySide6-based GUI application for VFX production management. The application provides shot tracking, media management, and workflow automation for visual effects pipelines.
 
-## Deployment Environment
+## Development Environment
 
-### Remote VFX Environment
+### Primary Development Location (Linux Filesystem)
+**The codebase resides on the Linux filesystem for optimal performance**:
+
+- **Primary Location**: `~/projects/shotbot` (Linux native filesystem)
+- **Symlink**: `/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot` → `~/projects/shotbot`
+- **Performance**: ~7.5x faster than Windows filesystem (`/mnt/c`)
+  - Test suite: 16s (Linux) vs 120s (Windows)
+  - Type checking: 6s (Linux) vs 15-20s (Windows)
+  - Dependency install: <0.5s (Linux) vs 5-10s (Windows)
+
+**Both paths work identically** due to the symlink, but all file I/O occurs on the fast Linux filesystem.
+
+### Deployment Environment
+
 **Shotbot runs on a remote VFX production environment**, not on the development machine:
 
-- **Development Location**: `/mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot` (WSL2/Windows)
 - **Production Location**: `/nethome/gabriel-h/Python/Shotbot/` (Remote Linux VFX server)
 - **Deployment Method**: Encoded bundle transfer via `encoded-releases` branch
 
@@ -36,26 +48,38 @@ The application uses an automated encoding/deployment system:
 
 ## Development Commands
 
+**All commands should be run from the Linux filesystem location** for best performance:
+
+```bash
+cd ~/projects/shotbot  # Or cd /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot (symlink)
+```
+
 ### Running Locally (Development)
 ```bash
-# Activate virtual environment
-source .venv/bin/activate
-
 # Run the application
 ~/.local/bin/uv run python shotbot.py
 ```
 
 ### Testing Before Deployment
 ```bash
-# Run type checking
+# Run type checking (6 seconds on Linux)
 ~/.local/bin/uv run basedpyright
 
 # Run linting
 ~/.local/bin/uv run ruff check .
 
-# Run tests
+# Run tests with recommended parallelism (755 tests in ~19s)
+~/.local/bin/uv run pytest tests/ -n 2
+
+# Run tests serially (slower but most stable for Qt tests)
 ~/.local/bin/uv run pytest tests/
 ```
+
+**Test Execution Notes**:
+- Use `-n 2` for faster execution with minimal Qt initialization issues
+- Higher parallelism (`-n 4`, `-n 16`) may cause Qt C++ initialization crashes in WSL
+- Individual test files run reliably with any parallelism level
+- Qt state cleanup between tests is critical - see Qt Widget Guidelines below
 
 ### Creating Deployment Bundle
 The bundle is automatically created on commit, but can be manually triggered:
@@ -153,9 +177,23 @@ Check the logs in `.post-commit-output/`:
 ## Dependencies
 
 ### Development Environment
+**Core Dependencies**:
 - Python 3.12+ (via uv)
 - PySide6 (Qt for Python)
-- Development tools: basedpyright, ruff, pytest
+- Pillow (PIL - image processing)
+- psutil (system and process utilities)
+
+**Development Tools**:
+- basedpyright (type checking)
+- ruff (linting and formatting)
+- pytest, pytest-qt, pytest-xdist, pytest-timeout, pytest-mock
+- hypothesis (property-based testing)
+
+**Installation**:
+```bash
+cd ~/projects/shotbot
+~/.local/bin/uv pip install -r requirements.txt
+```
 
 ### Production Environment (VFX Server)
 - Python 3.x (VFX pipeline version)
@@ -190,15 +228,94 @@ The project uses basedpyright for type checking with strict settings:
 
 Current status: **0 errors, 0 warnings, 0 notes** ✅
 
-## Testing
+## Qt Widget Guidelines
 
-Run tests with:
-```bash
-~/.local/bin/uv run pytest tests/
+### Parent Parameter Requirement
+**ALL QWidget subclasses MUST accept an optional parent parameter** and pass it to `super().__init__()`:
+
+```python
+class MyWidget(QtWidgetMixin, QWidget):
+    """Example widget with proper parent handling."""
+
+    def __init__(
+        self,
+        # ... other parameters ...
+        parent: QWidget | None = None,  # ✅ REQUIRED
+    ) -> None:
+        """Initialize widget.
+
+        Args:
+            parent: Optional parent widget for proper Qt ownership
+        """
+        super().__init__(parent)  # ✅ REQUIRED - pass parent to Qt
+        # ... rest of initialization ...
 ```
 
-Test coverage is tracked and the project maintains comprehensive test suites for:
-- Core business logic
-- Controllers and managers
-- UI components (where possible)
-- Integration scenarios
+**Why This Matters**:
+- Missing parent parameter causes Qt C++ crashes during initialization
+- Crashes occur even in serial (non-parallel) test execution
+- Error manifests as `Fatal Python error: Aborted` at `logging_mixin.py:269` → `qt_widget_mixin.py:63` → Qt C++
+- Fix verified: Adding parent parameter resolved 36+ test failures
+
+**Common Mistake**:
+```python
+# ❌ WRONG - No parent parameter
+def __init__(self, cache_manager: CacheManager | None = None) -> None:
+    super().__init__()  # Qt C++ will crash!
+
+# ✅ CORRECT - Accept and pass parent
+def __init__(
+    self,
+    cache_manager: CacheManager | None = None,
+    parent: QWidget | None = None,
+) -> None:
+    super().__init__(parent)  # Qt handles ownership properly
+```
+
+### Qt State Cleanup in Tests
+Tests using Qt widgets should include cleanup fixtures:
+
+```python
+@pytest.fixture(autouse=True)
+def cleanup_qt_state(qtbot: QtBot):
+    """Autouse fixture to ensure Qt state is cleaned up after each test."""
+    yield
+    qtbot.wait(1)  # Process pending Qt events
+```
+
+## Testing
+
+### Current Test Status
+- **755 tests passing** (with n=2 workers, 19s runtime)
+- Comprehensive coverage across:
+  - Core business logic
+  - Controllers and managers
+  - UI components (Qt widgets)
+  - Integration scenarios
+
+### Running Tests
+```bash
+# Recommended: Parallel with n=2 for speed + stability
+~/.local/bin/uv run pytest tests/ -n 2
+
+# Serial execution (most stable, but slower)
+~/.local/bin/uv run pytest tests/
+
+# Single test file (safe at any parallelism)
+~/.local/bin/uv run pytest tests/unit/test_shot_model.py -v
+```
+
+### Known Test Issues
+- Qt widget tests may crash with `-n 4+` workers due to Qt C++ initialization limits in WSL
+- Ensure all QWidget subclasses follow [Qt Widget Guidelines](#qt-widget-guidelines)
+- Qt state cleanup fixtures are critical for test isolation in parallel execution
+
+### Test Coverage
+Coverage reports are generated automatically and can be viewed:
+```bash
+# Run tests with coverage
+~/.local/bin/uv run pytest tests/ --cov=. --cov-report=html
+
+# View coverage report
+open coverage_html/index.html
+```

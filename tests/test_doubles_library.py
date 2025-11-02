@@ -471,6 +471,7 @@ class TestCacheManager(QObject):
 
     cache_updated = Signal()
     thumbnail_cached = Signal(str)
+    shots_migrated = Signal(list)  # Emitted when shots migrate to Previous Shots
 
     def __init__(self, cache_dir: Path | None = None) -> None:
         """Initialize test cache manager."""
@@ -490,6 +491,7 @@ class TestCacheManager(QObject):
         sequence: str,
         shot: str,
         wait: bool = True,
+        timeout: float | None = None,
     ) -> Path | None:
         """Cache a thumbnail with real behavior."""
         source = Path(source_path)
@@ -579,6 +581,19 @@ class TestCacheManager(QObject):
         return (
             self._cached_previous_shots.copy() if self._cached_previous_shots else None
         )
+
+    def get_persistent_shots(self) -> list[dict[str, Any]] | None:
+        """Get My Shots cache without TTL expiration.
+
+        Similar to get_persistent_previous_shots() but for active shots.
+        Enables incremental caching by preserving shot history.
+
+        Returns:
+            List of shot dictionaries or None if not cached
+        """
+        if not self._cached_shots:
+            return None
+        return [shot.to_dict() for shot in self._cached_shots]
 
     def cache_previous_shots(self, shots: list[TestShot | dict[str, Any]]) -> bool:
         """Cache previous shot data."""
