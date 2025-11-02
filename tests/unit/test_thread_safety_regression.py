@@ -1,7 +1,6 @@
 """Regression tests for thread safety fixes in the Stabilization Sprint."""
 
 # Standard library imports
-import concurrent.futures
 import sys
 import tempfile
 import threading
@@ -19,7 +18,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 # Local application imports
 from cache_manager import CacheManager
-from process_pool_manager import ProcessPoolManager
 from shot_model import AsyncShotLoader, RefreshResult, ShotModel
 from tests.test_doubles_library import TestProcessPool
 

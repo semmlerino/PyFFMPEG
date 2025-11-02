@@ -30,11 +30,11 @@ Target coverage: 70%+ (QPainter code will remain untested)
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock
 
 import pytest
 from PySide6.QtCore import QModelIndex, QPersistentModelIndex, QRect, QSize, Qt
-from PySide6.QtGui import QColor, QFont, QPixmap
+from PySide6.QtGui import QColor, QPixmap
 from PySide6.QtTest import QSignalSpy
 from PySide6.QtWidgets import QListView, QStyleOptionViewItem
 
@@ -48,7 +48,7 @@ from shot_item_model import ShotItemModel
 from shot_model import Shot
 
 if TYPE_CHECKING:
-    from pytestqt.qtbot import QtBot
+    pass
 
 pytestmark = [
     pytest.mark.unit,

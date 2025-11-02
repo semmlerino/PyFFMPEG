@@ -10,7 +10,6 @@ following UNIFIED_TESTING_GUIDE principles:
 """
 
 # Standard library imports
-from collections.abc import Generator
 from unittest.mock import patch
 
 # Third-party imports
@@ -93,9 +92,25 @@ def create_conda_launcher() -> TestLauncher:
 
 # Test Double LauncherManager Fixture
 @pytest.fixture
-def mock_launcher_manager() -> Generator[LauncherManagerDouble, None, None]:
+def mock_launcher_manager() -> LauncherManagerDouble:
     """Create a test double LauncherManager with real behavior."""
-    return LauncherManagerDouble()
+    manager = LauncherManagerDouble()
+    return manager
+
+
+@pytest.fixture(autouse=True)
+def cleanup_qt_state(qtbot: QtBot):
+    """Autouse fixture to ensure Qt state is cleaned up after each test.
+
+    This prevents cross-test contamination when tests run in parallel.
+    Critical for preventing worker crashes under high parallel load.
+
+    Processes pending Qt events after each test to ensure proper cleanup
+    of signals, slots, and Qt internal state.
+    """
+    yield
+    # Process any pending Qt events to ensure clean state
+    qtbot.wait(1)  # Minimal wait to process events
 
 
 @pytest.fixture

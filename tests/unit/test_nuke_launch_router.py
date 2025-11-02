@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from unittest.mock import Mock, patch
 
 import pytest
@@ -184,6 +185,9 @@ class TestNukeLaunchRouter:
 
     def test_log_usage_stats(self, router, caplog) -> None:
         """Test that usage statistics are logged correctly."""
+        # Configure caplog to capture INFO level logs from the router's logger
+        caplog.set_level(logging.INFO, logger="nuke_launch_router.NukeLaunchRouter")
+
         router.simple_launches = 47
         router.complex_launches = 3
 
@@ -235,6 +239,9 @@ class TestNukeLaunchRouter:
 
     def test_routing_decision_logging(self, router, mock_shot, caplog) -> None:
         """Test that routing decisions are logged appropriately."""
+        # Configure caplog to capture INFO level logs from the router's logger
+        caplog.set_level(logging.INFO, logger="nuke_launch_router.NukeLaunchRouter")
+
         with patch.object(router.simple_launcher, "open_latest_script") as mock_open:
             mock_open.return_value = ("nuke /path/to/script.nk", ["Opening: script.nk"])
 

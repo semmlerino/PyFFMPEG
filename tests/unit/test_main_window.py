@@ -212,7 +212,6 @@ class TestShotRefresh:
         # CRITICAL: Recreate parser to use correct SHOWS_ROOT from test environment
         # Manually create pattern with correct shows_root to bypass Config import issues
         import re
-        from optimized_shot_parser import ParseResult
         shows_root_escaped = re.escape(shows_root)
         ws_pattern = re.compile(
             rf"workspace\s+({shows_root_escaped}/([^/]+)/shots/([^/]+)/([^/]+))"
@@ -304,7 +303,7 @@ class TestSignalConnections:
 
     def test_shot_model_refresh_behavior(
         self,
-        mock_gui_blocking_components: TestProcessPoolType,
+        test_process_pool: TestProcessPoolType,
         qtbot: QtBot,
         tmp_path: Path,
         monkeypatch,
@@ -320,20 +319,20 @@ class TestSignalConnections:
         # The autouse fixture patches ProcessPoolManager.get_instance(), but the shot model
         # has already gotten the real instance during MainWindow.__init__().
         # We need to replace the shot model's _process_pool with our test instance.
-        mock_gui_blocking_components.reset()  # Reset the pool first to clear any previous outputs
+        test_process_pool.reset()  # Reset the pool first to clear any previous outputs
         shows_root = Config.SHOWS_ROOT
-        mock_gui_blocking_components.set_outputs(
+        test_process_pool.set_outputs(
             f"workspace {shows_root}/different/shots/seq01/seq01_0010"
         )
 
         # Replace the shot model's process pool with our test instance
-        main_window.shot_model._process_pool = mock_gui_blocking_components
+        main_window.shot_model._process_pool = test_process_pool
 
         # Clear any existing shots first to ensure test starts clean
         main_window.shot_model.shots = []
 
         # Set test output for the refresh operation
-        mock_gui_blocking_components.set_outputs(
+        test_process_pool.set_outputs(
             f"workspace {shows_root}/different/shots/seq01/seq01_0010"
         )
 
@@ -451,7 +450,7 @@ class TestMainWindowIntegration:
 
     def test_complete_shot_selection_workflow(
         self,
-        mock_gui_blocking_components: TestProcessPoolType,
+        test_process_pool: TestProcessPoolType,
         qtbot: QtBot,
         tmp_path: Path,
         monkeypatch,
@@ -468,14 +467,14 @@ class TestMainWindowIntegration:
         main_window.shot_model.shots = []
 
         # Set up test process pool for 'ws' command with different data than autouse fixture
-        mock_gui_blocking_components.reset()
+        test_process_pool.reset()
         # Must use standard VFX format for parsing to work: /shows/{show}/shots/{seq}/{seq}_{shot}
         # The path doesn't need to exist since subprocess is mocked
         shows_root = Config.SHOWS_ROOT
-        mock_gui_blocking_components.set_outputs(
+        test_process_pool.set_outputs(
             f"workspace {shows_root}/workflow/shots/seq01/seq01_0010"
         )
-        main_window.shot_model._process_pool = mock_gui_blocking_components
+        main_window.shot_model._process_pool = test_process_pool
 
         # Load shots
         main_window._refresh_shots()

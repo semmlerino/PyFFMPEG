@@ -51,12 +51,16 @@ def shot_number(draw):
 
 @composite
 def shot_path(draw) -> str:
-    """Generate valid shot workspace paths."""
+    """Generate valid shot workspace paths.
+
+    Uses hardcoded /shows prefix to avoid dependency on mutable Config.SHOWS_ROOT,
+    which can cause FlakyStrategyDefinition errors when other tests monkeypatch it.
+    """
     show = draw(show_name())
     seq = draw(sequence_name())
     shot = draw(shot_number())
-    # Standard VFX shot path structure
-    return f"{Config.SHOWS_ROOT}/{show}/shots/{seq}/{seq}_{shot}"
+    # Standard VFX shot path structure with hardcoded prefix (avoids global state)
+    return f"/shows/{show}/shots/{seq}/{seq}_{shot}"
 
 
 class TestShotPathProperties:
@@ -271,6 +275,7 @@ class TestPathValidationProperties:
         # Results should be identical (both True or both False)
         assert result1 == result2
 
+    @settings(suppress_health_check=[HealthCheck.too_slow])
     @given(
         st.lists(
             st.text(
@@ -306,6 +311,7 @@ class TestPathValidationProperties:
 class TestSceneFinderProperties:
     """Property-based tests for 3DE scene finder."""
 
+    @settings(suppress_health_check=[HealthCheck.too_slow])
     @given(
         st.lists(
             st.tuples(

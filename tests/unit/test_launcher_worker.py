@@ -14,13 +14,11 @@ Following UNIFIED_TESTING_GUIDE best practices:
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from unittest.mock import Mock, patch, MagicMock, call
+from unittest.mock import Mock, patch
 import subprocess
-import time
 import io
 
 import pytest
-from PySide6.QtCore import QMutex, QMutexLocker, Qt, QEventLoop, QTimer
 from PySide6.QtTest import QSignalSpy
 
 from launcher.worker import LauncherWorker
@@ -29,7 +27,6 @@ from exceptions import SecurityError
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QApplication
-    from pytestqt.qtbot import QtBot
 
 pytestmark = [
     pytest.mark.unit,

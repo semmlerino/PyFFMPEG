@@ -602,8 +602,10 @@ class TestCustomLaunchers:
         assert created_shot.sequence == test_scene.sequence
         assert created_shot.shot == test_scene.shot
 
+    @patch("notification_manager.NotificationManager.warning")
     def test_execute_custom_launcher_no_context(
         self,
+        mock_warning: Mock,
         make_launcher_controller: Callable[
             [Any, bool], tuple[LauncherController, MockLauncherTarget]
         ],
@@ -620,6 +622,8 @@ class TestCustomLaunchers:
         assert "No shot or scene selected" in target.status_messages
         # Should not attempt to execute
         target.launcher_manager.execute_in_shot_context.assert_not_called()
+        # Should have called warning (but mocked, no real dialog)
+        mock_warning.assert_called_once()
 
     def test_execute_custom_launcher_not_found(
         self,

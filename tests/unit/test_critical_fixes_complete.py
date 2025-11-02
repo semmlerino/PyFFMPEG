@@ -143,7 +143,7 @@ def test_previous_shots_model_cleanup():
 
     # Check cleanup_manager.py for actual cleanup code
     cleanup_manager_path = Path(__file__).parent.parent.parent / "cleanup_manager.py"
-    assert cleanup_manager_path.exists(), f"cleanup_manager.py not found"
+    assert cleanup_manager_path.exists(), "cleanup_manager.py not found"
 
     with open(cleanup_manager_path) as f:
         content = f.read()
@@ -180,14 +180,8 @@ def test_json_error_handling():
     """Test comprehensive JSON error handling in mock_workspace_pool."""
     print("\n=== Testing JSON Error Handling ===")
 
-    # Standard library imports
-    import logging
-
     # Local application imports
     from mock_workspace_pool import create_mock_pool_from_filesystem
-
-    # Set up logging to capture error messages
-    logger = logging.getLogger("mock_workspace_pool")
 
     success_count = 0
 

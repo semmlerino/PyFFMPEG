@@ -92,11 +92,11 @@ class TestCrossTabSynchronization:
             for _ in range(3):
                 app.processEvents()
                 app.sendPostedEvents(None, 0)  # Process all deferred deletions
-                # Use small timeout, don't use QTest.qWait which might crash
-                # Standard library imports
-                import time
+                # Use proper Qt event processing instead of sleep
+                # (avoiding QTest.qWait which might crash in some environments)
+                from tests.helpers.synchronization import process_qt_events
 
-                time.sleep(0.01)
+                process_qt_events(app, 10)
 
         # Clear ProcessPoolManager singleton after test
         ProcessPoolManager._instance = None
@@ -400,11 +400,11 @@ class TestCacheUICoordination:
             for _ in range(3):
                 app.processEvents()
                 app.sendPostedEvents(None, 0)  # Process all deferred deletions
-                # Use small timeout, don't use QTest.qWait which might crash
-                # Standard library imports
-                import time
+                # Use proper Qt event processing instead of sleep
+                # (avoiding QTest.qWait which might crash in some environments)
+                from tests.helpers.synchronization import process_qt_events
 
-                time.sleep(0.01)
+                process_qt_events(app, 10)
 
         ProcessPoolManager._instance = None
 
@@ -563,11 +563,11 @@ class TestErrorPropagationChains:
             for _ in range(3):
                 app.processEvents()
                 app.sendPostedEvents(None, 0)  # Process all deferred deletions
-                # Use small timeout, don't use QTest.qWait which might crash
-                # Standard library imports
-                import time
+                # Use proper Qt event processing instead of sleep
+                # (avoiding QTest.qWait which might crash in some environments)
+                from tests.helpers.synchronization import process_qt_events
 
-                time.sleep(0.01)
+                process_qt_events(app, 10)
 
         ProcessPoolManager._instance = None
 

@@ -12,12 +12,12 @@ Following UNIFIED_TESTING_GUIDE best practices:
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 import subprocess
 import time
 
 import pytest
-from PySide6.QtCore import QMutex, QMutexLocker, Qt
+from PySide6.QtCore import QMutex
 from PySide6.QtTest import QSignalSpy
 
 from launcher.process_manager import LauncherProcessManager

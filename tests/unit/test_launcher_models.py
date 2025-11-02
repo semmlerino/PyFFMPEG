@@ -29,7 +29,6 @@ from launcher.models import (
 
 if TYPE_CHECKING:
     from unittest.mock import Mock
-    import subprocess
 
 pytestmark = [
     pytest.mark.unit,
@@ -352,7 +351,6 @@ class TestLauncherParameterValidation:
 
     def test_validate_with_exception_handling(self) -> None:
         """Test that validate_value handles exceptions gracefully."""
-        from unittest.mock import Mock, PropertyMock
 
         # Create a parameter
         param = LauncherParameter(

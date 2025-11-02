@@ -4,10 +4,8 @@ Unit tests for OutputBuffer class
 Tests batch processing, regex parsing, and thread-safe operations
 """
 
-import pytest
 import time
 import threading
-from unittest.mock import patch
 
 from output_buffer import OutputBuffer, ProcessOutputManager
 

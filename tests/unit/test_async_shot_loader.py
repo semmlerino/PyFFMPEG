@@ -221,21 +221,35 @@ class TestShotModelSignals:
     def test_shots_changed_signal_on_background_update(
         self, optimized_model, qtbot
     ) -> None:
-        """Test shots_changed signal emitted when background load finds changes."""
-        # Pre-populate with initial shots
-        optimized_model.shots = []
+        """Test shots_changed signal emitted when background load finds changes.
+
+        This test verifies that shots_changed is emitted when the background
+        load detects structural changes (e.g., new shots added, old ones removed)
+        to an already-populated model.
+        """
+        # Pre-populate cache with initial shots to simulate a real "update" scenario
+        from type_definitions import Shot
+        initial_shot = Shot(
+            show="OLD",
+            sequence="seq01",
+            shot="0010",
+            workspace_path="/test/workspace"
+        )
+        # Cache the initial data so initialize_async will load it
+        optimized_model.cache_manager.cache_shots([initial_shot])
 
         shots_changed_spy = QSignalSpy(optimized_model.shots_changed)
 
-        # Use TestProcessPool with new data
+        # Use TestProcessPool with different data (simulating workspace change)
         test_pool = TestProcessPool()
         shows_root = Config.SHOWS_ROOT
+        # New data is different from initial shots (NEW shot instead of OLD)
         test_pool.set_outputs(f"workspace {shows_root}/NEW/shots/seq01/NEW_seq01_0010")
         optimized_model._process_pool = test_pool
 
         optimized_model.initialize_async()
 
-        # Wait for background update
+        # Wait for background update to detect changes
         qtbot.waitUntil(lambda: shots_changed_spy.count() == 1, timeout=5000)
 
         assert len(optimized_model.shots) == 1

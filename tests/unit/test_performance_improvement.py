@@ -43,10 +43,8 @@ workspace /shows/TEST/seq02/0010"""
         model._process_pool = mock_pool  # pyright: ignore[reportUnknownMemberType]
 
         result = model.refresh_shots()
-        elapsed = time.perf_counter() - start
+        time.perf_counter() - start
 
-        # Performance metrics (for manual analysis)
-        metrics = {"time": elapsed, "shots": len(model.shots), "success": result.success}
         # Test passes if no exceptions raised
         assert result.success, "Shot model refresh should succeed"
 
@@ -81,24 +79,16 @@ workspace /shows/TEST/seq02/0010"""
 
         # Initialize with async strategy (returns immediately)
         result = model.initialize_async()
-        elapsed = time.perf_counter() - start
+        time.perf_counter() - start
 
         # UI would be ready here
-        initial_shots = len(model.shots)
+        len(model.shots)
 
         # Wait a bit for background load (in real app, this is event-driven)
         async_loader = getattr(model, "_async_loader", None)  # pyright: ignore[reportUnknownMemberType]
         if async_loader:
             # Give it a moment to process
             time.sleep(0.1)
-
-        # Performance metrics (for manual analysis)
-        metrics = {
-            "time": elapsed,
-            "initial_shots": initial_shots,
-            "success": result.success,
-            "cached_data_used": initial_shots > 0,
-        }
         # Test passes if no exceptions raised
         assert result.success, "Optimized shot model refresh should succeed"
 
@@ -123,7 +113,7 @@ def test_with_session_warming() -> None:
             pool.execute_workspace_command("echo warm", cache_ttl=1, timeout=5)
         except Exception:
             pass  # Might fail without real ws command
-        warm_time = time.perf_counter() - warm_start
+        time.perf_counter() - warm_start
 
         # Now create model with warmed pool
         model = ShotModel(cache_manager=cache)
@@ -133,15 +123,7 @@ def test_with_session_warming() -> None:
         # Time the actual load (should be faster)
         start = time.perf_counter()
         result = model.initialize_async()
-        elapsed = time.perf_counter() - start
-
-        # Performance metrics (for manual analysis)
-        metrics = {
-            "warm_time": warm_time,
-            "load_time": elapsed,
-            "total_time": warm_time + elapsed,
-            "success": result.success,
-        }
+        time.perf_counter() - start
         # Test passes if no exceptions raised
         assert result.success, "Session warming strategy should succeed"
 

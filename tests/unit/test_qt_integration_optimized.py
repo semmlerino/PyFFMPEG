@@ -33,9 +33,9 @@ class TestQtIntegration:
 
         # Mock slow process pool
         def slow_command(*args, **kwargs) -> str:
-            # Process events while "loading"
+            # Simulate slow operation (NOT Qt event processing - this runs in worker thread)
             for _i in range(10):
-                qtbot.wait(10)  # 10ms intervals
+                time.sleep(0.01)  # 10ms intervals - safe for background thread
             return "workspace /test/responsive/0010"
 
         mock_pool = Mock()

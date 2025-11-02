@@ -8,10 +8,8 @@ This script creates a minimal mock environment with:
 """
 
 import logging
-import os
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
 # Set up logging

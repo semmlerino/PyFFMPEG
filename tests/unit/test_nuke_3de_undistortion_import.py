@@ -1,14 +1,14 @@
 from __future__ import annotations
-"""Test 3DE undistortion import with realistic node types."""
-
-from config import Config
 
 # Standard library imports
 from pathlib import Path
 
 # Local application imports
+from config import Config
 from nuke_script_generator import NukeScriptGenerator
 from nuke_undistortion_parser import NukeUndistortionParser
+
+"""Test 3DE undistortion import with realistic node types."""
 
 # Mock 3DE undistortion export with actual 3DE node types
 MOCK_3DE_UNDISTORTION = """#! /usr/local/Nuke16.0v4/nuke-16.0.4 -nx

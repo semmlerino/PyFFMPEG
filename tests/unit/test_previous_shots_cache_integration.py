@@ -260,9 +260,14 @@ class TestPreviousShootsCacheIntegration:
 
             assert result is True
 
-            # Wait for the async scan to complete
-            with qtbot.waitSignal(previous_shots_model.scan_finished, timeout=5000):
-                pass
+            # Wait for the async scan to complete by polling cache state
+            # Using waitUntil instead of waitSignal to avoid Qt threading issues
+            # in parallel test execution (safer for pytest-xdist with 16 workers)
+            def cache_has_data():
+                cached = previous_shots_model._cache_manager.get_cached_previous_shots()
+                return cached is not None and len(cached) >= 1
+
+            qtbot.waitUntil(cache_has_data, timeout=5000)
 
             # Verify data was cached after scan completes
             cached_data = (

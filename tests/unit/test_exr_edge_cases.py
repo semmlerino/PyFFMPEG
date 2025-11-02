@@ -70,17 +70,18 @@ class TestCorruptedFiles:
         assert result is None or isinstance(result, Path)
 
     def test_empty_exr_file(self, tmp_path) -> None:
-        """Empty EXR file should be handled without crash."""
-        empty_exr = tmp_path / "empty.exr"
-        empty_exr.touch()  # Creates empty file
+        """Empty file should be handled without crash."""
+        # Use .jpg instead of .exr (EXR no longer supported for thumbnails)
+        empty_jpg = tmp_path / "empty.jpg"
+        empty_jpg.touch()  # Creates empty file
 
         result = FileUtils.get_first_image_file(tmp_path, allow_fallback=True)
-        assert result == empty_exr  # Found the file
+        assert result == empty_jpg  # Found the file
 
         # Cache manager should handle empty file
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
         cached = cache_manager.cache_thumbnail(
-            empty_exr, show="test", sequence="seq", shot="0010", wait=True
+            empty_jpg, show="test", sequence="seq", shot="0010", wait=True
         )
 
         # Should handle gracefully (return None or empty cache)
@@ -109,11 +110,12 @@ class TestPermissionErrors:
     @pytest.mark.skipif(os.name == "nt", reason="Unix-specific permissions")
     def test_no_read_permission(self, tmp_path) -> None:
         """Files without read permission should be handled."""
-        protected_exr = tmp_path / "protected.exr"
-        protected_exr.write_bytes(b"EXR" + b"x" * 100)
+        # Use .jpg instead of .exr (EXR no longer supported for thumbnails)
+        protected_jpg = tmp_path / "protected.jpg"
+        protected_jpg.write_bytes(b"JPG" + b"x" * 100)
 
         # Remove read permission
-        protected_exr.chmod(stat.S_IWRITE)
+        protected_jpg.chmod(stat.S_IWRITE)
 
         try:
             result = FileUtils.get_first_image_file(tmp_path, allow_fallback=True)
@@ -122,7 +124,7 @@ class TestPermissionErrors:
             assert result is not None  # Function completes without error
         finally:
             # Restore permissions for cleanup
-            protected_exr.chmod(stat.S_IREAD | stat.S_IWRITE)
+            protected_jpg.chmod(stat.S_IREAD | stat.S_IWRITE)
 
     def test_directory_no_execute_permission(self, tmp_path) -> None:
         """Directory without execute permission should be handled."""
@@ -182,12 +184,13 @@ class TestUnusualFormats:
     @pytest.mark.parametrize(
         ("filename", "content"),
         [
-            ("UPPERCASE.EXR", b"EXR"),
-            ("mixed.ExR", b"EXR"),
-            ("with spaces.exr", b"EXR"),
-            ("unicode_文件.exr", b"EXR"),
-            (".hidden.exr", b"EXR"),
-            ("very_long_filename_" + "x" * 200 + ".exr", b"EXR"),
+            # Use .jpg instead of .exr (EXR no longer supported for thumbnails)
+            ("UPPERCASE.JPG", b"JPG"),
+            ("mixed.JpG", b"JPG"),
+            ("with spaces.jpg", b"JPG"),
+            ("unicode_文件.jpg", b"JPG"),
+            (".hidden.jpg", b"JPG"),
+            ("very_long_filename_" + "x" * 200 + ".jpg", b"JPG"),
         ],
     )
     def test_unusual_filenames(self, tmp_path, filename, content) -> None:
@@ -202,29 +205,30 @@ class TestUnusualFormats:
 
         # Should find the file regardless of unusual name
         assert result is not None
-        assert result.name.lower().endswith(".exr")
+        assert result.name.lower().endswith((".jpg", ".jpeg"))
 
     def test_symlink_to_exr(self, tmp_path) -> None:
-        """Symlinks to EXR files should work."""
+        """Symlinks to image files should work."""
         if os.name == "nt":
             pytest.skip("Symlink test requires Unix")
 
-        # Create actual EXR
-        real_exr = tmp_path / "real" / "file.exr"
-        real_exr.parent.mkdir()
-        real_exr.write_bytes(b"EXR" + b"x" * 100)
+        # Use .jpg instead of .exr (EXR no longer supported for thumbnails)
+        # Create actual JPG
+        real_jpg = tmp_path / "real" / "file.jpg"
+        real_jpg.parent.mkdir()
+        real_jpg.write_bytes(b"JPG" + b"x" * 100)
 
         # Create symlink
-        link_exr = tmp_path / "link.exr"
-        link_exr.symlink_to(real_exr)
+        link_jpg = tmp_path / "link.jpg"
+        link_jpg.symlink_to(real_jpg)
 
         result = FileUtils.get_first_image_file(tmp_path, allow_fallback=True)
-        assert result == link_exr
+        assert result == link_jpg
 
         # Cache manager should handle symlink
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
         cached = cache_manager.cache_thumbnail(
-            link_exr, show="test", sequence="seq", shot="0010", wait=True
+            link_jpg, show="test", sequence="seq", shot="0010", wait=True
         )
 
         # Should process the linked file
@@ -232,20 +236,21 @@ class TestUnusualFormats:
 
     def test_very_deep_directory_structure(self, tmp_path) -> None:
         """Very deep directory structures should be handled."""
+        # Use .jpg instead of .exr (EXR no longer supported for thumbnails)
         # Create deep path
         deep_path = tmp_path
         for i in range(50):  # 50 levels deep
             deep_path = deep_path / f"level_{i}"
 
         deep_path.mkdir(parents=True)
-        exr_file = deep_path / "deep.exr"
-        exr_file.write_bytes(b"EXR")
+        jpg_file = deep_path / "deep.jpg"
+        jpg_file.write_bytes(b"JPG")
 
         # Should handle deep paths
-        assert PathUtils.validate_path_exists(exr_file, "Deep file")
+        assert PathUtils.validate_path_exists(jpg_file, "Deep file")
 
         result = FileUtils.get_first_image_file(deep_path, allow_fallback=True)
-        assert result == exr_file
+        assert result == jpg_file
 
     @pytest.mark.skipif(os.name == "nt", reason="Unix-specific")
     def test_unix_special_device_files(self, tmp_path) -> None:

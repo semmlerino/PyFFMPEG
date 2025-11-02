@@ -81,7 +81,7 @@ workspace /shows/jack_ryan/shots/999_xx/999_xx_999"""
 
         assert shot_data == expected_shots
 
-    def test_shot_directory_extraction(self, make_shot) -> None:
+    def test_shot_directory_extraction(self, make_test_shot) -> None:
         """Test correct extraction of shot from shot directory name."""
         # Test cases with actual VFX naming patterns
         test_cases = [
@@ -102,7 +102,7 @@ workspace /shows/jack_ryan/shots/999_xx/999_xx_999"""
 
             assert shot == expected_shot, f"Failed for {shot_dir}"
 
-    def test_thumbnail_path_construction(self, make_shot) -> None:
+    def test_thumbnail_path_construction(self, make_test_shot) -> None:
         """Test correct thumbnail path construction for VFX shots."""
         # Local application imports
         from config import Config
@@ -177,22 +177,21 @@ workspace /shows/jack_ryan/shots/999_xx/999_xx_999"""
         assert shot.full_name == expected["full_name"]
 
     @pytest.mark.flaky(reruns=2)
-    def test_workspace_path_format(self, make_shot) -> None:
+    def test_workspace_path_format(self, make_test_shot) -> None:
         """Test that workspace paths follow the expected format.
 
         Marked as flaky: Passes individually but occasionally fails in parallel
         suite runs due to Qt singleton state contamination.
         """
         # Create shots with actual VFX naming
-        shot = make_shot(show="jack_ryan", seq="DB_256", shot="1200")
+        shot = make_test_shot(show="jack_ryan", sequence="DB_256", shot="1200")
 
         # Verify workspace path format
-        # Local application imports
-        from config import Config
-
-        # Use dynamic SHOWS_ROOT for assertion
-        expected_workspace = f"{Config.SHOWS_ROOT}/jack_ryan/DB_256/DB_256_1200"
-        assert shot.workspace_path == expected_workspace
+        # Test should check the PATH STRUCTURE, not absolute path
+        # Fixture creates paths under tmp_path, so check the ending structure
+        expected_structure = "jack_ryan/shots/DB_256/DB_256_1200"
+        assert shot.workspace_path.endswith(expected_structure), \
+            f"Expected workspace_path to end with {expected_structure}, got {shot.workspace_path}"
         assert shot.full_name == "DB_256_1200"
 
         # Verify thumbnail path construction

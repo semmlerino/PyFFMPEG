@@ -31,7 +31,6 @@ from cache_manager import CacheManager
 from shot_info_panel import ShotInfoPanel
 from shot_item_model import ShotItemModel
 from shot_model import Shot
-from tests.helpers.synchronization import simulate_work_without_sleep
 
 pytestmark = [
     pytest.mark.integration,

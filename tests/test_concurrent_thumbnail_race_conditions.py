@@ -36,7 +36,7 @@ from type_definitions import Shot
 from utils import PathUtils, VersionUtils, _path_cache, _path_cache_lock
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    pass
 
 
 class TestConcurrentThumbnailRaceConditions:
@@ -358,15 +358,15 @@ class TestConcurrentThumbnailRaceConditions:
         assert not corruption_detected.is_set(), "Corruption detected during stress test"
 
         print(f"\n{'='*70}")
-        print(f"STRESS TEST RESULTS (Production Scenario)")
+        print("STRESS TEST RESULTS (Production Scenario)")
         print(f"{'='*70}")
         print(f"✓ 3 models × 95 shots = {total_operations} concurrent operations")
         print(f"✓ Completed in {elapsed:.2f}s without corruption")
         print(f"✓ Path cache size: {len(_path_cache)} entries")
         print(f"✓ Version cache size: {VersionUtils.get_version_cache_size()} entries")
-        print(f"✓ No path corruption (cutrefache) detected")
-        print(f"✓ No repeated fragments (scene_scene_scene) detected")
-        print(f"✓ All thread-safety mechanisms working correctly")
+        print("✓ No path corruption (cutrefache) detected")
+        print("✓ No repeated fragments (scene_scene_scene) detected")
+        print("✓ All thread-safety mechanisms working correctly")
         print(f"{'='*70}")
 
     @pytest.mark.parametrize("num_workers,num_iterations", [

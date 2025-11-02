@@ -23,10 +23,10 @@ from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
-from PySide6.QtCore import Qt, QUrl
-from PySide6.QtGui import QImage, QPixmap
-from PySide6.QtTest import QSignalSpy, QTest
-from PySide6.QtWidgets import QLabel, QMenu
+from PySide6.QtCore import Qt, QThreadPool, QUrl
+from PySide6.QtGui import QPixmap
+from PySide6.QtTest import QSignalSpy
+from PySide6.QtWidgets import QMenu
 
 from cache_manager import CacheManager
 from config import Config
@@ -36,13 +36,16 @@ from thumbnail_widget_base import (
     BaseThumbnailLoader,
     FolderOpenerWorker,
     LoadingState,
-    ThumbnailWidgetBase,
 )
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
-pytestmark = [pytest.mark.unit, pytest.mark.qt]
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.qt,
+    pytest.mark.xdist_group("qt_state"),  # Prevent Qt state contamination in parallel execution
+]
 
 
 class TestFolderOpenerWorker:
@@ -457,6 +460,15 @@ class TestThumbnailWidgetBaseLoadingOperations:
         widget = ThumbnailWidget(test_shot, Config.DEFAULT_THUMBNAIL_SIZE)
         qtbot.addWidget(widget)
 
+        # Wait for auto-started loader to complete/fail and process events
+        qtbot.wait(100)
+        QThreadPool.globalInstance().waitForDone(1000)
+        qtbot.wait(50)
+
+        # Reset to clean state for testing
+        widget._loading_state = LoadingState.LOADING
+        widget._pixmap = None
+
         # Create a test pixmap
         test_pixmap = QPixmap(100, 100)
         test_pixmap.fill(Qt.GlobalColor.green)
@@ -477,6 +489,15 @@ class TestThumbnailWidgetBaseLoadingOperations:
         """Test _on_thumbnail_failed updates state correctly."""
         widget = ThumbnailWidget(test_shot, Config.DEFAULT_THUMBNAIL_SIZE)
         qtbot.addWidget(widget)
+
+        # Wait for auto-started loader to complete/fail and process events
+        qtbot.wait(100)
+        QThreadPool.globalInstance().waitForDone(1000)
+        qtbot.wait(50)
+
+        # Reset to clean state for testing
+        widget._loading_state = LoadingState.LOADING
+        widget._pixmap = None
 
         # Simulate thumbnail loading failure
         widget._on_thumbnail_failed(widget)

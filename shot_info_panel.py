@@ -31,7 +31,11 @@ if TYPE_CHECKING:
 class ShotInfoPanel(QtWidgetMixin, QWidget):
     """Panel displaying current shot information."""
 
-    def __init__(self, cache_manager: CacheManager | None = None) -> None:
+    def __init__(
+        self,
+        cache_manager: CacheManager | None = None,
+        parent: QWidget | None = None,
+    ) -> None:
         # Ensure we're in the main thread for Qt widget creation
         # Third-party imports
         from PySide6.QtCore import QCoreApplication, QThread
@@ -65,7 +69,7 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
                 f"Type: {type(app_instance)}"
             )
 
-        super().__init__()
+        super().__init__(parent)
         self._current_shot: Shot | None = None
         self.cache_manager = cache_manager or CacheManager()  # Make public
         self._setup_ui()

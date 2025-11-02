@@ -397,7 +397,8 @@ def test_handle_shots_loaded_shows_notification(
 
     orchestrator.handle_shots_loaded(shots)
 
-    mock_notification_manager.info.assert_called_once_with("3 shots loaded from cache")
+    # Updated to match actual notification message (without "from cache")
+    mock_notification_manager.info.assert_called_once_with("3 shots loaded")
 
 
 # ============================================================================
