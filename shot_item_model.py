@@ -7,7 +7,9 @@ extending BaseItemModel with shot-specific behavior.
 from __future__ import annotations
 
 import contextlib
-from typing import TYPE_CHECKING, override
+from typing import TYPE_CHECKING
+
+from typing_compat import override
 
 from PySide6.QtCore import QModelIndex, QObject, Signal
 

@@ -1,7 +1,7 @@
 [project]
 name = "shotbot"
 version = "1.0.0"
-requires-python = ">=3.12"
+requires-python = ">=3.11"
 
 [tool.basedpyright]
 include = [
@@ -24,7 +24,7 @@ ignore = [
     "PyMPEG.py"  # Skip the old monolithic file
 ]
 
-pythonVersion = "3.12"
+pythonVersion = "3.11"
 typeCheckingMode = "basic"
 
 reportMissingImports = false
@@ -38,8 +38,8 @@ reportUnusedCallResult = "warning"
 reportImplicitOverride = "warning"
 
 [tool.ruff]
-# Target Python 3.12+
-target-version = "py312"
+# Target Python 3.11+
+target-version = "py311"
 
 # Line length to match Black (88 is standard)
 line-length = 88

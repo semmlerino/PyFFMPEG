@@ -11,7 +11,9 @@ from __future__ import annotations
 # Standard library imports
 # Note: Can't use ABC with Qt classes due to metaclass conflict
 from dataclasses import dataclass, field
-from typing import cast, override
+from typing import cast
+
+from typing_compat import override
 
 # Third-party imports
 from PySide6.QtCore import (

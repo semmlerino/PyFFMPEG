@@ -7,7 +7,9 @@ functionality from BaseThumbnailDelegate.
 from __future__ import annotations
 
 # Standard library imports
-from typing import TYPE_CHECKING, override
+from typing import TYPE_CHECKING
+
+from typing_compat import override
 
 # Third-party imports
 from PySide6.QtGui import QColor

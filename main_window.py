@@ -50,9 +50,7 @@ from __future__ import annotations
 
 # Standard library imports
 import os
-
-# Use typing_extensions for override (compatible with Python 3.11)
-from typing import TYPE_CHECKING, cast, override
+from typing import TYPE_CHECKING, cast
 
 # Third-party imports
 from PySide6.QtCore import Qt, QTimer, Slot
@@ -69,6 +67,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+from typing_compat import override
 
 
 if TYPE_CHECKING:
@@ -189,11 +189,11 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         main_thread = app_instance.thread()
         if current_thread != main_thread:
             raise RuntimeError(
-                (
+
                     f"MainWindow must be created in the main thread. "
                     f"Current thread: {current_thread}, "
                     f"Main thread: {main_thread}"
-                )
+
             )
 
         # Additional safety check for QApplication type (relaxed for tests)
@@ -205,10 +205,10 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         if not isinstance(app_instance, QApplication) and not is_test_environment:
             raise RuntimeError(
-                (
+
                     f"MainWindow: QCoreApplication instance is not a QApplication. "
                     f"Type: {type(app_instance)}"
-                )
+
             )
 
         super().__init__()
@@ -274,10 +274,10 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
                 persistent_cache = self.cache_manager.get_persistent_shots()
                 if persistent_cache:
                     self.logger.debug(
-                        (
+
                             f"Model initialized: cache expired ({len(persistent_cache)} shots), "
                             "background refresh in progress"
-                        )
+
                     )
                 else:
                     self.logger.debug(

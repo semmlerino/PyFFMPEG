@@ -8,7 +8,9 @@ with virtualization and proper Model/View architecture.
 from __future__ import annotations
 
 # Standard library imports
-from typing import TYPE_CHECKING, cast, override
+from typing import TYPE_CHECKING, cast
+
+from typing_compat import override
 
 # Third-party imports
 from PySide6.QtCore import (

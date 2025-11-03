@@ -6,7 +6,9 @@ extending BaseItemModel with 3DE-specific behavior including loading states and 
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, override
+from typing import TYPE_CHECKING
+
+from typing_compat import override
 
 from PySide6.QtCore import QModelIndex, QObject, QPersistentModelIndex, Signal
 

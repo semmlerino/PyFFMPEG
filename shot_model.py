@@ -17,7 +17,9 @@ from __future__ import annotations
 
 # Standard library imports
 import os
-from typing import TYPE_CHECKING, override
+from typing import TYPE_CHECKING
+
+from typing_compat import override
 
 # Third-party imports
 from PySide6.QtCore import (
