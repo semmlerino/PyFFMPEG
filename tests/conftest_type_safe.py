@@ -17,9 +17,15 @@ Usage:
 from __future__ import annotations
 
 # Standard library imports
+import os
 import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+
+# ==============================================================================
+# CRITICAL: Force Qt to use offscreen platform BEFORE any Qt imports
+# ==============================================================================
+os.environ["QT_QPA_PLATFORM"] = "offscreen"
 
 # Third-party imports
 import pytest
@@ -50,13 +56,14 @@ class TestQApplication:
 
     @classmethod
     def get_instance(cls) -> QApplication:
-        """Get or create test QApplication instance."""
+        """Get or create test QApplication instance with offscreen platform."""
         if cls._instance is None:
             existing = QApplication.instance()
             if existing is not None and isinstance(existing, QApplication):
                 cls._instance = existing
             else:
-                cls._instance = QApplication([])
+                # Create with offscreen platform explicitly
+                cls._instance = QApplication(["-platform", "offscreen"])
         return cls._instance
 
 

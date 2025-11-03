@@ -64,8 +64,8 @@ class LauncherPreviewPanel(QtWidgetMixin, LoggingMixin, QWidget):
     edit_requested = Signal(str)  # launcher_id
     delete_requested = Signal(str)  # launcher_id
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
         self.setObjectName("previewPanel")
         self._current_launcher_id: str | None = None
         self._setup_ui()

@@ -1,5 +1,5 @@
-Post-commit hook executed at Mon Nov  3 13:20:40 GMT 2025
-Commit: 23d7d2eed316bb16db84632fdae81cd232b33c53
+Post-commit hook executed at Mon Nov  3 14:10:51 GMT 2025
+Commit: 9757fa1017b6691374f401165baa71a606fb4724
 Branch: master
 Author: GabrielH <gabrhas@gmail.com>
-Message: fix: Replace Python 3.12 type parameter syntax with Python 3.11 compatible generics
+Message: fix: Remove 49 duplicate signal connections causing F821 undefined name errors

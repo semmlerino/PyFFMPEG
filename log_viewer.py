@@ -13,8 +13,8 @@ from qt_widget_mixin import QtWidgetMixin
 class LogViewer(QtWidgetMixin, LoggingMixin, QWidget):
     """Widget for displaying command execution logs."""
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
         self._setup_ui()
         self._line_count = 0
 
