@@ -57,7 +57,7 @@ import time
 from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, final
 
 # Local application imports
 from notification_manager import NotificationManager
@@ -279,6 +279,7 @@ class ProgressOperation:
                 self.status_bar = None
 
 
+@final
 class ProgressManager:
     """Centralized progress management system.
 

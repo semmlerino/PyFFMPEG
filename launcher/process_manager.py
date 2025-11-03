@@ -10,6 +10,7 @@ from __future__ import annotations
 import subprocess
 import time
 import uuid
+from typing import final
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -29,6 +30,7 @@ from launcher.worker import LauncherWorker
 from logging_mixin import LoggingMixin
 
 
+@final
 class LauncherProcessManager(LoggingMixin, QObject):
     """Manages launcher process lifecycle and worker threads."""
 

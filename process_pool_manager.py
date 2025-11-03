@@ -14,7 +14,7 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, cast, final
 
 # Third-party imports
 from PySide6.QtCore import QMutex, QMutexLocker, QObject, Signal
@@ -66,6 +66,7 @@ if HAS_DEBUG_UTILS:
     setup_enhanced_debugging()
 
 
+@final
 class CommandCache:
     """TTL-based cache for command results."""
 
@@ -638,6 +639,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
         self.logger.info(f"ProcessPoolManager shutdown complete ({status})")
 
 
+@final
 class ProcessMetrics:
     """Track process optimization metrics."""
 

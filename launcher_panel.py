@@ -4,7 +4,7 @@ from __future__ import annotations
 
 # Standard library imports
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, final
 
 # Third-party imports
 from PySide6.QtCore import Qt, QTimer, Signal
@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from shot_model import Shot
 
 
+@final
 @dataclass
 class AppConfig:
     """Configuration for an application launcher section."""
@@ -43,6 +44,7 @@ class AppConfig:
     checkboxes: list[CheckboxConfig] | None = None
 
 
+@final
 @dataclass
 class CheckboxConfig:
     """Configuration for app-specific checkboxes."""
@@ -53,6 +55,7 @@ class CheckboxConfig:
     default: bool = False
 
 
+@final
 class AppLauncherSection(QtWidgetMixin, QWidget):
     """Individual app launcher section with grouped options."""
 
@@ -348,6 +351,7 @@ class AppLauncherSection(QtWidgetMixin, QWidget):
         return current_text if current_text else None
 
 
+@final
 class LauncherPanel(QtWidgetMixin, QWidget):
     """Improved launcher panel with organized app sections."""
 

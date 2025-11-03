@@ -15,6 +15,7 @@ import os
 import subprocess
 import threading
 import time
+from typing import final
 
 # Local application imports
 from config import ThreadingConfig
@@ -64,6 +65,7 @@ if DEBUG_VERBOSE:
     _module_logger.info("VERBOSE DEBUG MODE ENABLED for PersistentBashSession")
 
 
+@final
 class PersistentBashSession(LoggingMixin):
     """Reusable bash session to avoid repeated process spawning."""
 

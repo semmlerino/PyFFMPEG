@@ -44,7 +44,7 @@ from collections.abc import Callable
 
 # Standard library imports
 from enum import Enum, auto
-from typing import TYPE_CHECKING, ClassVar, override
+from typing import TYPE_CHECKING, ClassVar, final, override
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -92,6 +92,7 @@ class NotificationType(Enum):
     PROGRESS = auto()
 
 
+@final
 class ToastNotification(QFrame):
     """Semi-transparent toast-style notification widget.
 
@@ -263,6 +264,7 @@ class ToastNotification(QFrame):
         super().mousePressEvent(event)
 
 
+@final
 class NotificationManager(QObject):
     """Centralized notification management system.
 
