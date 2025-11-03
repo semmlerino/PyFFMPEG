@@ -28,6 +28,8 @@ Focus areas:
 from __future__ import annotations
 
 # Standard library imports
+import platform
+import sys
 from collections.abc import Generator
 from typing import TYPE_CHECKING, Any, NoReturn
 
@@ -158,6 +160,10 @@ class TestPreviousShotsWorkerWorkflow:
             worker.stop()
             worker.wait(5000)
 
+    @pytest.mark.skipif(
+        sys.platform == "linux" and "microsoft" in platform.release().lower(),
+        reason="WSL subprocess.run with find command returns empty results",
+    )
     def test_complete_workflow_with_results(
         self,
         worker_with_cleanup: PreviousShotsWorker,
@@ -356,6 +362,10 @@ class TestPreviousShotsWorkerWorkflow:
         # Should not emit scan_finished on error
         assert scan_finished_spy.count() == 0
 
+    @pytest.mark.skipif(
+        sys.platform == "linux" and "microsoft" in platform.release().lower(),
+        reason="WSL subprocess.run with find command returns empty results",
+    )
     def test_signal_data_format(
         self,
         worker_with_cleanup: PreviousShotsWorker,

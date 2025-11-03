@@ -30,9 +30,11 @@ from __future__ import annotations
 # Standard library imports
 import cProfile
 import io
+import platform
 import pstats
 import re
 import subprocess
+import sys
 import tempfile
 import time
 from pathlib import Path
@@ -368,6 +370,10 @@ def large_project(tmp_path):
 class TestFileSystemTraversalPerformance:
     """Test different file system traversal methods."""
 
+    @pytest.mark.skipif(
+        sys.platform == "linux" and "microsoft" in platform.release().lower(),
+        reason="WSL subprocess.run with find command returns empty results",
+    )
     def test_rglob_vs_find_command_small(self, small_project, profiler) -> None:
         """Compare rglob vs find command on small project."""
         shows_root, stats = small_project

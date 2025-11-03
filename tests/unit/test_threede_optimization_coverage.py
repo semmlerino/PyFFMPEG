@@ -23,6 +23,7 @@ from __future__ import annotations
 
 # Standard library imports
 import os
+import platform
 import subprocess
 import sys
 import threading
@@ -196,6 +197,10 @@ class TestOptimizedFileFinding:
         assert "artist2" in users_found
         assert "excluded" not in users_found
 
+    @pytest.mark.skipif(
+        sys.platform == "linux" and "microsoft" in platform.release().lower(),
+        reason="WSL subprocess.run with find command returns empty results",
+    )
     def test_subprocess_method_with_exclusions(self, tmp_path) -> None:
         """Test subprocess method with user exclusions."""
         user_dir = tmp_path / "user"
