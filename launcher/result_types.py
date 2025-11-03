@@ -20,14 +20,14 @@ Examples:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TypeVar
+from typing import Generic, TypeVar
 
 
 T = TypeVar("T")
 
 
 @dataclass
-class Result[T]:
+class Result(Generic[T]):
     """Generic result type for operations that can fail.
 
     This provides a consistent way to handle success/failure without

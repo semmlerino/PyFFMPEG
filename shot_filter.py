@@ -41,7 +41,7 @@ class Filterable(Protocol):
 T = TypeVar("T", bound=Filterable)
 
 
-def filter_by_show[T: Filterable](
+def filter_by_show(
     items: Sequence[T],
     show: str | None,
 ) -> list[T]:
@@ -68,7 +68,7 @@ def filter_by_show[T: Filterable](
     return [item for item in items if item.show == show]
 
 
-def filter_by_text[T: Filterable](
+def filter_by_text(
     items: Sequence[T],
     text: str | None,
 ) -> list[T]:
@@ -97,7 +97,7 @@ def filter_by_text[T: Filterable](
     return [item for item in items if text_lower in item.full_name.lower()]
 
 
-def compose_filters[T: Filterable](
+def compose_filters(
     items: Sequence[T],
     show: str | None = None,
     text: str | None = None,
@@ -137,7 +137,7 @@ def compose_filters[T: Filterable](
     return result
 
 
-def get_available_shows[T: Filterable](items: Sequence[T]) -> set[str]:
+def get_available_shows(items: Sequence[T]) -> set[str]:
     """Extract unique show names from items.
 
     Args:

@@ -287,7 +287,7 @@ class LoggingMixin:
         return cast("ContextualLogger", getattr(self, cache_attr))
 
 
-def log_execution[**P, T](
+def log_execution(
     func: Callable[P, T] | None = None,
     *,
     include_args: bool = False,
