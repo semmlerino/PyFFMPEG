@@ -6,7 +6,7 @@ from __future__ import annotations
 import time
 from collections import deque
 from pathlib import Path
-from typing import TYPE_CHECKING, override
+from typing import TYPE_CHECKING, final, override
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -35,6 +35,7 @@ if TYPE_CHECKING:
 # Set up logger for this module
 
 
+@final
 class QtProgressReporter(LoggingMixin, QObject):
     """Simple Qt-based progress reporter for thread-safe signal emission.
 
@@ -70,6 +71,7 @@ class QtProgressReporter(LoggingMixin, QObject):
         self.progress_update.emit(files_found, status)
 
 
+@final
 class ProgressCalculator(LoggingMixin):
     """Helper class for calculating progress and ETA during file scanning."""
 
@@ -167,6 +169,7 @@ class ProgressCalculator(LoggingMixin):
         return f"~{hours}h {minutes}m remaining"
 
 
+@final
 class ThreeDESceneWorker(ThreadSafeWorker):
     """Thread-safe worker for progressive 3DE scene discovery.
 

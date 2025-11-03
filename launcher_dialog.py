@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 # Standard library imports
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, cast, final
 
 # Third-party imports
 from PySide6.QtCore import QSize, Qt, Signal
@@ -56,6 +56,7 @@ class LauncherListWidget(LoggingMixin, QListWidget):
         self.setObjectName("launcherList")
 
 
+@final
 class LauncherPreviewPanel(QtWidgetMixin, LoggingMixin, QWidget):
     """Preview panel showing launcher details and action buttons."""
 
@@ -156,6 +157,7 @@ class LauncherPreviewPanel(QtWidgetMixin, LoggingMixin, QWidget):
             self.delete_requested.emit(self._current_launcher_id)
 
 
+@final
 class LauncherEditDialog(QDialog, QtWidgetMixin, LoggingMixin):
     """Dialog for creating/editing launchers."""
 
@@ -443,6 +445,7 @@ class LauncherEditDialog(QDialog, QtWidgetMixin, LoggingMixin):
         super().keyPressEvent(event)
 
 
+@final
 class LauncherManagerDialog(QDialog, QtWidgetMixin, LoggingMixin):
     """Main launcher management dialog."""
 

@@ -46,7 +46,7 @@ import shutil
 import tempfile
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, NamedTuple, TypeAlias, cast
+from typing import TYPE_CHECKING, NamedTuple, TypeAlias, cast, final
 
 # Third-party imports
 from PIL import Image
@@ -116,6 +116,7 @@ def _shot_to_dict(shot: Shot | ShotDict) -> ShotDict:
 
 
 # Backward compatibility exports from old cache system
+@final
 class ThumbnailCacheResult:
     """Stub for backward compatibility - no longer used in simplified implementation."""
 
@@ -126,10 +127,12 @@ class ThumbnailCacheResult:
         self.is_complete = False
 
 
+@final
 class ThumbnailCacheLoader:
     """Stub for backward compatibility - no longer used in simplified implementation."""
 
 
+@final
 class CacheManager(LoggingMixin, QObject):
     """Simplified cache manager for local VFX tool.
 

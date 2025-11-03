@@ -10,7 +10,7 @@ from __future__ import annotations
 import contextlib
 import os
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, final
 
 # Third-party imports
 from PySide6.QtCore import QObject, QRecursiveMutex, QTimer, Signal
@@ -45,6 +45,7 @@ if TYPE_CHECKING:
 # Set up logger for this module
 
 
+@final
 class LauncherManager(LoggingMixin, QObject):
     """Orchestrates launcher operations through specialized components.
 

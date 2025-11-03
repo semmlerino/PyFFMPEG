@@ -46,7 +46,7 @@ import threading
 import time
 import uuid
 from collections.abc import Callable
-from typing import TYPE_CHECKING, override
+from typing import TYPE_CHECKING, final, override
 
 # Local application imports
 from config import ThreadingConfig
@@ -67,6 +67,7 @@ logger.debug(
 )
 
 
+@final
 class ThreadSafeProgressTracker(LoggingMixin):
     """Thread-safe progress tracking for concurrent operations.
 
@@ -267,6 +268,7 @@ class ThreadSafeProgressTracker(LoggingMixin):
         return f"ThreadSafeProgressTracker(id={stats['id']}, total={stats['total_progress']}, workers={stats['active_workers']})"
 
 
+@final
 class CancellationEvent(LoggingMixin):
     """Thread-safe cancellation event with resource cleanup support.
 
@@ -464,6 +466,7 @@ class CancellationEvent(LoggingMixin):
         return f"CancellationEvent(id={stats['id']}, cancelled={stats['cancelled']}, callbacks={stats['callback_count']})"
 
 
+@final
 class ThreadPoolManager(LoggingMixin):
     """Enhanced ThreadPoolExecutor manager with cancellation support.
 

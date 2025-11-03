@@ -50,7 +50,7 @@ from __future__ import annotations
 
 # Standard library imports
 import os
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, cast, final
 
 # Third-party imports
 from PySide6.QtCore import Qt, QTimer, Slot
@@ -170,6 +170,7 @@ class SessionWarmer(ThreadSafeWorker):
             logger.warning(f"Session pre-warming failed (non-critical): {e}")
 
 
+@final
 class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
     """Main application window."""
 
