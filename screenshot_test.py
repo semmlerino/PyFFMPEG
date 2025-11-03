@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pyautogui
 
+
 try:
     print("Attempting to take screenshot with pyautogui...")
     screenshot = pyautogui.screenshot()

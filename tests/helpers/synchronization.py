@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 from PySide6.QtCore import QEventLoop, QTimer, Signal
 from PySide6.QtTest import QSignalSpy
 
+
 if TYPE_CHECKING:
     # Standard library imports
     from collections.abc import Callable

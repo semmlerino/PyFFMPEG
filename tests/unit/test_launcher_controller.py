@@ -16,10 +16,11 @@ import pytest
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QMenu, QMessageBox, QStatusBar
 
+from config import Config
+
 # Local application imports
 from controllers.launcher_controller import LauncherController
 from shot_model import Shot
-from config import Config
 from threede_scene_model import ThreeDEScene
 
 

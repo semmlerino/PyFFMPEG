@@ -36,11 +36,13 @@ import pytest
 from PySide6.QtCore import QCoreApplication
 from PySide6.QtTest import QSignalSpy
 
+from config import Config
+
 # Local application imports
 from previous_shots_worker import PreviousShotsWorker
 from shot_model import Shot
-from config import Config
 from tests.test_doubles_library import TestCompletedProcess
+
 
 # Mark Qt tests for serial execution in same worker (prevents Qt crashes)
 pytestmark = [

@@ -1,1 +1,1 @@
-fix: Disable pytest-rerunfailures plugin (incompatible with Qt)
+refactor: Upgrade to basedpyright recommended mode with type safety improvements

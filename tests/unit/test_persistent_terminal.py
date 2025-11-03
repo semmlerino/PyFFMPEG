@@ -5,6 +5,7 @@
 import logging
 from typing import TYPE_CHECKING
 
+
 # Third-party imports
 
 if TYPE_CHECKING:
@@ -12,6 +13,7 @@ if TYPE_CHECKING:
 
 # Local application imports
 from persistent_terminal_manager import PersistentTerminalManager
+
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)

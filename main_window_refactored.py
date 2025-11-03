@@ -5,34 +5,35 @@ Uses focused classes for better separation of concerns
 """
 
 import os
-import sys
 import shutil
+import sys
 
-from PySide6.QtCore import Qt, QSettings
-from PySide6.QtGui import QAction, QIcon
-from PySide6.QtWidgets import (
-    QMainWindow,
-    QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-    QPushButton,
-    QFileDialog,
-    QProgressBar,
-    QPlainTextEdit,
-    QMessageBox,
-    QSplitter,
-    QGroupBox,
-    QTabWidget,
-    QScrollArea,
-    QStatusBar,
-)
+from conversion_controller import ConversionController
 
 # Import our focused classes
 from file_list_widget import FileListWidget
 from process_manager import ProcessManager
-from conversion_controller import ConversionController
 from process_monitor import ProcessMonitor
+from PySide6.QtCore import QSettings, Qt
+from PySide6.QtGui import QAction, QIcon
+from PySide6.QtWidgets import (
+    QFileDialog,
+    QGroupBox,
+    QHBoxLayout,
+    QMainWindow,
+    QMessageBox,
+    QPlainTextEdit,
+    QProgressBar,
+    QPushButton,
+    QScrollArea,
+    QSplitter,
+    QStatusBar,
+    QTabWidget,
+    QVBoxLayout,
+    QWidget,
+)
 from settings_panel import SettingsPanel
+
 from config import AppConfig, LogConfig
 from ui_update_manager import UIUpdateManager
 
@@ -537,7 +538,7 @@ class MainWindow(QMainWindow):
         self.stop_btn.setEnabled(False)
         self.overall_progress_bar.setVisible(False)
         self.status_bar.showMessage("Conversion completed")
-        
+
         # Refresh drag-and-drop functionality after conversion completion
         if self.file_list:
             self.file_list.refresh_drag_drop_state()
@@ -557,7 +558,7 @@ class MainWindow(QMainWindow):
         self.stop_btn.setEnabled(False)
         self.overall_progress_bar.setVisible(False)
         self.status_bar.showMessage("Conversion stopped")
-        
+
         # Refresh drag-and-drop functionality after conversion stopped
         if self.file_list:
             self.file_list.refresh_drag_drop_state()
@@ -605,7 +606,7 @@ class MainWindow(QMainWindow):
         # Update status bar
         if "status_label" in updates and self.status_bar:
             progress_data = updates["status_label"]
-            if "eta_str" in progress_data and progress_data["eta_str"]:
+            if progress_data.get("eta_str"):
                 active_count = progress_data.get("active_count", 0)
                 completed_count = progress_data.get("completed_count", 0)
                 total_count = progress_data.get("total_count", 0)
@@ -682,7 +683,6 @@ class MainWindow(QMainWindow):
         """Log process output (can be filtered/processed as needed)"""
         # For now, we don't log raw FFmpeg output to main log to keep it clean
         # The process monitor handles individual process progress
-        pass
 
     def _clear_main_log(self):
         """Clear the main log"""

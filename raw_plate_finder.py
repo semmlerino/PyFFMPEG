@@ -16,6 +16,7 @@ from plate_discovery import PlateDiscovery
 # Performance monitoring removed - was using archived module
 from utils import PathUtils, VersionUtils, find_path_case_insensitive
 
+
 # Set up logger for this module
 logger = get_module_logger(__name__)
 

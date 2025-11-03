@@ -16,6 +16,7 @@ This refactoring follows the established plan in MAINWINDOW_SAFE_REFACTORING_PLA
 
 from .settings_controller import SettingsController, SettingsTarget
 
+
 __all__ = [
     "SettingsController",
     "SettingsTarget",

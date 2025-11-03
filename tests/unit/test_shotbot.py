@@ -10,6 +10,7 @@ from unittest.mock import patch
 import pytest
 from PySide6.QtGui import QColor, QPalette
 
+
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 
 

@@ -29,6 +29,7 @@ from PySide6.QtWidgets import QPushButton
 from launcher_panel import AppConfig, AppLauncherSection, CheckboxConfig, LauncherPanel
 from shot_model import Shot
 
+
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 

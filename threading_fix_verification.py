@@ -11,6 +11,7 @@ in the main thread.
 import os
 import sys
 
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Standard library imports
@@ -20,6 +21,7 @@ from typing import TYPE_CHECKING
 # Third-party imports
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
+
 
 if TYPE_CHECKING:
     from core.shot_types import RefreshResult

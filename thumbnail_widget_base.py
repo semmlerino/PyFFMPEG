@@ -40,6 +40,7 @@ from qt_abc_meta import QABCMeta
 from runnable_tracker import get_tracker
 from thumbnail_loading_indicator import ThumbnailLoadingIndicator
 
+
 # Set up logger for this module
 logger = logging.getLogger(__name__)
 

@@ -19,6 +19,7 @@ from config import Config
 from core.shot_types import RefreshResult
 from shot_model import Shot
 
+
 if TYPE_CHECKING:
     from cache_manager import CacheManager
 

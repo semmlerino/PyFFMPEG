@@ -25,6 +25,7 @@ from PySide6.QtCore import (
     Slot,
 )
 
+
 if TYPE_CHECKING:
     # Third-party imports
     from PySide6.QtWidgets import QStatusBar
@@ -40,6 +41,7 @@ if TYPE_CHECKING:
     from shot_model import ShotModel
     from threede_grid_view import ThreeDEGridView
     from threede_item_model import ThreeDEItemModel
+    from threede_recovery import CrashFileInfo
     from threede_scene_model import ThreeDEScene, ThreeDESceneModel
     from threede_scene_worker import ThreeDESceneWorker
 
@@ -529,7 +531,7 @@ class ThreeDEController(LoggingMixin):
         dialog = ThreeDERecoveryDialog(crash_files, parent=self.window.threede_shot_grid)
 
         # Connect recovery signal
-        def on_recovery_requested(crash_info):
+        def on_recovery_requested(crash_info: CrashFileInfo) -> None:
             self.logger.info(f"Recovery requested for: {crash_info.crash_path.name}")
             try:
                 # Perform recovery and archiving
@@ -723,7 +725,7 @@ class ThreeDEController(LoggingMixin):
         # NOTE: item_model uses object type for polymorphism across different item models
         # All item models (ShotItemModel, ThreeDEItemModel, PreviousShotsItemModel)
         # implement set_show_filter with their specific model types
-        item_model.set_show_filter(model, show_filter)  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
+        item_model.set_show_filter(model, show_filter)  # pyright: ignore[reportAttributeAccessIssue]
 
         self.logger.info(
             f"Applied {tab_name} show filter: {show if show else 'All Shows'}"

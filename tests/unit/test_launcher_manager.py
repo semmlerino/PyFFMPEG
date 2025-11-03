@@ -23,6 +23,7 @@ from tests.test_doubles_library import (
     TestWorker,
 )
 
+
 pytestmark = [
     pytest.mark.unit,
     pytest.mark.qt,

@@ -19,6 +19,7 @@ import pytest
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from threede_scene_finder import ThreeDESceneFinder
 
+
 # This test file follows UNIFIED_TESTING_GUIDE best practices:
 # - Test behavior, not implementation
 # - Use test doubles instead of mocks

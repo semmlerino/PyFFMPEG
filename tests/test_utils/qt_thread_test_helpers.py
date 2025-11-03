@@ -17,6 +17,7 @@ from PySide6.QtCore import QCoreApplication, QThread, Signal
 # Local application imports
 from tests.helpers.synchronization import process_qt_events
 
+
 if TYPE_CHECKING:
     # Standard library imports
     from collections.abc import Callable

@@ -2,6 +2,7 @@
 
 ## Python Version
 - **Minimum**: Python 3.11
+- **Target**: Python 3.12+
 - **Type Syntax**: Modern union syntax (`str | None`, not `Optional[str]`)
 
 ## Critical Import Rule
@@ -14,11 +15,57 @@ from typing_extensions import override
 from typing import override
 ```
 
-## Code Formatting (Ruff)
+## Ruff Configuration
+
+### Quick Commands
+```bash
+# Check for issues
+~/.local/bin/uv run ruff check .
+
+# Auto-fix safe issues  
+~/.local/bin/uv run ruff check . --fix
+
+# Format code
+~/.local/bin/uv run ruff format .
+```
+
+### Formatting Standards
 - **Line length**: 88 characters (Black-compatible)
 - **Indent**: 4 spaces
 - **Quote style**: Double quotes
-- **Target**: Python 3.11+
+- **Target**: Python 3.12+
+
+### Enabled Rule Categories
+- **E, W**: pycodestyle (PEP 8 basics)
+- **F**: Pyflakes (syntax errors, undefined names)
+- **I**: isort (import sorting)
+- **N**: pep8-naming (naming conventions)
+- **UP**: pyupgrade (modern Python syntax)
+- **B**: flake8-bugbear (common bugs)
+- **C4**: flake8-comprehensions (better comprehensions)
+- **PT**: flake8-pytest-style (test quality)
+- **TCH**: flake8-type-checking (import organization)
+- **PL**: Pylint (comprehensive checks)
+- **TRY**: tryceratops (exception handling)
+- **RUF**: Ruff-specific rules
+
+### Key Disabled Rules
+- **E501**: line-too-long (formatter handles it)
+- **SLF001**: private-member-access (common in Qt)
+- **ARG002**: unused-method-argument (Qt callbacks)
+- **T201**: print statements (intentional use)
+- **G004**: logging f-strings (readable and fine)
+- **D**: pydocstyle (our own style)
+- **PLR0913**: too-many-arguments (Qt widgets)
+- **FBT001/002/003**: boolean arguments (common in GUI)
+
+### Test-Specific Rules
+Tests ignore additional rules:
+- **S101**: asserts (the point of tests)
+- **ARG001**: unused fixtures
+- **PLR2004**: magic values in test data
+
+See `RUFF_CONFIGURATION.md` for full details and rationale.
 
 ## Type Annotations
 - **Required**: All public functions and methods must have type hints
@@ -28,11 +75,6 @@ from typing import override
   - Optional types: `str | None`
   - Signal declarations: `Signal(str)`, `Signal(dict)`, `Signal()`
   - Qt enums: `Qt.ItemDataRole.UserRole` (not `Qt.UserRole`)
-
-## Linting Rules (Ruff)
-- **Enabled**: E, F (pycodestyle, Pyflakes), I (isort), UP (pyupgrade), TCH (type-checking), ANN (annotations)
-- **Ignored**: E501 (line length), ANN401 (Any in *args/**kwargs), TC003 (stdlib imports)
-- **Auto-fix**: All fixable rules enabled
 
 ## Naming Conventions
 - **Classes**: PascalCase (e.g., `ShotModel`, `MainWindow`)
@@ -57,3 +99,9 @@ from typing import override
 - **Dependency injection**: Use factory pattern for testability
 - **Separation of concerns**: Each tab has distinct data source and model
 - **Type safety**: Explicit interfaces, zero conditional logic based on item type
+
+## Current Status (Post-Ruff Setup)
+- **126 automatic fixes applied** ✅
+- **~1,100 violations remain** (down from 15,000+)
+- **0 F-level errors** ✅
+- **All tests passing** ✅

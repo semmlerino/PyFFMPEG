@@ -25,6 +25,7 @@ from PySide6.QtCore import QObject, Signal
 # Local application imports
 from shot_model import Shot
 
+
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 
 

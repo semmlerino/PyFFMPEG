@@ -30,6 +30,7 @@ from tests.test_doubles_library import TestSubprocess
 from threede_scene_finder import ThreeDESceneFinder
 from threede_scene_model import ThreeDESceneModel
 
+
 pytestmark = [pytest.mark.integration, pytest.mark.slow]
 
 

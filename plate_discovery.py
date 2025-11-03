@@ -14,6 +14,7 @@ from pathlib import Path
 from logging_mixin import get_module_logger
 from utils import PathUtils, VersionUtils, find_path_case_insensitive
 
+
 # Module logger
 logger = get_module_logger(__name__)
 
@@ -135,8 +136,10 @@ class PlateDiscovery:
             get_workspace_script_directory(): Recommended method for script storage
         """
         logger.warning(
-            ("get_plate_script_directory() is deprecated for script storage. "
-            "Use get_workspace_script_directory() instead.")
+            (
+                "get_plate_script_directory() is deprecated for script storage. "
+                "Use get_workspace_script_directory() instead."
+            )
         )
         base_path = PathUtils.build_raw_plate_path(workspace_path)
 

@@ -35,6 +35,7 @@ from tests.test_doubles_library import (
     TestLauncherTerminal,
 )
 
+
 pytestmark = [
     pytest.mark.unit,
     pytest.mark.qt,
@@ -94,8 +95,7 @@ def create_conda_launcher() -> TestLauncher:
 @pytest.fixture
 def mock_launcher_manager() -> LauncherManagerDouble:
     """Create a test double LauncherManager with real behavior."""
-    manager = LauncherManagerDouble()
-    return manager
+    return LauncherManagerDouble()
 
 
 @pytest.fixture(autouse=True)

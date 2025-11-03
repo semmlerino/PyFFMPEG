@@ -14,11 +14,13 @@ from typing import TYPE_CHECKING
 
 # Third-party imports
 import pytest
+
 from config import Config
 
 # Local application imports
 from raw_plate_finder import RawPlateFinder
 from utils import VersionUtils
+
 
 if TYPE_CHECKING:
     from pathlib import Path

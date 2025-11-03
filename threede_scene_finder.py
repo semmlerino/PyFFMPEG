@@ -21,6 +21,7 @@ from __future__ import annotations
 # Standard library imports
 from typing import TYPE_CHECKING
 
+
 if TYPE_CHECKING:
     # Local application imports
     from filesystem_scanner import DirectoryCache
@@ -29,6 +30,7 @@ if TYPE_CHECKING:
 # Import the optimized implementation
 from filesystem_scanner import DirectoryCache
 from threede_scene_finder_optimized import OptimizedThreeDESceneFinder, logger
+
 
 # Re-export with original class name for backward compatibility
 ThreeDESceneFinder = OptimizedThreeDESceneFinder

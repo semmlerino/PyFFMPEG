@@ -93,8 +93,7 @@ class TestProgressManager:
 
     def operation(self, *args: Any, **kwargs: Any) -> TestProgressContext:
         """Create a test progress context."""
-        context = TestProgressContext(*args, **kwargs)
-        return context
+        return TestProgressContext(*args, **kwargs)
 
     def start_operation(self, operation_id: str, total: int = 100) -> None:
         """Track operation start."""

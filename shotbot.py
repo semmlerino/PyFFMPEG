@@ -182,7 +182,7 @@ def main() -> None:
 Examples:
   shotbot.py              # Run normally (requires ws command)
   shotbot.py --mock       # Run with mock VFX data (no ws needed)
-  
+
 Environment Variables:
   SHOTBOT_DEBUG=1         # Enable debug logging
   SHOTBOT_MOCK=1          # Enable mock mode via environment

@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Protocol, cast
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QMenu, QMessageBox, QWidget
 
+
 if TYPE_CHECKING:
     # Third-party imports
     from PySide6.QtWidgets import QStatusBar, QWidget
@@ -165,8 +166,10 @@ class LauncherController(LoggingMixin):
         """
         if scene:
             self.logger.info(
-                (f"🎬 LauncherController.set_current_scene() called with scene: {scene.full_name} "
-                f"(user: {scene.user}, path: {scene.scene_path})")
+                (
+                    f"🎬 LauncherController.set_current_scene() called with scene: {scene.full_name} "
+                    f"(user: {scene.user}, path: {scene.scene_path})"
+                )
             )
             # Clear shot context to maintain mutual exclusivity
             self._current_shot = None

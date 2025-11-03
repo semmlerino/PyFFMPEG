@@ -6,6 +6,7 @@ import os
 import subprocess
 import sys
 
+
 # Set environment to disable Qt plugins
 env = os.environ.copy()
 env["PYTEST_QT_API"] = "none"

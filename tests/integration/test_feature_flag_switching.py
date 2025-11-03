@@ -26,6 +26,7 @@ from shot_model import Shot, ShotModel
 # Third-party imports
 from tests.test_doubles_library import TestCacheManager
 
+
 if TYPE_CHECKING:
     from collections.abc import Generator
 
@@ -398,7 +399,6 @@ class TestMainWindowIntegration:
     def setup_and_teardown(self, qtbot: "QtBot") -> None:
         """Set up test environment with qtbot."""
         self.qtbot = qtbot
-        return
 
     def test_window_initialization_with_default_model(self, qapp: "QApplication", qtbot: "QtBot") -> None:
         """Test that MainWindow initializes correctly with default optimized model."""

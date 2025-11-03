@@ -8,7 +8,6 @@ This refactored version:
 """
 
 from __future__ import annotations
-from config import Config
 
 # Standard library imports
 from pathlib import Path
@@ -19,8 +18,11 @@ from typing import TYPE_CHECKING
 # Third-party imports
 import pytest
 
+from config import Config
+
 # Local application imports
 from shot_model import RefreshResult, Shot
+
 
 if TYPE_CHECKING:
     # Local application imports

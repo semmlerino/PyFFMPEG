@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 # Local application imports
 from logging_mixin import LoggingMixin
 
+
 if TYPE_CHECKING:
     # Local application imports
     from launcher.config_manager import LauncherConfigManager

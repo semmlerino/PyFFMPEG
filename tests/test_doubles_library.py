@@ -37,6 +37,7 @@ from PySide6.QtGui import QColor, QImage
 # Import synchronization helpers to replace time.sleep()
 from tests.helpers.synchronization import simulate_work_without_sleep
 
+
 # Import types for type annotations
 
 if TYPE_CHECKING:
@@ -446,8 +447,7 @@ class TestShotModel(QObject):
         if self._filter_show is None:
             return self._shots.copy()
 
-        filtered = [shot for shot in self._shots if shot.show == self._filter_show]
-        return filtered
+        return [shot for shot in self._shots if shot.show == self._filter_show]
 
     def get_available_shows(self) -> set[str]:
         """Get all unique show names from current shots.
@@ -455,8 +455,7 @@ class TestShotModel(QObject):
         Returns:
             Set of unique show names
         """
-        shows = {shot.show for shot in self._shots}
-        return shows
+        return {shot.show for shot in self._shots}
 
 
 # =============================================================================

@@ -29,7 +29,6 @@ Target coverage: 70%+ (QPainter code will remain untested)
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 import pytest
@@ -47,8 +46,6 @@ from config import Config
 from shot_item_model import ShotItemModel
 from shot_model import Shot
 
-if TYPE_CHECKING:
-    pass
 
 pytestmark = [
     pytest.mark.unit,

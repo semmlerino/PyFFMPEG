@@ -17,6 +17,7 @@ from tests.test_doubles_library import (
     TestSubprocess,
 )
 
+
 # Mark all tests in this file
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
 

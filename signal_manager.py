@@ -37,6 +37,7 @@ from PySide6.QtCore import QObject, Qt, Signal
 # Local application imports
 from logging_mixin import LoggingMixin
 
+
 if TYPE_CHECKING:
     # Standard library imports
     from collections.abc import Callable

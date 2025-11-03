@@ -14,11 +14,13 @@ from unittest.mock import MagicMock, Mock, patch
 # Third-party imports
 import pytest
 
+
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
 # Local application imports
 from persistent_terminal_manager import PersistentTerminalManager
+
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
 

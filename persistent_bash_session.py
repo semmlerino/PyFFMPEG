@@ -19,6 +19,7 @@ import time
 from config import ThreadingConfig
 from logging_mixin import LoggingMixin
 
+
 # Try to import fcntl for non-blocking I/O (Unix-only)
 try:
     # Standard library imports
@@ -219,15 +220,14 @@ class PersistentBashSession(LoggingMixin):
                     if hasattr(os, "set_blocking"):
                         # Python 3.5+ way
                         os.set_blocking(stdout_fd, False)
-                    else:
-                        # Fallback for older Python - use module-level fcntl import
-                        if _fcntl_module is not None:
-                            flags = _fcntl_module.fcntl(
-                                stdout_fd, _fcntl_module.F_GETFL
-                            )
-                            _fcntl_module.fcntl(
-                                stdout_fd, _fcntl_module.F_SETFL, flags | os.O_NONBLOCK
-                            )
+                    # Fallback for older Python - use module-level fcntl import
+                    elif _fcntl_module is not None:
+                        flags = _fcntl_module.fcntl(
+                            stdout_fd, _fcntl_module.F_GETFL
+                        )
+                        _fcntl_module.fcntl(
+                            stdout_fd, _fcntl_module.F_SETFL, flags | os.O_NONBLOCK
+                        )
                 else:
                     self.logger.debug(
                         "Skipping non-blocking I/O setup (fcntl not available)",
@@ -488,9 +488,8 @@ class PersistentBashSession(LoggingMixin):
         text = re.sub(r"\x1b\([B0UK]", "", text)  # Character set sequences
 
         # Remove any remaining control characters except newline and tab
-        text = "".join(char for char in text if ord(char) >= 32 or char in "\n\t")
+        return "".join(char for char in text if ord(char) >= 32 or char in "\n\t")
 
-        return text
 
     def _drain_stderr(self) -> None:
         """Drain stderr to prevent deadlock from buffer-full blocking.

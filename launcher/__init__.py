@@ -17,6 +17,7 @@ from launcher.models import (
 from launcher.repository import LauncherRepository
 from launcher.validator import LauncherValidator
 
+
 # Qt-dependent components imported conditionally
 try:
     # Local application imports

@@ -9,13 +9,15 @@ import pytest
 from PySide6.QtCore import QMutexLocker, Qt
 from PySide6.QtGui import QImage
 
+from config import Config
+
 # Local application imports
 from previous_shots_item_model import PreviousShotsItemModel
 from shot_model import Shot
-from config import Config
 
 # Following UNIFIED_TESTING_GUIDE: Use test doubles instead of Mock(spec=)
 from tests.test_doubles_library import SignalDouble, TestCacheManager
+
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
 

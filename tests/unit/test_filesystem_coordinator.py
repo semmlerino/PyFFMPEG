@@ -20,6 +20,7 @@ import pytest
 
 from filesystem_coordinator import FilesystemCoordinator
 
+
 # Test markers
 pytestmark = [
     pytest.mark.unit,

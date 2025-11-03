@@ -34,6 +34,7 @@ from design_system import (
     design_system,
 )
 
+
 # Mark Qt tests for serial execution in same worker (prevents Qt crashes)
 pytestmark = [
     pytest.mark.unit,

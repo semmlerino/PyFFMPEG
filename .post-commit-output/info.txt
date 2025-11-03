@@ -1,5 +1,5 @@
-Post-commit hook executed at Sat Nov  1 20:41:22 GMT 2025
-Commit: 30f06dd14b24a287cc3c4e189052111b376bedb1
+Post-commit hook executed at Mon Nov  3 08:01:29 GMT 2025
+Commit: df4eac45ef0d64033d0785b2dbaa9f185b9a116f
 Branch: master
 Author: GabrielH <gabrhas@gmail.com>
-Message: fix: Disable pytest-rerunfailures plugin (incompatible with Qt)
+Message: refactor: Upgrade to basedpyright recommended mode with type safety improvements

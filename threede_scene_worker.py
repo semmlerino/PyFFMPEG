@@ -26,6 +26,7 @@ from thread_safe_worker import ThreadSafeWorker
 from threede_scene_finder import ThreeDESceneFinder
 from utils import ValidationUtils
 
+
 if TYPE_CHECKING:
     # Local application imports
     from shot_model import Shot

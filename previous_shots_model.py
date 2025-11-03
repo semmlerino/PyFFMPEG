@@ -20,6 +20,7 @@ from shot_filter import compose_filters, get_available_shows
 from shot_model import Shot
 from type_definitions import ShotDict
 
+
 if TYPE_CHECKING:
     # Local application imports
     from base_shot_model import BaseShotModel
@@ -152,15 +153,15 @@ class PreviousShotsModel(LoggingMixin, QObject):
                 # from Qt when attempting to disconnect signals that have no connections.
                 # Qt's receivers() method is not properly typed in PySide6 stubs
                 try:
-                    if worker.scan_finished.receivers(None) > 0:  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+                    if worker.scan_finished.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue]
                         worker.scan_finished.disconnect()
-                    if worker.error_occurred.receivers(None) > 0:  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+                    if worker.error_occurred.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue]
                         worker.error_occurred.disconnect()
                     # PreviousShotsWorker uses scan_progress, not progress
                     # ThreeDESceneWorker uses progress signal
                     # Runtime hasattr check handles polymorphism - attribute may not exist
-                    if hasattr(worker, "progress") and worker.progress.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
-                        worker.progress.disconnect()  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
+                    if hasattr(worker, "progress") and worker.progress.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue]
+                        worker.progress.disconnect()  # pyright: ignore[reportAttributeAccessIssue]
                 except (RuntimeError, TypeError, AttributeError):
                     pass  # Already disconnected or no connections
 
@@ -272,8 +273,10 @@ class PreviousShotsModel(LoggingMixin, QObject):
                 self._save_to_cache()
                 self.shots_updated.emit()
                 self.logger.info(
-                    (f"Added {len(new_shots)} new shots to cache "
-                    f"(total: {len(self._previous_shots)} shots)")
+                    (
+                        f"Added {len(new_shots)} new shots to cache "
+                        f"(total: {len(self._previous_shots)} shots)"
+                    )
                 )
             else:
                 self.logger.debug("No new shots found - cache unchanged")
@@ -402,8 +405,10 @@ class PreviousShotsModel(LoggingMixin, QObject):
         )
 
         self.logger.debug(
-            (f"Filtered {len(self._previous_shots)} shots to {len(filtered)} "
-            f"(show='{self._filter_show}', text='{self._filter_text}')")
+            (
+                f"Filtered {len(self._previous_shots)} shots to {len(filtered)} "
+                f"(show='{self._filter_show}', text='{self._filter_text}')"
+            )
         )
         return filtered
 
@@ -449,8 +454,10 @@ class PreviousShotsModel(LoggingMixin, QObject):
             ]
 
             self.logger.info(
-                (f"Loaded {len(scanned_data)} scanned + {len(migrated_data)} migrated "
-                f"= {len(shots)} total (after dedup)")
+                (
+                    f"Loaded {len(scanned_data)} scanned + {len(migrated_data)} migrated "
+                    f"= {len(shots)} total (after dedup)"
+                )
             )
 
             return shots

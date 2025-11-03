@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Any
 from PySide6.QtCore import QObject, QSize, Signal
 from PySide6.QtGui import QColor, QImage
 
+
 if TYPE_CHECKING:
     # Standard library imports
     from collections.abc import Callable

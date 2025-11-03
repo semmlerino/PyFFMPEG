@@ -10,6 +10,7 @@ from config import Config
 from logging_mixin import get_module_logger
 from utils import VersionUtils
 
+
 # Set up logger for this module
 logger = get_module_logger(__name__)
 

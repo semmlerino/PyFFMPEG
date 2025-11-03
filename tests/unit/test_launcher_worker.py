@@ -13,17 +13,18 @@ Following UNIFIED_TESTING_GUIDE best practices:
 
 from __future__ import annotations
 
+import io
+import subprocess
 from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
-import subprocess
-import io
 
 import pytest
 from PySide6.QtTest import QSignalSpy
 
+from exceptions import SecurityError
 from launcher.worker import LauncherWorker
 from thread_safe_worker import WorkerState
-from exceptions import SecurityError
+
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QApplication

@@ -108,10 +108,9 @@ class GitIgnoreParser:
                 regex_pattern = pattern.replace(".", r"\.").replace("*", ".*")
                 if re.match(regex_pattern, path) or re.match(regex_pattern, path_name):
                     return True
-            else:
-                # Exact match or path contains pattern
-                if pattern in path_parts or path_name == pattern or path == pattern:
-                    return True
+            # Exact match or path contains pattern
+            elif pattern in path_parts or path_name == pattern or path == pattern:
+                return True
 
         return False
 

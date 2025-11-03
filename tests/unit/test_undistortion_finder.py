@@ -12,6 +12,7 @@ import pytest
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from undistortion_finder import UndistortionFinder
 
+
 # This test file follows UNIFIED_TESTING_GUIDE best practices:
 # - Test behavior, not implementation
 # - Use test doubles instead of mocks

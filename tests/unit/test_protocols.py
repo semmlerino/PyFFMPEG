@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 # Third-party imports
 import pytest
 
+
 if TYPE_CHECKING:
     # Standard library imports
     import pathlib

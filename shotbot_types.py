@@ -10,6 +10,7 @@ from __future__ import annotations
 # Standard library imports
 from typing import TypedDict
 
+
 # Import common types from primary definitions to avoid duplication
 
 # ==============================================================================

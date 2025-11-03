@@ -11,6 +11,7 @@ import sys
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
 
+
 # Set up mock environment before importing ShotBot modules
 os.environ["SHOWS_ROOT"] = "/tmp/mock_vfx/shows"
 os.environ["SHOTBOT_DEBUG"] = "1"

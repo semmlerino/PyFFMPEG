@@ -14,6 +14,7 @@ from cache_manager import CacheManager
 from config import Config
 from utils import PathUtils, ValidationUtils
 
+
 if TYPE_CHECKING:
     # Local application imports
     from shot_model import Shot
@@ -79,8 +80,10 @@ class ThreeDEScene:
 
         # DEBUG: Log thumbnail search for 3DE scenes
         logger.debug(
-            (f"ThreeDEScene.get_thumbnail_path() called for {self.full_name} "
-            f"(show={self.show}, seq={self.sequence}, shot={self.shot})")
+            (
+                f"ThreeDEScene.get_thumbnail_path() called for {self.full_name} "
+                f"(show={self.show}, seq={self.sequence}, shot={self.shot})"
+            )
         )
 
         # Use the unified thumbnail discovery method
@@ -118,7 +121,7 @@ class ThreeDEScene:
     @classmethod
     def from_dict(cls, data: dict[str, str | Path]) -> ThreeDEScene:
         """Create from dictionary."""
-        scene = cls(
+        return cls(
             show=str(data["show"]),
             sequence=str(data["sequence"]),
             shot=str(data["shot"]),
@@ -129,7 +132,6 @@ class ThreeDEScene:
         )
         # Don't restore cached thumbnail path from dict - let it be re-discovered if needed
         # This ensures we don't cache stale paths across sessions
-        return scene
 
 
 class ThreeDESceneModel:
@@ -297,8 +299,10 @@ class ThreeDESceneModel:
             ]
 
         logger.debug(
-            (f"Filtered {len(self.scenes)} scenes to {len(scenes)} "
-            f"(show='{self._filter_show}', text='{self._filter_text}')")
+            (
+                f"Filtered {len(self.scenes)} scenes to {len(scenes)} "
+                f"(show='{self._filter_show}', text='{self._filter_text}')"
+            )
         )
         return scenes
 

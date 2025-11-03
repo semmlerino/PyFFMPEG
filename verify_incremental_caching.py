@@ -18,6 +18,7 @@ import tempfile
 import time
 from pathlib import Path
 
+
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent))
 
@@ -142,8 +143,7 @@ def verify_merge_no_changes(cache_manager: CacheManager) -> bool:
         "Shot count unchanged", count_unchanged, f"Expected 432, got {len(result.updated_shots)}"
     )
 
-    success = no_changes and no_new and no_removed and count_unchanged
-    return success
+    return no_changes and no_new and no_removed and count_unchanged
 
 
 def verify_remove_shots(cache_manager: CacheManager) -> bool:
@@ -203,14 +203,13 @@ def verify_remove_shots(cache_manager: CacheManager) -> bool:
         f"Expected 3 migrated, got {len(migrated) if migrated else 0}",
     )
 
-    success = (
+    return (
         changes_detected
         and removed_count
         and updated_count
         and no_new
         and migration_success
     )
-    return success
 
 
 def verify_deduplication(cache_manager: CacheManager) -> bool:
@@ -268,8 +267,7 @@ def verify_deduplication(cache_manager: CacheManager) -> bool:
     cross_show = shows == {"broken_eggs", "gator"}
     print_status("Cross-show uniqueness", cross_show, f"Shows: {shows}")
 
-    success = unique_count and keys_correct and cross_show
-    return success
+    return unique_count and keys_correct and cross_show
 
 
 def verify_performance(cache_manager: CacheManager) -> bool:
@@ -309,8 +307,7 @@ def verify_performance(cache_manager: CacheManager) -> bool:
     new_shot_found = len(result.new_shots) == 1
     print_status("New shot detected", new_shot_found)
 
-    success = fast_enough and correct_count and new_shot_found
-    return success
+    return fast_enough and correct_count and new_shot_found
 
 
 def cleanup_cache(cache_dir: Path) -> None:

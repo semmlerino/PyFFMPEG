@@ -5,6 +5,7 @@
 import os
 import sys
 
+
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -15,6 +16,7 @@ from typing import Any
 
 # Third-party imports
 from PySide6.QtCore import QCoreApplication
+
 
 # Import after QCoreApplication exists
 app = QCoreApplication.instance() or QCoreApplication([])

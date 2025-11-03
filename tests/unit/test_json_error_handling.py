@@ -7,6 +7,7 @@ import os
 import sys
 from pathlib import Path
 
+
 # Set environment for mock
 os.environ["SHOWS_ROOT"] = "/tmp/mock_vfx"
 

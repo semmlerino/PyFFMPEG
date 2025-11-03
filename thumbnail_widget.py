@@ -20,6 +20,7 @@ from logging_mixin import LoggingMixin
 from shot_model import Shot
 from thumbnail_widget_base import ThumbnailWidgetBase
 
+
 # Set up logger for this module
 
 

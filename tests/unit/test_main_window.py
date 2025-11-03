@@ -22,6 +22,7 @@ from pytestqt.qtbot import QtBot
 from config import Config
 from tests.unit.test_protocols import ProcessPoolProtocol as TestProcessPoolType
 
+
 pytestmark = [
     pytest.mark.unit,
     pytest.mark.qt,

@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
 # Local application imports
 from qt_widget_mixin import QtWidgetMixin
 
+
 if TYPE_CHECKING:
     # Local application imports
     from shot_model import Shot

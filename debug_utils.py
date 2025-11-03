@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, ClassVar, cast
 # Local application imports
 from logging_mixin import LoggingMixin, get_module_logger
 
+
 if TYPE_CHECKING:
     # Standard library imports
     from collections.abc import Generator
@@ -123,10 +124,12 @@ class TimingProfiler(LoggingMixin):
 
         for operation, stats in self.get_report().items():
             self.logger.info(
-                (f"{operation}: "
-                f"avg={stats['average']:.3f}s, "
-                f"total={stats['total']:.3f}s, "
-                f"count={stats['count']}")
+                (
+                    f"{operation}: "
+                    f"avg={stats['average']:.3f}s, "
+                    f"total={stats['total']:.3f}s, "
+                    f"count={stats['count']}"
+                )
             )
 
 
@@ -185,15 +188,18 @@ class ProcessStateTracker(LoggingMixin):
             duration = timestamp - self.state_timings[session_id][from_state]
             if DEBUG_VERBOSE:
                 self.logger.debug(
-                    (f"[{session_id}] STATE: {from_state} → {to_state} "
-                    f"(duration: {duration:.2f}s) {f'[{reason}]' if reason else ''}")
+                    (
+                        f"[{session_id}] STATE: {from_state} → {to_state} "
+                        f"(duration: {duration:.2f}s) {f'[{reason}]' if reason else ''}"
+                    )
                 )
-        else:
-            if DEBUG_VERBOSE:
-                self.logger.debug(
-                    (f"[{session_id}] STATE: {from_state} → {to_state} "
-                    f"{f'[{reason}]' if reason else ''}")
+        elif DEBUG_VERBOSE:
+            self.logger.debug(
+                (
+                    f"[{session_id}] STATE: {from_state} → {to_state} "
+                    f"{f'[{reason}]' if reason else ''}"
                 )
+            )
 
         # Record new state start time
         self.state_timings[session_id][to_state] = timestamp
@@ -323,8 +329,10 @@ class IOBufferInspector(LoggingMixin):
         non_printable = sum(1 for c in data if ord(c) < 32 and c not in "\n\r\t")
 
         logger.debug(
-            (f"[{session_id}] Buffer {context}: "
-            f"{len(data)} bytes, {lines} lines, {non_printable} non-printable")
+            (
+                f"[{session_id}] Buffer {context}: "
+                f"{len(data)} bytes, {lines} lines, {non_printable} non-printable"
+            )
         )
 
         # Show preview of data

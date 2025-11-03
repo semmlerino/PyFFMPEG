@@ -19,6 +19,7 @@ from previous_shots_view import PreviousShotsView
 from shot_grid_view import ShotGridView
 from threede_grid_view import ThreeDEGridView
 
+
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 

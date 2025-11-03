@@ -31,6 +31,7 @@ from shot_item_model import ShotItemModel
 from shot_model import Shot, ShotModel
 from tests.test_doubles_library import TestCacheManager, TestProcessPool
 
+
 if TYPE_CHECKING:
     from _pytest.monkeypatch import MonkeyPatch
     from pytestqt.qtbot import QtBot

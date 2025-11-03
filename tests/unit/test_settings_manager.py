@@ -17,6 +17,7 @@ from PySide6.QtCore import QByteArray, QSettings, QSize
 from config import Config
 from settings_manager import SettingsManager
 
+
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 

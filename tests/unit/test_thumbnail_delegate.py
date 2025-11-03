@@ -23,6 +23,7 @@ from base_thumbnail_delegate import BaseThumbnailDelegate, DelegateTheme
 from shot_item_model import ShotItemModel
 from shot_model import Shot
 
+
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 

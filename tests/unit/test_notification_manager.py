@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator
 
@@ -28,6 +29,7 @@ from notification_manager import (
     NotificationType,
     ToastNotification,
 )
+
 
 # Test markers for categorization and parallel safety
 pytestmark = [

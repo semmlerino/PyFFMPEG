@@ -26,14 +26,14 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import TypeAlias
 
 # Third-party imports
 from typing_extensions import TypedDict
 
+
 # Type alias for directory/file node structures
 # Using object for the recursive structure to avoid overly complex union types
-DirectoryNode: TypeAlias = dict[str, object]
+type DirectoryNode = dict[str, object]
 
 
 class ShowStructure(TypedDict):
@@ -59,7 +59,7 @@ def get_workspace_shots() -> tuple[list[str], list[str]]:
     try:
         result = subprocess.run(
             ["/bin/bash", "-i", "-c", "ws -sg"],
-            capture_output=True,
+            check=False, capture_output=True,
             text=True,
             timeout=10,
         )
@@ -100,7 +100,7 @@ def scan_directory(
     if current_depth >= max_depth:
         return None
 
-    rel_path = path.relative_to(base_path) if path != base_path else Path(".")
+    rel_path = path.relative_to(base_path) if path != base_path else Path()
 
     if path.is_file():
         try:
@@ -285,9 +285,9 @@ def main() -> None:
     args = parser.parse_args()
 
     # Extract typed arguments from argparse Namespace
-    shows: list[str] | None = args.shows  # type: ignore[assignment]
-    stdout_flag: bool = args.stdout  # type: ignore[assignment]
-    output_file_arg: str | None = args.output  # type: ignore[assignment]
+    shows: list[str] | None = getattr(args, 'shows', None)
+    stdout_flag: bool = getattr(args, 'stdout', False)
+    output_file_arg: str | None = getattr(args, 'output', None)
 
     # Capture structure
     structure = capture_structure(shows)
@@ -333,8 +333,11 @@ def main() -> None:
             total_dirs += 1
             children = node.get("children", [])
             # children is list[DirectoryNode] but typed as object due to DirectoryNode definition
-            for child in children:  # type: ignore[attr-defined]
-                count_items(child)  # type: ignore[arg-type]
+            # Cast to list for iteration
+            if isinstance(children, list):
+                for child in children:
+                    if isinstance(child, dict):
+                        count_items(child)
         elif node["type"] == "file":
             total_files += 1
 

@@ -11,6 +11,7 @@ from pathlib import Path
 
 from logging_mixin import get_module_logger
 
+
 # Module-level logger for static methods
 logger = get_module_logger(__name__)
 
@@ -183,35 +184,34 @@ class NukeUndistortionParser:
                         inside_python = False
                         logger.debug("Exiting Python block in copy/paste format")
                         imported_lines.append("}")
-                    else:
-                        # For Python code, use same logic as standard format
-                        if stripped:  # Non-empty line
-                            indent_count = len(line) - len(line.lstrip())
+                    # For Python code, use same logic as standard format
+                    elif stripped:  # Non-empty line
+                        indent_count = len(line) - len(line.lstrip())
 
-                            # Top-level Python statements should have NO indentation
-                            if stripped.startswith(
-                                ("import ", "from ", "def ", "class ")
-                            ):
-                                imported_lines.append(stripped)
-                            else:
-                                # Preserve relative indentation for nested blocks
-                                if indent_count >= 5:
-                                    dedented = (
-                                        line[5:] if len(line) > 5 else line.lstrip()
-                                    )
-                                elif indent_count == 4:
-                                    dedented = line[4:]
-                                else:
-                                    dedented = line.lstrip()
-                                imported_lines.append(dedented)
-
-                            if imported_lines[-1] != line:
-                                logger.debug(
-                                    f"Dedented Python line in copy/paste: {imported_lines[-1][:50]}..."
-                                )
+                        # Top-level Python statements should have NO indentation
+                        if stripped.startswith(
+                            ("import ", "from ", "def ", "class ")
+                        ):
+                            imported_lines.append(stripped)
                         else:
-                            # Empty line in Python block
-                            imported_lines.append("")
+                            # Preserve relative indentation for nested blocks
+                            if indent_count >= 5:
+                                dedented = (
+                                    line[5:] if len(line) > 5 else line.lstrip()
+                                )
+                            elif indent_count == 4:
+                                dedented = line[4:]
+                            else:
+                                dedented = line.lstrip()
+                            imported_lines.append(dedented)
+
+                        if imported_lines[-1] != line:
+                            logger.debug(
+                                f"Dedented Python line in copy/paste: {imported_lines[-1][:50]}..."
+                            )
+                    else:
+                        # Empty line in Python block
+                        imported_lines.append("")
                     i += 1
                     continue
 
@@ -224,8 +224,10 @@ class NukeUndistortionParser:
 
             if imported_content:
                 result = (
-                    "\n# Imported undistortion content from copy/paste format\n"
-                    + "# "
+                    (
+                        "\n# Imported undistortion content from copy/paste format\n"
+                        "# "
+                    )
                     + undistortion_path
                     + "\n"
                     + imported_content
@@ -376,35 +378,34 @@ class NukeUndistortionParser:
                         inside_python = False
                         logger.debug("Exiting Python block")
                         imported_lines.append("}")
-                    else:
-                        # For Python code, we need to intelligently strip base indentation
-                        if stripped:  # Non-empty line
-                            # Find how much the line is indented
-                            indent_count = len(line) - len(line.lstrip())
+                    # For Python code, we need to intelligently strip base indentation
+                    elif stripped:  # Non-empty line
+                        # Find how much the line is indented
+                        indent_count = len(line) - len(line.lstrip())
 
-                            # For top-level Python statements, remove ALL indentation
-                            if stripped.startswith(
-                                ("import ", "from ", "def ", "class ")
-                            ):
-                                imported_lines.append(stripped)
-                            else:
-                                # For other lines, try to preserve relative indentation
-                                if indent_count >= 5:
-                                    dedented = (
-                                        line[5:] if len(line) > 5 else line.lstrip()
-                                    )
-                                elif indent_count == 4:
-                                    dedented = line[4:]
-                                else:
-                                    dedented = line.lstrip()
-                                imported_lines.append(dedented)
-
-                            logger.debug(
-                                f"Processed Python line: {imported_lines[-1][:50]}..."
-                            )
+                        # For top-level Python statements, remove ALL indentation
+                        if stripped.startswith(
+                            ("import ", "from ", "def ", "class ")
+                        ):
+                            imported_lines.append(stripped)
                         else:
-                            # Empty line in Python block
-                            imported_lines.append("")
+                            # For other lines, try to preserve relative indentation
+                            if indent_count >= 5:
+                                dedented = (
+                                    line[5:] if len(line) > 5 else line.lstrip()
+                                )
+                            elif indent_count == 4:
+                                dedented = line[4:]
+                            else:
+                                dedented = line.lstrip()
+                            imported_lines.append(dedented)
+
+                        logger.debug(
+                            f"Processed Python line: {imported_lines[-1][:50]}..."
+                        )
+                    else:
+                        # Empty line in Python block
+                        imported_lines.append("")
                     i += 1
                     continue
 

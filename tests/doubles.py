@@ -26,6 +26,7 @@ from tests.test_doubles_library import (
     ThreadSafeTestImage,
 )
 
+
 pytestmark = [pytest.mark.unit, pytest.mark.integration, pytest.mark.slow]
 
 

@@ -14,6 +14,7 @@ from typing import TypeVar
 # Local application imports
 from logging_mixin import LoggingMixin
 
+
 T = TypeVar("T")
 
 

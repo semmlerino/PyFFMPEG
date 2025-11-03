@@ -5,6 +5,7 @@
 import sys
 from pathlib import Path
 
+
 # Add current directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
@@ -15,6 +16,7 @@ import pytest
 from config import Config
 from optimized_shot_parser import OptimizedShotParser
 from shot_model import Shot
+
 
 # Mark Qt tests for serial execution in same worker (prevents Qt crashes)
 pytestmark = [

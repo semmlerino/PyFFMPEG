@@ -6,6 +6,7 @@ import os
 import subprocess
 from pathlib import Path
 
+
 # Set headless mode
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 os.environ["QT_LOGGING_RULES"] = "*.debug=false"

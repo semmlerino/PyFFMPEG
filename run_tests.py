@@ -4,9 +4,9 @@ Test runner script for PyFFMPEG
 Provides easy commands to run different test suites with coverage
 """
 
-import sys
-import subprocess
 import argparse
+import subprocess
+import sys
 from pathlib import Path
 
 
@@ -14,7 +14,7 @@ def run_command(cmd: list[str], check: bool = True) -> int:
     """Run a command and return exit code"""
     print(f"Running: {' '.join(cmd)}")
     print("-" * 60)
-    result = subprocess.run(cmd)
+    result = subprocess.run(cmd, check=False)
     if check and result.returncode != 0:
         print(f"\nCommand failed with exit code {result.returncode}")
     return result.returncode
@@ -53,28 +53,36 @@ def main():
         action="store_true",
         help="Drop into debugger on failures"
     )
-    
+
     args = parser.parse_args()
-    
+
+    # Extract args with type hints for type checker
+    verbose: bool = args.verbose
+    failed_first: bool = args.failed_first
+    pdb: bool = args.pdb
+    no_cov: bool = args.no_cov
+    suite: str = args.suite
+    module: str | None = args.module
+
     # Base pytest command
     cmd = [sys.executable, "-m", "pytest"]
-    
+
     # Add verbosity
-    if args.verbose:
+    if verbose:
         cmd.append("-vv")
     else:
         cmd.append("-v")
-    
+
     # Add failed first
-    if args.failed_first:
+    if failed_first:
         cmd.append("--failed-first")
-    
+
     # Add debugger
-    if args.pdb:
+    if pdb:
         cmd.append("--pdb")
-    
+
     # Coverage options
-    if not args.no_cov and args.suite != "quick":
+    if not no_cov and suite != "quick":
         cmd.extend([
             "--cov=.",
             "--cov-exclude=tests/*",
@@ -85,53 +93,53 @@ def main():
             "--cov-report=term-missing",
             "--cov-report=html:coverage_html"
         ])
-    
+
     # Select test suite
-    if args.suite == "unit" or (args.suite == "all" and not args.module):
+    if suite == "unit" or (suite == "all" and not module):
         cmd.append("tests/unit")
-    elif args.suite == "integration":
+    elif suite == "integration":
         cmd.append("tests/integration")
-    elif args.suite == "quick":
+    elif suite == "quick":
         # Quick tests - no coverage, stop on first failure
         cmd.extend(["-x", "--tb=short"])
-        if args.module:
-            cmd.append(f"tests/unit/test_{args.module}.py")
+        if module:
+            cmd.append(f"tests/unit/test_{module}.py")
         else:
             cmd.append("tests/unit")
-    elif args.suite == "coverage":
+    elif suite == "coverage":
         # Full coverage report
         cmd.extend(["--cov-report=html", "--cov-report=term"])
         cmd.append("tests/")
-    
+
     # Run specific module tests
-    if args.module and args.suite not in ["quick"]:
-        test_file = Path(f"tests/unit/test_{args.module}.py")
+    if module and suite not in ["quick"]:
+        test_file = Path(f"tests/unit/test_{module}.py")
         if test_file.exists():
             cmd = [c for c in cmd if not c.startswith("tests/")]  # Remove test path
             cmd.append(str(test_file))
         else:
             print(f"Error: Test file not found: {test_file}")
             return 1
-    
+
     # Print info
     print("PyFFMPEG Test Runner")
     print("=" * 60)
-    print(f"Suite: {args.suite}")
-    if args.module:
-        print(f"Module: {args.module}")
-    print(f"Coverage: {'disabled' if args.no_cov else 'enabled'}")
+    print(f"Suite: {suite}")
+    if module:
+        print(f"Module: {module}")
+    print(f"Coverage: {'disabled' if no_cov else 'enabled'}")
     print()
-    
+
     # Run tests
     exit_code = run_command(cmd)
-    
+
     # Print coverage report location
-    if not args.no_cov and exit_code == 0 and args.suite != "quick":
+    if not no_cov and exit_code == 0 and suite != "quick":
         print("\n" + "=" * 60)
         print("Coverage report generated:")
         print("  - Terminal: See above")
         print("  - HTML: coverage_html/index.html")
-    
+
     return exit_code
 
 

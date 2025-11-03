@@ -28,6 +28,7 @@ from progress_manager import (
     update_progress,
 )
 
+
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 

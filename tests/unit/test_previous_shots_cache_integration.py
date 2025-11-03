@@ -23,12 +23,13 @@ import pytest
 
 # Local application imports
 from cache_manager import CacheManager
+from config import Config
 from previous_shots_model import PreviousShotsModel
 from shot_model import Shot
-from config import Config
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_doubles_library import TestShot, TestShotModel
+
 
 if TYPE_CHECKING:
     # Standard library imports
@@ -79,9 +80,8 @@ class TestPreviousShootsCacheIntegration:
         self, mock_shot_model, cache_manager, qtbot
     ) -> PreviousShotsModel:
         """Create PreviousShotsModel with real cache."""
-        model = PreviousShotsModel(mock_shot_model, cache_manager)
+        return PreviousShotsModel(mock_shot_model, cache_manager)
         # Note: PreviousShotsModel is QObject, not QWidget - no qtbot.addWidget() needed
-        return model
 
     def test_cache_storage_and_retrieval(self, cache_manager, temp_cache_dir) -> None:
         """Test basic cache storage and retrieval for previous shots."""

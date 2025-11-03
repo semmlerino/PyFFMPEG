@@ -437,8 +437,10 @@ class LauncherProcessManager(LoggingMixin, QObject):
                     if key in self._active_processes:
                         process_info = self._active_processes[key]
                         self.logger.debug(
-                            f"Cleaning up finished process: {process_info.launcher_name} "
-                            + f"(PID: {process_info.process.pid}, Key: {key})",
+                            (
+                                f"Cleaning up finished process: {process_info.launcher_name} "
+                                f"(PID: {process_info.process.pid}, Key: {key})"
+                            ),
                         )
                         del self._active_processes[key]
                 self.logger.debug(f"Cleaned up {len(finished_keys)} finished processes")

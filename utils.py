@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, ClassVar
 from config import Config
 from logging_mixin import get_module_logger
 
+
 if TYPE_CHECKING:
     # Standard library imports
     from types import TracebackType
@@ -735,8 +736,10 @@ class PathUtils:
                         jpeg_file = FileUtils.get_first_image_file(resolution_dir)
                         if jpeg_file and jpeg_file.suffix.lower() in [".jpg", ".jpeg"]:
                             logger.info(
-                                (f"Found undistorted JPEG thumbnail: {jpeg_file.name} "
-                                f"(camera: {plate_name}, version: {latest_version})")
+                                (
+                                    f"Found undistorted JPEG thumbnail: {jpeg_file.name} "
+                                    f"(camera: {plate_name}, version: {latest_version})"
+                                )
                             )
                             return jpeg_file
             except (OSError, PermissionError) as e:
@@ -850,8 +853,10 @@ class PathUtils:
                                         ".jpeg",
                                     ]:
                                         logger.info(
-                                            (f"Found user workspace JPEG: {jpeg_file.name} "
-                                            f"(user: {user_path.name}, output_type: {output_type}, plate: {plate_name}, version: {latest_version})")
+                                            (
+                                                f"Found user workspace JPEG: {jpeg_file.name} "
+                                                f"(user: {user_path.name}, output_type: {output_type}, plate: {plate_name}, version: {latest_version})"
+                                            )
                                         )
                                         return jpeg_file
                             except (OSError, PermissionError):
@@ -916,8 +921,10 @@ class PathUtils:
                                 jpeg_file = FileUtils.get_first_image_file(resolution_dir)
                                 if jpeg_file and jpeg_file.suffix.lower() in [".jpg", ".jpeg"]:
                                     logger.info(
-                                        (f"Found editorial cutref thumbnail: {jpeg_file.name} "
-                                        f"(version: {latest_version}, resolution: {resolution_dir.name})")
+                                        (
+                                            f"Found editorial cutref thumbnail: {jpeg_file.name} "
+                                            f"(version: {latest_version}, resolution: {resolution_dir.name})"
+                                        )
                                     )
                                     return jpeg_file
                     except (OSError, PermissionError) as e:
@@ -1592,7 +1599,7 @@ class ImageUtils:
             # Run FFmpeg with timeout
             result = subprocess.run(
                 cmd,
-                capture_output=True,
+                check=False, capture_output=True,
                 timeout=30,
                 text=True,
             )
@@ -1602,11 +1609,10 @@ class ImageUtils:
                     f"Successfully extracted frame #5 from MOV: {mov_path.name}"
                 )
                 return output_path
-            else:
-                logger.debug(
-                    f"FFmpeg failed to extract frame from {mov_path.name}: {result.stderr}"
-                )
-                return None
+            logger.debug(
+                f"FFmpeg failed to extract frame from {mov_path.name}: {result.stderr}"
+            )
+            return None
 
         except subprocess.TimeoutExpired:
             logger.warning(f"FFmpeg timeout extracting frame from {mov_path.name}")

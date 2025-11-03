@@ -8,6 +8,7 @@ import logging
 import time
 from typing import TYPE_CHECKING, Any
 
+
 if TYPE_CHECKING:
     # Standard library imports
     from collections.abc import Callable
@@ -38,8 +39,7 @@ def timed_operation(
             start_time = time.time()
 
             try:
-                result = func(*args, **kwargs)
-                return result
+                return func(*args, **kwargs)
             finally:
                 end_time = time.time()
                 duration_ms = (end_time - start_time) * 1000

@@ -17,6 +17,7 @@ from launcher_manager import LauncherManager
 from tests.test_doubles_library import TestSubprocess
 from thread_safe_worker import ThreadSafeWorker, WorkerState
 
+
 # Mark Qt tests for serial execution in same worker (prevents Qt crashes)
 pytestmark = [
     pytest.mark.unit,

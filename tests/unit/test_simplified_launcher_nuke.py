@@ -7,8 +7,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from shot_model import Shot
 from config import Config
+from shot_model import Shot
 from simplified_launcher import SimplifiedLauncher
 
 

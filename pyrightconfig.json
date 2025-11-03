@@ -44,10 +44,10 @@
   "reportUnknownParameterType": false,
   "reportUnknownArgumentType": false,
   "reportUnknownVariableType": false,
-  "reportUnannotatedClassAttribute": false,
   "reportUndefinedVariable": "warning",
   "reportImplicitStringConcatenation": "warning",
   "reportUnsafeMultipleInheritance": false,
-  "reportUnusedCallResult": false,
-  "reportImplicitOverride": false
+  "reportUnusedCallResult": "warning",
+  "reportImplicitOverride": "warning",
+  "reportUnannotatedClassAttribute": "warning"
 }

@@ -4,14 +4,16 @@ Mock objects and utilities for PyFFMPEG testing
 Provides specialized mocks for hardware detection, FFmpeg processes, and Qt components
 """
 
-from unittest.mock import Mock
-from typing import Dict, List
-from PySide6.QtCore import QProcess
+import os
 import subprocess
 
 # Import the function from conftest
 import sys
-import os
+from unittest.mock import Mock
+
+from PySide6.QtCore import QProcess
+
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 
@@ -42,7 +44,7 @@ class MockFFmpegProcess:
             f"bitrate={bitrate:.1f}kbits/s speed={speed:.1f}x"
         )
 
-    def simulate_conversion(self) -> List[str]:
+    def simulate_conversion(self) -> list[str]:
         """Simulate complete conversion with progress updates"""
         output_lines = [
             "ffmpeg version 4.4.0",
@@ -54,7 +56,7 @@ class MockFFmpegProcess:
         ]
 
         # Generate progress updates every 10% of completion
-        for i in range(0, 11):
+        for i in range(11):
             frame_number = int((i / 10.0) * self.max_frames)
             if frame_number > 0:
                 output_lines.append(self.get_progress_output(frame_number))
@@ -157,9 +159,9 @@ class MockQProcessManager:
     """Advanced mock for QProcess management testing"""
 
     def __init__(self):
-        self.processes: Dict[str, Mock] = {}
-        self.process_states: Dict[str, QProcess.ProcessState] = {}
-        self.output_buffers: Dict[str, List[bytes]] = {}
+        self.processes: dict[str, Mock] = {}
+        self.process_states: dict[str, QProcess.ProcessState] = {}
+        self.output_buffers: dict[str, list[bytes]] = {}
 
     def create_mock_process(self, process_id: str, will_succeed: bool = True) -> Mock:
         """Create a mock QProcess with realistic behavior"""

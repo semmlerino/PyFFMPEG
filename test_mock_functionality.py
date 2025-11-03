@@ -6,15 +6,15 @@ import os
 import sys
 from pathlib import Path
 
+
 # Set mock mode
 os.environ["SHOTBOT_MOCK"] = "1"
 os.environ["SHOWS_ROOT"] = "/tmp/mock_vfx/shows"
 
 # Local application imports
 # Import modules
-from mock_workspace_pool import create_mock_pool_from_filesystem
-
 from maya_latest_finder import MayaLatestFinder
+from mock_workspace_pool import create_mock_pool_from_filesystem
 from shot_model import Shot, ShotModel
 from targeted_shot_finder import TargetedShotsFinder
 from threede_latest_finder import ThreeDELatestFinder

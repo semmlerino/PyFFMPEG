@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 # Standard library imports
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, cast, override
 
 # Third-party imports
 from PySide6.QtCore import QSize, Qt, Signal
@@ -27,7 +27,6 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from typing_extensions import override
 
 # Local application imports
 from launcher.models import (
@@ -38,6 +37,7 @@ from launcher.models import (
 from logging_mixin import LoggingMixin
 from notification_manager import NotificationManager, NotificationType
 from qt_widget_mixin import QtWidgetMixin
+
 
 if TYPE_CHECKING:
     # Local application imports
@@ -193,8 +193,10 @@ class LauncherEditDialog(QDialog, QtWidgetMixin, LoggingMixin):
         # Command field
         self.command_field = QTextEdit()
         self.command_field.setPlaceholderText(
-            ("e.g., nuke --nc {workspace_path}/nuke/{shot}_v001.nk\n"
-            "Available variables: {show}, {sequence}, {shot}, {full_name}, {workspace_path}")
+            (
+                "e.g., nuke --nc {workspace_path}/nuke/{shot}_v001.nk\n"
+                "Available variables: {show}, {sequence}, {shot}, {full_name}, {workspace_path}"
+            )
         )
         self.command_field.setMaximumHeight(100)
         form_layout.addRow("Command:", self.command_field)
@@ -552,14 +554,14 @@ class LauncherManagerDialog(QDialog, QtWidgetMixin, LoggingMixin):
             QDialog {
                 background-color: #2b2b2b;
             }
-            
+
             QLabel#titleLabel {
                 color: #14ffec;
                 font-size: 16px;
                 font-weight: bold;
                 padding: 10px;
             }
-            
+
             QLineEdit#searchField {
                 background-color: #3c3c3c;
                 border: 1px solid #555;
@@ -568,11 +570,11 @@ class LauncherManagerDialog(QDialog, QtWidgetMixin, LoggingMixin):
                 color: #ddd;
                 font-size: 13px;
             }
-            
+
             QLineEdit#searchField:focus {
                 border-color: #14ffec;
             }
-            
+
             QListWidget {
                 background-color: #333;
                 border: 1px solid #444;
@@ -580,7 +582,7 @@ class LauncherManagerDialog(QDialog, QtWidgetMixin, LoggingMixin):
                 padding: 5px;
                 outline: none;
             }
-            
+
             QListWidget::item {
                 background-color: #3c3c3c;
                 border: 1px solid transparent;
@@ -589,25 +591,25 @@ class LauncherManagerDialog(QDialog, QtWidgetMixin, LoggingMixin):
                 margin: 2px 0;
                 color: #ddd;
             }
-            
+
             QListWidget::item:hover {
                 background-color: #444;
                 border-color: #555;
             }
-            
+
             QListWidget::item:selected {
                 background-color: #14ffec20;
                 border-color: #14ffec;
                 color: #fff;
             }
-            
+
             QWidget#previewPanel {
                 background-color: #333;
                 border: 1px solid #444;
                 border-radius: 4px;
                 padding: 15px;
             }
-            
+
             QTextEdit#commandPreview {
                 background-color: #2b2b2b;
                 border: 1px solid #444;
@@ -617,7 +619,7 @@ class LauncherManagerDialog(QDialog, QtWidgetMixin, LoggingMixin):
                 font-family: monospace;
                 font-size: 12px;
             }
-            
+
             QPushButton {
                 background-color: #3c3c3c;
                 border: 1px solid #555;
@@ -626,25 +628,25 @@ class LauncherManagerDialog(QDialog, QtWidgetMixin, LoggingMixin):
                 color: #ddd;
                 font-weight: bold;
             }
-            
+
             QPushButton:hover {
                 background-color: #444;
                 border-color: #666;
             }
-            
+
             QPushButton:pressed {
                 background-color: #2b2b2b;
             }
-            
+
             QPushButton#launchButton {
                 background-color: #14ffec30;
                 border-color: #14ffec;
             }
-            
+
             QPushButton#launchButton:hover {
                 background-color: #14ffec40;
             }
-            
+
             QPushButton#deleteButton:hover {
                 background-color: #ff444440;
                 border-color: #ff6666;
@@ -811,13 +813,13 @@ class LauncherManagerDialog(QDialog, QtWidgetMixin, LoggingMixin):
         # Disconnect launcher manager signals (from _connect_signals)
         # Note: Qt's receivers() method is not properly typed in PySide6 stubs
         try:
-            if self.launcher_manager.launchers_changed.receivers(self._load_launchers) > 0:  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+            if self.launcher_manager.launchers_changed.receivers(self._load_launchers) > 0:  # pyright: ignore[reportAttributeAccessIssue]
                 self.launcher_manager.launchers_changed.disconnect(self._load_launchers)
-            if self.launcher_manager.execution_started.receivers(self._on_execution_started) > 0:  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+            if self.launcher_manager.execution_started.receivers(self._on_execution_started) > 0:  # pyright: ignore[reportAttributeAccessIssue]
                 self.launcher_manager.execution_started.disconnect(
                     self._on_execution_started
                 )
-            if self.launcher_manager.execution_finished.receivers(self._on_execution_finished) > 0:  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+            if self.launcher_manager.execution_finished.receivers(self._on_execution_finished) > 0:  # pyright: ignore[reportAttributeAccessIssue]
                 self.launcher_manager.execution_finished.disconnect(
                     self._on_execution_finished
                 )
@@ -827,38 +829,38 @@ class LauncherManagerDialog(QDialog, QtWidgetMixin, LoggingMixin):
 
         # Disconnect preview panel signals (from _setup_ui)
         try:
-            if self.preview_panel.launch_requested.receivers(self._launch_launcher) > 0:  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+            if self.preview_panel.launch_requested.receivers(self._launch_launcher) > 0:  # pyright: ignore[reportAttributeAccessIssue]
                 self.preview_panel.launch_requested.disconnect(self._launch_launcher)
-            if self.preview_panel.edit_requested.receivers(self._edit_launcher) > 0:  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+            if self.preview_panel.edit_requested.receivers(self._edit_launcher) > 0:  # pyright: ignore[reportAttributeAccessIssue]
                 self.preview_panel.edit_requested.disconnect(self._edit_launcher)
-            if self.preview_panel.delete_requested.receivers(self._delete_launcher) > 0:  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+            if self.preview_panel.delete_requested.receivers(self._delete_launcher) > 0:  # pyright: ignore[reportAttributeAccessIssue]
                 self.preview_panel.delete_requested.disconnect(self._delete_launcher)
         except (RuntimeError, TypeError, AttributeError):
             pass
 
         # Disconnect list widget signals (from _setup_ui)
         try:
-            if self.launcher_list.itemSelectionChanged.receivers(self._on_selection_changed) > 0:  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+            if self.launcher_list.itemSelectionChanged.receivers(self._on_selection_changed) > 0:  # pyright: ignore[reportAttributeAccessIssue]
                 self.launcher_list.itemSelectionChanged.disconnect(
                     self._on_selection_changed
                 )
-            if self.launcher_list.itemDoubleClicked.receivers(self._on_double_click) > 0:  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+            if self.launcher_list.itemDoubleClicked.receivers(self._on_double_click) > 0:  # pyright: ignore[reportAttributeAccessIssue]
                 self.launcher_list.itemDoubleClicked.disconnect(self._on_double_click)
         except (RuntimeError, TypeError, AttributeError):
             pass
 
         # Disconnect search field (from _connect_signals)
         try:
-            if self.search_field.textChanged.receivers(self._filter_launchers) > 0:  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+            if self.search_field.textChanged.receivers(self._filter_launchers) > 0:  # pyright: ignore[reportAttributeAccessIssue]
                 self.search_field.textChanged.disconnect(self._filter_launchers)
         except (RuntimeError, TypeError, AttributeError):
             pass
 
         # Disconnect buttons (from _setup_ui)
         try:
-            if self.add_button.clicked.receivers(self._add_launcher) > 0:  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+            if self.add_button.clicked.receivers(self._add_launcher) > 0:  # pyright: ignore[reportAttributeAccessIssue]
                 self.add_button.clicked.disconnect(self._add_launcher)
-            if self.close_button.clicked.receivers(self.close) > 0:  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+            if self.close_button.clicked.receivers(self.close) > 0:  # pyright: ignore[reportAttributeAccessIssue]
                 self.close_button.clicked.disconnect(self.close)
         except (RuntimeError, TypeError, AttributeError):
             pass

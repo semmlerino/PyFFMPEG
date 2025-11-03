@@ -42,6 +42,7 @@ from tests.test_doubles_library import (
     TestShotModel,
 )
 
+
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 

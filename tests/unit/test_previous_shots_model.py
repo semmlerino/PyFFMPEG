@@ -32,6 +32,7 @@ from tests.test_doubles_previous_shots import (
     create_test_shot,
 )
 
+
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
@@ -40,6 +41,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # Local application imports
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_doubles_library import TestCacheManager
+
 
 pytestmark = [
     pytest.mark.unit,

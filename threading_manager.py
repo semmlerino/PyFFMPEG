@@ -19,6 +19,7 @@ from PySide6.QtCore import (
     Signal,
 )
 
+
 if TYPE_CHECKING:
     # Local application imports
     from base_shot_model import BaseShotModel

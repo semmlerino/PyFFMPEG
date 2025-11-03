@@ -24,6 +24,7 @@ from hypothesis.strategies import composite
 # Local application imports
 from config import Config
 
+
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 

@@ -12,6 +12,7 @@ from logging_mixin import LoggingMixin
 from threede_scene_model import ThreeDEScene
 from thumbnail_widget_base import ThumbnailWidgetBase
 
+
 # Set up logger for this module
 
 

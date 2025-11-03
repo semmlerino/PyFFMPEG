@@ -12,6 +12,7 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, TypedDict
 
+
 if TYPE_CHECKING:
     # Standard library imports
     import subprocess

@@ -14,6 +14,7 @@ import pytest
 from command_launcher import CommandLauncher
 from persistent_terminal_manager import PersistentTerminalManager
 
+
 pytestmark = [
     pytest.mark.integration,
     pytest.mark.qt,

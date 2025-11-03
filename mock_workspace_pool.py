@@ -11,6 +11,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
+
 if TYPE_CHECKING:
     from type_definitions import PerformanceMetricsDict
 
@@ -123,7 +124,7 @@ class MockWorkspacePool(LoggingMixin):
         self,
         command: str,
         cache_ttl: int = 30,
-        _timeout: int | None = None,  # type: ignore[reportUnusedParameter]
+        timeout: int | None = None,  # pyright: ignore[reportUnusedParameter]
     ) -> str:
         """Execute workspace command.
 
@@ -166,7 +167,7 @@ class MockWorkspacePool(LoggingMixin):
         self,
         commands: list[str],
         cache_ttl: int = 30,
-        _session_type: str = "workspace",  # type: ignore[reportUnusedParameter]
+        session_type: str = "workspace",  # pyright: ignore[reportUnusedParameter]
     ) -> dict[str, str | None]:
         """Execute multiple commands.
 

@@ -36,6 +36,7 @@ from tests.test_type_safe_patterns import (
     create_typed_process_pool_mock,
 )
 
+
 if TYPE_CHECKING:
     # Standard library imports
     from collections.abc import Iterator
@@ -67,8 +68,7 @@ class TestQApplication:
 @pytest.fixture(scope="session")
 def qt_app() -> Iterator[QApplication]:
     """Session-scoped QApplication fixture with proper cleanup."""
-    app = TestQApplication.get_instance()
-    return app
+    return TestQApplication.get_instance()
     # Note: Don't quit() session-scoped app as other tests may need it
 
 

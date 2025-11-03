@@ -15,6 +15,7 @@ from config import Config
 from shot_model import AsyncShotLoader, ShotModel
 from tests.test_doubles_extended import TestProcessPoolDouble as TestProcessPool
 
+
 # Mark Qt tests for serial execution in same worker (prevents Qt crashes)
 pytestmark = [
     pytest.mark.unit,
@@ -190,9 +191,8 @@ class TestShotModelSignals:
     @pytest.fixture
     def optimized_model(self, real_cache_manager, qtbot):
         """Create ShotModel for testing."""
-        model = ShotModel(real_cache_manager)
+        return ShotModel(real_cache_manager)
         # model is a QObject, not a widget
-        return model
 
     def test_background_load_signals(self, optimized_model, qtbot) -> None:
         """Test background_load_started/finished signals."""

@@ -58,6 +58,7 @@ class VFXStructureRecreator:
         Args:
             root_path: Root directory for recreation (default: /tmp/mock_vfx)
         """
+        super().__init__()
         self.root = Path(root_path or "/tmp/mock_vfx")
         self.stats = {
             "dirs_created": 0,

@@ -24,6 +24,7 @@ from filesystem_scanner import DirectoryCache
 # Import the refactored components
 from scene_discovery_coordinator import RefactoredThreeDESceneFinder
 
+
 if TYPE_CHECKING:
     # Standard library imports
     from collections.abc import Callable, Generator

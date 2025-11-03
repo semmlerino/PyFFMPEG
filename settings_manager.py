@@ -60,6 +60,7 @@ from PySide6.QtCore import QByteArray, QObject, QSettings, QSize, Signal
 from config import Config
 from logging_mixin import LoggingMixin
 
+
 # Set up logger for this module
 
 

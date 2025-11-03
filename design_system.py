@@ -183,12 +183,12 @@ class DesignSystem:
             font-family: {self.typography.font_family};
             font-size: {self.typography.size_body}px;
         }}
-        
+
         /* ===== Main Window ===== */
         QMainWindow {{
             background-color: {self.colors.bg_primary};
         }}
-        
+
         /* ===== Buttons ===== */
         QPushButton {{
             background-color: {self.colors.surface};
@@ -199,51 +199,51 @@ class DesignSystem:
             font-weight: {self.typography.weight_medium};
             min-height: 32px;
         }}
-        
+
         QPushButton:hover {{
             background-color: {self.colors.surface_hover};
             border-color: {self.colors.primary};
         }}
-        
+
         QPushButton:pressed {{
             background-color: {self.colors.surface_pressed};
         }}
-        
+
         QPushButton:disabled {{
             background-color: {self.colors.bg_secondary};
             color: {self.colors.text_disabled};
             border-color: {self.colors.border_default};
         }}
-        
+
         /* Primary button style */
         QPushButton#primaryButton {{
             background-color: {self.colors.primary};
             color: white;
             border: none;
         }}
-        
+
         QPushButton#primaryButton:hover {{
             background-color: {self.colors.primary_hover};
         }}
-        
+
         QPushButton#primaryButton:pressed {{
             background-color: {self.colors.primary_pressed};
         }}
-        
+
         /* Success button style */
         QPushButton#successButton {{
             background-color: {self.colors.success};
             color: white;
             border: none;
         }}
-        
+
         /* Danger button style */
         QPushButton#dangerButton {{
             background-color: {self.colors.error};
             color: white;
             border: none;
         }}
-        
+
         /* ===== Input Fields ===== */
         QLineEdit, QTextEdit {{
             background-color: {self.colors.bg_secondary};
@@ -253,47 +253,47 @@ class DesignSystem:
             padding: {self.spacing.sm}px;
             selection-background-color: {self.colors.primary};
         }}
-        
+
         QLineEdit:focus, QTextEdit:focus {{
             border-color: {self.colors.border_focus};
             outline: none;
         }}
-        
+
         QLineEdit:disabled, QTextEdit:disabled {{
             background-color: {self.colors.bg_tertiary};
             color: {self.colors.text_disabled};
         }}
-        
+
         /* ===== Labels ===== */
         QLabel {{
             color: {self.colors.text_primary};
             background-color: transparent;
         }}
-        
+
         QLabel#heading1 {{
             font-size: {self.typography.size_h1}px;
             font-weight: {self.typography.weight_bold};
             color: {self.colors.text_primary};
         }}
-        
+
         QLabel#heading2 {{
             font-size: {self.typography.size_h2}px;
             font-weight: {self.typography.weight_medium};
             color: {self.colors.text_primary};
         }}
-        
+
         QLabel#heading3 {{
             font-size: {self.typography.size_h3}px;
             font-weight: {self.typography.weight_medium};
             color: {self.colors.text_secondary};
         }}
-        
+
         QLabel#hint {{
             font-size: {self.typography.size_small}px;
             color: {self.colors.text_hint};
             font-style: italic;
         }}
-        
+
         /* ===== Group Boxes ===== */
         QGroupBox {{
             background-color: {self.colors.bg_secondary};
@@ -303,7 +303,7 @@ class DesignSystem:
             padding-top: {self.spacing.md}px;
             font-weight: {self.typography.weight_medium};
         }}
-        
+
         QGroupBox::title {{
             subcontrol-origin: margin;
             left: {self.spacing.md}px;
@@ -311,14 +311,14 @@ class DesignSystem:
             color: {self.colors.text_primary};
             background-color: {self.colors.bg_secondary};
         }}
-        
+
         /* ===== Tab Widget ===== */
         QTabWidget::pane {{
             background-color: {self.colors.bg_secondary};
             border: {self.borders.width_thin}px solid {self.colors.border_default};
             border-radius: {self.borders.radius_md}px;
         }}
-        
+
         QTabBar::tab {{
             background-color: {self.colors.surface};
             color: {self.colors.text_secondary};
@@ -329,18 +329,18 @@ class DesignSystem:
             font-size: {self.typography.size_h3}px;
             font-weight: {self.typography.weight_medium};
         }}
-        
+
         QTabBar::tab:selected {{
             background-color: {self.colors.bg_secondary};
             color: {self.colors.text_primary};
             border-bottom: {self.borders.width_medium}px solid {self.colors.primary};
         }}
-        
+
         QTabBar::tab:hover {{
             background-color: {self.colors.surface_hover};
             color: {self.colors.text_primary};
         }}
-        
+
         /* ===== List Widget ===== */
         QListWidget {{
             background-color: {self.colors.bg_secondary};
@@ -349,77 +349,77 @@ class DesignSystem:
             padding: {self.spacing.sm}px;
             outline: none;
         }}
-        
+
         QListWidget::item {{
             padding: {self.spacing.sm}px;
             border-radius: {self.borders.radius_sm}px;
         }}
-        
+
         QListWidget::item:selected {{
             background-color: {self.colors.primary};
             color: white;
         }}
-        
+
         QListWidget::item:hover {{
             background-color: {self.colors.surface_hover};
         }}
-        
+
         /* ===== Scroll Bars ===== */
         QScrollBar:vertical {{
             background-color: {self.colors.bg_secondary};
             width: 12px;
             border-radius: 6px;
         }}
-        
+
         QScrollBar::handle:vertical {{
             background-color: {self.colors.surface};
             border-radius: 6px;
             min-height: 20px;
         }}
-        
+
         QScrollBar::handle:vertical:hover {{
             background-color: {self.colors.surface_hover};
         }}
-        
+
         QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
             height: 0px;
         }}
-        
+
         /* ===== Status Bar ===== */
         QStatusBar {{
             background-color: {self.colors.bg_tertiary};
             color: {self.colors.text_secondary};
             border-top: {self.borders.width_thin}px solid {self.colors.border_default};
         }}
-        
+
         /* ===== Menu Bar ===== */
         QMenuBar {{
             background-color: {self.colors.bg_secondary};
             color: {self.colors.text_primary};
             border-bottom: {self.borders.width_thin}px solid {self.colors.border_default};
         }}
-        
+
         QMenuBar::item:selected {{
             background-color: {self.colors.surface_hover};
         }}
-        
+
         QMenu {{
             background-color: {self.colors.bg_tertiary};
             border: {self.borders.width_thin}px solid {self.colors.border_default};
             border-radius: {self.borders.radius_md}px;
             padding: {self.spacing.xs}px;
         }}
-        
+
         QMenu::item {{
             padding: {self.spacing.sm}px {self.spacing.md}px;
             border-radius: {self.borders.radius_sm}px;
         }}
-        
+
         QMenu::item:selected {{
             background-color: {self.colors.primary};
             color: white;
         }}
-        
+
         /* ===== Progress Bar ===== */
         QProgressBar {{
             background-color: {self.colors.bg_secondary};
@@ -429,12 +429,12 @@ class DesignSystem:
             text-align: center;
             color: {self.colors.text_primary};
         }}
-        
+
         QProgressBar::chunk {{
             background-color: {self.colors.primary};
             border-radius: {self.borders.radius_sm}px;
         }}
-        
+
         /* ===== Tooltips ===== */
         QToolTip {{
             background-color: {self.colors.bg_tertiary};
@@ -443,14 +443,14 @@ class DesignSystem:
             border-radius: {self.borders.radius_sm}px;
             padding: {self.spacing.sm}px;
         }}
-        
+
         /* ===== Sliders ===== */
         QSlider::groove:horizontal {{
             background-color: {self.colors.bg_tertiary};
             height: 4px;
             border-radius: 2px;
         }}
-        
+
         QSlider::handle:horizontal {{
             background-color: {self.colors.primary};
             width: 16px;
@@ -458,7 +458,7 @@ class DesignSystem:
             margin: -6px 0;
             border-radius: 8px;
         }}
-        
+
         QSlider::handle:horizontal:hover {{
             background-color: {self.colors.primary_hover};
         }}

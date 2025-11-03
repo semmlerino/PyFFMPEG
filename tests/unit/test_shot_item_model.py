@@ -17,9 +17,10 @@ from PySide6.QtCore import QModelIndex, Qt
 from PySide6.QtTest import QSignalSpy
 
 from base_item_model import BaseItemRole
+from config import Config
 from shot_item_model import ShotItemModel
 from shot_model import Shot
-from config import Config
+
 
 if TYPE_CHECKING:
 
@@ -59,8 +60,7 @@ def shot_item_model(
     qapp: QApplication, real_cache_manager: CacheManager
 ) -> ShotItemModel:
     """Create a ShotItemModel instance for testing."""
-    model = ShotItemModel(cache_manager=real_cache_manager)
-    return model
+    return ShotItemModel(cache_manager=real_cache_manager)
 
 
 @pytest.fixture
@@ -70,12 +70,11 @@ def base_shot_model(
     """Create a real BaseShotModel with test process pool."""
     from base_shot_model import BaseShotModel
 
-    model = BaseShotModel(
+    return BaseShotModel(
         cache_manager=real_cache_manager,
         load_cache=False,
         process_pool=test_process_pool,
     )
-    return model
 
 
 # ============================================================================

@@ -20,6 +20,7 @@ from unittest.mock import patch
 import pytest
 from PySide6.QtCore import Qt
 
+
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -27,6 +28,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from cache_manager import CacheManager
 from process_pool_manager import ProcessPoolManager
 from shot_model import AsyncShotLoader, ShotModel
+
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QApplication

@@ -184,7 +184,7 @@ def main() -> int:
 
     # Get list of files with old pattern
     files_to_update: list[Path] = []
-    for file_path in Path(".").glob("*.py"):
+    for file_path in Path().glob("*.py"):
         if file_path.name == "apply_logging_mixin.py":
             continue
 

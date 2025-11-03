@@ -14,9 +14,10 @@ from unittest.mock import MagicMock, patch
 # Third-party imports
 import pytest
 
+from config import Config
+
 # Local application imports
 from shot_model import Shot
-from config import Config
 from simplified_launcher import SimplifiedLauncher
 
 

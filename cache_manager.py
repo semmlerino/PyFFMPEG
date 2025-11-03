@@ -46,7 +46,7 @@ import shutil
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, NamedTuple, TypeAlias, cast
+from typing import TYPE_CHECKING, NamedTuple, cast
 
 # Third-party imports
 from PIL import Image
@@ -55,6 +55,7 @@ from PySide6.QtCore import QMutex, QMutexLocker, QObject, Qt, Signal
 # Local application imports
 from exceptions import ThumbnailError
 from logging_mixin import LoggingMixin
+
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -65,7 +66,7 @@ if TYPE_CHECKING:
     from type_definitions import ShotDict, ThreeDESceneDict
 
 # Type alias for JSON data (used for runtime validation) - Python 3.11 compatible
-JSONValue: TypeAlias = (
+type JSONValue = (
     dict[str, "JSONValue"] | list["JSONValue"] | str | int | float | bool | None
 )
 
@@ -238,8 +239,8 @@ class CacheManager(LoggingMixin, QObject):
         show: str,
         sequence: str,
         shot: str,
-        wait: bool = True,
-        timeout: float | None = None,
+        _wait: bool = True,
+        _timeout: float | None = None,
     ) -> Path | None:
         """Cache a thumbnail from source path.
 
@@ -248,8 +249,8 @@ class CacheManager(LoggingMixin, QObject):
             show: Show name
             sequence: Sequence name
             shot: Shot name
-            wait: Ignored in simplified implementation (always synchronous)
-            timeout: Ignored in simplified implementation
+            _wait: Ignored in simplified implementation (always synchronous)
+            _timeout: Ignored in simplified implementation
 
         Returns:
             Path to cached thumbnail or None on error
@@ -494,15 +495,19 @@ class CacheManager(LoggingMixin, QObject):
 
             if write_success:
                 self.logger.info(
-                    (f"Migrated {len(to_migrate)} shots to Previous "
-                    f"(total: {len(merged)} after dedup)")
+                    (
+                        f"Migrated {len(to_migrate)} shots to Previous "
+                        f"(total: {len(merged)} after dedup)"
+                    )
                 )
                 # Emit specific signal (NOT generic cache_updated)
                 self.shots_migrated.emit(to_migrate)
             else:
                 self.logger.error(
-                    f(("Failed to persist {len(to_migrate)} migrated shots to disk. "
-                    "Migration will be lost on restart."))
+                    (
+                        f"Failed to persist {len(to_migrate)} migrated shots to disk. "
+                        "Migration will be lost on restart."
+                    )
                 )
 
     def get_cached_previous_shots(self) -> list[ShotDict] | None:

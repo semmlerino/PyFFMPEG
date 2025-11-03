@@ -14,6 +14,7 @@ from unittest.mock import Mock
 # Third-party imports
 import pytest
 
+
 # Set up minimal environment
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 os.environ["QT_LOGGING_RULES"] = "*.debug=false"

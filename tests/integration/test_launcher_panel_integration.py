@@ -20,6 +20,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 

@@ -192,13 +192,12 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
                 return thumbnail
 
             # Third fallback: any EXR with 1001 in publish folder
-            thumbnail = PathUtils.find_any_publish_thumbnail(
+            return PathUtils.find_any_publish_thumbnail(
                 Config.SHOWS_ROOT,
                 shot.show,
                 shot.sequence,
                 shot.shot,
             )
-            return thumbnail
 
         except Exception as e:
             self.logger.debug(f"Error finding thumbnail for {shot.full_name}: {e}")

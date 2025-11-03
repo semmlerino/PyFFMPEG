@@ -31,19 +31,21 @@ import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QSignalSpy, QTest
 
+from config import Config
+
 # Local application imports
 from shot_grid_view import ShotGridView  # Modern Model/View
 
 # from shot_grid import ShotGrid  # Module deleted during Model/View migration
 from shot_item_model import ShotItemModel
 from shot_model import Shot
-from config import Config
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_doubles_library import (
     TestCacheManager,
     TestShot,
 )
+
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot

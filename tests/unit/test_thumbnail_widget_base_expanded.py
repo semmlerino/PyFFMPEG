@@ -38,6 +38,7 @@ from thumbnail_widget_base import (
     LoadingState,
 )
 
+
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 

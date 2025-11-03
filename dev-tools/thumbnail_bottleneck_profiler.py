@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Any
 # Third-party imports
 import psutil
 
+
 if TYPE_CHECKING:
     # Standard library imports
     from pathlib import Path

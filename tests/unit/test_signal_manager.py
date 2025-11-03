@@ -21,6 +21,7 @@ from signal_manager import (
     SignalThrottler,
 )
 
+
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 

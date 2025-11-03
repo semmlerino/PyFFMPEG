@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING
 from error_handling_mixin import ErrorHandlingMixin
 from logging_mixin import LoggingMixin
 
+
 if TYPE_CHECKING:
     from logging_mixin import ContextualLogger
 

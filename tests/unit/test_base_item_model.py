@@ -17,8 +17,9 @@ from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtTest import QSignalSpy
 
 from base_item_model import BaseItemModel, BaseItemRole
-from shot_model import Shot
 from config import Config
+from shot_model import Shot
+
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QApplication

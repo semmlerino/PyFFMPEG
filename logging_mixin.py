@@ -31,6 +31,7 @@ from typing import TYPE_CHECKING, TypeVar, cast
 # Third-party imports
 from typing_extensions import ParamSpec
 
+
 if TYPE_CHECKING:
     # Standard library imports
     from collections.abc import Callable, Generator, Mapping
@@ -77,10 +78,9 @@ def _manage_log_context(**kwargs: str) -> Generator[None, None, None]:
         # Restore previous context
         if old_context is not None:
             _context_storage.context = old_context
-        else:
-            # Remove context if there was none before
-            if hasattr(_context_storage, "context"):
-                delattr(_context_storage, "context")
+        # Remove context if there was none before
+        elif hasattr(_context_storage, "context"):
+            delattr(_context_storage, "context")
 
 
 class ContextualLogger:
@@ -287,7 +287,7 @@ class LoggingMixin:
         return cast("ContextualLogger", getattr(self, cache_attr))
 
 
-def log_execution(
+def log_execution[**P, T](
     func: Callable[P, T] | None = None,
     *,
     include_args: bool = False,
@@ -356,11 +356,10 @@ def log_execution(
                     )
                 else:
                     logger.info(f"Starting {func_name}")
-            else:
-                if log_level == logging.DEBUG:
-                    logger.debug(f"Starting {func_name}")
-                elif log_level == logging.INFO:
-                    logger.info(f"Starting {func_name}")
+            elif log_level == logging.DEBUG:
+                logger.debug(f"Starting {func_name}")
+            elif log_level == logging.INFO:
+                logger.info(f"Starting {func_name}")
 
             try:
                 # Execute function
@@ -377,18 +376,16 @@ def log_execution(
                             logger.debug(f"{func_name} {time_str} -> {result!r}")
                         else:
                             logger.info(f"{func_name} {time_str}")
+                    elif log_level == logging.DEBUG:
+                        logger.debug(
+                            f"{func_name} {time_str} -> <{type(result).__name__}>"
+                        )
                     else:
-                        if log_level == logging.DEBUG:
-                            logger.debug(
-                                f"{func_name} {time_str} -> <{type(result).__name__}>"
-                            )
-                        else:
-                            logger.info(f"{func_name} {time_str}")
-                else:
-                    if log_level == logging.DEBUG:
-                        logger.debug(f"{func_name} {time_str}")
-                    elif log_level == logging.INFO:
                         logger.info(f"{func_name} {time_str}")
+                elif log_level == logging.DEBUG:
+                    logger.debug(f"{func_name} {time_str}")
+                elif log_level == logging.INFO:
+                    logger.info(f"{func_name} {time_str}")
 
                 return result
 

@@ -12,16 +12,18 @@ from pathlib import Path
 
 # Third-party imports
 import pytest
-from config import Config
 from PySide6.QtCore import QModelIndex, Qt
 from PySide6.QtGui import QImage
 from pytestqt.qtbot import QtBot
+
+from config import Config
 
 # Local application imports
 # Following UNIFIED_TESTING_GUIDE: Use test doubles instead of Mock(spec=)
 from tests.test_doubles_library import TestCacheManager
 from threede_item_model import ThreeDEItemModel
 from threede_scene_model import ThreeDEScene
+
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
 
@@ -31,9 +33,8 @@ def model(qtbot: QtBot) -> ThreeDEItemModel:
     """Create a ThreeDEItemModel instance for testing."""
     # Use test double instead of Mock(spec=)
     cache_manager = TestCacheManager()
-    model = ThreeDEItemModel(cache_manager=cache_manager)
+    return ThreeDEItemModel(cache_manager=cache_manager)
     # Models are not widgets, don't add to qtbot
-    return model
 
 
 @pytest.fixture

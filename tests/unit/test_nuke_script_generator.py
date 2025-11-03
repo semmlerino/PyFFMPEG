@@ -22,6 +22,7 @@ import pytest
 # Local application imports
 from nuke_script_generator import NukeScriptGenerator
 
+
 pytestmark = [pytest.mark.unit, pytest.mark.slow]
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)

@@ -25,7 +25,7 @@ def patch_threede_scene_worker() -> bool:
     # Add mutex to __init__
     init_patch = """        self._all_scenes: list[ThreeDEScene] = []
         self._files_processed = 0
-        
+
         # Thread safety for finished signal emission
         self._finished_mutex = QMutex()
         self._finished_emitted = False"""
@@ -55,13 +55,13 @@ def patch_threede_scene_worker() -> bool:
             # Thread-safe check and emit
             should_emit = False
             scenes_to_emit = []
-            
+
             with QMutexLocker(self._finished_mutex):
                 if not self._finished_emitted:
                     should_emit = True
                     self._finished_emitted = True
                     scenes_to_emit = self._all_scenes.copy() if self._all_scenes else []
-            
+
             # Emit outside the lock to prevent deadlocks
             if should_emit:
                 if not scenes_to_emit:
@@ -94,7 +94,7 @@ def patch_threede_scene_worker() -> bool:
                     emit_empty = True
                 else:
                     emit_empty = False
-            
+
             if emit_empty:
                 self.finished.emit([])""",
     )
@@ -110,7 +110,7 @@ def patch_threede_scene_worker() -> bool:
                         emit_scenes = True
                     else:
                         emit_scenes = False
-                
+
                 if emit_scenes:
                     self.finished.emit(scenes)""",
     )
@@ -125,7 +125,7 @@ def patch_threede_scene_worker() -> bool:
                     emit_final = True
                 else:
                     emit_final = False
-            
+
             if emit_final:
                 self.finished.emit(scenes)""",
     )

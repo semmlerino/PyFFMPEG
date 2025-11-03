@@ -22,6 +22,7 @@ from unittest.mock import patch
 # Third-party imports
 import pytest
 
+
 # Performance test markers
 pytestmark = [pytest.mark.performance]
 

@@ -37,6 +37,7 @@ from threede_grid_view import ThreeDEGridView
 from threede_item_model import ThreeDEItemModel
 from threede_scene_model import ThreeDEScene, ThreeDESceneModel
 
+
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 

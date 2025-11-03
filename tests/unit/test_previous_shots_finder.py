@@ -18,10 +18,12 @@ from pathlib import Path
 # Third-party imports
 import pytest
 
+from config import Config
+
 # Local application imports
 from previous_shots_finder import PreviousShotsFinder
 from shot_model import Shot
-from config import Config
+
 
 # Import test helpers
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -32,6 +34,7 @@ from typing import NoReturn
 # Local application imports
 from tests.test_doubles_library import TestSubprocess
 from tests.test_doubles_previous_shots import create_test_shot, create_test_shots
+
 
 pytestmark = [pytest.mark.unit, pytest.mark.slow]
 
@@ -216,79 +219,28 @@ class TestPreviousShotsFinder:
         """Test finding user shots with real directory structure.
 
         Following UNIFIED_TESTING_GUIDE:
-        - Mock only subprocess (system boundary)
-        - Use real filesystem structure
+        - Use real filesystem structure (no mocking)
+        - Test behavior, not implementation
         """
-        # Mock subprocess.run to return paths from our test structure
-        mock_paths = [
-            str(
-                real_shows_structure
-                / "testshow"
-                / "shots"
-                / "101_ABC"
-                / "101_ABC_0010"
-                / "user"
-                / "testuser"
-            ),
-            str(
-                real_shows_structure
-                / "testshow"
-                / "shots"
-                / "101_ABC"
-                / "101_ABC_0020"
-                / "user"
-                / "testuser"
-            ),
-            str(
-                real_shows_structure
-                / "anothershow"
-                / "shots"
-                / "102_DEF"
-                / "102_DEF_0010"
-                / "user"
-                / "testuser"
-            ),
-        ]
+        # The real_shows_structure fixture creates a comprehensive structure
+        # with multiple shows, sequences, and shots
+        shots = finder.find_user_shots(real_shows_structure)
 
-        # Use test double for subprocess
-        test_subprocess = TestSubprocess()
-        test_subprocess.return_code = 0
-        test_subprocess.stdout = "\n".join(mock_paths)
-        test_subprocess.stderr = ""
+        # Verify shots were found correctly
+        # The fixture creates 2 shows x 2 sequences x 3 shots = 12 shots total
+        assert len(shots) == 12, f"Expected 12 shots, found {len(shots)}"
 
-        # Import patch locally
-        # Standard library imports
-        from unittest.mock import patch
-
-        with patch("subprocess.run", test_subprocess.run):
-            shots = finder.find_user_shots(real_shows_structure)
-
-        # Verify command was executed using test double tracking
-        assert len(test_subprocess.executed_commands) == 1
-        command = test_subprocess.executed_commands[0]
-        assert "find" in command
-        assert str(real_shows_structure) in command
-        # Pattern should be in the command arguments
-        pattern_found = any("*/user/testuser" in arg for arg in command)
-        assert pattern_found, (
-            f"Pattern '*/user/testuser' not found in command: {command}"
-        )
-        # We no longer have "2>/dev/null" as it's handled by stderr=subprocess.DEVNULL
-        assert "2>/dev/null" not in command
-
-        # Verify stderr handling from execution history
-        execution = test_subprocess.execution_history[0]
-        assert execution["kwargs"].get("stderr") == subprocess.DEVNULL
-
-        # Verify shots were parsed correctly
-        assert len(shots) == 3
         shot_ids = {(s.show, s.sequence, s.shot) for s in shots}
-        expected_ids = {
+
+        # Verify a sample of expected shots are present
+        expected_sample = {
             ("testshow", "101_ABC", "0010"),
             ("testshow", "101_ABC", "0020"),
             ("anothershow", "102_DEF", "0010"),
         }
-        assert shot_ids == expected_ids
+        assert expected_sample.issubset(shot_ids), (
+            f"Expected sample {expected_sample} not found in {shot_ids}"
+        )
 
     def test_find_user_shots_nonexistent_directory(self, finder, tmp_path) -> None:
         """Test behavior with nonexistent shows directory."""
@@ -297,43 +249,9 @@ class TestPreviousShotsFinder:
 
         assert shots == []
 
-    def test_find_user_shots_subprocess_timeout(
-        self, finder, real_shows_structure
-    ) -> None:
-        """Test handling of subprocess timeout."""
-
-        # Use test double that simulates timeout
-        def timeout_run(*args, **kwargs) -> NoReturn:
-            raise subprocess.TimeoutExpired("find", 30)
-
-        # Import patch locally since we're removing the global import
-        # Standard library imports
-        from unittest.mock import patch
-
-        with patch("subprocess.run", timeout_run):
-            shots = finder.find_user_shots(real_shows_structure)
-
-        assert shots == []
-
-    def test_find_user_shots_subprocess_error(
-        self, finder, real_shows_structure
-    ) -> None:
-        """Test handling of subprocess errors."""
-        # Use test double for subprocess error
-        test_subprocess = TestSubprocess()
-        test_subprocess.return_code = 1
-        test_subprocess.stderr = "Permission denied"
-        test_subprocess.stdout = ""
-
-        # Import patch locally
-        # Standard library imports
-        from unittest.mock import patch
-
-        with patch("subprocess.run", test_subprocess.run):
-            shots = finder.find_user_shots(real_shows_structure)
-
-        # Should handle errors gracefully and return empty list
-        assert shots == []
+    # NOTE: Subprocess tests removed after refactoring to use Path.rglob()
+    # Previous tests: test_find_user_shots_subprocess_timeout, test_find_user_shots_subprocess_error
+    # These tested subprocess.run() behavior which is no longer used in the implementation
 
     def test_filter_approved_shots_behavior(self, finder) -> None:
         """Test actual filtering behavior, not implementation.
@@ -379,53 +297,30 @@ class TestPreviousShotsFinder:
     ) -> None:
         """Test complete workflow from finding to filtering.
 
-        Integration test with real filesystem and subprocess mocking.
+        Integration test with real filesystem using Path.rglob().
         """
-        # Mock subprocess to return some user shots
-        mock_paths = [
-            str(
-                real_shows_structure
-                / "testshow"
-                / "shots"
-                / "101_ABC"
-                / "101_ABC_0010"
-                / "user"
-                / "testuser"
-            ),
-            str(
-                real_shows_structure
-                / "testshow"
-                / "shots"
-                / "101_ABC"
-                / "101_ABC_0020"
-                / "user"
-                / "testuser"
-            ),
-        ]
-
-        # Use test double for subprocess
-        test_subprocess = TestSubprocess()
-        test_subprocess.return_code = 0
-        test_subprocess.stdout = "\n".join(mock_paths)
-        test_subprocess.stderr = ""
-
-        # Create active shots (one overlapping)
+        # Create active shots (one overlapping with what's in real_shows_structure)
+        # real_shows_structure fixture creates 2 shows x 2 sequences x 3 shots = 12 shots
+        # We mark one as "active" to test filtering
         active_shots = [
             create_test_shot("testshow", "101_ABC", "0010"),
         ]
 
-        # Import patch locally
-        # Standard library imports
-        from unittest.mock import patch
+        # find_approved_shots will find all user shots, then filter out active ones
+        approved_shots = finder.find_approved_shots(
+            active_shots, real_shows_structure
+        )
 
-        with patch("subprocess.run", test_subprocess.run):
-            approved_shots = finder.find_approved_shots(
-                active_shots, real_shows_structure
-            )
+        # Should find 12 total shots, minus 1 active = 11 approved
+        assert len(approved_shots) == 11
 
-        # Should return only the non-active shot
-        assert len(approved_shots) == 1
-        assert approved_shots[0].shot == "0020"
+        # Verify the active shot (0010) is NOT in approved shots
+        shot_identifiers = [(s.show, s.sequence, s.shot) for s in approved_shots]
+        assert ("testshow", "101_ABC", "0010") not in shot_identifiers
+
+        # Verify other shots from the same show/sequence ARE in approved shots
+        assert ("testshow", "101_ABC", "0020") in shot_identifiers
+        assert ("testshow", "101_ABC", "0030") in shot_identifiers
 
     def test_get_shot_details_behavior(self, finder) -> None:
         """Test getting shot details returns expected structure."""

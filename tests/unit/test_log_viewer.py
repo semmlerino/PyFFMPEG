@@ -21,6 +21,7 @@ from PySide6.QtWidgets import QHBoxLayout, QPushButton, QTextEdit, QVBoxLayout
 from config import Config
 from log_viewer import LogViewer
 
+
 pytestmark = [
     pytest.mark.unit,
     pytest.mark.qt,

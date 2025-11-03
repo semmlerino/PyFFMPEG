@@ -8,7 +8,7 @@ with virtualization and proper Model/View architecture.
 from __future__ import annotations
 
 # Standard library imports
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, cast, override
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -27,7 +27,6 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from typing_extensions import override
 
 # Local application imports
 from base_grid_view import BaseGridView
@@ -35,6 +34,7 @@ from base_item_model import BaseItemRole
 from progress_manager import ProgressManager
 from shot_grid_delegate import ShotGridDelegate
 from thumbnail_widget_base import FolderOpenerWorker
+
 
 # Backward compatibility alias
 ShotRole = BaseItemRole
@@ -319,7 +319,6 @@ class PreviousShotsView(BaseGridView):
         """
         # Qt's selection model automatically handles the click
         # _on_selection_changed will be triggered with the full selection logic
-        pass
 
     @Slot(QModelIndex)
     def _on_item_double_clicked(self, index: QModelIndex) -> None:

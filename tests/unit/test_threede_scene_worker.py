@@ -22,14 +22,16 @@ from typing import TYPE_CHECKING, ClassVar
 import pytest
 from PySide6.QtTest import QSignalSpy
 
+import threede_scene_worker
+from config import Config
+
 # Local application imports
 from shot_model import Shot
-from config import Config
-import threede_scene_worker
 
 # Test doubles for behavior testing
 from threede_scene_model import ThreeDEScene
 from threede_scene_worker import ProgressCalculator, ThreeDESceneWorker
+
 
 if TYPE_CHECKING:
     # Standard library imports

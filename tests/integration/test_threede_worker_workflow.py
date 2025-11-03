@@ -25,6 +25,7 @@ import pytest
 from shot_model import Shot
 from threede_scene_worker import ThreeDESceneWorker
 
+
 pytestmark = [
     pytest.mark.integration,
     pytest.mark.qt,

@@ -61,7 +61,7 @@ class BaseSceneFinder(ABC, VersionHandlingMixin):
     def find_latest_scene(
         self,
         workspace_path: str,
-        _shot_name: str | None = None,
+        shot_name: str | None = None,
     ) -> Path | None:
         """Find the latest scene file in a workspace.
 
@@ -121,8 +121,7 @@ class BaseSceneFinder(ABC, VersionHandlingMixin):
         # Find all scene files
         if include_all:
             # Include files without version numbers
-            all_files = self._find_all_files(workspace)
-            return all_files
+            return self._find_all_files(workspace)
         # Only versioned files
         scene_files = self._find_all_scene_files(workspace)
         scene_files.sort(key=lambda x: x[1])

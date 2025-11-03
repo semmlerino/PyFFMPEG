@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, ClassVar
 # Local application imports
 from logging_mixin import LoggingMixin
 
+
 if TYPE_CHECKING:
     from threede_scene_model import ThreeDEScene
 

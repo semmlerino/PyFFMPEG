@@ -40,6 +40,7 @@ from tests.test_doubles_library import (
     TestProgressManager,
 )
 
+
 if TYPE_CHECKING:
     from pathlib import Path
 

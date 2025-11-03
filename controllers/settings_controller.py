@@ -28,6 +28,7 @@ from PySide6.QtWidgets import QMessageBox, QWidget
 # Local application imports
 from logging_mixin import LoggingMixin
 
+
 if TYPE_CHECKING:
     # Third-party imports
     from PySide6.QtCore import QByteArray, QSize
@@ -170,8 +171,8 @@ class SettingsController(LoggingMixin):
                 # Fallback to tuple handling or config defaults
                 if isinstance(default_size, tuple) and len(default_size) == 2:
                     # Type checker can't narrow union type properly here
-                    width = int(default_size[0])  # pyright: ignore[reportUnknownArgumentType]
-                    height = int(default_size[1])  # pyright: ignore[reportUnknownArgumentType]
+                    width = int(default_size[0])
+                    height = int(default_size[1])
                     self.window.resize(width, height)
                 else:
                     # Final fallback to config defaults

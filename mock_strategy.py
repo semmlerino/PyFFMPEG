@@ -10,10 +10,11 @@ from __future__ import annotations
 import json
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, cast
+from typing import cast
 
 # Local application imports
 from logging_mixin import LoggingMixin, get_module_logger
+
 
 # Module-level logger for static methods
 logger = get_module_logger(__name__)
@@ -130,7 +131,8 @@ class JSONMockStrategy(MockDataStrategy):
 
         try:
             with open(self.json_path) as f:
-                data: Any = json.load(f)
+                # json.load returns Any - we validate with isinstance below
+                data: object = json.load(f)  # pyright: ignore[reportAny]
 
             shots: list[str] = []
             # Type narrow: data should be dict with "shots" key
@@ -206,7 +208,8 @@ class ProductionDataStrategy(MockDataStrategy):
 
         try:
             with open(self.capture_file) as f:
-                data: Any = json.load(f)
+                # json.load returns Any - we validate with isinstance below
+                data: object = json.load(f)  # pyright: ignore[reportAny]
 
             shots: list[str] = []
 
@@ -268,8 +271,10 @@ class UnifiedMockPool(LoggingMixin):
         self.commands_executed: list[str] = []
 
         self.logger.info(
-            (f"UnifiedMockPool initialized with {len(self.shots)} shots "
-            f"using {self.strategy.__class__.__name__}")
+            (
+                f"UnifiedMockPool initialized with {len(self.shots)} shots "
+                f"using {self.strategy.__class__.__name__}"
+            )
         )
 
     @staticmethod

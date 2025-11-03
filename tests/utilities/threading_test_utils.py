@@ -69,6 +69,7 @@ from tests.helpers.synchronization import (
     simulate_work_without_sleep,
 )
 
+
 if TYPE_CHECKING:
     # Standard library imports
     from collections.abc import Callable, Iterator

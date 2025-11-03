@@ -15,6 +15,7 @@ from typing import Literal, Protocol, TypedDict, TypeVar, cast
 # Third-party imports
 from PySide6.QtCore import Signal
 
+
 # ==============================================================================
 # TypedDict Definitions for Data Structures
 # ==============================================================================
@@ -127,7 +128,7 @@ class Shot:
     @classmethod
     def from_dict(cls, data: ShotDict) -> Shot:
         """Create shot from dictionary data."""
-        shot = cls(
+        return cls(
             show=data["show"],
             sequence=data["sequence"],
             shot=data["shot"],
@@ -135,7 +136,6 @@ class Shot:
         )
         # Don't restore cached thumbnail path from dict - let it be re-discovered if needed
         # This ensures we don't cache stale paths across sessions
-        return shot
 
 
 class ThreeDESceneDict(TypedDict):

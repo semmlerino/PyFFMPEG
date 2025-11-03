@@ -11,22 +11,23 @@ Following UNIFIED_TESTING_GUIDE best practices:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-from unittest.mock import Mock, patch
 import subprocess
 import tempfile
 from pathlib import Path
+from typing import TYPE_CHECKING
+from unittest.mock import Mock, patch
 
 import pytest
 
-from launcher.validator import LauncherValidator
 from launcher.models import (
     CustomLauncher,
     LauncherEnvironment,
-    LauncherValidation,
     LauncherTerminal,
+    LauncherValidation,
 )
+from launcher.validator import LauncherValidator
 from type_definitions import Shot
+
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QApplication

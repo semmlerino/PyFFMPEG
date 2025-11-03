@@ -20,6 +20,7 @@ from PySide6.QtCore import QObject, Signal
 # Local application imports
 from logging_mixin import LoggingMixin, get_module_logger
 
+
 # Module-level logger for static methods
 logger = get_module_logger(__name__)
 

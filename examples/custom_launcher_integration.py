@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import Mock
 
+
 # Mock PySide6 for demonstration
 sys.modules["PySide6"] = Mock()
 sys.modules["PySide6.QtCore"] = Mock()
@@ -21,7 +22,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Local application imports
 # Import the persistent terminal manager
-from persistent_terminal_manager import PersistentTerminalManager  # noqa: E402
+from persistent_terminal_manager import PersistentTerminalManager
 
 
 @dataclass
@@ -313,13 +314,13 @@ class CommandLauncher(QObject):
         super().__init__()
         self.current_shot = None
         self.custom_launcher_manager = CustomLauncherManager()
-    
+
     def launch_custom_app(self, launcher_id):
         \"\"\"Launch a custom application.\"\"\"
         if not self.current_shot:
             self._emit_error("No shot selected")
             return False
-        
+
         # Build shot context
         shot_context = {
             "show": self.current_shot.show,
@@ -328,12 +329,12 @@ class CommandLauncher(QObject):
             "full_name": self.current_shot.full_name,
             "workspace_path": self.current_shot.workspace_path
         }
-        
+
         # Execute the custom launcher
         result = self.custom_launcher_manager.execute_custom_launcher(
             launcher_id, shot_context
         )
-        
+
         if result.success:
             timestamp = datetime.now().strftime("%H:%M:%S")
             self.command_executed.emit(timestamp, result.command)

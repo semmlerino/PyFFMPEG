@@ -20,6 +20,7 @@ from config import Config, ThreadingConfig
 from shot_finder_base import FindShotsKwargs, ShotDetailsDict, ShotFinderBase
 from shot_model import Shot
 
+
 if TYPE_CHECKING:
     # Standard library imports
     from collections.abc import Generator
@@ -335,8 +336,10 @@ class TargetedShotsFinder(ShotFinderBase):
 
         elapsed = time.time() - start_time
         self.logger.info(
-            (f"Targeted search found {len(approved_shots)} approved shots "
-            f"in {elapsed:.1f} seconds (was 60-120s with global search)")
+            (
+                f"Targeted search found {len(approved_shots)} approved shots "
+                f"in {elapsed:.1f} seconds (was 60-120s with global search)"
+            )
         )
 
         self._report_progress(100, 100, "Targeted search complete")
@@ -409,13 +412,12 @@ class TargetedShotsFinder(ShotFinderBase):
                 return thumbnail
 
             # Third fallback: any EXR with 1001 in publish folder
-            thumbnail = PathUtils.find_any_publish_thumbnail(
+            return PathUtils.find_any_publish_thumbnail(
                 Config.SHOWS_ROOT,
                 shot.show,
                 shot.sequence,
                 shot.shot,
             )
-            return thumbnail
 
         except Exception as e:
             self.logger.debug(f"Error finding thumbnail for {shot.full_name}: {e}")

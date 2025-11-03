@@ -12,6 +12,7 @@ from PySide6.QtCore import QTimer
 # Local application imports
 from shot_model import ShotModel
 
+
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
 

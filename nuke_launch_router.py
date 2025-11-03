@@ -13,6 +13,7 @@ from logging_mixin import LoggingMixin
 from nuke_launch_handler import NukeLaunchHandler
 from simple_nuke_launcher import SimpleNukeLauncher
 
+
 if TYPE_CHECKING:
     from shot_model import Shot
 

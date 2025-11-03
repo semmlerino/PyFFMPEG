@@ -23,6 +23,7 @@ import pytest
 # Local application imports
 from plate_discovery import PlateDiscovery
 
+
 pytestmark = pytest.mark.unit
 
 

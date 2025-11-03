@@ -763,7 +763,7 @@ class TestUserWorkflows:
         # Create a proper JPEG header for realistic testing
         thumb_path_1.write_bytes(
             b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x01\x00H\x00H\x00\x00"
-            + b"\xff\xdb\x00C\x00"
+             b"\xff\xdb\x00C\x00"
             + b"\x10" * 64
             + b"\xff\xc0\x00\x11"
             + b"\x08\x00\x10\x00\x10\x01\x01\x11\x00\x02\x11\x01\x03\x11\x01"
@@ -1248,8 +1248,7 @@ class TestUserWorkflows:
 # Helper functions for standalone testing
 def setup_test_environment() -> Path:
     """Set up isolated test environment for standalone testing."""
-    temp_dir = Path(tempfile.mkdtemp(prefix="shotbot_workflow_test_"))
-    return temp_dir
+    return Path(tempfile.mkdtemp(prefix="shotbot_workflow_test_"))
 
 
 def cleanup_test_environment(temp_dir: Path) -> None:

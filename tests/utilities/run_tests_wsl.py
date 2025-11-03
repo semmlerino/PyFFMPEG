@@ -9,6 +9,7 @@ import sys
 import time
 from pathlib import Path
 
+
 # Ensure we're in the project directory
 project_root = Path(__file__).parent
 os.chdir(project_root)

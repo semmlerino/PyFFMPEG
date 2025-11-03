@@ -12,6 +12,7 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
+
 # Set up environment
 os.environ["SHOTBOT_MOCK"] = "1"
 os.environ["SHOTBOT_HEADLESS"] = "1"  # Run without display

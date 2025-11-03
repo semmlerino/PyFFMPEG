@@ -12,6 +12,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+
 # Set up logging
 logging.basicConfig(
     level=logging.DEBUG,
@@ -34,7 +35,7 @@ def create_test_mov(output_path: Path) -> bool:
     try:
         result = subprocess.run(
             ["ffmpeg", "-version"],
-            capture_output=True,
+            check=False, capture_output=True,
             timeout=5,
         )
         ffmpeg_available = result.returncode == 0
@@ -55,7 +56,7 @@ def create_test_mov(output_path: Path) -> bool:
 
             result = subprocess.run(
                 cmd,
-                capture_output=True,
+                check=False, capture_output=True,
                 timeout=10,
                 text=True,
             )
@@ -63,8 +64,7 @@ def create_test_mov(output_path: Path) -> bool:
             if result.returncode == 0 and output_path.exists():
                 logger.info(f"✅ Created real MOV with FFmpeg: {output_path.name} ({output_path.stat().st_size} bytes)")
                 return True
-            else:
-                logger.warning(f"⚠️  FFmpeg failed, falling back to placeholder: {result.stderr}")
+            logger.warning(f"⚠️  FFmpeg failed, falling back to placeholder: {result.stderr}")
         except Exception as e:
             logger.warning(f"⚠️  Error with FFmpeg, using placeholder: {e}")
 

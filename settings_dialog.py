@@ -82,6 +82,7 @@ from config import Config
 from logging_mixin import LoggingMixin
 from qt_widget_mixin import QtWidgetMixin
 
+
 if TYPE_CHECKING:
     # Local application imports
     from settings_manager import SettingsManager
@@ -845,26 +846,25 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         try:
             text = self.launchers_edit.toPlainText().strip()
             if text:
-                # Parse JSON - returns Any but we validate types below
-                parsed_data: Any = json.loads(text)
+                # Parse JSON - returns object but we validate types below
+                parsed_data: object = json.loads(text)
                 # Handle both dict and list formats
                 launchers: list[dict[str, object]] = []
                 if isinstance(parsed_data, list):
                     # Type guard: ensure list contains dicts
-                    item: Any
-                    for item in parsed_data:  # pyright: ignore[reportUnknownVariableType]
+                    for item in parsed_data:
                         if isinstance(item, dict):
                             # Type narrowing: item is now dict
-                            # Cast to dict[str, Any] to resolve unknown types
-                            item_dict = cast("dict[str, Any]", item)
+                            # Cast to dict[str, object] to resolve unknown types
+                            item_dict = cast("dict[str, object]", item)
                             launchers.append({str(k): v for k, v in item_dict.items()})
                         else:
                             # Skip invalid items with empty dict
                             launchers.append({})
                 elif isinstance(parsed_data, dict):
                     # Convert dict to list format expected by settings manager
-                    # Cast to dict[str, Any] to resolve unknown types
-                    parsed_dict = cast("dict[str, Any]", parsed_data)
+                    # Cast to dict[str, object] to resolve unknown types
+                    parsed_dict = cast("dict[str, object]", parsed_data)
                     launchers = (
                         [{str(k): v for k, v in parsed_dict.items()}]
                         if parsed_dict

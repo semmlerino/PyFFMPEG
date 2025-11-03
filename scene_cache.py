@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 # Local application imports
 from logging_mixin import LoggingMixin
 
+
 if TYPE_CHECKING:
     # Standard library imports
     from collections.abc import Callable

@@ -15,6 +15,7 @@ from re import Pattern
 # Local application imports
 from config import Config
 
+
 # Compiled regex patterns for performance
 USERNAME_VALIDATION_PATTERN = re.compile(r"^[a-zA-Z0-9_-]+$")
 PATH_TRAVERSAL_PATTERN = re.compile(r"[./\\]")

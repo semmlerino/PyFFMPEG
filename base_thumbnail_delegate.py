@@ -11,7 +11,7 @@ from __future__ import annotations
 # Standard library imports
 # Note: Can't use ABC with Qt classes due to metaclass conflict
 from dataclasses import dataclass, field
-from typing import cast
+from typing import cast, override
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -34,16 +34,18 @@ from PySide6.QtGui import (
     QPixmap,
 )
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QStyle,
     QStyledItemDelegate,
     QStyleOptionViewItem,
     QWidget,
 )
-from typing_extensions import TypedDict, override
+from typing_extensions import TypedDict
 
 # Local application imports
 from config import Config
 from logging_mixin import get_module_logger
+
 
 # Module-level logger
 logger = get_module_logger(__name__)
@@ -294,13 +296,12 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
     def _get_thumbnail_rect(self, rect: QRect) -> QRect:
         """Calculate the rectangle for the thumbnail image."""
         # Calculate thumbnail rect with padding
-        thumb_rect = QRect(
+        return QRect(
             rect.x() + self.theme.padding,
             rect.y() + self.theme.padding,
             rect.width() - 2 * self.theme.padding,
             rect.height() - self.theme.text_height - 2 * self.theme.padding,
         )
-        return thumb_rect
 
     def _draw_thumbnail(
         self, painter: QPainter, rect: QRect, thumbnail: QPixmap
@@ -475,17 +476,17 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
             return
 
         # Check if parent is a view with a model() method
-        if not hasattr(parent, "model") or not callable(getattr(parent, "model", None)):
+        if not isinstance(parent, QAbstractItemView):
             return
 
-        model = parent.model()  # type: ignore[attr-defined]
+        model = parent.model()
         if not model:
             return
 
         # Only repaint items that are actually loading
         for row in self._get_loading_rows():
-            index = model.index(row, 0)  # type: ignore[attr-defined]
-            model.dataChanged.emit(  # type: ignore[attr-defined]
+            index = model.index(row, 0)
+            model.dataChanged.emit(
                 index, index, [Qt.ItemDataRole.DecorationRole]
             )
 
@@ -503,20 +504,20 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
             return loading_rows
 
         # Check if parent is a view with a model() method
-        if not hasattr(parent, "model") or not callable(getattr(parent, "model", None)):
+        if not isinstance(parent, QAbstractItemView):
             return loading_rows
 
-        model = parent.model()  # type: ignore[attr-defined]
+        model = parent.model()
         if not model:
             return loading_rows
 
         # Import here to avoid circular imports at module level
         from base_item_model import BaseItemRole
 
-        for row in range(model.rowCount()):  # type: ignore[attr-defined]
-            index = model.index(row, 0)  # type: ignore[attr-defined]
+        for row in range(model.rowCount()):
+            index = model.index(row, 0)
             # Check loading state via model data
-            loading_state = index.data(BaseItemRole.LoadingStateRole)  # type: ignore[attr-defined]
+            loading_state = index.data(BaseItemRole.LoadingStateRole)
             if loading_state == "loading":
                 loading_rows.append(row)
 

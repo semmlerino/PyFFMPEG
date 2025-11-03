@@ -7,6 +7,7 @@ import re
 # Local application imports
 from shot_model import Shot
 
+
 # Actual ws -sg output from VFX environment
 WS_OUTPUT = """workspace /shows/gator/shots/012_DC/012_DC_1000
 workspace /shows/gator/shots/012_DC/012_DC_1070

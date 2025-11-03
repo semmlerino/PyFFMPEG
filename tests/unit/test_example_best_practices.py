@@ -10,6 +10,7 @@ from PySide6.QtCore import QCoreApplication, QObject, Signal
 from PySide6.QtGui import QColor, QImage
 from PySide6.QtTest import QSignalSpy
 
+
 try:
     from PIL import Image
 except ImportError:
@@ -22,6 +23,7 @@ from launcher_manager import LauncherManager
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_doubles_library import TestShot, TestShotModel, TestSubprocess
+
 
 # Mark Qt tests for serial execution in same worker (prevents Qt crashes)
 pytestmark = [

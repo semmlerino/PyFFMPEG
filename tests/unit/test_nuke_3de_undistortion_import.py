@@ -8,6 +8,7 @@ from config import Config
 from nuke_script_generator import NukeScriptGenerator
 from nuke_undistortion_parser import NukeUndistortionParser
 
+
 """Test 3DE undistortion import with realistic node types."""
 
 # Mock 3DE undistortion export with actual 3DE node types

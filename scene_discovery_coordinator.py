@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Unpack
 # Local application imports
 from logging_mixin import LoggingMixin, log_execution
 
+
 if TYPE_CHECKING:
     # Standard library imports
     from collections.abc import Callable, Generator
@@ -408,7 +409,7 @@ class SceneDiscoveryCoordinator(LoggingMixin):
             return self.cache.clear_cache()
         return 0
 
-    def invalidate_shot(self, _show: str, _sequence: str, _shot: str) -> bool:
+    def invalidate_shot(self, show: str, sequence: str, shot: str) -> bool:
         """Invalidate cached results for a specific shot.
 
         Returns:

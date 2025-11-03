@@ -36,7 +36,7 @@ def run_optimization_tests() -> None:
                     "--tb=short",
                     "--no-header",
                 ],
-                env=env,
+                check=False, env=env,
                 timeout=300,
             )
 

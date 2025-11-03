@@ -73,6 +73,7 @@ from PySide6.QtWidgets import (
 # Local application imports
 from logging_mixin import get_module_logger
 
+
 # Module-level logger
 logger = get_module_logger(__name__)
 

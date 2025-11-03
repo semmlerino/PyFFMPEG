@@ -478,7 +478,7 @@ class TestGetRelativePath:
         path = Path(f"{Config.SHOWS_ROOT}/test")
         base = Path(f"{Config.SHOWS_ROOT}/test")
         relative = FinderUtils.get_relative_path(path, base)
-        assert relative == Path(".")
+        assert relative == Path()
 
 
 class TestFindFilesRecursive:

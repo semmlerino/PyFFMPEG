@@ -12,6 +12,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(message)s", datefmt="%H:%M:%S"
 )
@@ -37,7 +38,7 @@ def setup_mock_vfx_environment() -> bool:
                         "recreate_vfx_structure.py",
                         "vfx_structure_complete.json",
                     ],
-                    cwd=Path(__file__).parent,
+                    check=False, cwd=Path(__file__).parent,
                     capture_output=True,
                     text=True,
                 )
@@ -169,7 +170,7 @@ def run_shotbot() -> int:
     try:
         result = subprocess.run(
             cmd,
-            cwd=Path(__file__).parent,
+            check=False, cwd=Path(__file__).parent,
             env=os.environ,
             text=True,
             capture_output=False,  # Let output go to terminal

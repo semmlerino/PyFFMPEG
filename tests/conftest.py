@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 
+
 # ==============================================================================
 # CRITICAL: Force Qt to use offscreen platform for ALL QApplication instances
 # ==============================================================================
@@ -21,12 +22,12 @@ import tempfile
 import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
 from PySide6.QtCore import QSettings
 from PySide6.QtWidgets import QApplication, QMessageBox
-from unittest.mock import patch
+
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -75,7 +76,7 @@ def qapp() -> Iterator[QApplication]:
                 stacklevel=2
             )
 
-    yield app
+    return app
     # Don't quit app as it may be used by other tests
 
 
@@ -102,7 +103,7 @@ def mock_settings() -> Iterator[Mock]:
     mock_instance.value = mock_value
     mock_instance.setValue = mock_set_value
 
-    yield mock_instance
+    return mock_instance
 
 
 # ==============================================================================
@@ -140,7 +141,7 @@ def cache_manager(temp_cache_dir: Path) -> Iterator[object]:
 @pytest.fixture
 def real_cache_manager(cache_manager: object) -> Iterator[object]:
     """Alias for cache_manager fixture (for compatibility)."""
-    yield cache_manager
+    return cache_manager
 
 
 # ==============================================================================
@@ -268,32 +269,32 @@ def mock_environment() -> Iterator[dict[str, str]]:
 @pytest.fixture
 def isolated_test_environment(qapp: QApplication) -> Iterator[None]:
     """Provide isolated test environment with cache clearing for Qt widgets.
-    
+
     This fixture ensures complete test isolation by:
     1. Clearing all utility caches (VersionUtils, path cache, etc.)
     2. Processing Qt events to ensure clean state
     3. Providing proper cleanup after test execution
-    
+
     Critical for parallel test execution with pytest-xdist to prevent
     cache pollution between tests running in different workers.
-    
+
     See TESTING.md section "Test Isolation and Parallel Execution".
     """
     # Import here to avoid circular imports
     from utils import clear_all_caches
-    
+
     # Clear all utility caches before test
     clear_all_caches()
-    
+
     # Process Qt events for clean state
     qapp.processEvents()
     qapp.sendPostedEvents(None, 0)  # QEvent::DeferredDelete
-    
+
     yield
-    
+
     # Clear caches after test for next test's isolation
     clear_all_caches()
-    
+
     # Final Qt cleanup
     qapp.processEvents()
     qapp.sendPostedEvents(None, 0)
@@ -372,10 +373,10 @@ def make_test_shot(tmp_path: Path):
 @pytest.fixture
 def make_test_filesystem(tmp_path: Path):
     """Factory fixture for creating TestFileSystem instances.
-    
+
     Returns a callable that creates TestFileSystem instances for
     testing file operations with VFX directory structures.
-    
+
     Example usage:
         def test_scene_discovery(make_test_filesystem):
             fs = make_test_filesystem()
@@ -384,11 +385,11 @@ def make_test_filesystem(tmp_path: Path):
     """
     # Import here to avoid circular imports
     from tests.test_doubles_extended import TestFileSystem
-    
+
     def _make_filesystem() -> TestFileSystem:
         """Create a TestFileSystem instance with tmp_path as base."""
         return TestFileSystem(base_path=tmp_path)
-    
+
     return _make_filesystem
 
 
@@ -396,17 +397,17 @@ def make_test_filesystem(tmp_path: Path):
 @pytest.fixture
 def make_real_3de_file(tmp_path: Path):
     """Factory fixture for creating real 3DE files in VFX directory structure.
-    
+
     Returns a callable that creates a complete VFX directory structure with
     a real 3DE file for testing ThreeDEScene functionality.
-    
+
     Example usage:
         def test_scene(make_real_3de_file):
             scene_path = make_real_3de_file("show1", "seq01", "0010", "artist1")
             # scene_path points to the .3de file
             # scene_path.parent.parent.parent.parent is the workspace_path
     """
-    
+
     def _make_3de_file(
         show: str,
         seq: str,
@@ -416,7 +417,7 @@ def make_real_3de_file(tmp_path: Path):
         filename: str = "scene.3de",
     ) -> Path:
         """Create a real 3DE file in VFX directory structure.
-        
+
         Args:
             show: Show name
             seq: Sequence name
@@ -424,7 +425,7 @@ def make_real_3de_file(tmp_path: Path):
             user: User/artist name
             plate: Plate name (default: "BG01")
             filename: 3DE filename (default: "scene.3de")
-            
+
         Returns:
             Path to the created 3DE file
         """
@@ -433,13 +434,13 @@ def make_real_3de_file(tmp_path: Path):
         workspace_path = tmp_path / "shows" / show / "shots" / seq / f"{seq}_{shot}"
         threede_dir = workspace_path / "user" / user / "3de"
         threede_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Create the 3DE file with minimal valid content
         scene_file = threede_dir / filename
         scene_file.write_text(f"# 3DE Scene File\n# Show: {show}\n# Seq: {seq}\n# Shot: {shot}\n# User: {user}\n# Plate: {plate}\n")
-        
+
         return scene_file
-    
+
     return _make_3de_file
 
 
@@ -577,9 +578,8 @@ def real_shot_model(tmp_path: Path, test_process_pool, cache_manager):
     shows_root.mkdir(exist_ok=True)
 
     # Create ShotModel instance with test process pool and shared cache manager
-    model = ShotModel(cache_manager=cache_manager, process_pool=test_process_pool)
+    return ShotModel(cache_manager=cache_manager, process_pool=test_process_pool)
 
-    return model
 
 
 # ==============================================================================

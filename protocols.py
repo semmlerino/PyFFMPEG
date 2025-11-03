@@ -9,6 +9,7 @@ from __future__ import annotations
 # Standard library imports
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
+
 if TYPE_CHECKING:
     # Standard library imports
     from pathlib import Path

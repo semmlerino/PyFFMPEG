@@ -11,7 +11,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from enum import IntEnum
 from pathlib import Path
-from typing import Generic, TypeVar
+from typing import Generic, TypeVar, override
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -30,7 +30,6 @@ from PySide6.QtCore import (
     Slot,
 )
 from PySide6.QtGui import QIcon, QImage, QPixmap
-from typing_extensions import override
 
 # Local application imports
 from cache_manager import CacheManager
@@ -38,6 +37,7 @@ from config import Config
 from logging_mixin import LoggingMixin
 from protocols import SceneDataProtocol
 from qt_abc_meta import QABCMeta
+
 
 # Type variable for the data items (Shot or ThreeDEScene)
 T = TypeVar("T", bound=SceneDataProtocol)
@@ -51,7 +51,6 @@ class QtThreadError(RuntimeError):
     violation in the application.
     """
 
-    pass
 
 
 class BaseItemRole(IntEnum):
@@ -428,8 +427,8 @@ class BaseItemModel(
                     item.show,
                     item.sequence,
                     item.shot,
-                    wait=False,  # Ignored in simplified implementation
-                    timeout=30.0,  # Ignored in simplified implementation
+                    _wait=False,  # Ignored in simplified implementation
+                    _timeout=30.0,  # Ignored in simplified implementation
                 )
 
                 # Handle result (always synchronous Path | None)

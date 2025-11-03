@@ -19,6 +19,7 @@ from pathlib import Path
 import pytest
 from PySide6.QtTest import QSignalSpy
 
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 # Standard library imports
@@ -33,6 +34,7 @@ from shot_model import RefreshResult, Shot, ShotModel
 from tests.test_doubles_library import (
     TestProcessPool,
 )
+
 
 # Using TestProcessPool from test_doubles_library (UNIFIED_TESTING_GUIDE)
 # No need to duplicate - existing TestProcessPool has all needed functionality

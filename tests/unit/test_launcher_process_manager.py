@@ -11,17 +11,18 @@ Following UNIFIED_TESTING_GUIDE best practices:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-from unittest.mock import Mock, patch
 import subprocess
 import time
+from typing import TYPE_CHECKING
+from unittest.mock import Mock, patch
 
 import pytest
 from PySide6.QtCore import QMutex
 from PySide6.QtTest import QSignalSpy
 
-from launcher.process_manager import LauncherProcessManager
 from launcher.models import ProcessInfo
+from launcher.process_manager import LauncherProcessManager
+
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QApplication
@@ -295,7 +296,7 @@ class TestWorkerExecution:
         assert len(workers) == 1
 
         # Verify worker is in the dict
-        worker_key = list(workers.keys())[0]
+        worker_key = next(iter(workers.keys()))
         assert "test_launcher" in worker_key
         assert workers[worker_key] is mock_worker
 
@@ -369,7 +370,7 @@ class TestProcessLifecycle:
 
         # Get the worker key
         workers = process_manager.get_active_workers_dict()
-        worker_key = list(workers.keys())[0]
+        worker_key = next(iter(workers.keys()))
 
         # Simulate worker finished by calling the handler directly
         process_manager._on_worker_finished(worker_key, "test", True, 0)
@@ -571,7 +572,7 @@ class TestSignalEmissions:
 
         # Get worker key
         workers = process_manager.get_active_workers_dict()
-        worker_key = list(workers.keys())[0]
+        worker_key = next(iter(workers.keys()))
 
         # Trigger finish
         process_manager._on_worker_finished(worker_key, "test", True, 0)
@@ -655,7 +656,7 @@ class TestProcessTermination:
 
         # Get worker key
         workers = process_manager.get_active_workers_dict()
-        worker_key = list(workers.keys())[0]
+        worker_key = next(iter(workers.keys()))
 
         # Terminate
         result = process_manager.terminate_process(worker_key, force=False)
@@ -973,7 +974,7 @@ class TestResourceCleanup:
         qtbot: QtBot
     ) -> None:
         """Test shutdown calls stop_all_workers."""
-        with patch.object(process_manager, 'stop_all_workers') as mock_stop:
+        with patch.object(process_manager, "stop_all_workers") as mock_stop:
             process_manager.shutdown()
 
             mock_stop.assert_called_once()

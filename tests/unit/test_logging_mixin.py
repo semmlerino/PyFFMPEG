@@ -9,11 +9,13 @@ import logging
 import sys
 from pathlib import Path
 
+
 # Add current directory to path to import logging_mixin
 sys.path.insert(0, str(Path(__file__).parent))
 
 # Local application imports
 from logging_mixin import LoggingMixin, log_context, log_execution
+
 
 # Configure logging to see output
 logging.basicConfig(

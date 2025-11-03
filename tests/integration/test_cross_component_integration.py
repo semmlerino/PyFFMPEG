@@ -26,6 +26,7 @@ from cache_manager import CacheManager
 from tests.test_doubles_library import TestProcessPool
 from threede_scene_model import ThreeDEScene
 
+
 if TYPE_CHECKING:
     # Third-party imports
     from pytestqt.qtbot import QtBot

@@ -19,6 +19,7 @@ import pytest
 from PySide6.QtGui import QImage
 from PySide6.QtTest import QSignalSpy
 
+
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QApplication
     from pytestqt.qtbot import QtBot
@@ -32,6 +33,7 @@ from shot_info_panel import ShotInfoPanel
 from shot_item_model import ShotItemModel
 from shot_model import Shot
 
+
 pytestmark = [
     pytest.mark.integration,
     pytest.mark.qt,
@@ -42,6 +44,12 @@ pytestmark = [
 
 class TestAsyncWorkflowIntegration:
     """Test async workflows across multiple components."""
+
+    @pytest.fixture(autouse=True)
+    def cleanup_qt_state(self, qtbot: QtBot) -> Any:
+        """Autouse fixture to ensure Qt state is cleaned up after each test."""
+        yield
+        qtbot.wait(1)  # Process pending Qt events
 
     @pytest.fixture
     def temp_setup(self, tmp_path: Path) -> tuple[Path, list[Path]]:
@@ -362,6 +370,12 @@ class TestAsyncWorkflowIntegration:
 
 class TestAsyncCallbackIntegration:
     """Test async callback integration scenarios."""
+
+    @pytest.fixture(autouse=True)
+    def cleanup_qt_state(self, qtbot: QtBot) -> Any:
+        """Autouse fixture to ensure Qt state is cleaned up after each test."""
+        yield
+        qtbot.wait(1)  # Process pending Qt events
 
     def test_model_reset_during_async_callbacks(
         self, qtbot: QtBot, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

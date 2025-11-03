@@ -9,6 +9,7 @@ from __future__ import annotations
 # Standard library imports
 from typing import TYPE_CHECKING, Protocol, cast, runtime_checkable
 
+
 # Qt imports needed at runtime for Protocol definitions
 
 if TYPE_CHECKING:
@@ -318,21 +319,21 @@ class AccessibilityManager:
             outline: 2px solid #14ffec;
             outline-offset: 2px;
         }
-        
+
         QPushButton:focus {
             border: 2px solid #14ffec;
             background-color: rgba(20, 255, 236, 0.1);
         }
-        
+
         QListWidget::item:focus {
             border: 2px solid #14ffec;
             background-color: rgba(20, 255, 236, 0.1);
         }
-        
+
         QTabBar::tab:focus {
             border: 2px solid #14ffec;
         }
-        
+
         QSlider::handle:focus {
             border: 2px solid #14ffec;
             background-color: #14ffec;

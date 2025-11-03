@@ -33,4 +33,155 @@ reportUnknownMemberType = false
 reportUnknownParameterType = false
 reportUnknownArgumentType = false
 reportUnknownVariableType = false
-reportUnannotatedClassAttribute = false
+reportUnannotatedClassAttribute = "warning"
+reportUnusedCallResult = "warning"
+reportImplicitOverride = "warning"
+
+[tool.ruff]
+# Target Python 3.12+
+target-version = "py312"
+
+# Line length to match Black (88 is standard)
+line-length = 88
+
+# Enable auto-fixing by default
+fix = true
+show-fixes = true
+
+# Exclude common directories
+exclude = [
+    ".git",
+    ".venv",
+    "__pycache__",
+    ".pytest_cache",
+    ".hypothesis",
+    ".ruff_cache",
+    "build",
+    "dist",
+    "*.egg-info",
+]
+
+[tool.ruff.lint]
+# Enable these rule categories
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # Pyflakes
+    "I",      # isort (import sorting)
+    "N",      # pep8-naming
+    "UP",     # pyupgrade (modern Python syntax)
+    "YTT",    # flake8-2020
+    "ASYNC",  # flake8-async
+    "B",      # flake8-bugbear
+    "A",      # flake8-builtins
+    "C4",     # flake8-comprehensions
+    "DTZ",    # flake8-datetimez
+    "T10",    # flake8-debugger
+    "ISC",    # flake8-implicit-str-concat
+    "ICN",    # flake8-import-conventions
+    "PIE",    # flake8-pie
+    "PT",     # flake8-pytest-style
+    "Q",      # flake8-quotes
+    "RSE",    # flake8-raise
+    "RET",    # flake8-return
+    "SIM",    # flake8-simplify
+    "TCH",    # flake8-type-checking
+    "ARG",    # flake8-unused-arguments
+    "PTH",    # flake8-use-pathlib
+    "PL",     # Pylint
+    "TRY",    # tryceratops
+    "FLY",    # flynt (f-string conversion)
+    "PERF",   # perflint
+    "RUF",    # Ruff-specific rules
+]
+
+# Ignore these specific rules
+ignore = [
+    # Style choices
+    "E501",    # line-too-long (let formatter handle it)
+    "E203",    # whitespace-before-punctuation (conflicts with Black)
+
+    # Type annotation flexibility
+    "ANN401",  # any-type (Any is useful in generic code)
+
+    # Import placement
+    "E402",    # module-level-import-not-at-top-of-file (sometimes needed for Qt apps)
+    "TC003",   # typing-only-standard-library-import (prefer consistency)
+
+    # Qt-specific patterns
+    "SLF001",  # private-member-access (common in Qt testing and subclassing)
+    "ARG002",  # unused-method-argument (Qt callbacks often have unused args)
+
+    # Complexity (be pragmatic)
+    "PLR0913", # too-many-arguments (Qt widgets often have many params)
+    "PLR0912", # too-many-branches (some UI logic is complex)
+    "PLR0915", # too-many-statements (some methods are legitimately long)
+    "C901",    # complex-structure (some methods are complex)
+
+    # Exception handling (allow practical patterns)
+    "TRY003",  # raise-vanilla-args (vanilla exceptions are often fine)
+    "TRY300",  # try-consider-else (not always clearer)
+    "BLE001",  # blind-except (sometimes needed for cleanup)
+    "TRY400",  # error-instead-of-exception (Error is fine in Python 3)
+
+    # Boolean arguments (common in GUI apps)
+    "FBT001",  # boolean-type-hint-positional-argument
+    "FBT002",  # boolean-default-value-positional-argument
+    "FBT003",  # boolean-positional-value-in-call
+
+    # Print statements (useful for debugging and CLI output)
+    "T201",    # print (we use print intentionally in some places)
+
+    # Logging (f-strings are readable)
+    "G004",    # logging-f-string (f-strings are fine for our use case)
+
+    # Docstrings (we have our own standards)
+    "D",       # pydocstyle (too opinionated, we follow our own style)
+
+    # Magic values (sometimes clearer than named constants)
+    "PLR2004", # magic-value-comparison
+
+    # Performance (micro-optimizations not worth it)
+    "PERF203", # try-except-in-loop (rarely a real issue)
+]
+
+# Allow these specific patterns
+[tool.ruff.lint.per-file-ignores]
+# Tests have different standards
+"tests/**/*.py" = [
+    "S101",    # assert (asserts are the point of tests)
+    "ARG001",  # unused-function-argument (pytest fixtures)
+    "PLR2004", # magic-value-comparison (test data can be literal)
+    "S108",    # hardcoded-temp-file (fine in tests)
+    "DTZ001",  # call-datetime-without-tzinfo (tests don't need tz)
+    "B018",    # useless-expression (testing expressions)
+]
+
+# Config files can have magic values
+"**/config*.py" = [
+    "PLR2004", # magic-value-comparison
+]
+
+# Scripts and utilities
+"*.py" = []
+
+[tool.ruff.lint.isort]
+# Import sorting configuration
+known-first-party = ["shotbot"]
+force-single-line = false
+lines-after-imports = 2
+
+[tool.ruff.lint.pyupgrade]
+# Keep modern Python syntax
+keep-runtime-typing = true
+
+[tool.ruff.lint.mccabe]
+# Max complexity (default is 10, we're a bit more lenient)
+max-complexity = 15
+
+[tool.ruff.format]
+# Use Black-compatible formatting
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"

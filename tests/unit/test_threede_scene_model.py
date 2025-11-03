@@ -20,12 +20,14 @@ from typing import TYPE_CHECKING
 # Third-party imports
 import pytest
 
+from config import Config
+
 # Local application imports
 from shot_model import Shot
-from config import Config
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from threede_scene_model import ThreeDEScene, ThreeDESceneModel
+
 
 if TYPE_CHECKING:
     from _pytest.monkeypatch import MonkeyPatch

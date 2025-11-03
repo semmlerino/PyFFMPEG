@@ -27,6 +27,7 @@ from launcher_manager import LauncherManager
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_doubles_library import TestSubprocess
 
+
 pytestmark = [
     pytest.mark.integration,
     pytest.mark.qt,

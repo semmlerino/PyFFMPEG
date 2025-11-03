@@ -7,6 +7,7 @@ import re
 # Local application imports
 from config import Config
 
+
 # Get current shows root
 SHOWS_ROOT = Config.SHOWS_ROOT
 

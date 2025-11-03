@@ -31,7 +31,7 @@ from qt_widget_mixin import QtWidgetMixin
 from threede_recovery import CrashFileInfo
 
 
-class ThreeDERecoveryDialog(QDialog, QtWidgetMixin, LoggingMixin):
+class ThreeDERecoveryDialog(QDialog, QtWidgetMixin, LoggingMixin):  # pyright: ignore[reportIncompatibleMethodOverride]
     """Dialog for recovering 3DE crash files.
 
     Displays a list of detected crash files with details:
@@ -104,8 +104,10 @@ class ThreeDERecoveryDialog(QDialog, QtWidgetMixin, LoggingMixin):
 
         # Header
         header_label = QLabel(
-            ("The following 3DE crash files were detected. "
-            "Select a scene to recover the latest crash file to the next version.")
+            (
+                "The following 3DE crash files were detected. "
+                "Select a scene to recover the latest crash file to the next version."
+            )
         )
         header_label.setWordWrap(True)
         header_label.setStyleSheet("font-size: 11pt; padding: 10px;")
@@ -132,8 +134,10 @@ class ThreeDERecoveryDialog(QDialog, QtWidgetMixin, LoggingMixin):
 
         # Instructions
         instructions = QLabel(
-            ("Note: The crash file will be copied to the recovery name, "
-            "and the original crash file will be renamed with a timestamp suffix.")
+            (
+                "Note: The crash file will be copied to the recovery name, "
+                "and the original crash file will be renamed with a timestamp suffix."
+            )
         )
         instructions.setWordWrap(True)
         instructions.setStyleSheet("font-size: 9pt; color: #888; font-style: italic; padding: 10px;")
@@ -217,8 +221,10 @@ class ThreeDERecoveryDialog(QDialog, QtWidgetMixin, LoggingMixin):
         # Show additional crash files if multiple exist
         if len(crash_list) > 1:
             additional_label = QLabel(
-                f(("Note: {len(crash_list) - 1} older crash file(s) also found. "
-                "Only the latest will be recovered."))
+                (
+                    f"Note: {len(crash_list) - 1} older crash file(s) also found. "
+                    "Only the latest will be recovered."
+                )
             )
             additional_label.setStyleSheet(
                 "font-size: 8pt; color: #ff9800; font-style: italic; padding-left: 20px;"
@@ -257,8 +263,10 @@ class ThreeDERecoveryDialog(QDialog, QtWidgetMixin, LoggingMixin):
             return
 
         self.logger.info(
-            (f"Recovery requested: {self.selected_crash.crash_path.name} → "
-            f"{self.selected_crash.recovery_name}")
+            (
+                f"Recovery requested: {self.selected_crash.crash_path.name} → "
+                f"{self.selected_crash.recovery_name}"
+            )
         )
 
         # Emit signal with selected crash info
@@ -276,7 +284,7 @@ class ThreeDERecoveryDialog(QDialog, QtWidgetMixin, LoggingMixin):
         return self.selected_crash
 
 
-class ThreeDERecoveryResultDialog(QDialog, QtWidgetMixin, LoggingMixin):
+class ThreeDERecoveryResultDialog(QDialog, QtWidgetMixin, LoggingMixin):  # pyright: ignore[reportIncompatibleMethodOverride]
     """Dialog showing recovery operation results.
 
     Displays success/failure message after recovery attempt.

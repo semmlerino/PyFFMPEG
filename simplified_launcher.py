@@ -29,6 +29,7 @@ from logging_mixin import LoggingMixin
 from maya_latest_finder_refactored import MayaLatestFinder
 from nuke_launch_handler import NukeLaunchHandler
 
+
 if TYPE_CHECKING:
     # Local application imports
     from shot_model import Shot

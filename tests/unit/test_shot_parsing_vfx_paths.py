@@ -22,8 +22,7 @@ class TestVFXPathParsing:
     @pytest.fixture
     def test_process_pool(self):
         """Create TestProcessPool for subprocess boundary mocking."""
-        pool = TestProcessPool()
-        return pool
+        return TestProcessPool()
 
     @pytest.fixture
     def shot_model(self, test_process_pool):

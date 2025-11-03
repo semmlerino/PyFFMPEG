@@ -19,6 +19,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+
 # Set minimal environment
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 os.environ["QT_LOGGING_RULES"] = "*.debug=false"
@@ -33,7 +34,7 @@ def profile_subprocess_call() -> dict[str, float]:
     try:
         result = subprocess.run(
             ["/bin/bash", "-i", "-c", "ws -sg"],
-            capture_output=True,
+            check=False, capture_output=True,
             text=True,
             timeout=10,
         )

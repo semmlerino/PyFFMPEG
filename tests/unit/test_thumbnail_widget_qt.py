@@ -36,6 +36,7 @@ from shot_model import Shot
 from thumbnail_widget import ThumbnailWidget
 from thumbnail_widget_base import ThumbnailWidgetBase
 
+
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 

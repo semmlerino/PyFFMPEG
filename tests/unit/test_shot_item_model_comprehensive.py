@@ -20,6 +20,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QImage
 from PySide6.QtTest import QSignalSpy
 
+
 if TYPE_CHECKING:
     from _pytest.monkeypatch import MonkeyPatch
     from pytestqt.qtbot import QtBot
@@ -31,6 +32,7 @@ from base_item_model import BaseItemRole as UnifiedRole
 from shot_item_model import ShotItemModel
 from shot_model import Shot
 from tests.test_doubles_library import TestCacheManager
+
 
 # Backward compatibility alias
 ShotRole = UnifiedRole

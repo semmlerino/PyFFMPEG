@@ -32,6 +32,7 @@ from shot_item_model import ShotItemModel
 from shot_model import Shot
 from thumbnail_widget_base import FolderOpenerWorker
 
+
 # Backward compatibility alias
 ShotRole = BaseItemRole
 
@@ -200,7 +201,6 @@ class ShotGridView(BaseGridView):
         """
         # Qt's selection model automatically handles the click
         # _on_selection_changed will be triggered with the full selection logic
-        pass
 
     @Slot(QModelIndex)
     def _on_item_double_clicked(self, index: QModelIndex) -> None:

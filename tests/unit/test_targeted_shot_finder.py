@@ -11,9 +11,10 @@ from unittest.mock import MagicMock, Mock, patch
 # Third-party imports
 import pytest
 
+from config import Config
+
 # Local application imports
 from shot_model import Shot
-from config import Config
 from targeted_shot_finder import TargetedShotsFinder
 
 

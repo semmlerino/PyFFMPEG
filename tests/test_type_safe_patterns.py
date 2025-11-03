@@ -48,6 +48,7 @@ from PySide6.QtWidgets import QApplication
 # Local application imports
 from tests.helpers.synchronization import process_qt_events
 
+
 if TYPE_CHECKING:
     # Standard library imports
     from collections.abc import Callable, Iterator
@@ -408,9 +409,8 @@ class TypedThreadTestHelper:
             results = [f.result() for f in futures]
 
         # Filter out None results from errors
-        successful_results = [r for r in results if r is not None]
+        return [r for r in results if r is not None]
 
-        return successful_results
 
     def assert_no_errors(self) -> None:
         """Assert that no errors occurred during concurrent operations."""

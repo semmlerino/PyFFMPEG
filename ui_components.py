@@ -36,6 +36,7 @@ from PySide6.QtWidgets import (
 # Local application imports
 from design_system import design_system
 
+
 logger = logging.getLogger(__name__)
 
 

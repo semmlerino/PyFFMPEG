@@ -24,9 +24,10 @@ from PySide6.QtGui import QColor, QImage
 
 # Local application imports
 from cache_manager import CacheManager
-from shot_model import Shot
 from config import Config
+from shot_model import Shot
 from threede_scene_model import ThreeDEScene
+
 
 if TYPE_CHECKING:
     from type_definitions import ShotDict
@@ -48,8 +49,7 @@ def cache_manager(tmp_path: Path) -> CacheManager:
     Following guide: "Use Real Components Where Possible"
     """
     cache_dir = tmp_path / "test_cache"
-    manager = CacheManager(cache_dir=cache_dir)
-    return manager
+    return CacheManager(cache_dir=cache_dir)
 
 
 @pytest.fixture

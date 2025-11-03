@@ -10,6 +10,7 @@ from concurrent.futures import ThreadPoolExecutor, TimeoutError
 # Local application imports
 from logging_mixin import LoggingMixin, get_module_logger
 
+
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(message)s")
 
 # Module-level logger for test functions

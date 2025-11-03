@@ -16,9 +16,10 @@ import pytest
 from PySide6.QtCore import QObject, Signal
 
 from command_launcher import CommandLauncher
-from shot_model import Shot
 from config import Config
+from shot_model import Shot
 from threede_scene_model import ThreeDEScene
+
 
 # Mark Qt tests for serial execution in same worker (prevents Qt crashes)
 pytestmark = [

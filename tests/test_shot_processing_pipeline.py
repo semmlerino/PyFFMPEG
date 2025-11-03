@@ -12,6 +12,7 @@ This test validates:
 import sys
 from pathlib import Path
 
+
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -21,6 +22,7 @@ from targeted_shot_finder import TargetedShotsFinder
 from threede_scene_finder_optimized import OptimizedThreeDESceneFinder
 from threede_scene_model import ThreeDESceneModel
 from utils import PathUtils
+
 
 # Mock ws -sg output from user
 WS_SG_OUTPUT = """workspace /shows/gator/shots/012_DC/012_DC_1000

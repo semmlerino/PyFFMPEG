@@ -11,6 +11,7 @@ from PySide6.QtCore import QObject
 
 from refresh_orchestrator import RefreshOrchestrator
 
+
 # Mark Qt tests for serial execution in same worker (prevents Qt crashes)
 pytestmark = [
     pytest.mark.unit,

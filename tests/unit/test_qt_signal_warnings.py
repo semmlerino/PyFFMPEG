@@ -6,10 +6,10 @@ that only manifest as runtime warnings.
 
 import sys
 from io import StringIO
+from typing import override
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QApplication
-from typing_extensions import override
 
 from thread_safe_worker import ThreadSafeWorker
 

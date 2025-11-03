@@ -10,6 +10,7 @@ from collections import defaultdict
 from cache_manager import CacheManager
 from shot_model import ShotModel
 
+
 # Enable mock mode
 os.environ["SHOTBOT_MOCK"] = "1"
 

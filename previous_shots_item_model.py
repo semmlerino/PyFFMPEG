@@ -7,12 +7,12 @@ extending BaseItemModel with integration to PreviousShotsModel for data updates.
 from __future__ import annotations
 
 import contextlib
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from PySide6.QtCore import QModelIndex, QObject, Qt, Signal
-from typing_extensions import override
 
 from base_item_model import BaseItemModel
+
 
 if TYPE_CHECKING:
     from cache_manager import CacheManager
@@ -244,17 +244,17 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
         # Qt's receivers() method is not properly typed in PySide6 stubs
         if hasattr(self._underlying_model, "shots_updated"):
             with contextlib.suppress(RuntimeError, TypeError, AttributeError):
-                if self._underlying_model.shots_updated.receivers(self._on_underlying_shots_updated) > 0:  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+                if self._underlying_model.shots_updated.receivers(self._on_underlying_shots_updated) > 0:  # pyright: ignore[reportAttributeAccessIssue]
                     self._underlying_model.shots_updated.disconnect(
                         self._on_underlying_shots_updated
                     )
 
         # Disconnect signals safely
         with contextlib.suppress(RuntimeError, TypeError, AttributeError):
-            if self.items_updated.receivers(None) > 0:  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+            if self.items_updated.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue]
                 self.items_updated.disconnect()
         with contextlib.suppress(RuntimeError, TypeError, AttributeError):
-            if self.shots_updated.receivers(None) > 0:  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+            if self.shots_updated.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue]
                 self.shots_updated.disconnect()
 
         self.logger.info("PreviousShotsItemModel cleanup complete")

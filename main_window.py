@@ -50,7 +50,9 @@ from __future__ import annotations
 
 # Standard library imports
 import os
-from typing import TYPE_CHECKING, cast
+
+# Use typing_extensions for override (compatible with Python 3.11)
+from typing import TYPE_CHECKING, cast, override
 
 # Third-party imports
 from PySide6.QtCore import Qt, QTimer, Slot
@@ -68,8 +70,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-# Use typing_extensions for override (compatible with Python 3.11)
-from typing_extensions import override
 
 if TYPE_CHECKING:
     # Local application imports
@@ -119,6 +119,7 @@ from thread_safe_worker import ThreadSafeWorker
 from threede_grid_view import ThreeDEGridView
 from threede_item_model import ThreeDEItemModel
 from threede_scene_model import ThreeDEScene, ThreeDESceneModel
+
 
 # Set up logger for this module
 # Module-level logger for non-class code (SessionWarmer, etc.)
@@ -188,9 +189,11 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         main_thread = app_instance.thread()
         if current_thread != main_thread:
             raise RuntimeError(
-                (f"MainWindow must be created in the main thread. "
-                f"Current thread: {current_thread}, "
-                f"Main thread: {main_thread}")
+                (
+                    f"MainWindow must be created in the main thread. "
+                    f"Current thread: {current_thread}, "
+                    f"Main thread: {main_thread}"
+                )
             )
 
         # Additional safety check for QApplication type (relaxed for tests)
@@ -202,8 +205,10 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         if not isinstance(app_instance, QApplication) and not is_test_environment:
             raise RuntimeError(
-                (f"MainWindow: QCoreApplication instance is not a QApplication. "
-                f"Type: {type(app_instance)}")
+                (
+                    f"MainWindow: QCoreApplication instance is not a QApplication. "
+                    f"Type: {type(app_instance)}"
+                )
             )
 
         super().__init__()
@@ -269,8 +274,10 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
                 persistent_cache = self.cache_manager.get_persistent_shots()
                 if persistent_cache:
                     self.logger.debug(
-                        f(("Model initialized: cache expired ({len(persistent_cache)} shots), "
-                        "background refresh in progress"))
+                        (
+                            f"Model initialized: cache expired ({len(persistent_cache)} shots), "
+                            "background refresh in progress"
+                        )
                     )
                 else:
                     self.logger.debug(
@@ -751,8 +758,10 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # Update status with what was loaded from cache
         if has_cached_shots and has_cached_scenes:
             self._update_status(
-                f"Loaded {len(self.shot_model.shots)} shots and "
-                + f"{len(self.threede_scene_model.scenes)} 3DE scenes from cache",
+                (
+                    f"Loaded {len(self.shot_model.shots)} shots and "
+                    f"{len(self.threede_scene_model.scenes)} 3DE scenes from cache"
+                ),
             )
             # Schedule background refresh for fresh data (non-blocking)
             QTimer.singleShot(500, self._refresh_shots)
@@ -1218,7 +1227,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # - ShotItemModel.set_show_filter(BaseShotModel, str | None)
         # - PreviousShotsItemModel.set_show_filter(PreviousShotsModel, str | None)
         # We use object types for generic handling across all tabs
-        item_model.set_show_filter(model, show_filter)  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
+        item_model.set_show_filter(model, show_filter)  # pyright: ignore[reportAttributeAccessIssue]
 
         self.logger.info(
             f"Applied {tab_name} show filter: {show if show else 'All Shows'}"
@@ -1392,9 +1401,11 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         _ = QMessageBox.about(
             self,
             f"About {Config.APP_NAME}",
-            f"{Config.APP_NAME} v{Config.APP_VERSION}\n\n"
-            + "VFX Shot Launcher\n\n"
-            + "A tool for browsing and launching applications in shot context.",
+            (
+                f"{Config.APP_NAME} v{Config.APP_VERSION}\n\n"
+                "VFX Shot Launcher\n\n"
+                "A tool for browsing and launching applications in shot context."
+            ),
         )
 
     def get_window_size(self) -> tuple[int, int]:

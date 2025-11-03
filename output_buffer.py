@@ -5,21 +5,21 @@ Implements efficient batch processing and ring buffer for performance
 """
 
 import re
-from collections import deque
-from typing import Dict, List, Tuple, Optional, Pattern, Any
 import threading
 import time
+from collections import deque
+from re import Pattern
 
 
 class OutputBuffer:
     """High-performance output buffer with batch regex processing"""
 
     # Compiled regex patterns for better performance
-    TIME_PATTERN: Pattern = re.compile(
+    TIME_PATTERN: Pattern[str] = re.compile(
         r"time=(\d{2}):(\d{2}):(\d{2}\.\d{2})", re.MULTILINE
     )
-    FPS_PATTERN: Pattern = re.compile(r"fps=\s*(\d+)", re.MULTILINE)
-    FRAME_PATTERN: Pattern = re.compile(r"frame=\s*(\d+)", re.MULTILINE)
+    FPS_PATTERN: Pattern[str] = re.compile(r"fps=\s*(\d+)", re.MULTILINE)
+    FRAME_PATTERN: Pattern[str] = re.compile(r"frame=\s*(\d+)", re.MULTILINE)
 
     def __init__(self, max_size: int = 1000, batch_interval: float = 0.1):
         """
@@ -29,14 +29,15 @@ class OutputBuffer:
             max_size: Maximum number of lines to keep in buffer
             batch_interval: Time interval for batch processing (seconds)
         """
-        self.buffer: deque = deque(maxlen=max_size)
-        self.pending_lines: List[str] = []
+        super().__init__()
+        self.buffer: deque[str] = deque(maxlen=max_size)
+        self.pending_lines: list[str] = []
         self.batch_interval = batch_interval
         self.last_batch_time = time.time()
         self.lock = threading.Lock()
 
         # Cached results
-        self.last_time_match: Optional[Tuple[int, int, float]] = None
+        self.last_time_match: tuple[int, int, float] | None = None
         self.last_fps: int = 0
         self.last_frame: int = 0
 
@@ -47,7 +48,7 @@ class OutputBuffer:
             lines = chunk.split("\n")
             self.pending_lines.extend(line for line in lines if line.strip())
 
-    def process_batch(self) -> Dict[str, Any]:
+    def process_batch(self) -> dict[str, int | float | bool]:
         """
         Process pending lines in batch for better performance
 
@@ -92,12 +93,12 @@ class OutputBuffer:
 
         return self._get_cached_results()
 
-    def force_process(self) -> Dict[str, Any]:
+    def force_process(self) -> dict[str, int | float | bool]:
         """Force immediate processing of pending data"""
         self.last_batch_time = 0  # Reset timer to force processing
         return self.process_batch()
 
-    def _get_cached_results(self) -> Dict[str, Any]:
+    def _get_cached_results(self) -> dict[str, int | float | bool]:
         """Get cached results without processing"""
         if self.last_time_match:
             h, m, s = self.last_time_match
@@ -112,7 +113,7 @@ class OutputBuffer:
             "has_data": self.last_time_match is not None,
         }
 
-    def get_recent_lines(self, count: int = 50) -> List[str]:
+    def get_recent_lines(self, count: int = 50) -> list[str]:
         """Get recent output lines for display"""
         with self.lock:
             # Include both buffered and pending lines
@@ -133,7 +134,8 @@ class ProcessOutputManager:
     """Manages output buffers for multiple processes"""
 
     def __init__(self, batch_interval: float = 0.1):
-        self.buffers: Dict[str, OutputBuffer] = {}
+        super().__init__()
+        self.buffers: dict[str, OutputBuffer] = {}
         self.base_batch_interval = batch_interval
         self.lock = threading.Lock()
 
@@ -164,7 +166,7 @@ class ProcessOutputManager:
         with self.lock:
             self.buffers.pop(process_id, None)
 
-    def process_all_batches(self) -> Dict[str, Dict[str, Any]]:
+    def process_all_batches(self) -> dict[str, dict[str, int | float | bool]]:
         """Process all pending batches and return results"""
         results = {}
         with self.lock:

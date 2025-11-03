@@ -7,12 +7,14 @@ import sys
 from pathlib import Path
 from types import FrameType
 
+
 # Add the shotbot directory to path
 sys.path.insert(0, str(Path(__file__).parent))
 
 # Local application imports
 # Import shotbot main after path setup
 from shotbot import main
+
 
 print("Starting Shotbot...")
 print("Press Ctrl+C to stop")

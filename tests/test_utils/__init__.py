@@ -7,6 +7,7 @@ from .qt_thread_test_helpers import (
     wait_for_thread_state,
 )
 
+
 __all__ = [
     "ThreadSignalTester",
     "WorkerTestFramework",

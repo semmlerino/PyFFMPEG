@@ -13,6 +13,7 @@ import pytest
 
 from cleanup_manager import CleanupManager
 
+
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
@@ -72,8 +73,7 @@ def mock_main_window() -> Mock:
 @pytest.fixture
 def cleanup_manager(mock_main_window: Mock) -> CleanupManager:
     """Create CleanupManager instance."""
-    manager = CleanupManager(mock_main_window)
-    return manager
+    return CleanupManager(mock_main_window)
 
 
 # =============================================================================
@@ -153,10 +153,9 @@ class TestCleanupOrchestration:
         """Test cleanup_finished signal emitted even if exception occurs."""
         with patch.object(
             cleanup_manager, "_mark_closing", side_effect=RuntimeError("Test error")
-        ):
-            with pytest.raises(RuntimeError):
-                with qtbot.waitSignal(cleanup_manager.cleanup_finished):
-                    cleanup_manager.perform_cleanup()
+        ), pytest.raises(RuntimeError):
+            with qtbot.waitSignal(cleanup_manager.cleanup_finished):
+                cleanup_manager.perform_cleanup()
 
 
 # =============================================================================

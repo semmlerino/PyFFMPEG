@@ -6,12 +6,12 @@ extending BaseItemModel with 3DE-specific behavior including loading states and 
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from PySide6.QtCore import QModelIndex, QObject, QPersistentModelIndex, Signal
-from typing_extensions import override
 
 from base_item_model import BaseItemModel, BaseItemRole
+
 
 if TYPE_CHECKING:
     from cache_manager import CacheManager
@@ -290,7 +290,8 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
             try:
                 # Only disconnect if there are receivers
                 # receivers(None) returns total count of all connections
-                if signal.receivers(None) > 0:  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+                # Note: Qt's receivers() method is not properly typed in PySide6 stubs
+                if signal.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue]
                     signal.disconnect()
             except (RuntimeError, TypeError, AttributeError):
                 pass  # Already disconnected, no connections, or object deleted

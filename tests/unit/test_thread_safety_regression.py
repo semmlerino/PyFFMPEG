@@ -12,6 +12,7 @@ import pytest
 from PySide6.QtCore import QObject
 from PySide6.QtWidgets import QApplication
 
+
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -20,6 +21,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from cache_manager import CacheManager
 from shot_model import AsyncShotLoader, RefreshResult, ShotModel
 from tests.test_doubles_library import TestProcessPool
+
 
 pytestmark = pytest.mark.thread_safety
 

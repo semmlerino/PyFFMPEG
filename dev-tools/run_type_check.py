@@ -15,7 +15,7 @@ def run_command(cmd: list[str], description: str) -> bool:
     print("=" * 60)
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        result = subprocess.run(cmd, check=False, capture_output=True, text=True, timeout=300)
 
         if result.stdout:
             print("STDOUT:")

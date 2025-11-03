@@ -20,6 +20,7 @@ import sys
 import unittest
 from pathlib import Path
 
+
 # Ensure we can import from the current directory and tests directory
 sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).parent / "tests" / "moved_from_root"))

@@ -36,6 +36,7 @@ import pytest
 
 from config import Config, ThreadingConfig
 
+
 # Test markers for categorization
 pytestmark = [
     pytest.mark.unit,

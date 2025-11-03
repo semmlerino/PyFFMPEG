@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 from config import Config
 from logging_mixin import LoggingMixin
 
+
 if TYPE_CHECKING:
     # Local application imports
     from launcher.models import CustomLauncher, LauncherEnvironment

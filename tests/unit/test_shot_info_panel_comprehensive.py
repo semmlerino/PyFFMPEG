@@ -19,6 +19,7 @@ import pytest
 from PySide6.QtCore import QThreadPool
 from PySide6.QtGui import QImage
 
+
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QApplication
     from pytestqt.qtbot import QtBot
@@ -29,6 +30,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from shot_info_panel import InfoPanelPixmapLoader, ShotInfoPanel
 from shot_model import Shot
 from tests.test_doubles_library import TestCacheManager
+
 
 pytestmark = [
     pytest.mark.unit,

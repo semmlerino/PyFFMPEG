@@ -31,6 +31,7 @@ from process_pool_manager import (
     ProcessPoolManager,
 )
 
+
 pytestmark = [pytest.mark.unit, pytest.mark.slow]
 
 
@@ -112,8 +113,7 @@ class InjectableProcessPoolManager(ProcessPoolManager):
         # Third-party imports
         from PySide6.QtCore import QObject
 
-        instance = QObject.__new__(cls)
-        return instance
+        return QObject.__new__(cls)
 
     def __init__(self, max_workers: int = 4) -> None:
         """Initialize with optional session injection."""

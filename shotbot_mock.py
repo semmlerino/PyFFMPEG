@@ -11,6 +11,7 @@ import logging
 import os
 import sys
 
+
 # CRITICAL: Set mock mode FIRST
 os.environ["SHOTBOT_MOCK"] = "1"
 
@@ -33,7 +34,8 @@ logger.info("🚀 Starting ShotBot in MOCK MODE")
 
 # Standard library imports
 # Check for recreated VFX structure
-from pathlib import Path  # noqa: E402
+from pathlib import Path
+
 
 MOCK_VFX_PATHS = [
     Path("/tmp/mock_vfx/shows"),
@@ -69,7 +71,8 @@ logger.info("Loading ShotBot application...")
 
 # Local application imports
 # Import the original main function
-from shotbot import main  # noqa: E402
+from shotbot import main
+
 
 # Run the original main but skip the mock injection part
 # (since we already did it properly)

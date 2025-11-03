@@ -12,6 +12,7 @@ from logging_mixin import LoggingMixin
 from notification_manager import NotificationManager
 from progress_manager import ProgressManager
 
+
 if TYPE_CHECKING:
     from shot_model import Shot
 

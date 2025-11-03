@@ -7,11 +7,10 @@ functionality from BaseThumbnailDelegate.
 from __future__ import annotations
 
 # Standard library imports
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 # Third-party imports
 from PySide6.QtGui import QColor
-from typing_extensions import override
 
 from base_item_model import BaseItemRole
 
@@ -22,6 +21,7 @@ from base_thumbnail_delegate import (
     ThumbnailItemData,
 )
 from logging_mixin import get_module_logger
+
 
 # Backward compatibility alias
 ShotRole = BaseItemRole

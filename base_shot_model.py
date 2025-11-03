@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 # Third-party imports
 from PySide6.QtCore import QObject, Signal
 
+
 if TYPE_CHECKING:
     from cache_manager import CacheManager
     from core.shot_types import RefreshResult
@@ -23,6 +24,7 @@ from process_pool_manager import ProcessPoolManager
 from qt_abc_meta import QABCMeta
 from shot_filter import compose_filters, get_available_shows
 from utils import ValidationUtils
+
 
 # Enable verbose debug logging if environment variable is set
 DEBUG_VERBOSE = os.environ.get("SHOTBOT_DEBUG_VERBOSE", "").lower() in (
@@ -165,8 +167,10 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
 
                     # Log what we extracted for debugging
                     self.logger.debug(
-                        (f"Parsed line {line_num}: workspace_path={workspace_path}, "
-                        f"show={show}, sequence={sequence}, shot={shot}")
+                        (
+                            f"Parsed line {line_num}: workspace_path={workspace_path}, "
+                            f"show={show}, sequence={sequence}, shot={shot}"
+                        )
                     )
 
                     # Validate extracted components using utility
@@ -330,8 +334,10 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
         )
 
         self.logger.debug(
-            (f"Filtered {len(self.shots)} shots to {len(filtered)} "
-            f"(show='{self._filter_show}', text='{self._filter_text}')")
+            (
+                f"Filtered {len(self.shots)} shots to {len(filtered)} "
+                f"(show='{self._filter_show}', text='{self._filter_text}')"
+            )
         )
         return filtered
 

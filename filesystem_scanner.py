@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, ClassVar
 # Local application imports
 from logging_mixin import LoggingMixin
 
+
 if TYPE_CHECKING:
     # Standard library imports
     from collections.abc import Generator
@@ -729,9 +730,11 @@ class FileSystemScanner(LoggingMixin):
                         if file_count <= 5 or file_count % 50 == 0:
                             elapsed = time.time() - start_time
                             self.logger.info(
-                                (f"Progress: Found {file_count} .3de files, "
-                                f"parsed {parsed_count} valid scenes from {len(unique_shots)} shots "
-                                f"({elapsed:.1f}s)")
+                                (
+                                    f"Progress: Found {file_count} .3de files, "
+                                    f"parsed {parsed_count} valid scenes from {len(unique_shots)} shots "
+                                    f"({elapsed:.1f}s)"
+                                )
                             )
 
                         # Parse the file path using the extracted parser

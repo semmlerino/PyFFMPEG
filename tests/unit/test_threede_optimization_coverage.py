@@ -36,6 +36,7 @@ import pytest
 # Local application imports
 from threede_scene_finder_optimized import DirectoryCache, OptimizedThreeDESceneFinder
 
+
 # Add the project root to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 

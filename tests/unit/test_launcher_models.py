@@ -27,6 +27,7 @@ from launcher.models import (
     ProcessInfoDict,
 )
 
+
 if TYPE_CHECKING:
     from unittest.mock import Mock
 

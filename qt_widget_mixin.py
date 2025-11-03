@@ -25,6 +25,7 @@ from PySide6.QtWidgets import QMenu, QMessageBox, QWidget
 # Local application imports
 from logging_mixin import LoggingMixin
 
+
 if TYPE_CHECKING:
     # Standard library imports
     from collections.abc import Callable

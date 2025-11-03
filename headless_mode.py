@@ -19,6 +19,7 @@ from typing_extensions import ParamSpec, TypeVar
 # Local application imports
 from logging_mixin import get_module_logger
 
+
 if TYPE_CHECKING:
     # Standard library imports
     from collections.abc import Callable
@@ -240,8 +241,10 @@ class HeadlessMode:
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             if not HeadlessMode.is_display_available():
                 raise RuntimeError(
-                    f(("{func.__name__} requires a display but none is available. "
-                    "Run with SHOTBOT_HEADLESS=1 to use headless mode."))
+                    (
+                        f"{func.__name__} requires a display but none is available. "
+                        "Run with SHOTBOT_HEADLESS=1 to use headless mode."
+                    )
                 )
             return func(*args, **kwargs)
 

@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QMenu,
     QProgressBar,
+    QPushButton,
     QVBoxLayout,
     QWidget,
 )
@@ -33,6 +34,7 @@ from PySide6.QtWidgets import (
 from base_grid_view import BaseGridView
 from threede_grid_delegate import ThreeDEGridDelegate
 from thumbnail_widget_base import FolderOpenerWorker
+
 
 if TYPE_CHECKING:
     # Third-party imports
@@ -80,6 +82,7 @@ class ThreeDEGridView(BaseGridView):
         self.loading_bar: QProgressBar
         self.loading_label: QLabel
         self.count_label: QLabel
+        self.recover_button: QPushButton
 
         # Initialize base class (this calls _add_top_widgets and _customize_size_layout)
         super().__init__(parent)
@@ -130,9 +133,6 @@ class ThreeDEGridView(BaseGridView):
         Args:
             layout: The size control horizontal layout
         """
-        # Import QPushButton here to avoid adding to top-level imports
-        from PySide6.QtWidgets import QPushButton
-
         # Recovery button
         self.recover_button = QPushButton("Recover Crashes...")
         self.recover_button.setToolTip(
@@ -187,7 +187,7 @@ class ThreeDEGridView(BaseGridView):
         """
         if isinstance(shows, list):
             # Type narrowing: shows is list[str] after isinstance check
-            shows_list: list[str] = shows  # pyright: ignore[reportUnknownVariableType]
+            shows_list: list[str] = shows
             super().populate_show_filter(shows_list)
         else:
             # Type narrowing: if not list, must be ThreeDESceneModel

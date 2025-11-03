@@ -36,6 +36,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 

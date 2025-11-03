@@ -24,6 +24,7 @@ import pytest
 from shot_model import Shot
 from threede_scene_finder_optimized import OptimizedThreeDESceneFinder
 
+
 pytestmark = [pytest.mark.integration, pytest.mark.slow, pytest.mark.integration_safe]
 
 

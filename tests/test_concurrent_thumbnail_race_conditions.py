@@ -24,9 +24,9 @@ import sys
 import threading
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import pytest
+
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -34,9 +34,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # Local application imports
 from type_definitions import Shot
 from utils import PathUtils, VersionUtils, _path_cache, _path_cache_lock
-
-if TYPE_CHECKING:
-    pass
 
 
 class TestConcurrentThumbnailRaceConditions:

@@ -16,6 +16,7 @@ from config import Config, ThreadingConfig
 from shot_finder_base import FindShotsKwargs, ShotDetailsDict, ShotFinderBase
 from shot_model import Shot
 
+
 if TYPE_CHECKING:
     # Standard library imports
     from collections.abc import Generator
@@ -39,13 +40,15 @@ class PreviousShotsFinder(ShotFinderBase):
 
         # Optimized regex pattern for shot parsing
         # [^/]+ is faster than \w+ for path components
-        shows_root_escaped = re.escape(Config.SHOWS_ROOT)
+        # Pattern matches: .../shows/{show}/shots/{sequence}/{shot_dir}/... or end of path
+        # Made flexible to work with any shows root (not just Config.SHOWS_ROOT)
+        # Captures: workspace_path, show, sequence, shot_dir
         self._shot_pattern = re.compile(
-            rf"{shows_root_escaped}/([^/]+)/shots/([^/]+)/([^/]+)/"
+            r"(.*?/shows/([^/]+)/shots/([^/]+)/([^/]+))(?:/|$)"
         )
         # Fallback pattern for non-standard naming
         self._shot_pattern_fallback = re.compile(
-            rf"{shows_root_escaped}/([^/]+)/shots/([^/]+)/([^/]+)/"
+            r"(.*?/shows/([^/]+)/shots/([^/]+)/([^/]+))(?:/|$)"
         )
         self.logger.info(f"PreviousShotsFinder initialized for user: {self.username}")
 
@@ -71,51 +74,34 @@ class PreviousShotsFinder(ShotFinderBase):
             return shots
 
         try:
-            # Use find command for efficient filesystem traversal
-            # Look for directories matching */user/{username}
-            cmd = [
-                "find",
-                str(shows_root),
-                "-type",
-                "d",
-                "-path",
-                f"*{self.user_path_pattern}",
-                "-maxdepth",
-                "8",  # Limit depth for performance
-            ]
+            # Use Python's native Path.rglob() instead of subprocess find
+            # This avoids subprocess isolation issues with pytest-xdist workers
+            # where subprocess commands cannot see directories created by the worker
+            pattern = f"**/user/{self.username}"
+            self.logger.debug(f"Searching for pattern: {pattern} in {shows_root}")
 
-            self.logger.debug(f"Running find command: {' '.join(cmd)}")
-
-            # SECURITY FIX: Use stderr=subprocess.DEVNULL instead of shell redirection
-            # Note: Can't use capture_output=True with stderr=subprocess.DEVNULL
-            # Increased timeout to 120 seconds for large filesystem searches
-            result = subprocess.run(
-                cmd,
-                check=False, stdout=subprocess.PIPE,  # Capture stdout explicitly
-                stderr=subprocess.DEVNULL,  # Suppress stderr
-                text=True,
-                timeout=120,  # Increased from 30 to 120 seconds
-                shell=False,
-            )
-
-            if result.returncode != 0:
-                self.logger.warning(
-                    f"Find command returned non-zero exit code: {result.returncode}"
-                )
+            # Find all matching user directories
+            user_dirs = list(shows_root.rglob(pattern))
+            self.logger.debug(f"Found {len(user_dirs)} user directories")
 
             # Parse each found path to extract shot information
-            for line in result.stdout.strip().split("\n"):
-                if not line:
-                    continue
+            for user_dir in user_dirs:
+                # Convert to string for regex matching
+                path_str = str(user_dir)
+                self.logger.debug(f"Parsing path: {path_str}")
 
-                shot = self._parse_shot_from_path(line)
-                if shot and shot not in shots:
-                    shots.append(shot)
+                shot = self._parse_shot_from_path(path_str)
+                if shot:
+                    self.logger.debug(f"Parsed shot: {shot}")
+                    if shot not in shots:
+                        shots.append(shot)
+                    else:
+                        self.logger.debug(f"Shot already in list: {shot}")
+                else:
+                    self.logger.debug(f"Failed to parse shot from path: {path_str}")
 
             self.logger.info(f"Found {len(shots)} shots with user work")
 
-        except subprocess.TimeoutExpired:
-            self.logger.error("Find command timed out after 120 seconds")
         except Exception as e:
             self.logger.error(f"Error finding user shots: {e}")
 
@@ -133,15 +119,12 @@ class PreviousShotsFinder(ShotFinderBase):
         # Try optimized pattern first (69% faster)
         match = self._shot_pattern.search(path)
         if match:
-            # Extract show, sequence, and shot directory, then parse shot number
-            show, sequence, shot_dir = match.groups()
+            # Extract workspace path, show, sequence, and shot directory
+            workspace_path, show, sequence, shot_dir = match.groups()
 
             # Extract shot number from directory name (consistent with base_shot_model logic)
             if shot_dir.startswith(f"{sequence}_"):
                 shot = shot_dir[len(sequence) + 1 :]  # +1 for underscore
-                workspace_path = (
-                    f"{Config.SHOWS_ROOT}/{show}/shots/{sequence}/{shot_dir}"
-                )
             else:
                 # Non-standard naming, skip
                 self.logger.debug(f"Non-standard shot naming: {shot_dir}")
@@ -150,14 +133,12 @@ class PreviousShotsFinder(ShotFinderBase):
             # Fallback for non-standard naming
             match = self._shot_pattern_fallback.search(path)
             if match:
-                show, sequence, shot_dir = match.groups()
+                # Extract workspace path, show, sequence, and shot directory
+                workspace_path, show, sequence, shot_dir = match.groups()
 
                 # Extract shot number from directory name
                 if shot_dir.startswith(f"{sequence}_"):
                     shot = shot_dir[len(sequence) + 1 :]  # +1 for underscore
-                    workspace_path = (
-                        f"{Config.SHOWS_ROOT}/{show}/shots/{sequence}/{shot_dir}"
-                    )
                 else:
                     # Non-standard naming, skip
                     self.logger.debug(f"Non-standard shot naming: {shot_dir}")
@@ -204,8 +185,10 @@ class PreviousShotsFinder(ShotFinderBase):
         ]
 
         self.logger.info(
-            (f"Filtered {len(all_user_shots)} user shots to "
-            f"{len(approved_shots)} approved shots")
+            (
+                f"Filtered {len(all_user_shots)} user shots to "
+                f"{len(approved_shots)} approved shots"
+            )
         )
 
         return approved_shots
@@ -591,10 +574,9 @@ class ParallelShotsFinder(PreviousShotsFinder):
         self.logger.info("Using targeted search approach for maximum performance")
 
         try:
-            approved_shots = targeted_finder.find_approved_shots_targeted(
+            return targeted_finder.find_approved_shots_targeted(
                 active_shots, shows_root
             )
-            return approved_shots
 
         except Exception as e:
             self.logger.error(

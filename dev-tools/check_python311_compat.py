@@ -63,7 +63,7 @@ def main() -> int:
     # Get all Python files, excluding venv and test_venv
     python_files = []
     for pattern in ["*.py", "**/*.py"]:
-        for path in Path(".").glob(pattern):
+        for path in Path().glob(pattern):
             if "venv" not in str(path) and "test_venv" not in str(path):
                 python_files.append(path)
 

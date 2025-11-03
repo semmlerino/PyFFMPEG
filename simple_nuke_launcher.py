@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING
 
 from logging_mixin import LoggingMixin
 
+
 if TYPE_CHECKING:
     from shot_model import Shot
 

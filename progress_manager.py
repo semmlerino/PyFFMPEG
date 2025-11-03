@@ -62,6 +62,7 @@ from typing import TYPE_CHECKING, ClassVar
 # Local application imports
 from notification_manager import NotificationManager
 
+
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
 
@@ -74,6 +75,7 @@ if TYPE_CHECKING:
 
 # Local application imports
 from logging_mixin import get_module_logger
+
 
 # Module-level logger
 logger = get_module_logger(__name__)

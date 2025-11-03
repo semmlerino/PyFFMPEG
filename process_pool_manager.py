@@ -25,6 +25,7 @@ from config import ThreadingConfig
 from logging_mixin import LoggingMixin, get_module_logger
 from secure_command_executor import get_secure_executor
 
+
 # Module-level logger
 logger = get_module_logger(__name__)
 
@@ -548,7 +549,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
                 # Access ThreadPoolExecutor._pending_work_items (private API)
                 # Required for proper cleanup of pending futures on shutdown
                 # Type checking disabled: not in public API but stable across Python versions
-                pending_items_raw = self._executor._pending_work_items  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType, reportAttributeAccessIssue]
+                pending_items_raw = self._executor._pending_work_items  # pyright: ignore[reportAttributeAccessIssue]
                 pending_items = cast("dict[object, object]", pending_items_raw)
                 pending_count = len(pending_items)
                 if pending_count > 0:

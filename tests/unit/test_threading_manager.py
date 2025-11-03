@@ -14,6 +14,7 @@ from PySide6.QtCore import QThread, Signal
 
 from threading_manager import ThreadingManager
 
+
 # Mark Qt tests for serial execution in same worker (prevents Qt crashes)
 pytestmark = [
     pytest.mark.unit,
