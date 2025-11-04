@@ -16,7 +16,7 @@ Part of Phase 2 refactoring to eliminate duplicate Qt patterns.
 from __future__ import annotations
 
 # Standard library imports
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, cast, final
 
 # Third-party imports
 from PySide6.QtCore import QByteArray, QPoint, QSettings, QSize, Qt, QTimer
@@ -335,6 +335,7 @@ class QtWidgetMixin(LoggingMixin):
             key_press_method(event)
 
 
+@final
 class QtDragDropMixin:
     """Mixin for drag and drop functionality."""
 
@@ -387,6 +388,7 @@ class QtDragDropMixin:
             event.ignore()
 
 
+@final
 class QtProgressMixin:
     """Mixin for progress indication in widgets."""
 

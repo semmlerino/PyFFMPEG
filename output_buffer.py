@@ -9,8 +9,10 @@ import threading
 import time
 from collections import deque
 from re import Pattern
+from typing import final
 
 
+@final
 class OutputBuffer:
     """High-performance output buffer with batch regex processing"""
 
@@ -130,6 +132,7 @@ class OutputBuffer:
             self.last_frame = 0
 
 
+@final
 class ProcessOutputManager:
     """Manages output buffers for multiple processes"""
 

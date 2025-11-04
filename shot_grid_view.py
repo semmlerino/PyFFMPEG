@@ -8,7 +8,7 @@ and proper Model/View integration.
 from __future__ import annotations
 
 # Standard library imports
-from typing import TYPE_CHECKING, cast, override
+from typing import TYPE_CHECKING, cast, final, override
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -46,6 +46,7 @@ if TYPE_CHECKING:
     from base_thumbnail_delegate import BaseThumbnailDelegate
 
 
+@final
 class ShotGridView(BaseGridView):
     """Optimized grid view for displaying shot thumbnails.
 

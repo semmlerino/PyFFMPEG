@@ -11,7 +11,7 @@ import atexit
 import os
 import tempfile
 from pathlib import Path
-from typing import ClassVar
+from typing import ClassVar, final
 
 # Local application imports
 from logging_mixin import get_module_logger
@@ -25,6 +25,7 @@ from plate_discovery import PlateDiscovery
 logger = get_module_logger(__name__)
 
 
+@final
 class NukeScriptGenerator:
     """Generate temporary Nuke scripts with proper Read nodes.
 

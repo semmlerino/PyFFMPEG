@@ -1,7 +1,7 @@
 """Loading indicator widget for thumbnails."""
 from __future__ import annotations
 
-from typing import override
+from typing import final, override
 
 # Third-party imports
 from PySide6.QtCore import Property, QPropertyAnimation, QRect, Qt, QTimer
@@ -9,6 +9,7 @@ from PySide6.QtGui import QColor, QPainter, QPaintEvent, QPen
 from PySide6.QtWidgets import QWidget
 
 
+@final
 class ThumbnailLoadingIndicator(QWidget):
     """A simple loading spinner widget."""
 
@@ -65,6 +66,7 @@ class ThumbnailLoadingIndicator(QWidget):
         _ = painter.end()
 
 
+@final
 class ShimmerLoadingIndicator(QWidget):
     """A shimmer/skeleton loading effect widget."""
 

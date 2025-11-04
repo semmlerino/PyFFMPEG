@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import cast, override
+from typing import cast, final, override
 
 # Local application imports
 from logging_mixin import LoggingMixin, get_module_logger
@@ -32,6 +32,7 @@ class MockDataStrategy(ABC, LoggingMixin):
         """
 
 
+@final
 class FilesystemMockStrategy(MockDataStrategy):
     """Load mock data from filesystem structure."""
 
@@ -106,6 +107,7 @@ class FilesystemMockStrategy(MockDataStrategy):
         return shot_name.startswith(f"{sequence}_")
 
 
+@final
 class JSONMockStrategy(MockDataStrategy):
     """Load mock data from JSON file."""
 
@@ -184,6 +186,7 @@ class JSONMockStrategy(MockDataStrategy):
         ]
 
 
+@final
 class ProductionDataStrategy(MockDataStrategy):
     """Load real production data from captured JSON."""
 
@@ -258,6 +261,7 @@ class ProductionDataStrategy(MockDataStrategy):
             return []
 
 
+@final
 class UnifiedMockPool(LoggingMixin):
     """Unified mock pool using strategy pattern for data sources."""
 

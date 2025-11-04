@@ -51,7 +51,7 @@ from __future__ import annotations
 # Standard library imports
 import json
 from pathlib import Path
-from typing import cast
+from typing import cast, final
 
 # Third-party imports
 from PySide6.QtCore import QByteArray, QObject, QSettings, QSize, Signal
@@ -64,6 +64,7 @@ from logging_mixin import LoggingMixin
 # Set up logger for this module
 
 
+@final
 class SettingsManager(LoggingMixin, QObject):
     """Manages application settings with type safety and persistence.
 

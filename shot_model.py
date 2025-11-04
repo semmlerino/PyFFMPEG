@@ -59,6 +59,7 @@ DEBUG_VERBOSE = os.environ.get("SHOTBOT_DEBUG_VERBOSE", "").lower() in (
 )
 
 
+@final
 class AsyncShotLoader(ThreadSafeWorker):
     """Background worker for loading shots without blocking UI.
 
