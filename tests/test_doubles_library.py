@@ -242,17 +242,18 @@ class PopenDouble:
     def poll(self) -> int | None:
         """Check if process has terminated."""
         if self._terminated or self._killed:
-            return self.returncode
+            # Ensure returncode is an integer when process is terminated
+            return self.returncode if self.returncode is not None else 0
         return None
 
     def wait(self, timeout: float | None = None) -> int:
         """Wait for process to complete."""
-        if timeout:
-            simulate_work_without_sleep(
-                min(int(timeout * 1000), 100)
-            )  # Simulate brief wait (max 100ms)
+        # For PopenDouble, immediately terminate and return
+        # Don't simulate delay to avoid Qt event loop blocking issues
         self._terminated = True
-        return self.returncode
+        # Ensure we return a valid integer, not None
+        # Real subprocess.Popen.wait() always returns an int
+        return self.returncode if self.returncode is not None else 0
 
     def terminate(self) -> None:
         """Terminate the process."""

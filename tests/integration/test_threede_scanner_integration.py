@@ -231,7 +231,8 @@ class TestThreeDEScannerIntegration:
             assert len(all_scenes) == len(scene_files)
 
             # Test deduplication logic via scene model
-            scene_model = ThreeDESceneModel(load_cache=False)
+            cache_manager = CacheManager(cache_dir=self.cache_dir)
+            scene_model = ThreeDESceneModel(cache_manager=cache_manager, load_cache=False)
             deduplicated = scene_model._deduplicate_scenes_by_shot(all_scenes)
 
             # Should deduplicate to one scene per shot (same show/sequence/shot)
@@ -332,7 +333,8 @@ class TestThreeDEScannerIntegration:
         with patch(
             "utils.ValidationUtils.get_excluded_users", return_value={"testuser"}
         ):
-            scene_model = ThreeDESceneModel(load_cache=False)
+            cache_manager = CacheManager(cache_dir=self.cache_dir)
+            scene_model = ThreeDESceneModel(cache_manager=cache_manager, load_cache=False)
 
             # Test refresh operation
             success, has_changes = scene_model.refresh_scenes([shot])
@@ -418,7 +420,8 @@ class TestThreeDEScannerIntegration:
             assert len(bad_scenes) == 0
 
             # Test model-level error handling
-            scene_model = ThreeDESceneModel(load_cache=False)
+            cache_manager = CacheManager(cache_dir=self.cache_dir)
+            scene_model = ThreeDESceneModel(cache_manager=cache_manager, load_cache=False)
 
             # Should handle mixed good/bad shots gracefully
             success, _has_changes = scene_model.refresh_scenes([good_shot, bad_shot])

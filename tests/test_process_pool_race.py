@@ -10,6 +10,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.resolve()))
 
 # Standard library imports
+import concurrent.futures
 import threading
 import time
 from typing import Any
@@ -38,30 +39,37 @@ def test_process_pool_manager_race_condition() -> None:
     initialization_counts: list[int] = []
     errors: list[Exception] = []
 
-    # Track how many times __init__ actually runs past the early return
-    original_init = ProcessPoolManager.__init__
+    # Track how many times ThreadPoolExecutor is actually created (only happens during init)
     init_call_count = [0]
     actual_init_count = [0]
+    init_lock = threading.Lock()
 
-    def tracked_init(self, *args, **kwargs):
-        init_call_count[0] += 1
-        was_initialized = ProcessPoolManager._initialized
-        result = original_init(self, *args, **kwargs)
-        # Check if initialization actually happened (flag changed from False to True)
-        if not was_initialized and ProcessPoolManager._initialized:
+    original_thread_pool_executor = concurrent.futures.ThreadPoolExecutor
+
+    def tracked_executor(*args, **kwargs):
+        with init_lock:
             actual_init_count[0] += 1
-            print(f"ACTUAL initialization performed (count={actual_init_count[0]})")
-        return result
+            print(f"ACTUAL initialization - ThreadPoolExecutor created (count={actual_init_count[0]})")
+        return original_thread_pool_executor(*args, **kwargs)
 
-    ProcessPoolManager.__init__ = tracked_init
+    # Patch ThreadPoolExecutor to track actual initialization
+    concurrent.futures.ThreadPoolExecutor = tracked_executor
+
+    original_init = ProcessPoolManager.__init__
+
+    def counted_init(self, *args, **kwargs):
+        init_call_count[0] += 1
+        return original_init(self, *args, **kwargs)
+
+    ProcessPoolManager.__init__ = counted_init
 
     def create_instance() -> None:
         """Thread worker to create an instance."""
         try:
             instance = ProcessPoolManager()
             instances.append(instance)
-            # Check if initialized flag is set
-            initialization_counts.append(getattr(instance, "_initialized", False))
+            # Check if initialized flag is set (using correct attribute name)
+            initialization_counts.append(getattr(instance, "_init_done", False))
         except Exception as e:
             errors.append(e)
 
@@ -79,8 +87,9 @@ def test_process_pool_manager_race_condition() -> None:
     for thread in threads:
         thread.join()
 
-    # Restore original init
+    # Restore originals
     ProcessPoolManager.__init__ = original_init
+    concurrent.futures.ThreadPoolExecutor = original_thread_pool_executor
 
     # Analyze results
     print(f"Instances created: {len(instances)}")

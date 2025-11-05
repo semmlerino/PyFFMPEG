@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 # Standard library imports
+import time
 from enum import Enum
 from typing import TYPE_CHECKING, ClassVar, final
 
@@ -79,7 +80,9 @@ class ThreadSafeWorker(LoggingMixin, QThread):
     # Class-level collection to prevent garbage collection of zombie threads
     # This prevents "QThread: Destroyed while thread is still running" crashes
     _zombie_threads: ClassVar[list[ThreadSafeWorker]] = []
+    _zombie_timestamps: ClassVar[dict[int, float]] = {}  # Track when zombified
     _zombie_mutex: ClassVar[QMutex] = QMutex()  # Protects _zombie_threads access
+    _MAX_ZOMBIE_AGE_SECONDS: ClassVar[int] = 60  # Try cleanup after 60s
 
     def __init__(self, parent: QObject | None = None) -> None:
         """Initialize thread-safe worker.
@@ -557,7 +560,14 @@ class ThreadSafeWorker(LoggingMixin, QThread):
                     # This prevents "QThread: Destroyed while thread is still running" crash
                     with QMutexLocker(ThreadSafeWorker._zombie_mutex):
                         ThreadSafeWorker._zombie_threads.append(self)
+                        ThreadSafeWorker._zombie_timestamps[id(self)] = time.time()
                         zombie_count = len(ThreadSafeWorker._zombie_threads)
+
+                        # Periodically cleanup old zombies (every 10th zombie)
+                        if zombie_count % 10 == 0:
+                            cleaned = ThreadSafeWorker.cleanup_old_zombies()
+                            if cleaned > 0:
+                                self.logger.info(f"Cleaned up {cleaned} old zombie threads")
 
                     self.logger.warning(
                         f"Worker {id(self)}: Added to zombie collection "
@@ -567,3 +577,47 @@ class ThreadSafeWorker(LoggingMixin, QThread):
                     self.logger.info(f"Worker {id(self)}: Stopped after extended wait")
             else:
                 self.logger.info(f"Worker {id(self)}: Stopped gracefully")
+
+    @classmethod
+    def cleanup_old_zombies(cls) -> int:
+        """Attempt to clean up old zombie threads.
+
+        Retries waiting on zombies that have been in the collection for
+        more than _MAX_ZOMBIE_AGE_SECONDS. Removes threads that have
+        finished naturally.
+
+        This method should be called periodically to prevent unbounded
+        memory growth from zombie thread accumulation.
+
+        Returns:
+            Number of zombies cleaned up
+        """
+        cleaned = 0
+        current_time = time.time()
+
+        # CRITICAL: Protect all access to shared zombie collections
+        # Qt's QMutexLocker supports recursive locking, so this is safe
+        # even when called from safe_terminate() which already holds the mutex
+        with QMutexLocker(cls._zombie_mutex):
+            zombies_to_keep = []
+
+            for zombie in cls._zombie_threads:
+                zombie_id = id(zombie)
+                age = current_time - cls._zombie_timestamps.get(zombie_id, current_time)
+
+                if age > cls._MAX_ZOMBIE_AGE_SECONDS:
+                    # Retry wait on old zombies
+                    if not zombie.isRunning():
+                        # Thread finished naturally, safe to remove
+                        _ = cls._zombie_timestamps.pop(zombie_id, None)
+                        cleaned += 1
+                    else:
+                        # Still running, keep as zombie
+                        zombies_to_keep.append(zombie)
+                else:
+                    # Too young to retry cleanup
+                    zombies_to_keep.append(zombie)
+
+            cls._zombie_threads = zombies_to_keep
+
+        return cleaned

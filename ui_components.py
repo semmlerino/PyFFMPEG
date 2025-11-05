@@ -51,8 +51,9 @@ class ModernButton(QPushButton):
         text: str = "",
         variant: str = "default",
         icon: QIcon | None = None,
+        parent: QWidget | None = None,
     ) -> None:
-        super().__init__(text)
+        super().__init__(text, parent)
         self.variant: str = variant
         self._setup_style()
         self._setup_animations()
@@ -354,7 +355,7 @@ class ProgressOverlay(QWidget):
         card_layout.addWidget(self.status_label)
 
         # Cancel button
-        self.cancel_button: ModernButton = ModernButton("Cancel", variant="danger")
+        self.cancel_button: ModernButton = ModernButton("Cancel", variant="danger", parent=self)
         _ = self.cancel_button.clicked.connect(self.canceled.emit)
         card_layout.addWidget(self.cancel_button, 0, Qt.AlignmentFlag.AlignCenter)
 
@@ -439,7 +440,7 @@ class EmptyStateWidget(QWidget):
 
         # Action button
         if action_text:
-            action_button = ModernButton(action_text, variant="primary")
+            action_button = ModernButton(action_text, variant="primary", parent=self)
             _ = action_button.clicked.connect(self.action_clicked.emit)
             layout.addWidget(action_button, 0, Qt.AlignmentFlag.AlignCenter)
 
@@ -447,8 +448,8 @@ class EmptyStateWidget(QWidget):
 class ThumbnailPlaceholder(QLabel):
     """Placeholder widget shown while thumbnail is loading."""
 
-    def __init__(self, size: int = 200) -> None:
-        super().__init__()
+    def __init__(self, size: int = 200, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
         self.setFixedSize(size, size)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setStyleSheet(f"""

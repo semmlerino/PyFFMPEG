@@ -385,9 +385,6 @@ class TestProcessPoolManagerBehavior:
 
         CORRECT: Testing behavior (single instance), not implementation.
         """
-        # Reset singleton for test isolation
-        ProcessPoolManager._instance = None
-
         # Create multiple "instances"
         manager1 = ProcessPoolManager(max_workers=2)
         manager2 = ProcessPoolManager(max_workers=4)
@@ -399,16 +396,12 @@ class TestProcessPoolManagerBehavior:
 
         # Cleanup
         manager1.shutdown()
-        ProcessPoolManager._instance = None
 
     def test_command_execution_with_caching(self, qapp) -> None:
         """Test that commands are cached and reused.
 
         CORRECT: Using test double at system boundary, testing behavior.
         """
-        # Reset singleton
-        ProcessPoolManager._instance = None
-
         # Create manager with injected session
         manager = InjectableProcessPoolManager()
         session = BashSessionDouble()
@@ -441,9 +434,6 @@ class TestProcessPoolManagerBehavior:
         not implementation (execution order). batch_execute uses parallel execution
         via concurrent.futures.as_completed(), so order is not guaranteed.
         """
-        # Reset singleton
-        ProcessPoolManager._instance = None
-
         manager = InjectableProcessPoolManager()
         session = BashSessionDouble()
 
@@ -481,8 +471,6 @@ class TestProcessPoolManagerBehavior:
 
         CORRECT: Testing error recovery behavior, not error detection.
         """
-        ProcessPoolManager._instance = None
-
         manager = InjectableProcessPoolManager()
         session = BashSessionDouble()
 
@@ -523,9 +511,6 @@ class TestProcessPoolManagerBehavior:
         from concurrent.futures import (
             ThreadPoolExecutor,
         )
-
-        # Reset singleton to ensure clean state
-        ProcessPoolManager._instance = None
 
         # Create main thread instance
         main_manager = ProcessPoolManager()
@@ -569,7 +554,6 @@ class TestProcessPoolManagerBehavior:
 
         # Cleanup
         main_manager.shutdown()
-        ProcessPoolManager._instance = None
 
 
 class TestPythonFileOperations:
@@ -580,7 +564,6 @@ class TestPythonFileOperations:
 
         CORRECT: Using real filesystem with temp directory.
         """
-        ProcessPoolManager._instance = None
         manager = ProcessPoolManager()
 
         # Create test directory structure
@@ -614,14 +597,12 @@ class TestPythonFileOperations:
 
         # Cleanup
         manager.shutdown()
-        ProcessPoolManager._instance = None
 
     def test_nonexistent_directory_handling(self) -> None:
         """Test behavior with nonexistent directories.
 
         CORRECT: Testing actual error handling behavior.
         """
-        ProcessPoolManager._instance = None
         manager = ProcessPoolManager()
 
         # Test BEHAVIOR: Returns empty list for nonexistent path
@@ -640,7 +621,6 @@ class TestPythonFileOperations:
 
         # Cleanup
         manager.shutdown()
-        ProcessPoolManager._instance = None
 
 
 class TestCacheInvalidation:
@@ -651,8 +631,6 @@ class TestCacheInvalidation:
 
         CORRECT: Testing behavior through observable state changes.
         """
-        ProcessPoolManager._instance = None
-
         manager = InjectableProcessPoolManager()
         session = BashSessionDouble()
         manager.set_test_session(session)

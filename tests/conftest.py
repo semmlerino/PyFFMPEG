@@ -235,6 +235,53 @@ def mock_all_message_boxes() -> Iterator[None]:
         yield
 
 
+@pytest.fixture(autouse=True)
+def cleanup_threading_state(qtbot: QtBot) -> Iterator[None]:
+    """Clean up all threading and singleton state between tests.
+
+    This autouse fixture ensures clean state for each test by:
+    - Resetting ProcessPoolManager singleton
+    - Clearing ThreadSafeWorker zombie threads
+    - Processing pending Qt events
+
+    Args:
+        qtbot: pytest-qt's QtBot fixture for Qt event processing
+
+    Note:
+        This is an autouse fixture that runs automatically for every test.
+        It executes cleanup after the test completes (yield).
+    """
+    yield
+
+    # ProcessPoolManager Cleanup
+    from process_pool_manager import ProcessPoolManager
+
+    if ProcessPoolManager._instance is not None:
+        try:
+            ProcessPoolManager._instance.shutdown(timeout=1.0)
+        except Exception as e:
+            import warnings
+
+            warnings.warn(f"ProcessPoolManager shutdown failed: {e}", RuntimeWarning)
+
+    ProcessPoolManager._instance = None
+    ProcessPoolManager._initialized = False
+
+    # ThreadSafeWorker Zombie Cleanup
+    from thread_safe_worker import ThreadSafeWorker
+    from PySide6.QtCore import QMutexLocker
+
+    with QMutexLocker(ThreadSafeWorker._zombie_mutex):
+        zombie_count = len(ThreadSafeWorker._zombie_threads)
+        if zombie_count > 0:
+            cleaned = ThreadSafeWorker.cleanup_old_zombies()
+            ThreadSafeWorker._zombie_threads.clear()
+            ThreadSafeWorker._zombie_timestamps.clear()
+
+    # Qt Event Processing
+    qtbot.wait(50)
+
+
 @pytest.fixture
 def mock_subprocess_workspace() -> Iterator[None]:
     """Mock subprocess.run for tests that call VFX workspace commands.
@@ -509,17 +556,22 @@ def test_process_pool():
             self.commands: list[str] = []
             self._outputs_queue: list[str] = []
             self._errors: str = ""
+            self._repeat_output: bool = True  # By default, repeat the same output
 
-        def set_outputs(self, *outputs: str) -> None:
-            """Set multiple outputs to return sequentially from execute_workspace_command.
-
-            Each call to execute_workspace_command() will pop the next output from the queue.
-            When the queue is empty, returns empty string.
+        def set_outputs(self, *outputs: str, repeat: bool = True) -> None:
+            """Set multiple outputs to return from execute_workspace_command.
 
             Args:
-                *outputs: Variable number of output strings to return sequentially
+                *outputs: Variable number of output strings
+                repeat: If True (default), returns the last output repeatedly for all calls.
+                       If False, pops outputs sequentially and returns empty when exhausted.
+
+            Default behavior (repeat=True) handles race conditions with background threads
+            that may call execute_workspace_command() multiple times unpredictably.
+            Use repeat=False for tests that need specific sequential outputs.
             """
             self._outputs_queue = list(outputs)
+            self._repeat_output = repeat
 
         def set_errors(self, error: str) -> None:
             """Set errors to raise from execute_workspace_command."""
@@ -541,8 +593,12 @@ def test_process_pool():
             if self.should_fail or self._errors:
                 raise RuntimeError(self._errors or "Test error")
 
-            # Pop next output from queue, or return empty string if queue exhausted
+            # Return output based on mode
             if self._outputs_queue:
+                if self._repeat_output:
+                    # Return the last output repeatedly (handles background threads)
+                    return self._outputs_queue[-1]
+                # Pop sequentially (for tests needing specific order)
                 return self._outputs_queue.pop(0)
             return ""
 
@@ -559,6 +615,7 @@ def test_process_pool():
             self.commands = []
             self._outputs_queue = []
             self._errors = ""
+            self._repeat_output = True
 
     return TestProcessPool()
 

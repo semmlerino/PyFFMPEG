@@ -521,8 +521,9 @@ class TestUserWorkflows:
 
         # Create real components
         cache_manager = CacheManager(cache_dir=self.cache_dir)
-        launcher_manager = LauncherManager(config_dir=self.config_dir)
         main_window = MainWindow(cache_manager=cache_manager)
+        # Create launcher_manager with test config_dir AND proper Qt parent (main_window)
+        launcher_manager = LauncherManager(config_dir=self.config_dir, parent=main_window)
 
         qtbot.addWidget(main_window)
 
@@ -1136,8 +1137,9 @@ class TestUserWorkflows:
 
         # Create real components
         cache_manager = CacheManager(cache_dir=self.cache_dir)
-        launcher_manager = LauncherManager(config_dir=self.config_dir)
         main_window = MainWindow(cache_manager=cache_manager)
+        # Create launcher_manager with test config_dir AND proper Qt parent (main_window)
+        launcher_manager = LauncherManager(config_dir=self.config_dir, parent=main_window)
 
         qtbot.addWidget(main_window)
 
@@ -1255,6 +1257,12 @@ class TestUserWorkflows:
 
             # Process events to ensure both operations complete
             qtbot.wait(200)
+
+        # CRITICAL: Clean up worker threads before test teardown
+        # Without this, QThread objects are destroyed while threads are still running,
+        # causing "QThread: Destroyed while thread is still running" and Qt C++ crashes
+        launcher_manager.shutdown()
+        qtbot.wait(100)  # Allow shutdown to complete
 
 
 # Helper functions for standalone testing

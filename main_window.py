@@ -174,7 +174,11 @@ class SessionWarmer(ThreadSafeWorker):
 class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
     """Main application window."""
 
-    def __init__(self, cache_manager: CacheManager | None = None) -> None:
+    def __init__(
+        self,
+        cache_manager: CacheManager | None = None,
+        parent: QWidget | None = None,
+    ) -> None:
         # Ensure we're in the main thread for Qt widget creation
         # Third-party imports
         from PySide6.QtCore import QCoreApplication, QThread
@@ -208,7 +212,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
                   f"Type: {type(app_instance)}"
             )
 
-        super().__init__()
+        super().__init__(parent)
 
         # Initialize shot_model attribute (will be set later based on feature flag)
 
@@ -319,7 +323,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self.command_launcher = CommandLauncher(
                 persistent_terminal=self.persistent_terminal
             )
-            self.launcher_manager = LauncherManager(process_pool=self._process_pool)
+            self.launcher_manager = LauncherManager(
+                process_pool=self._process_pool, parent=self
+            )
 
         # NOTE: Current scene/shot context now managed by launcher_controller (single source of truth)
         self._closing = False  # Track shutdown state

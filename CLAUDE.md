@@ -6,6 +6,31 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Shotbot is a PySide6-based GUI application for VFX production management. The application provides shot tracking, media management, and workflow automation for visual effects pipelines.
 
+## Security Posture
+
+**This is a personal tool running in an isolated VFX production environment.** Security vulnerabilities are NOT a concern for this project.
+
+**Acceptable patterns that would be security issues in other contexts:**
+- ✅ `subprocess.Popen(..., shell=True)` - Needed for complex shell commands
+- ✅ `eval()` in bash scripts - Simplifies command execution
+- ✅ Command injection vectors - Controlled input from trusted user
+- ✅ Path traversal - User has full filesystem access anyway
+- ✅ Untrusted input handling - All input is from single trusted user
+
+**Why security is not a priority:**
+- Single user (developer) on isolated VFX server
+- No network exposure or remote access
+- No untrusted input sources
+- User has full filesystem and process access
+- Flexibility and convenience > security hardening
+
+**Code review focus areas:**
+- ✅ Correctness and reliability
+- ✅ Performance and resource management
+- ✅ Maintainability and code organization
+- ✅ Qt best practices and thread safety
+- ❌ NOT security vulnerabilities (acceptable trade-off)
+
 ## Development Environment
 
 ### Primary Development Location (Linux Filesystem)

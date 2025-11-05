@@ -115,7 +115,10 @@ class TestTabSwitching:
         main_window = MainWindow(cache_manager=cache_manager)
         qtbot.addWidget(main_window)
 
-        # Default should be first tab (My Shots)
+        # Reset to first tab (settings may have restored a different tab from persistent storage)
+        main_window.tab_widget.setCurrentIndex(0)
+
+        # Verify we're on the first tab (My Shots)
         assert main_window.tab_widget.currentIndex() == 0
         assert main_window.tab_widget.currentWidget() == main_window.shot_grid
 
@@ -365,13 +368,15 @@ class TestThumbnailSizeControl:
     """Test thumbnail size control functionality."""
 
     def test_thumbnail_size_slider_exists(self, qtbot: QtBot, tmp_path: Path) -> None:
-        """Test that thumbnail size slider exists."""
+        """Test that thumbnail size sliders exist in each grid view."""
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
         main_window = MainWindow(cache_manager=cache_manager)
         qtbot.addWidget(main_window)
 
-        # Verify size control exists
-        assert hasattr(main_window, "size_control")
+        # Verify size sliders exist in each tab's grid view
+        assert hasattr(main_window.shot_grid, "size_slider")
+        assert hasattr(main_window.threede_shot_grid, "size_slider")
+        assert hasattr(main_window.previous_shots_grid, "size_slider")
 
 
 class TestMainWindowIntegration:

@@ -61,8 +61,6 @@ class TestCrossTabSynchronization:
             ProcessPoolManager,
         )
 
-        ProcessPoolManager._instance = None
-
         # Track windows created during test
         self.test_windows: list[MainWindow] = []
 
@@ -106,9 +104,6 @@ class TestCrossTabSynchronization:
                 )
 
                 process_qt_events(app, 10)
-
-        # Clear ProcessPoolManager singleton after test
-        ProcessPoolManager._instance = None
 
     def test_shot_selection_syncs_info_panel_across_tabs(
         self, qapp: QApplication, qtbot: QtBot, tmp_path: Path
@@ -400,8 +395,6 @@ class TestCacheUICoordination:
             ProcessPoolManager,
         )
 
-        ProcessPoolManager._instance = None
-
         # Clear test cache directory
         # Standard library imports
         import shutil  # noqa: PLC0415 - lazy import to avoid circular dependency
@@ -455,8 +448,6 @@ class TestCacheUICoordination:
                 )
 
                 process_qt_events(app, 10)
-
-        ProcessPoolManager._instance = None
 
     def test_thumbnail_cache_updates_ui(
         self, qapp: QApplication, qtbot: QtBot, tmp_path: Path
@@ -583,8 +574,6 @@ class TestErrorPropagationChains:
             ProcessPoolManager,
         )
 
-        ProcessPoolManager._instance = None
-
         # Track windows for cleanup
         self.test_windows: list[MainWindow] = []
 
@@ -627,8 +616,6 @@ class TestErrorPropagationChains:
                 )
 
                 process_qt_events(app, 10)
-
-        ProcessPoolManager._instance = None
 
     def test_subprocess_failure_handled_gracefully(
         self, qapp: QApplication, qtbot: QtBot, tmp_path: Path

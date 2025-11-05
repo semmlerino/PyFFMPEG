@@ -114,6 +114,7 @@ class TestIncrementalCachingWorkflow:
             "workspace /shows/broken_eggs/shots/sq0010/sq0010_0040\n"
             "workspace /shows/broken_eggs/shots/sq0010/sq0010_0050\n"
             "workspace /shows/broken_eggs/shots/sq0010/sq0010_0060\n",
+            repeat=False,
         )
         success1, changes1 = shot_model_temp.refresh_shots()
         assert success1
@@ -159,6 +160,7 @@ class TestIncrementalCachingWorkflow:
             "workspace /shows/broken_eggs/shots/sq0010/sq0010_0010\n"
             "workspace /shows/broken_eggs/shots/sq0010/sq0010_0020\n"
             "workspace /shows/broken_eggs/shots/sq0010/sq0010_0030\n",
+            repeat=False,
         )
         success1, changes1 = shot_model_temp.refresh_shots()
         assert success1
@@ -202,6 +204,7 @@ class TestIncrementalCachingWorkflow:
             "workspace /shows/broken_eggs/shots/sq0010/sq0010_0020\n"
             "workspace /shows/gator/shots/sq0010/sq0010_0010\n",  # Same seq/shot, different show
             "",  # Empty ws -sg output (all removed)
+            repeat=False,
         )
         success1, changes1 = shot_model_temp.refresh_shots()
         assert success1
@@ -254,6 +257,7 @@ class TestIncrementalCachingWorkflow:
             "workspace /shows/broken_eggs/shots/sq0010/sq0010_0010\n"
             "workspace /shows/broken_eggs/shots/sq0010/sq0010_0020\n",
             "workspace /shows/broken_eggs/shots/sq0010/sq0010_0030\n",
+            repeat=False,
         )
         success1, changes1 = shot_model_temp.refresh_shots()
         assert success1
@@ -284,7 +288,7 @@ class TestIncrementalCachingWorkflow:
             f"workspace /shows/show{i//144}/shots/sq{i//12:04d}/shot_{i:04d}"
             for i in range(429)  # 3 shots removed
         )
-        test_process_pool.set_outputs(mock_output_432, mock_output_429)
+        test_process_pool.set_outputs(mock_output_432, mock_output_429, repeat=False)
 
         # Execute: First refresh
         success1, changes1 = shot_model_temp.refresh_shots()

@@ -41,8 +41,8 @@ from ui_update_manager import UIUpdateManager
 class MainWindow(QMainWindow):
     """Simplified main window using focused component classes"""
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
         self.setWindowTitle(f"{AppConfig.APP_NAME} - RTX Optimized")
         self.resize(AppConfig.DEFAULT_WINDOW_WIDTH, AppConfig.DEFAULT_WINDOW_HEIGHT)
 

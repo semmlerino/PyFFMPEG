@@ -16,6 +16,7 @@ from __future__ import annotations
 # Standard library imports
 import concurrent.futures
 import time
+from collections.abc import Iterator
 from typing import TYPE_CHECKING
 
 # Third-party imports
@@ -78,10 +79,16 @@ class TestPreviousShootsCacheIntegration:
     @pytest.fixture
     def previous_shots_model(
         self, mock_shot_model, cache_manager, qtbot
-    ) -> PreviousShotsModel:
+    ) -> Iterator[PreviousShotsModel]:
         """Create PreviousShotsModel with real cache."""
-        return PreviousShotsModel(mock_shot_model, cache_manager)
+        model = PreviousShotsModel(mock_shot_model, cache_manager)
         # Note: PreviousShotsModel is QObject, not QWidget - no qtbot.addWidget() needed
+        yield model
+        # CRITICAL CLEANUP: Stop and wait for worker thread to prevent Qt state pollution
+        if model._worker is not None:
+            model._worker.request_stop()
+            model._worker.wait(2000)  # Wait up to 2 seconds for thread to finish
+        qtbot.wait(10)  # Allow Qt to process cleanup events
 
     def test_cache_storage_and_retrieval(self, cache_manager, temp_cache_dir) -> None:
         """Test basic cache storage and retrieval for previous shots."""
@@ -231,11 +238,18 @@ class TestPreviousShootsCacheIntegration:
         model = PreviousShotsModel(mock_shot_model, cache_manager)
         # Note: PreviousShotsModel is QObject, not QWidget - no qtbot.addWidget needed
 
-        # Should have loaded cached data
-        shots = model.get_shots()
-        assert len(shots) == 1
-        assert shots[0].show == "cached_show"
-        assert shots[0].shot == "cached_shot"
+        try:
+            # Should have loaded cached data
+            shots = model.get_shots()
+            assert len(shots) == 1
+            assert shots[0].show == "cached_show"
+            assert shots[0].shot == "cached_shot"
+        finally:
+            # CRITICAL CLEANUP: Stop and wait for any worker threads
+            if model._worker is not None:
+                model._worker.request_stop()
+                model._worker.wait(2000)
+            qtbot.wait(10)
 
     def test_model_cache_integration_on_refresh(
         self, previous_shots_model, qtbot
@@ -303,7 +317,14 @@ class TestPreviousShootsCacheIntegration:
         model = PreviousShotsModel(mock_shot_model, cache_manager)
         # Note: PreviousShotsModel is QObject, not QWidget - no qtbot.addWidget needed
 
-        assert len(model.get_shots()) == 0
+        try:
+            assert len(model.get_shots()) == 0
+        finally:
+            # CRITICAL CLEANUP: Stop and wait for any worker threads
+            if model._worker is not None:
+                model._worker.request_stop()
+                model._worker.wait(2000)
+            qtbot.wait(10)
 
     def test_cache_partial_write_recovery(self, temp_cache_dir, cache_manager) -> None:
         """Test recovery from partial cache writes."""

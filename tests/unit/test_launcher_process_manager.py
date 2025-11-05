@@ -267,9 +267,9 @@ class TestWorkerExecution:
             working_dir="/tmp"
         )
 
-        # Verify worker was created
+        # Verify worker was created (with parent for Qt ownership)
         assert result is True
-        mock_worker_class.assert_called_once_with("test_launcher", "echo hello", "/tmp")
+        mock_worker_class.assert_called_once_with("test_launcher", "echo hello", "/tmp", parent=process_manager)
 
         # Verify worker was started
         mock_worker.start.assert_called_once()
