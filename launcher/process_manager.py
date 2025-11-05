@@ -155,8 +155,8 @@ class LauncherProcessManager(LoggingMixin, QObject):
             True if worker started successfully, False otherwise
         """
         try:
-            # Create worker
-            worker = LauncherWorker(launcher_id, command, working_dir)
+            # Create worker with proper Qt parent for ownership
+            worker = LauncherWorker(launcher_id, command, working_dir, parent=self)
 
             # Generate unique worker key with UUID suffix (prevents race condition)
             # MUST be created BEFORE signal connections to avoid NameError in lambda
@@ -224,19 +224,14 @@ class LauncherProcessManager(LoggingMixin, QObject):
         )
 
         # Clean up immediately (eliminates 0-5 second delay)
+        # Store worker reference, remove from dict, THEN disconnect outside lock
+        worker = None
+
         with QMutexLocker(self._process_lock):
             if worker_key in self._active_workers:
                 worker = self._active_workers[worker_key]
 
-                # Disconnect signals to prevent warnings
-                try:
-                    _ = worker.command_started.disconnect()
-                    _ = worker.command_finished.disconnect()
-                    _ = worker.command_error.disconnect()
-                except (RuntimeError, TypeError):
-                    pass  # Already disconnected
-
-                # Ensure cleanup happens even if emit fails
+                # Remove from tracking dict FIRST
                 try:
                     del self._active_workers[worker_key]
                     self.worker_removed.emit(worker_key)
@@ -245,6 +240,15 @@ class LauncherProcessManager(LoggingMixin, QObject):
                     self.logger.warning(
                         f"Error during worker cleanup for {worker_key}: {e}"
                     )
+
+        # Disconnect signals OUTSIDE mutex (prevents deadlock if slot tries to acquire lock)
+        if worker:
+            try:
+                _ = worker.command_started.disconnect()
+                _ = worker.command_finished.disconnect()
+                _ = worker.command_error.disconnect()
+            except (RuntimeError, TypeError):
+                pass  # Already disconnected
 
         # Emit completion signal
         self.process_finished.emit(launcher_id, success, return_code)

@@ -7,15 +7,13 @@ execution in a separate thread, extracted from the original launcher_manager.py.
 from __future__ import annotations
 
 # Standard library imports
-import logging
-import re
 import shlex
 import subprocess
 import threading
 from typing import IO, final
 
 # Third-party imports
-from PySide6.QtCore import Signal
+from PySide6.QtCore import QObject, Signal
 
 # Local application imports
 from exceptions import SecurityError
@@ -41,6 +39,7 @@ class LauncherWorker(ThreadSafeWorker):
         launcher_id: str,
         command: str,
         working_dir: str | None = None,
+        parent: QObject | None = None,
     ) -> None:
         """Initialize launcher worker.
 
@@ -48,107 +47,44 @@ class LauncherWorker(ThreadSafeWorker):
             launcher_id: Unique identifier for this launcher
             command: Command to execute
             working_dir: Optional working directory for the command
+            parent: Optional parent QObject for proper Qt cleanup
         """
-        super().__init__()
+        super().__init__(parent)
         self.launcher_id = launcher_id
         self.command = command
         self.working_dir = working_dir
         self._process: subprocess.Popen[bytes] | None = None
+        # Thread tracking for proper cleanup
+        self._stdout_thread: threading.Thread | None = None
+        self._stderr_thread: threading.Thread | None = None
 
     def _sanitize_command(self, command: str) -> tuple[list[str], bool]:
-        """Safely parse and validate command to prevent shell injection.
+        """Parse command string into argument list.
+
+        Note: This is a single-user trusted tool in an isolated VFX environment.
+        No whitelisting or injection detection per CLAUDE.md security posture.
 
         Args:
-            command: Command string to sanitize
+            command: Command string to parse
 
         Returns:
             Tuple of (command_list, use_shell) where use_shell is always False
-            for security
 
         Raises:
-            SecurityError: If command contains dangerous patterns or isn't whitelisted
+            SecurityError: If command cannot be parsed
         """
-        # Whitelist of allowed base commands
-        allowed_commands = {
-            "3de",
-            "3de4",
-            "3dequalizer",
-            "nuke",
-            "nuke_i",
-            "nukex",
-            "maya",
-            "mayapy",
-            "rv",
-            "rvpkg",
-            "houdini",
-            "hython",
-            "katana",
-            "mari",
-            "publish",
-            "publish_standalone",
-            "python",
-            "python3",
-            # SECURITY: bash and sh removed - use specific safe commands only
-        }
-
-        # Dangerous patterns that indicate potential injection attempts
-        dangerous_patterns = [
-            r";\s*(rm|sudo|su|chmod|chown|dd|mkfs|fdisk)\s",
-            r"&&\s*(rm|sudo|su|chmod|chown|dd|mkfs|fdisk)\s",
-            r"\|\s*(rm|sudo|su|chmod|chown|dd|mkfs|fdisk)\s",
-            r"`[^`]*`",  # Command substitution
-            r"\$\([^)]*\)",  # Command substitution
-            r"\$\{[^}]*\}",  # Variable expansion that could be dangerous
-            r">\s*/dev/(sda|sdb|sdc|null)",  # Dangerous redirects
-            r"2>&1.*>/dev/null.*rm",  # Hidden rm commands
-        ]
-
-        # Check for dangerous patterns
-        for pattern in dangerous_patterns:
-            if re.search(pattern, command, re.IGNORECASE):
-                raise SecurityError(
-                    f"Command contains dangerous pattern and was blocked: {command[:100]}"
-                )
-
-        # Try to parse the command safely
+        # Parse command into argument list
         try:
             cmd_list = shlex.split(command)
 
-            # Validate the base command is in whitelist
-            if cmd_list:
-                base_command = cmd_list[0].split("/")[
-                    -1
-                ]  # Get command name without path
-                if base_command not in allowed_commands:
-                    # Check if it's a full path to an allowed command
-                    allowed = False
-                    for allowed_cmd in allowed_commands:
-                        if allowed_cmd in cmd_list[0]:
-                            allowed = True
-                            break
-
-                    if not allowed:
-                        # Note: Using module-level log since this is a static validation method
-                        # Will be converted to self.logger when this becomes an instance method
-                        logger = logging.getLogger(__name__)
-                        logger.warning(
-                            f"Command '{base_command}' not in whitelist. Command: {command[:100]}"
-                        )
-                        raise SecurityError(
-                            f"Command '{base_command}' is not in the allowed command whitelist"
-                        )
-
-            # Never use shell=True for security
+            # Never use shell=True (prevents accidental complexity)
             return cmd_list, False
 
         except ValueError as e:
             # If shlex.split fails, the command is malformed
-            # Do not fall back to shell=True - this is a security risk
-            # Note: Using module-level log since this is a static validation method
-            logger = logging.getLogger(__name__)
-            logger.error(f"Failed to parse command safely: {command[:100]}")
+            self.logger.error(f"Failed to parse command: {command[:100]}")
             raise SecurityError(
-                f"Command could not be parsed safely and was blocked: {e!s}"
+                f"Command could not be parsed: {e!s}"
             ) from e
 
     @override
@@ -192,17 +128,25 @@ class LauncherWorker(ThreadSafeWorker):
                 except (OSError, ValueError):
                     pass  # Stream closed or process terminated
 
-            # Start daemon threads to drain stdout and stderr
+            # Start threads to drain stdout and stderr (will be joined in cleanup)
             # Type guard: _process is guaranteed to be non-None after Popen() call
             assert self._process is not None
-            stdout_thread = threading.Thread(
-                target=drain_stream, args=(self._process.stdout,), daemon=True
+
+            # Create non-daemon threads for stream draining (must join explicitly)
+            self._stdout_thread = threading.Thread(
+                target=drain_stream,
+                args=(self._process.stdout,),
+                daemon=False,
+                name=f"stdout-drain-{self.launcher_id}"
             )
-            stderr_thread = threading.Thread(
-                target=drain_stream, args=(self._process.stderr,), daemon=True
+            self._stderr_thread = threading.Thread(
+                target=drain_stream,
+                args=(self._process.stderr,),
+                daemon=False,
+                name=f"stderr-drain-{self.launcher_id}"
             )
-            stdout_thread.start()
-            stderr_thread.start()
+            self._stdout_thread.start()
+            self._stderr_thread.start()
 
             # Monitor process with periodic checks for stop requests
             while not self.is_stop_requested():
@@ -262,34 +206,53 @@ class LauncherWorker(ThreadSafeWorker):
             )
 
     def _cleanup_process(self) -> None:
-        """Clean up process resources."""
+        """Clean up process resources with force kill fallback."""
         if self._process:
             # Ensure process is terminated
             if self._process.poll() is None:
                 try:
                     self._terminate_process()
-                    # Only set to None if termination succeeded or process is dead
-                    if self._process.poll() is not None:
+
+                    # Wait for termination with timeout
+                    try:
+                        _ = self._process.wait(timeout=2)
                         self._process = None
-                    else:
-                        # Process still alive after termination attempt
+                    except subprocess.TimeoutExpired:
+                        # Type guard: process is guaranteed non-None in except block
+                        assert self._process is not None
+                        # Last resort: force kill
                         self.logger.error(
-                            f"Failed to terminate process for launcher '{self.launcher_id}', "
-                              f"process {self._process.pid} may be orphaned"
+                            f"Process {self._process.pid} failed graceful termination for '{self.launcher_id}', forcing kill"
                         )
-                        # Still set to None to avoid repeated termination attempts
-                        # but log the issue for debugging
+                        self._process.kill()
+                        _ = self._process.wait(timeout=1)
                         self._process = None
+
                 except Exception as e:
-                    self.logger.error(
-                        f"Exception during process cleanup for launcher '{self.launcher_id}': {e}, "
-                          "process may be orphaned"
+                    # Type guard: process is guaranteed non-None here
+                    assert self._process is not None
+                    self.logger.critical(
+                        f"Failed to clean up process {self._process.pid} for '{self.launcher_id}': {e}, manual intervention may be required"
                     )
-                    # Set to None to avoid repeated attempts but log the failure
-                    self._process = None
+                    # DO NOT set to None - retain reference for monitoring/debugging
             else:
                 # Process already terminated
                 self._process = None
+
+        # Join drain threads (they'll exit when streams close)
+        if self._stdout_thread and self._stdout_thread.is_alive():
+            self._stdout_thread.join(timeout=2.0)
+            if self._stdout_thread.is_alive():
+                self.logger.warning(
+                    f"stdout drain thread still alive after 2s timeout for '{self.launcher_id}'"
+                )
+
+        if self._stderr_thread and self._stderr_thread.is_alive():
+            self._stderr_thread.join(timeout=2.0)
+            if self._stderr_thread.is_alive():
+                self.logger.warning(
+                    f"stderr drain thread still alive after 2s timeout for '{self.launcher_id}'"
+                )
 
     @override
     def request_stop(self) -> bool:

@@ -12,9 +12,10 @@ import hashlib
 import logging
 import os
 import sys
+import threading
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, cast, final
+from typing import TYPE_CHECKING, final
 
 # Third-party imports
 from PySide6.QtCore import QMutex, QMutexLocker, QObject, Signal
@@ -205,7 +206,8 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
     # Singleton instance
     _instance = None
-    _lock = QMutex()  # Qt mutex for thread-safe singleton access
+    _lock = threading.Lock()  # Use Python's threading.Lock for singleton access
+    _initialized = False  # Class-level flag to track singleton initialization
 
     # Qt signals
     command_completed = Signal(str, object)  # command_id, result
@@ -225,7 +227,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
         """
         # Fast path - no lock if already initialized
         if cls._instance is None:
-            with QMutexLocker(cls._lock):
+            with cls._lock:
                 # Double-check inside lock to prevent race condition
                 if cls._instance is None:
                     instance = super().__new__(cls)
@@ -239,16 +241,14 @@ class ProcessPoolManager(LoggingMixin, QObject):
             max_workers: Maximum concurrent workers
             sessions_per_type: Number of sessions to maintain per type for parallelism
         """
-        # Use instance-level flag to prevent re-initialization
-        # This is set AFTER initialization completes
-        if hasattr(self, "_init_done") and self._init_done:
-            return
-
         # Lock to ensure only one thread initializes
-        with QMutexLocker(ProcessPoolManager._lock):
-            # Double-check inside lock
-            if hasattr(self, "_init_done") and self._init_done:
+        with ProcessPoolManager._lock:
+            # Check if already initialized
+            if ProcessPoolManager._initialized:
                 return
+
+            # Set flag FIRST before any resource allocation to prevent race condition
+            ProcessPoolManager._initialized = True
 
             super().__init__()
 
@@ -271,7 +271,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
             self._mutex = QMutex()
             self._shutdown_requested = False
 
-            # Mark initialization as complete (must be last)
+            # Mark initialization as complete
             self._init_done = True
 
         self.logger.info(f"ProcessPoolManager initialized with {max_workers} workers")
@@ -544,35 +544,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
         except Exception as e:
             self.logger.warning(f"Error clearing session tracking: {e}")
 
-        # Stage 2: Cancel pending futures if possible
-        # Note: Access to ThreadPoolExecutor internals is intentional for graceful shutdown
-        # These are private attributes and not part of the public API.
-        # Type checking is disabled for this block because we're accessing _pending_work_items
-        # which is an internal implementation detail of ThreadPoolExecutor.
-        try:
-            if hasattr(self._executor, "_pending_work_items"):
-                # Access ThreadPoolExecutor._pending_work_items (private API)
-                # Required for proper cleanup of pending futures on shutdown
-                # Type checking disabled: not in public API but stable across Python versions
-                pending_items_raw = self._executor._pending_work_items  # pyright: ignore[reportAttributeAccessIssue]
-                pending_items = cast("dict[object, object]", pending_items_raw)
-                pending_count = len(pending_items)
-                if pending_count > 0:
-                    self.logger.debug(f"Cancelling {pending_count} pending futures")
-                    # Cancel all pending futures
-                    for work_item in pending_items.values():
-                        if hasattr(work_item, "future"):
-                            # Access work_item.future (private ThreadPoolExecutor API)
-                            # Required to cancel pending futures during shutdown
-                            future = cast(
-                                "concurrent.futures.Future[object]",
-                                work_item.future,  # pyright: ignore[reportAttributeAccessIssue]
-                            )
-                            _ = future.cancel()
-        except Exception as e:
-            self.logger.debug(f"Could not cancel pending futures: {e}")
-
-        # Stage 3: Graceful executor shutdown with enhanced monitoring
+        # Stage 2: Graceful executor shutdown using public API
         shutdown_successful = False
         try:
             self.logger.debug("Initiating ThreadPoolExecutor shutdown")
@@ -592,7 +564,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
         except Exception as e:
             self.logger.error(f"Error during ProcessPoolManager executor shutdown: {e}")
 
-        # Stage 4: Clean up any remaining resources
+        # Stage 3: Clean up any remaining resources
         try:
             # Clear caches (note: _cache is the actual attribute, not _command_cache)
             if hasattr(self, "_cache"):

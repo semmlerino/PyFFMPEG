@@ -137,12 +137,16 @@ class TestInitialization:
 
 
 class TestCommandSanitization:
-    """Test _sanitize_command method for security validation."""
+    """Test _sanitize_command method for command parsing.
 
-    def test_sanitize_allowed_command_simple(
+    Note: Security validation (whitelisting, pattern checking) was removed per
+    CLAUDE.md security posture for single-user trusted tool.
+    """
+
+    def test_sanitize_command_simple(
         self, qapp: QApplication, worker_id: str
     ) -> None:
-        """Test sanitization of simple allowed command."""
+        """Test parsing of simple command."""
         worker = LauncherWorker(worker_id, "nuke")
         try:
             cmd_list, use_shell = worker._sanitize_command("nuke script.nk")
@@ -152,10 +156,10 @@ class TestCommandSanitization:
             worker.safe_stop()
             worker.deleteLater()
 
-    def test_sanitize_allowed_command_with_path(
+    def test_sanitize_command_with_path(
         self, qapp: QApplication, worker_id: str
     ) -> None:
-        """Test sanitization of command with full path."""
+        """Test parsing of command with full path."""
         worker = LauncherWorker(worker_id, "nuke")
         try:
             cmd_list, use_shell = worker._sanitize_command(
@@ -168,10 +172,10 @@ class TestCommandSanitization:
             worker.safe_stop()
             worker.deleteLater()
 
-    def test_sanitize_allowed_command_3de(
+    def test_sanitize_command_3de(
         self, qapp: QApplication, worker_id: str
     ) -> None:
-        """Test sanitization of 3DE command."""
+        """Test parsing of 3DE command."""
         worker = LauncherWorker(worker_id, "3de")
         try:
             cmd_list, use_shell = worker._sanitize_command("3de scene.3de")
@@ -181,111 +185,15 @@ class TestCommandSanitization:
             worker.safe_stop()
             worker.deleteLater()
 
-    def test_sanitize_allowed_command_maya(
+    def test_sanitize_command_maya(
         self, qapp: QApplication, worker_id: str
     ) -> None:
-        """Test sanitization of Maya command."""
+        """Test parsing of Maya command."""
         worker = LauncherWorker(worker_id, "maya")
         try:
             cmd_list, use_shell = worker._sanitize_command("maya -file scene.ma")
             assert cmd_list == ["maya", "-file", "scene.ma"]
             assert use_shell is False
-        finally:
-            worker.safe_stop()
-            worker.deleteLater()
-
-    def test_sanitize_rejects_dangerous_rm_command(
-        self, qapp: QApplication, worker_id: str
-    ) -> None:
-        """Test sanitization rejects dangerous rm pattern."""
-        worker = LauncherWorker(worker_id, "nuke")
-        try:
-            with pytest.raises(SecurityError, match="dangerous pattern"):
-                worker._sanitize_command("nuke script.nk; rm -rf /")
-        finally:
-            worker.safe_stop()
-            worker.deleteLater()
-
-    def test_sanitize_rejects_dangerous_sudo_command(
-        self, qapp: QApplication, worker_id: str
-    ) -> None:
-        """Test sanitization rejects sudo pattern."""
-        worker = LauncherWorker(worker_id, "nuke")
-        try:
-            with pytest.raises(SecurityError, match="dangerous pattern"):
-                worker._sanitize_command("nuke && sudo rm file")
-        finally:
-            worker.safe_stop()
-            worker.deleteLater()
-
-    def test_sanitize_rejects_command_substitution_backticks(
-        self, qapp: QApplication, worker_id: str
-    ) -> None:
-        """Test sanitization rejects command substitution with backticks."""
-        worker = LauncherWorker(worker_id, "nuke")
-        try:
-            with pytest.raises(SecurityError, match="dangerous pattern"):
-                worker._sanitize_command("nuke `whoami`.nk")
-        finally:
-            worker.safe_stop()
-            worker.deleteLater()
-
-    def test_sanitize_rejects_command_substitution_dollar(
-        self, qapp: QApplication, worker_id: str
-    ) -> None:
-        """Test sanitization rejects command substitution with $()."""
-        worker = LauncherWorker(worker_id, "nuke")
-        try:
-            with pytest.raises(SecurityError, match="dangerous pattern"):
-                worker._sanitize_command("nuke $(ls).nk")
-        finally:
-            worker.safe_stop()
-            worker.deleteLater()
-
-    def test_sanitize_rejects_variable_expansion(
-        self, qapp: QApplication, worker_id: str
-    ) -> None:
-        """Test sanitization rejects dangerous variable expansion."""
-        worker = LauncherWorker(worker_id, "nuke")
-        try:
-            with pytest.raises(SecurityError, match="dangerous pattern"):
-                worker._sanitize_command("nuke ${PATH}.nk")
-        finally:
-            worker.safe_stop()
-            worker.deleteLater()
-
-    def test_sanitize_rejects_dangerous_redirect(
-        self, qapp: QApplication, worker_id: str
-    ) -> None:
-        """Test sanitization rejects dangerous redirect patterns."""
-        worker = LauncherWorker(worker_id, "nuke")
-        try:
-            with pytest.raises(SecurityError, match="dangerous pattern"):
-                worker._sanitize_command("nuke > /dev/sda")
-        finally:
-            worker.safe_stop()
-            worker.deleteLater()
-
-    def test_sanitize_rejects_hidden_rm_command(
-        self, qapp: QApplication, worker_id: str
-    ) -> None:
-        """Test sanitization rejects hidden rm with redirect."""
-        worker = LauncherWorker(worker_id, "nuke")
-        try:
-            with pytest.raises(SecurityError, match="dangerous pattern"):
-                worker._sanitize_command("nuke 2>&1 >/dev/null rm file")
-        finally:
-            worker.safe_stop()
-            worker.deleteLater()
-
-    def test_sanitize_rejects_non_whitelisted_command(
-        self, qapp: QApplication, worker_id: str
-    ) -> None:
-        """Test sanitization rejects command not in whitelist."""
-        worker = LauncherWorker(worker_id, "bash")
-        try:
-            with pytest.raises(SecurityError, match="not in the allowed command whitelist"):
-                worker._sanitize_command("bash -c 'echo hello'")
         finally:
             worker.safe_stop()
             worker.deleteLater()
@@ -296,7 +204,7 @@ class TestCommandSanitization:
         """Test sanitization rejects malformed command that shlex cannot parse."""
         worker = LauncherWorker(worker_id, "nuke")
         try:
-            with pytest.raises(SecurityError, match="could not be parsed safely"):
+            with pytest.raises(SecurityError, match="could not be parsed"):
                 worker._sanitize_command('nuke "unclosed quote')
         finally:
             worker.safe_stop()
@@ -433,9 +341,15 @@ class TestWorkerExecution:
             # Verify both threads were started
             assert mock_thread.start.call_count == 2
 
-            # Verify daemon flag
+            # Verify daemon flag (changed to False to prevent thread leaks)
             for call_args in mock_thread_cls.call_args_list:
-                assert call_args[1]["daemon"] is True
+                assert call_args[1]["daemon"] is False
+
+            # Verify threads have names for debugging
+            thread_names = [call_args[1].get("name", "") for call_args in mock_thread_cls.call_args_list]
+            assert len(thread_names) == 2
+            assert any("stdout-drain" in name for name in thread_names)
+            assert any("stderr-drain" in name for name in thread_names)
         finally:
             worker.safe_stop()
             worker.deleteLater()
@@ -704,21 +618,31 @@ class TestProcessTermination:
         qapp: QApplication,
         worker_id: str,
     ) -> None:
-        """Test _cleanup_process logs warning for orphaned process."""
+        """Test _cleanup_process with force kill fallback."""
         worker = LauncherWorker(worker_id, "nuke")
 
         try:
             mock_process = Mock()
             mock_process.pid = 99999
             mock_process.poll.return_value = None  # Still running
-            mock_process.wait.side_effect = subprocess.TimeoutExpired("cmd", 10)
-            worker._process = mock_process
 
-            # Should log error but not raise
-            worker._cleanup_process()
+            # Mock _terminate_process to succeed without issue
+            with patch.object(worker, "_terminate_process"):
+                # wait() in _cleanup_process times out, then kill+wait succeeds
+                mock_process.wait.side_effect = [
+                    subprocess.TimeoutExpired("cmd", 2),  # Graceful timeout in _cleanup
+                    None,  # Kill succeeds
+                ]
+                worker._process = mock_process
 
-            # Process should still be set to None to prevent repeated attempts
-            assert worker._process is None
+                # Should log error but force kill and succeed
+                worker._cleanup_process()
+
+                # Verify force kill was attempted
+                mock_process.kill.assert_called_once()
+
+                # Process should be set to None after successful force kill
+                assert worker._process is None
         finally:
             worker.safe_stop()
             worker.deleteLater()
