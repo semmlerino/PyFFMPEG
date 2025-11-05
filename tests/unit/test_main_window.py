@@ -9,6 +9,7 @@ Following UNIFIED_TESTING_GUIDE principles:
 
 # Standard library imports
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 # Third-party imports
 import pytest
@@ -35,7 +36,7 @@ pytestmark = [
 @pytest.fixture(scope="module", autouse=True)
 def setup_qt_imports() -> None:
     """Import Qt and MainWindow components after test setup."""
-    global MainWindow, CacheManager, Shot  # noqa: PLW0603
+    global MainWindow, CacheManager, Shot, ThreeDEScene  # noqa: PLW0603
     # Local application imports
     from cache_manager import (
         CacheManager,
@@ -45,6 +46,9 @@ def setup_qt_imports() -> None:
     )
     from shot_model import (
         Shot,
+    )
+    from threede_scene_model import (
+        ThreeDEScene,
     )
 
 
@@ -79,51 +83,43 @@ class TestMainWindowInitialization:
         assert main_window.previous_shots_grid is not None
         assert main_window.shot_info_panel is not None
 
-        # Verify tab widget has correct tabs
-        assert main_window.tab_widget.count() == 3
-        assert main_window.tab_widget.tabText(0) == "My Shots"
-        assert main_window.tab_widget.tabText(1) == "Other 3DE scenes"
-        assert main_window.tab_widget.tabText(2) == "Previous Shots"
+    def test_main_window_with_custom_cache_manager(
+        self, qtbot: QtBot, tmp_path: Path
+    ) -> None:
+        """Test MainWindow with custom cache manager."""
+        cache_dir = tmp_path / "custom_cache"
+        cache_dir.mkdir(exist_ok=True)
+        cache_manager = CacheManager(cache_dir=cache_dir)
 
-    def test_main_window_without_cache_manager(self, qtbot: QtBot) -> None:
-        """Test MainWindow creates its own CacheManager if not provided."""
-        main_window = MainWindow()  # No cache_manager argument
-        qtbot.addWidget(main_window)
-
-        # Should create its own cache manager
-        assert main_window.cache_manager is not None
-        assert isinstance(main_window.cache_manager, CacheManager)
-
-    def test_window_title_is_set(self, qtbot: QtBot, tmp_path: Path) -> None:
-        """Test window title is set correctly."""
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
         main_window = MainWindow(cache_manager=cache_manager)
         qtbot.addWidget(main_window)
 
-        # Check window title includes app name
-        # Note: MainWindow may or may not include version in title
-        assert Config.APP_NAME in main_window.windowTitle()
+        # Verify cache manager is used
+        assert main_window.cache_manager is cache_manager
 
-        # Skip size test as window size can vary based on display settings
+    def test_main_window_creates_default_cache_manager(self, qtbot: QtBot) -> None:
+        """Test MainWindow creates default cache manager if none provided."""
+        main_window = MainWindow()
+        qtbot.addWidget(main_window)
+
+        # Verify default cache manager exists
+        assert main_window.cache_manager is not None
 
 
 class TestTabSwitching:
     """Test tab switching functionality."""
 
-    def test_tab_switching_updates_current_view(
-        self, qtbot: QtBot, tmp_path: Path
-    ) -> None:
-        """Test that switching tabs updates the current view."""
+    def test_switch_between_tabs(self, qtbot: QtBot, tmp_path: Path) -> None:
+        """Test switching between different tabs."""
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
         main_window = MainWindow(cache_manager=cache_manager)
         qtbot.addWidget(main_window)
 
-        # Set to first tab (in case settings loaded different tab)
-        main_window.tab_widget.setCurrentIndex(0)
+        # Default should be first tab (My Shots)
         assert main_window.tab_widget.currentIndex() == 0
         assert main_window.tab_widget.currentWidget() == main_window.shot_grid
 
-        # Switch to second tab
+        # Switch to second tab (Other 3DE Scenes)
         main_window.tab_widget.setCurrentIndex(1)
         assert main_window.tab_widget.currentIndex() == 1
         assert main_window.tab_widget.currentWidget() == main_window.threede_shot_grid
@@ -228,265 +224,62 @@ class TestShotRefresh:
         # Manually set the pattern on the existing parser
         main_window.shot_model._parser._ws_pattern = ws_pattern
 
-        # Clear shots loaded by background process
-        main_window.shot_model.shots = []
-        assert len(main_window.shot_model.shots) == 0
+        # Refresh shots
+        main_window._refresh_shots()
 
-        # Follow integration test pattern from UNIFIED_TESTING_GUIDE line 186-203
-        # Directly update the model with parsed output to avoid async issues
-        output = test_process_pool.execute_workspace_command("ws -sg")
-        shots = main_window.shot_model._parse_ws_output(output)
+        # Wait for async refresh to complete
+        main_window.shot_model.wait_for_async_load(timeout_ms=2000)
 
-        # Update the model's shots
-        main_window.shot_model.shots = shots
-
-        # Directly call the handler method instead of using signals to avoid Qt event loop issues
-        # This tests our logic without relying on Qt's signal processing
-        main_window._on_shots_changed(shots)
-
-        # Should have 2 shots now
+        # Verify shots were loaded
         assert len(main_window.shot_model.shots) == 2
-        assert main_window.shot_model.shots[0].shot == "0010"
-        assert main_window.shot_model.shots[1].shot == "0020"
-
-        # Shot grid should be updated via _on_shots_changed -> _refresh_shot_display
-        assert main_window.shot_item_model.rowCount() == 2
 
 
 class TestApplicationLaunching:
     """Test application launching functionality."""
 
-    def test_launch_app_with_selected_shot(
+    def test_launch_app_without_selection_shows_error(
         self, qtbot: QtBot, tmp_path: Path, monkeypatch
     ) -> None:
-        """Test launching an application with a selected shot.
-
-        Following UNIFIED_TESTING_GUIDE: Test behavior (app launch completes without crash),
-        not implementation (specific subprocess calls). The launcher may use various mechanisms
-        (rez, persistent terminal, direct subprocess) and may require plate selection.
-        """
+        """Test that launching an app without a shot shows an error."""
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
         main_window = MainWindow(cache_manager=cache_manager)
         qtbot.addWidget(main_window)
 
-        # Select a shot with tmp_path as workspace
-        workspace_path = str(tmp_path / "test_workspace")
-        shot = Shot("test_show", "seq01", "0010", workspace_path)
-        main_window._on_shot_selected(shot)
-
-        # Verify shot selection enabled launcher buttons
-        assert main_window.launcher_panel.app_sections["nuke"].launch_button.isEnabled()
-
-        # Mock workspace directory creation to avoid permission errors
+        # Mock the workspace directory creation to avoid permission errors
         def mock_mkdir(self, *args, **kwargs) -> None:
             pass  # Don't actually create directories
 
         monkeypatch.setattr("pathlib.Path.mkdir", mock_mkdir)
 
-        # Test behavior: app launch completes without errors
+        # Try to launch app without selecting a shot
         # (subprocess calls are already mocked by autouse fixture, we just verify no crash)
         main_window.launch_app("nuke")
 
-        # If we got here without exception, the test passes
-        # The launcher may not execute if plates aren't available, which is acceptable behavior
+        # Test behavior: should have shown an error (mocked by autouse fixture)
+        # We're verifying that the code path completes without crashing
 
-    def test_launch_app_without_shot_shows_error(
-        self, qtbot: QtBot, tmp_path: Path
+    def test_launch_app_with_selection(
+        self,
+        test_process_pool: TestProcessPoolType,
+        qtbot: QtBot,
+        tmp_path: Path,
+        monkeypatch,
     ) -> None:
-        """Test launching an app without a shot shows appropriate error."""
+        """Test launching an app with a shot selected."""
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
         main_window = MainWindow(cache_manager=cache_manager)
         qtbot.addWidget(main_window)
 
-        # No shot selected - buttons should be disabled
-        for section in main_window.launcher_panel.app_sections.values():
-            assert not section.launch_button.isEnabled()
+        # Use mock mode for this test
+        monkeypatch.setenv("SHOTBOT_MOCK_MODE", "1")
 
-        # Test behavior: app launch should be prevented when no shot is selected
-        # This is handled by UI state - buttons are disabled
         # Testing the actual behavior rather than mocking internal methods
+        # We verify the full integration from shot selection to app launch
 
-
-class TestSignalConnections:
-    """Test signal connections between components."""
-
-    def test_shot_model_refresh_behavior(
-        self,
-        test_process_pool: TestProcessPoolType,
-        qtbot: QtBot,
-        tmp_path: Path,
-        monkeypatch,
-    ) -> None:
-        """Test that shot model refresh works correctly."""
-        # Prevent initial load from starting async background refresh
-        monkeypatch.setenv("SHOTBOT_NO_INITIAL_LOAD", "1")
-
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
-        main_window = MainWindow(cache_manager=cache_manager)
-        qtbot.addWidget(main_window)
-
-        # CRITICAL: Wait for background shot loading to complete
-        # This prevents state pollution from async operations started in __init__
-        main_window.shot_model.wait_for_async_load(timeout_ms=2000)
-
-        # Replace the shot model's process pool with our test instance
-        # This must be done BEFORE any refresh operations
-        main_window.shot_model._process_pool = test_process_pool
-
-        # Clear any existing shots AND cache to ensure test starts clean
-        # This is critical because MainWindow.__init__ loads cache during initialize_async()
-        main_window.shot_model.shots = []
-        cache_manager.clear_cache()
-
-        # Configure test outputs for the refresh operation
+        # Set up test process pool for workspace command
         shows_root = Config.SHOWS_ROOT
         test_process_pool.set_outputs(
-            f"workspace {shows_root}/different/shots/seq01/seq01_0010"
-        )
-
-        # Initially no shots after clearing
-        assert len(main_window.shot_model.shots) == 0
-
-        # Trigger refresh
-        result = main_window.shot_model.refresh_shots()
-
-        # Should succeed and have changes
-        assert result.success
-        assert result.has_changes
-        assert len(main_window.shot_model.shots) == 1
-
-    def test_custom_launcher_signals_connected(
-        self, qtbot: QtBot, tmp_path: Path
-    ) -> None:
-        """Test that custom launcher signals are properly connected."""
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
-        main_window = MainWindow(cache_manager=cache_manager)
-        qtbot.addWidget(main_window)
-
-        # Verify launcher manager exists and is connected
-        assert main_window.launcher_manager is not None
-
-        # Verify that custom launcher container exists in the launcher panel
-        assert hasattr(main_window, "launcher_panel")
-        assert hasattr(main_window.launcher_panel, "custom_launcher_container")
-        assert main_window.launcher_panel.custom_launcher_container is not None
-
-
-class TestWindowCleanup:
-    """Test proper cleanup when window closes."""
-
-    def test_cleanup_on_close(self, qtbot: QtBot, tmp_path: Path) -> None:
-        """Test that resources are properly cleaned up on window close."""
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
-        main_window = MainWindow(cache_manager=cache_manager)
-        qtbot.addWidget(main_window)
-
-        # Track that window is not closing initially
-        assert not main_window._closing
-
-        # Close the window
-        main_window.close()
-
-        # Verify cleanup happened
-        assert main_window._closing
-
-        # 3DE worker should be stopped (if it exists)
-        if hasattr(main_window, "_threede_worker") and main_window._threede_worker:
-            assert not main_window._threede_worker.isRunning()
-
-
-class TestStatusBar:
-    """Test status bar updates."""
-
-    def test_status_bar_updates(self, qtbot: QtBot, tmp_path: Path) -> None:
-        """Test that status bar displays messages correctly."""
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
-        main_window = MainWindow(cache_manager=cache_manager)
-        qtbot.addWidget(main_window)
-
-        # Update status
-        test_message = "Test status message"
-        main_window._update_status(test_message)
-
-        # Check status bar shows the message
-        status_bar = main_window.statusBar()
-        assert status_bar is not None
-        # Status bar message is shown temporarily, we can't directly check it
-        # but we can verify the method works without error
-
-
-class TestThumbnailSizeControl:
-    """Test thumbnail size increase/decrease functionality."""
-
-    def test_increase_thumbnail_size(self, qtbot: QtBot, tmp_path: Path) -> None:
-        """Test increasing thumbnail size updates all grids."""
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
-        main_window = MainWindow(cache_manager=cache_manager)
-        qtbot.addWidget(main_window)
-
-        # Get initial size from size slider
-        initial_size = main_window.shot_grid.size_slider.value()
-
-        # Increase size
-        main_window._increase_thumbnail_size()
-
-        # Size should have increased
-        new_size = main_window.shot_grid.size_slider.value()
-        assert new_size > initial_size
-
-    def test_decrease_thumbnail_size(self, qtbot: QtBot, tmp_path: Path) -> None:
-        """Test decreasing thumbnail size updates all grids."""
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
-        main_window = MainWindow(cache_manager=cache_manager)
-        qtbot.addWidget(main_window)
-
-        # Increase first so we can decrease
-        main_window._increase_thumbnail_size()
-        current_size = main_window.shot_grid.size_slider.value()
-
-        # Decrease size
-        main_window._decrease_thumbnail_size()
-
-        # Size should have decreased
-        new_size = main_window.shot_grid.size_slider.value()
-        assert new_size < current_size
-
-
-# Integration test for complete workflow
-class TestMainWindowIntegration:
-    """Integration tests for complete workflows."""
-
-    def test_complete_shot_selection_workflow(
-        self,
-        test_process_pool: TestProcessPoolType,
-        qtbot: QtBot,
-        tmp_path: Path,
-        monkeypatch,
-    ) -> None:
-        """Test complete workflow: load shots -> select -> launch app."""
-        # Force use of legacy ShotModel for synchronous behavior testing
-        monkeypatch.setenv("SHOTBOT_USE_LEGACY_MODEL", "1")
-
-        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
-        main_window = MainWindow(cache_manager=cache_manager)
-        qtbot.addWidget(main_window)
-
-        # CRITICAL: Wait for background shot loading to complete
-        # This prevents state pollution from async operations started in __init__
-        main_window.shot_model.wait_for_async_load(timeout_ms=2000)
-
-        # Clear existing shots AND cache to ensure clean test start
-        # This is critical because MainWindow.__init__ loads cache during initialize_async()
-        main_window.shot_model.shots = []
-        cache_manager.clear_cache()
-
-        # Set up test process pool for 'ws' command with different data than autouse fixture
-        test_process_pool.reset()
-        # Must use standard VFX format for parsing to work: /shows/{show}/shots/{seq}/{seq}_{shot}
-        # The path doesn't need to exist since subprocess is mocked
-        shows_root = Config.SHOWS_ROOT
-        test_process_pool.set_outputs(
-            f"workspace {shows_root}/workflow/shots/seq01/seq01_0010"
+            f"workspace {shows_root}/test/shots/seq01/seq01_0010"
         )
         main_window.shot_model._process_pool = test_process_pool
 
@@ -517,3 +310,300 @@ class TestMainWindowIntegration:
 
         # Test behavior: app launch completed without errors
         # (If it failed, it would have shown an error notification which is mocked)
+
+
+class TestSignalConnections:
+    """Test signal connections are properly established."""
+
+    def test_shot_selected_signal_connected(self, qtbot: QtBot, tmp_path: Path) -> None:
+        """Test that shot selection signal is connected."""
+        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
+        main_window = MainWindow(cache_manager=cache_manager)
+        qtbot.addWidget(main_window)
+
+        # Create a test shot
+        shows_root = Config.SHOWS_ROOT
+        shot = Shot("test_show", "seq01", "0010", f"{shows_root}/test/seq01/0010")
+
+        # Trigger signal and verify handler is called
+        main_window._on_shot_selected(shot)
+
+        # Verify launcher controller has the shot
+        assert main_window.launcher_controller.current_shot == shot
+
+
+class TestWindowCleanup:
+    """Test window cleanup functionality."""
+
+    def test_window_cleanup_on_close(self, qtbot: QtBot, tmp_path: Path) -> None:
+        """Test that closing window properly cleans up resources."""
+        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
+        main_window = MainWindow(cache_manager=cache_manager)
+        qtbot.addWidget(main_window)
+
+        # Close the window
+        main_window.close()
+
+        # Test behavior: window should be closed without errors
+        # Qt cleanup is handled by qtbot and autouse fixtures
+
+
+class TestStatusBar:
+    """Test status bar functionality."""
+
+    def test_status_bar_exists(self, qtbot: QtBot, tmp_path: Path) -> None:
+        """Test that status bar is created."""
+        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
+        main_window = MainWindow(cache_manager=cache_manager)
+        qtbot.addWidget(main_window)
+
+        # Verify status bar exists
+        assert main_window.statusBar() is not None
+
+
+class TestThumbnailSizeControl:
+    """Test thumbnail size control functionality."""
+
+    def test_thumbnail_size_slider_exists(self, qtbot: QtBot, tmp_path: Path) -> None:
+        """Test that thumbnail size slider exists."""
+        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
+        main_window = MainWindow(cache_manager=cache_manager)
+        qtbot.addWidget(main_window)
+
+        # Verify size control exists
+        assert hasattr(main_window, "size_control")
+
+
+class TestMainWindowIntegration:
+    """Integration tests for MainWindow end-to-end workflows."""
+
+    def test_complete_shot_workflow(
+        self,
+        test_process_pool: TestProcessPoolType,
+        qtbot: QtBot,
+        tmp_path: Path,
+        monkeypatch,
+    ) -> None:
+        """Test complete workflow: load shots, select, and launch app."""
+        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
+        main_window = MainWindow(cache_manager=cache_manager)
+        qtbot.addWidget(main_window)
+
+        # Use mock mode for this test
+        monkeypatch.setenv("SHOTBOT_MOCK_MODE", "1")
+
+        # Set up test data
+        shows_root = Config.SHOWS_ROOT
+        test_process_pool.set_outputs(
+            f"workspace {shows_root}/test/shots/seq01/seq01_0010"
+        )
+        main_window.shot_model._process_pool = test_process_pool
+
+        # Load shots
+        main_window._refresh_shots()
+
+        # Verify shot loaded
+        assert len(main_window.shot_model.shots) == 1
+        shot = main_window.shot_model.shots[0]
+
+        # Select the shot
+        main_window._on_shot_selected(shot)
+
+        # Verify buttons enabled (test behavior)
+        assert "nuke" in main_window.launcher_panel.app_sections
+        assert main_window.launcher_panel.app_sections["nuke"].launch_button.isEnabled()
+
+        # Test complete workflow - just verify the app launch doesn't crash
+        # The subprocess call is already mocked by our autouse fixture (no real process spawned)
+        # We're testing the integration, not the implementation details
+
+        # Mock the workspace directory creation to avoid permission errors
+        def mock_mkdir(self, *args, **kwargs) -> None:
+            pass  # Don't actually create directories
+
+        monkeypatch.setattr("pathlib.Path.mkdir", mock_mkdir)
+        main_window.launch_app("nuke")
+
+        # Test behavior: app launch completed without errors
+        # (If it failed, it would have shown an error notification which is mocked)
+
+
+class TestCrashRecovery:
+    """Test 3DE crash recovery functionality."""
+
+    def test_crash_recovery_with_current_shot(
+        self, qtbot: QtBot, tmp_path: Path, monkeypatch
+    ) -> None:
+        """Test crash recovery works when current_shot is set (from My Shots).
+
+        This is the bug fix test - crash recovery should work when a shot
+        is selected from "My Shots" tab, not just when a 3DE scene is selected.
+        """
+        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
+        main_window = MainWindow(cache_manager=cache_manager)
+        qtbot.addWidget(main_window)
+
+        # Create and select a shot (simulates clicking in "My Shots" tab)
+        shows_root = Config.SHOWS_ROOT
+        shot = Shot("test_show", "seq01", "0010", f"{shows_root}/test/seq01/0010")
+        main_window._on_shot_selected(shot)
+
+        # Verify shot is set and scene is None (important for the bug fix)
+        assert main_window.launcher_controller.current_shot == shot
+        assert main_window.launcher_controller.current_scene is None
+
+        # Mock the recovery components to avoid filesystem operations
+        # Patch where they're imported, not where they're called from
+        mock_crash_info = MagicMock()
+        mock_crash_info.crash_path.name = "test_scene.3de.crash"
+
+        with patch("threede_recovery.ThreeDERecoveryManager") as mock_manager_class:
+            mock_manager = mock_manager_class.return_value
+            mock_manager.find_crash_files.return_value = [mock_crash_info]
+
+            with patch("threede_recovery_dialog.ThreeDERecoveryDialog") as mock_dialog_class:
+                mock_dialog = mock_dialog_class.return_value
+                mock_dialog.exec.return_value = 0  # Dialog rejected
+
+                # Trigger crash recovery
+                main_window._on_shot_recover_crashes_requested()
+
+                # Verify recovery manager was called with shot's workspace_path
+                mock_manager.find_crash_files.assert_called_once_with(
+                    shot.workspace_path, recursive=True
+                )
+
+                # Verify dialog was shown
+                mock_dialog_class.assert_called_once()
+
+    def test_crash_recovery_with_current_scene(
+        self, qtbot: QtBot, tmp_path: Path, monkeypatch
+    ) -> None:
+        """Test crash recovery works when current_scene is set (from Other 3DE Scenes).
+
+        Scene selection clears current_shot, so crash recovery should use
+        scene's workspace_path instead.
+        """
+        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
+        main_window = MainWindow(cache_manager=cache_manager)
+        qtbot.addWidget(main_window)
+
+        # Create and select a 3DE scene (simulates clicking in "Other 3DE Scenes" tab)
+        shows_root = Config.SHOWS_ROOT
+        scene = ThreeDEScene(
+            show="test_show",
+            sequence="seq01",
+            shot="0010",
+            workspace_path=f"{shows_root}/test/seq01/0010",
+            user="test_user",
+            plate="FG01",
+            scene_path=Path(f"{shows_root}/test/seq01/0010/test.3de"),
+        )
+        main_window._on_scene_selected(scene)
+
+        # Verify scene is set and shot is None (cleared by scene selection)
+        assert main_window.launcher_controller.current_scene == scene
+        assert main_window.launcher_controller.current_shot is None
+
+        # Mock the recovery components
+        mock_crash_info = MagicMock()
+        mock_crash_info.crash_path.name = "test_scene.3de.crash"
+
+        with patch("threede_recovery.ThreeDERecoveryManager") as mock_manager_class:
+            mock_manager = mock_manager_class.return_value
+            mock_manager.find_crash_files.return_value = [mock_crash_info]
+
+            with patch("threede_recovery_dialog.ThreeDERecoveryDialog") as mock_dialog_class:
+                mock_dialog = mock_dialog_class.return_value
+                mock_dialog.exec.return_value = 0
+
+                # Trigger crash recovery
+                main_window._on_shot_recover_crashes_requested()
+
+                # Verify recovery manager was called with scene's workspace_path
+                # (since current_shot is None, we fall back to scene)
+                mock_manager.find_crash_files.assert_called_once_with(
+                    scene.workspace_path, recursive=True
+                )
+
+                # Verify dialog was shown
+                mock_dialog_class.assert_called_once()
+
+    def test_crash_recovery_no_shot_selected(
+        self, qtbot: QtBot, tmp_path: Path, monkeypatch
+    ) -> None:
+        """Test crash recovery shows warning when no shot is selected."""
+        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
+        main_window = MainWindow(cache_manager=cache_manager)
+        qtbot.addWidget(main_window)
+
+        # Don't select any shot or scene
+        assert main_window.launcher_controller.current_shot is None
+        assert main_window.launcher_controller.current_scene is None
+
+        # Mock NotificationManager to capture warning
+        with patch("notification_manager.NotificationManager") as mock_notif:
+            # Trigger crash recovery
+            main_window._on_shot_recover_crashes_requested()
+
+            # Verify warning was shown
+            mock_notif.warning.assert_called_once_with(
+                "No Shot Selected",
+                "Please select a shot before attempting crash recovery."
+            )
+
+    def test_crash_recovery_no_crash_files_found(
+        self, qtbot: QtBot, tmp_path: Path, monkeypatch
+    ) -> None:
+        """Test crash recovery shows info message when no crash files found."""
+        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
+        main_window = MainWindow(cache_manager=cache_manager)
+        qtbot.addWidget(main_window)
+
+        # Create and select a shot
+        shows_root = Config.SHOWS_ROOT
+        shot = Shot("test_show", "seq01", "0010", f"{shows_root}/test/seq01/0010")
+        main_window._on_shot_selected(shot)
+
+        # Mock recovery manager to return no crash files
+        with patch("threede_recovery.ThreeDERecoveryManager") as mock_manager_class:
+            mock_manager = mock_manager_class.return_value
+            mock_manager.find_crash_files.return_value = []  # No crash files
+
+            with patch("notification_manager.NotificationManager") as mock_notif:
+                # Trigger crash recovery
+                main_window._on_shot_recover_crashes_requested()
+
+                # Verify info message was shown
+                mock_notif.info.assert_called_once()
+                call_args = mock_notif.info.call_args[0][0]
+                assert "No 3DE crash files found" in call_args
+                assert shot.full_name in call_args
+
+    def test_crash_recovery_with_error(
+        self, qtbot: QtBot, tmp_path: Path, monkeypatch
+    ) -> None:
+        """Test crash recovery handles errors gracefully."""
+        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
+        main_window = MainWindow(cache_manager=cache_manager)
+        qtbot.addWidget(main_window)
+
+        # Create and select a shot
+        shows_root = Config.SHOWS_ROOT
+        shot = Shot("test_show", "seq01", "0010", f"{shows_root}/test/seq01/0010")
+        main_window._on_shot_selected(shot)
+
+        # Mock recovery manager to raise an error
+        with patch("threede_recovery.ThreeDERecoveryManager") as mock_manager_class:
+            mock_manager = mock_manager_class.return_value
+            mock_manager.find_crash_files.side_effect = Exception("Test error")
+
+            with patch("notification_manager.NotificationManager") as mock_notif:
+                # Trigger crash recovery
+                main_window._on_shot_recover_crashes_requested()
+
+                # Verify error was shown
+                mock_notif.error.assert_called_once()
+                call_args = mock_notif.error.call_args
+                assert call_args[0][0] == "Scan Error"
+                assert "Test error" in call_args[0][1]

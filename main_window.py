@@ -1261,9 +1261,12 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         Scans for crash files in the current shot's workspace and presents
         a recovery dialog if any are found.
         """
-        # Get current shot from launcher controller
+        # Get current shot or scene from launcher controller
+        # Check both since either can provide workspace context
+        current_shot = self.launcher_controller.current_shot
         current_scene = self.launcher_controller.current_scene
-        if not current_scene:
+
+        if not current_shot and not current_scene:
             # Local application imports
             from notification_manager import NotificationManager
             NotificationManager.warning(
@@ -1272,7 +1275,16 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             )
             return
 
-        workspace_path = current_scene.workspace_path
+        # Use shot if available, otherwise derive from scene
+        # At this point, at least one must be non-None due to guard above
+        if current_shot:
+            workspace_path = current_shot.workspace_path
+            full_name = current_shot.full_name
+        else:
+            # current_scene must be non-None here
+            assert current_scene is not None  # Type narrowing
+            workspace_path = current_scene.workspace_path
+            full_name = current_scene.full_name
         self.logger.info(f"Scanning for crash files in shot workspace: {workspace_path}")
 
         # Import recovery components
@@ -1301,7 +1313,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         if not crash_files:
             # Local application imports
             from notification_manager import NotificationManager
-            message = f"No 3DE crash files found in workspace for {current_scene.full_name}."
+            message = f"No 3DE crash files found in workspace for {full_name}."
             NotificationManager.info(message)
             return
 
