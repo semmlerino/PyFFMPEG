@@ -74,6 +74,7 @@ JSONValue: TypeAlias = (
 DEFAULT_TTL_MINUTES = 30
 THUMBNAIL_SIZE = 256
 THUMBNAIL_QUALITY = 85
+STAT_CACHE_TTL = 2.0  # Cache stat results for 2 seconds to reduce filesystem I/O
 
 
 # Incremental merging support
@@ -203,6 +204,9 @@ class CacheManager(LoggingMixin, QObject):
         # Thread safety
         self._lock = QMutex()
 
+        # Stat result cache: {path_str: (size, mtime, cache_time)}
+        self._stat_cache: dict[str, tuple[int, float, float]] = {}
+
         # Setup cache directory
         if cache_dir is None:
             # Standard library imports
@@ -258,11 +262,53 @@ class CacheManager(LoggingMixin, QObject):
     # Thumbnail Caching Methods
     # ========================================================================
 
+    def _get_file_stat_cached(self, path: Path) -> tuple[int, float] | None:
+        """Get file size and mtime with caching to reduce filesystem I/O.
+
+        Args:
+            path: File path to stat
+
+        Returns:
+            Tuple of (size, mtime) or None if file doesn't exist or is inaccessible
+        """
+        import time
+
+        path_str = str(path)
+        current_time = time.time()
+
+        # Check cache first (inside lock for thread safety)
+        with QMutexLocker(self._lock):
+            if path_str in self._stat_cache:
+                size, mtime, cache_time = self._stat_cache[path_str]
+                # Return cached result if still valid
+                if current_time - cache_time < STAT_CACHE_TTL:
+                    return (size, mtime)
+                # Expired - will re-stat below
+                del self._stat_cache[path_str]
+
+        # Cache miss or expired - do actual stat
+        try:
+            stat_result = path.stat()
+            size = stat_result.st_size
+            mtime = stat_result.st_mtime
+
+            # Cache the result (inside lock for thread safety)
+            with QMutexLocker(self._lock):
+                self._stat_cache[path_str] = (size, mtime, current_time)
+
+            return (size, mtime)
+
+        except (OSError, FileNotFoundError):
+            # File doesn't exist or is inaccessible
+            return None
+
     def get_cached_thumbnail(self, show: str, sequence: str, shot: str) -> Path | None:
         """Get path to cached thumbnail if it exists.
 
         Thumbnails are persistent and do not expire - they're only regenerated
         when manually cleared by the user.
+
+        Uses cached stat results to reduce filesystem I/O overhead.
 
         Args:
             show: Show name
@@ -272,18 +318,18 @@ class CacheManager(LoggingMixin, QObject):
         Returns:
             Path to thumbnail or None if not cached
         """
-        with QMutexLocker(self._lock):
-            cache_path = self.thumbnails_dir / show / sequence / f"{shot}_thumb.jpg"
+        # Compute path (no lock needed for this)
+        cache_path = self.thumbnails_dir / show / sequence / f"{shot}_thumb.jpg"
 
-            # Verify file is accessible AND has content (prevents TOCTOU race)
-            try:
-                if cache_path.exists() and cache_path.stat().st_size > 0:
-                    return cache_path
-            except OSError:
-                # File deleted/inaccessible between exists() and stat()
-                return None
+        # Use cached stat to check if file exists and has content
+        stat_result = self._get_file_stat_cached(cache_path)
+        if stat_result is not None:
+            size, _ = stat_result
+            # Return path only if file has content (size > 0)
+            if size > 0:
+                return cache_path
 
-            return None
+        return None
 
     def cache_thumbnail(
         self,
@@ -295,6 +341,9 @@ class CacheManager(LoggingMixin, QObject):
         _timeout: float | None = None,
     ) -> Path | None:
         """Cache a thumbnail from source path.
+
+        Optimized: Lock scope reduced to minimize contention. Most operations
+        (path computation, file I/O, image processing) happen outside the lock.
 
         Args:
             source_path: Source image path
@@ -311,7 +360,7 @@ class CacheManager(LoggingMixin, QObject):
             Path(source_path) if isinstance(source_path, str) else source_path
         )
 
-        # Validate parameters
+        # Validate parameters (no lock needed)
         if not all([show, sequence, shot]):
             error_msg = "Missing required parameters for thumbnail caching"
             self.logger.error(error_msg)
@@ -325,31 +374,37 @@ class CacheManager(LoggingMixin, QObject):
                 },
             )
 
+        # Check source exists (no lock needed)
         if not source_path_obj.exists():
             self.logger.warning(f"Source path does not exist: {source_path_obj}")
             return None
 
+        # Compute paths (no lock needed)
+        output_dir = self.thumbnails_dir / show / sequence
+        output_path = output_dir / f"{shot}_thumb.jpg"
+
+        # Check if already cached using our cached stat (no lock needed)
+        stat_result = self._get_file_stat_cached(output_path)
+        if stat_result is not None:
+            size, _ = stat_result
+            if size > 0:
+                self.logger.debug(f"Using existing thumbnail: {output_path}")
+                return output_path
+
+        # Ensure directory exists (brief lock for thread safety)
         with QMutexLocker(self._lock):
-            # Create output directory
-            output_dir = self.thumbnails_dir / show / sequence
             try:
                 output_dir.mkdir(parents=True, exist_ok=True)
             except (PermissionError, OSError) as e:
                 self.logger.error(f"Failed to create cache directories: {e}")
                 return None
-            output_path = output_dir / f"{shot}_thumb.jpg"
 
-            # Already cached? (thumbnails are persistent)
-            if output_path.exists():
-                self.logger.debug(f"Using existing thumbnail: {output_path}")
-                return output_path
-
-            # Process as standard thumbnail (JPEG/PNG only - no EXR support)
-            try:
-                return self._process_standard_thumbnail(source_path_obj, output_path)
-            except Exception as e:
-                self.logger.error(f"Failed to process thumbnail: {e}")
-                return None
+        # Process thumbnail WITHOUT holding lock (I/O and CPU intensive)
+        try:
+            return self._process_standard_thumbnail(source_path_obj, output_path)
+        except Exception as e:
+            self.logger.error(f"Failed to process thumbnail: {e}")
+            return None
 
     def _process_standard_thumbnail(self, source: Path, output: Path) -> Path:
         """Process standard image formats to thumbnail.
@@ -838,6 +893,9 @@ class CacheManager(LoggingMixin, QObject):
         """Clear all cached data."""
         with QMutexLocker(self._lock):
             try:
+                # Clear stat result cache
+                self._stat_cache.clear()
+
                 # Clear JSON caches
                 for cache_file in [
                     self.shots_cache_file,
