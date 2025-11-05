@@ -112,7 +112,9 @@ class TestThreeDEScene:
         """
         # Clear all utility caches FIRST before any other operations
         # This must happen before creating paths or importing modules
-        from utils import clear_all_caches
+        from utils import (
+            clear_all_caches,
+        )
         clear_all_caches()
 
         # Create real directory structure

@@ -1,6 +1,4 @@
 """Enhanced thumbnail widget for displaying 3DE scene thumbnails with additional info."""
-from typing import override
-
 # Standard library imports
 # Third-party imports
 from PySide6.QtCore import Qt, Signal
@@ -11,6 +9,7 @@ from config import Config
 from logging_mixin import LoggingMixin
 from threede_scene_model import ThreeDEScene
 from thumbnail_widget_base import ThumbnailWidgetBase
+from typing_compat import override
 
 
 # Set up logger for this module
@@ -20,14 +19,14 @@ class ThreeDEThumbnailWidget(LoggingMixin, ThumbnailWidgetBase):
     """Widget displaying a 3DE scene thumbnail with shot, user, and plate info."""
 
     # Signals - maintain backward compatibility
-    clicked = Signal(object)  # ThreeDEScene
-    double_clicked = Signal(object)  # ThreeDEScene
+    clicked: Signal = Signal(object)  # ThreeDEScene
+    double_clicked: Signal = Signal(object)  # ThreeDEScene
 
     def __init__(
         self, scene: ThreeDEScene, size: int = Config.DEFAULT_THUMBNAIL_SIZE
     ) -> None:
         # Store scene reference for backward compatibility
-        self.scene = scene
+        self.scene: ThreeDEScene = scene
         # Initialize instance variables (set in _setup_custom_ui)
         self.shot_label: QLabel | None = None
         self.user_label: QLabel | None = None

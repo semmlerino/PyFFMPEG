@@ -178,7 +178,9 @@ class TestPreviousShotsModel:
         """
         # Mock PreviousShotsWorker creation to use test double
         # Local application imports
-        from tests.test_doubles_previous_shots import FakePreviousShotsWorker
+        from tests.test_doubles_previous_shots import (
+            FakePreviousShotsWorker,
+        )
 
         # Create test worker that will emit signals synchronously
         test_worker = FakePreviousShotsWorker()
@@ -304,7 +306,9 @@ class TestPreviousShotsModel:
     ) -> None:
         """Test error handling during refresh."""
         # Local application imports
-        from tests.test_doubles_previous_shots import FakePreviousShotsWorker
+        from tests.test_doubles_previous_shots import (
+            FakePreviousShotsWorker,
+        )
 
         scan_finished_spy = QSignalSpy(model.scan_finished)
 
@@ -404,7 +408,9 @@ class TestPreviousShotsModel:
     ) -> None:
         """Test cache saving and loading with real CacheManager."""
         # Local application imports
-        from tests.test_doubles_previous_shots import FakePreviousShotsWorker
+        from tests.test_doubles_previous_shots import (
+            FakePreviousShotsWorker,
+        )
 
         model = model_with_real_cache
         test_finder = FakePreviousShotsFinder()
@@ -469,7 +475,9 @@ class TestPreviousShotsModel:
     ) -> None:
         """Test cache clearing functionality."""
         # Local application imports
-        from tests.test_doubles_previous_shots import FakePreviousShotsWorker
+        from tests.test_doubles_previous_shots import (
+            FakePreviousShotsWorker,
+        )
 
         model = model_with_real_cache
         test_shot = create_test_shot()
@@ -513,7 +521,9 @@ class TestPreviousShotsModel:
     ) -> None:
         """Test incremental cache merge behavior."""
         # Local application imports
-        from tests.test_doubles_previous_shots import FakePreviousShotsWorker
+        from tests.test_doubles_previous_shots import (
+            FakePreviousShotsWorker,
+        )
 
         model = PreviousShotsModel(test_shot_model, test_cache_manager)
 
@@ -589,7 +599,9 @@ class TestPreviousShotsModelIntegration:
     ) -> None:
         """Test complete workflow with real components."""
         # Local application imports
-        from tests.test_doubles_previous_shots import FakePreviousShotsWorker
+        from tests.test_doubles_previous_shots import (
+            FakePreviousShotsWorker,
+        )
 
         model, _shot_model, cache_manager = integration_setup
         test_shot = create_test_shot("approved", "seq1", "shot1")

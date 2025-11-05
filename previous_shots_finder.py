@@ -9,12 +9,13 @@ import re
 import subprocess
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, cast, final, override
+from typing import TYPE_CHECKING, cast, final
 
 # Local application imports
 from config import Config, ThreadingConfig
 from shot_finder_base import FindShotsKwargs, ShotDetailsDict, ShotFinderBase
 from shot_model import Shot
+from typing_compat import override
 
 
 if TYPE_CHECKING:
@@ -43,11 +44,11 @@ class PreviousShotsFinder(ShotFinderBase):
         # Pattern matches: .../shows/{show}/shots/{sequence}/{shot_dir}/... or end of path
         # Made flexible to work with any shows root (not just Config.SHOWS_ROOT)
         # Captures: workspace_path, show, sequence, shot_dir
-        self._shot_pattern = re.compile(
+        self._shot_pattern: re.Pattern[str] = re.compile(
             r"(.*?/shows/([^/]+)/shots/([^/]+)/([^/]+))(?:/|$)"
         )
         # Fallback pattern for non-standard naming
-        self._shot_pattern_fallback = re.compile(
+        self._shot_pattern_fallback: re.Pattern[str] = re.compile(
             r"(.*?/shows/([^/]+)/shots/([^/]+)/([^/]+))(?:/|$)"
         )
         self.logger.info(f"PreviousShotsFinder initialized for user: {self.username}")
@@ -187,7 +188,7 @@ class PreviousShotsFinder(ShotFinderBase):
 
         self.logger.info(
             f"Filtered {len(all_user_shots)} user shots to "
-             f"{len(approved_shots)} approved shots"
+              f"{len(approved_shots)} approved shots"
         )
 
         return approved_shots

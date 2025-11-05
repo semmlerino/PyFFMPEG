@@ -73,7 +73,9 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
         """
         super().__init__()
         # Local application imports
-        from cache_manager import CacheManager
+        from cache_manager import (  # noqa: PLC0415 - Lazy import to avoid circular dependency
+            CacheManager,
+        )
 
         self.shots: list[Shot] = []
         self.cache_manager: CacheManager = cache_manager or CacheManager()
@@ -103,7 +105,9 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
             True if cache was loaded, False otherwise
         """
         # Local application imports
-        from type_definitions import Shot  # Import here to avoid circular import
+        from type_definitions import (  # noqa: PLC0415 - Import here to avoid circular import
+            Shot,
+        )
 
         cached_data = self.cache_manager.get_cached_shots()
         if cached_data:
@@ -168,7 +172,7 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
                     # Log what we extracted for debugging
                     self.logger.debug(
                         f"Parsed line {line_num}: workspace_path={workspace_path}, "
-                        f"show={show}, sequence={sequence}, shot={shot}"
+                         f"show={show}, sequence={sequence}, shot={shot}"
                     )
 
                     # Validate extracted components using utility
@@ -185,9 +189,9 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
                         continue
 
                     # Local application imports
-                    from type_definitions import (
+                    from type_definitions import (  # noqa: PLC0415 - Import here to avoid circular import
                         Shot,
-                    )  # Import here to avoid circular import
+                    )
 
                     shots.append(
                         Shot(
@@ -333,7 +337,7 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
 
         self.logger.debug(
             f"Filtered {len(self.shots)} shots to {len(filtered)} "
-            f"(show='{self._filter_show}', text='{self._filter_text}')"
+             f"(show='{self._filter_show}', text='{self._filter_text}')"
         )
         return filtered
 

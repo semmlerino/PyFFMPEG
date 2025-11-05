@@ -100,13 +100,6 @@ class Config:
     REZ_MAYA_PACKAGES: ClassVar[list[str]] = ["maya"]  # Default rez packages for Maya
     REZ_3DE_PACKAGES: ClassVar[list[str]] = ["3de"]  # Default rez packages for 3DE
 
-    # Nuke Undistortion Handling
-    NUKE_UNDISTORTION_MODE: str = (
-        "direct"  # Options: "direct" (open file), "parse" (old method)
-    )
-    NUKE_USE_LOADER_SCRIPT: bool = (
-        True  # Use loader script when combining plate + undistortion
-    )
     NUKE_FIX_OCIO_CRASH: bool = (
         False  # Whether to apply environment fixes to prevent OCIO plugin crashes
     )
@@ -209,7 +202,6 @@ class Config:
 
     # VFX pipeline settings
     DEFAULT_USERNAME: str = "gabriel-h"  # Default username for pipeline paths
-    UNDISTORTION_SUBPATH: str = "mm"  # Subdirectory for undistortion files
 
     # File extensions
     # Thumbnail discovery strategy
@@ -291,34 +283,6 @@ class Config:
         "film_lin",
     ]
 
-    # Undistortion plate discovery configuration
-    UNDISTORTION_PLATE_PREFIXES: ClassVar[list[str]] = [
-        "FG",
-        "BG",
-        "BC",
-        "PL",
-        "COMP",
-    ]  # Plate prefixes to search for undistortion files
-
-    # Undistortion plate priorities (lower value = higher priority)
-    UNDISTORTION_PLATE_PRIORITY: ClassVar[dict[str, float]] = {
-        "FG": 0,  # FG plates highest priority (FG01, FG02, etc.)
-        "PL": 1,  # PL plates second priority (PL01, PL02, PL03 - primary turnover plates)
-        "COMP": 1.5,  # COMP plates - between PL and BG
-        "BG": 2,  # BG plates third priority (BG01, BG02, etc.)
-        "BC": 3,  # BC plates lowest priority (BC01 - background clean plates)
-    }
-
-    UNDISTORTION_BASE_SEGMENTS: ClassVar[list[str]] = [
-        "user",
-        "mm",
-        "3de",
-        "mm-default",
-        "exports",
-        "scene",
-        "bg01",
-        "nuke_lens_distortion",
-    ]
     THREEDE_SCENE_SEGMENTS: ClassVar[list[str]] = ["mm", "3de", "mm-default", "scenes", "scene"]
 
     # Alternative 3DE scene path patterns to try if main pattern fails

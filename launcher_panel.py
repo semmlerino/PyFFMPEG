@@ -443,12 +443,6 @@ class LauncherPanel(QtWidgetMixin, QWidget):
                         default=False,
                     ),
                     CheckboxConfig(
-                        label="Include undistortion nodes",
-                        tooltip="Automatically include the latest undistortion .nk file",
-                        key="include_undistortion",
-                        default=False,
-                    ),
-                    CheckboxConfig(
                         label="Include raw plate",
                         tooltip="Automatically create a Read node for the raw plate",
                         key="include_raw_plate",

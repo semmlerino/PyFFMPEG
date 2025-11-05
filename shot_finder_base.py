@@ -78,11 +78,11 @@ class ShotFinderBase(ProgressReportingMixin, ABC):
             raw_username = username or os.environ.get("USER") or os.getlogin()
 
         # Use FinderUtils for username sanitization
-        self.username = FinderUtils.sanitize_username(raw_username)
-        self.user_path_pattern = f"/user/{self.username}"
+        self.username: str = FinderUtils.sanitize_username(raw_username)
+        self.user_path_pattern: str = f"/user/{self.username}"
 
         # Use OptimizedShotParser for improved performance
-        self._parser = OptimizedShotParser()
+        self._parser: OptimizedShotParser = OptimizedShotParser()
 
         # Progress tracking is handled by ProgressReportingMixin
 

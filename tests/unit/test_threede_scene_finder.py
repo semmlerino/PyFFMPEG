@@ -440,8 +440,12 @@ def test_show_root_path_extraction_no_double_slash(monkeypatch) -> None:
     This follows UNIFIED_TESTING_GUIDE by testing behavior with real Shot objects.
     """
     # Local application imports
-    from config import Config
-    from shot_model import Shot
+    from config import (
+        Config,
+    )
+    from shot_model import (
+        Shot,
+    )
 
     # Ensure Config.SHOWS_ROOT is isolated from other tests
     # Use monkeypatch to protect against modifications by parallel tests
@@ -502,11 +506,15 @@ def test_path_parsing_for_deep_nested_structure() -> None:
     This follows UNIFIED_TESTING_GUIDE by testing behavior, not implementation details.
     """
     # Standard library imports
-    from pathlib import Path
+    from pathlib import Path  # noqa: PLC0415 - lazy import to avoid circular dependency
 
     # Local application imports
-    from config import Config
-    from threede_scene_finder import OptimizedThreeDESceneFinder
+    from config import (
+        Config,
+    )
+    from threede_scene_finder import (
+        OptimizedThreeDESceneFinder,
+    )
 
     # Create realistic file path that was causing issues
     target_file = Path(

@@ -21,7 +21,9 @@ def mock_vfx_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     Returns:
         Path to the mock VFX root directory
     """
-    from config import Config
+    from config import (
+        Config,
+    )
 
     vfx_root = tmp_path / "shows"
     vfx_root.mkdir()

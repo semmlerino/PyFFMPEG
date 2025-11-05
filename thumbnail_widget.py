@@ -7,8 +7,6 @@ providing 98.9% memory reduction by eliminating widget creation overhead.
 
 Note: Still used by threede_shot_grid.py which needs migration to Model/View.
 """
-from typing import override
-
 # Standard library imports
 # Third-party imports
 from PySide6.QtCore import Qt, Signal
@@ -19,6 +17,7 @@ from config import Config
 from logging_mixin import LoggingMixin
 from shot_model import Shot
 from thumbnail_widget_base import ThumbnailWidgetBase
+from typing_compat import override
 
 
 # Set up logger for this module
@@ -28,12 +27,12 @@ class ThumbnailWidget(LoggingMixin, ThumbnailWidgetBase):
     """Widget displaying a shot thumbnail and name."""
 
     # Signals - maintain backward compatibility
-    clicked = Signal(object)  # Shot
-    double_clicked = Signal(object)  # Shot
+    clicked: Signal = Signal(object)  # Shot
+    double_clicked: Signal = Signal(object)  # Shot
 
     def __init__(self, shot: Shot, size: int = Config.DEFAULT_THUMBNAIL_SIZE) -> None:
         # Store shot reference for backward compatibility
-        self.shot = shot
+        self.shot: Shot = shot
         # Initialize instance variable (set in _setup_custom_ui)
         self.name_label: QLabel | None = None
         super().__init__(shot, size)

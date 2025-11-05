@@ -318,7 +318,9 @@ class TestPreviousShotsView:
         # Simulate click on item using Qt's selection model
         # This triggers _on_selection_changed which emits the signal
         # Third-party imports
-        from PySide6.QtCore import QModelIndex
+        from PySide6.QtCore import (
+            QModelIndex,
+        )
 
         index = grid_widget._model.index(0, 0) if grid_widget._model else QModelIndex()
         grid_widget.list_view.setCurrentIndex(index)
@@ -350,7 +352,9 @@ class TestPreviousShotsView:
         # Simulate shot selection using Qt's selection model
         # This triggers _on_selection_changed which emits the signal
         # Third-party imports
-        from PySide6.QtCore import QModelIndex
+        from PySide6.QtCore import (
+            QModelIndex,
+        )
 
         index = grid_widget._model.index(0, 0) if grid_widget._model else QModelIndex()
         grid_widget.list_view.setCurrentIndex(index)
@@ -381,7 +385,9 @@ class TestPreviousShotsView:
 
         # Simulate double-click using model index
         # Third-party imports
-        from PySide6.QtCore import QModelIndex
+        from PySide6.QtCore import (
+            QModelIndex,
+        )
 
         index = grid_widget._model.index(0, 0) if grid_widget._model else QModelIndex()
         grid_widget._on_item_double_clicked(index)
@@ -491,7 +497,9 @@ class TestPreviousShotsView:
         # Select the shot using Qt's selection model
         # This triggers _on_selection_changed which updates _selected_shot
         # Third-party imports
-        from PySide6.QtCore import QModelIndex
+        from PySide6.QtCore import (
+            QModelIndex,
+        )
 
         index = grid_widget._model.index(0, 0) if grid_widget._model else QModelIndex()
         grid_widget.list_view.setCurrentIndex(index)
@@ -508,7 +516,9 @@ class TestPreviousShotsViewIntegration:
     ) -> Generator[PreviousShotsView, None, None]:
         """Create view with all real components for integration testing."""
         # Local application imports
-        from shot_model import ShotModel
+        from shot_model import (
+            ShotModel,
+        )
 
         # Real components
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")

@@ -23,7 +23,9 @@ def test_headless_detection() -> None:
     logger.info("=" * 50)
 
     # Local application imports
-    from headless_mode import HeadlessMode
+    from headless_mode import (
+        HeadlessMode,
+    )
 
     # Save original env
     original_env = dict(os.environ)
@@ -72,7 +74,9 @@ def test_headless_qt_config() -> None:
     logger.info("=" * 50)
 
     # Local application imports
-    from headless_mode import HeadlessMode
+    from headless_mode import (
+        HeadlessMode,
+    )
 
     # Save original env
     original_env = dict(os.environ)
@@ -108,10 +112,14 @@ def test_headless_app_creation() -> None:
     logger.info("=" * 50)
 
     # Third-party imports
-    from PySide6.QtCore import QCoreApplication
+    from PySide6.QtCore import (
+        QCoreApplication,
+    )
 
     # Local application imports
-    from headless_mode import HeadlessMode
+    from headless_mode import (
+        HeadlessMode,
+    )
 
     # Check if application already exists
     existing_app = QCoreApplication.instance()
@@ -146,7 +154,9 @@ def test_headless_main_window() -> None:
     logger.info("=" * 50)
 
     # Local application imports
-    from headless_mode import HeadlessMainWindow
+    from headless_mode import (
+        HeadlessMainWindow,
+    )
 
     # Create headless window
     window = HeadlessMainWindow()
@@ -210,7 +220,9 @@ def test_decorators() -> None:
     logger.info("=" * 50)
 
     # Local application imports
-    from headless_mode import HeadlessMode
+    from headless_mode import (
+        HeadlessMode,
+    )
 
     # Save original env
     original_env = dict(os.environ)
@@ -269,7 +281,7 @@ def main() -> None:
     except Exception as e:
         logger.error(f"❌ Unexpected error: {e}")
         # Standard library imports
-        import traceback
+        import traceback  # noqa: PLC0415 - lazy import to avoid circular dependency
 
         traceback.print_exc()
         sys.exit(1)

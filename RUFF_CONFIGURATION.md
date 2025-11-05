@@ -44,7 +44,7 @@ We enable a comprehensive set of rules that catch bugs, enforce modern Python pr
 | Pyflakes | F | Syntax errors and undefined names | Catches bugs early |
 | isort | I | Import sorting | Consistent import organization |
 | pep8-naming | N | Naming conventions | Consistent naming across codebase |
-| pyupgrade | UP | Modern Python syntax | Uses Python 3.12+ features |
+| pyupgrade | UP | Modern Python syntax | Uses Python 3.11+ features |
 | flake8-bugbear | B | Common bug patterns | Catches subtle bugs |
 | flake8-comprehensions | C4 | List/dict comprehension improvements | More Pythonic code |
 | flake8-pytest-style | PT | Pytest best practices | Better test quality |
@@ -121,7 +121,7 @@ Ruff applied 126 automatic fixes in our initial setup:
 ### Safe Fixes Applied
 - **W293**: Removed trailing whitespace on blank lines (83 fixes)
 - **RET504**: Removed unnecessary variable assignments before returns (26 fixes)
-- **UP040/UP046/UP047**: Upgraded to modern Python 3.12 type syntax (7 fixes)
+- **UP040/UP046/UP047**: Upgraded to modern Python 3.11 type syntax (7 fixes)
 - **RUF015**: Optimized unnecessary iterable allocations (4 fixes)
 
 ### Manual Fixes Required

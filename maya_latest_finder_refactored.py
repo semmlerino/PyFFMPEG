@@ -5,10 +5,10 @@ from __future__ import annotations
 # Standard library imports
 import re
 from pathlib import Path
-from typing import override
 
 # Local application imports
 from base_scene_finder import BaseSceneFinder
+from typing_compat import override
 
 
 class MayaLatestFinder(BaseSceneFinder):
@@ -18,7 +18,7 @@ class MayaLatestFinder(BaseSceneFinder):
     """
 
     # Pattern to match version in Maya filenames (e.g., _v001, _v002)
-    VERSION_PATTERN = re.compile(r"_v(\d{3})\.(ma|mb)$")
+    VERSION_PATTERN: re.Pattern[str] = re.compile(r"_v(\d{3})\.(ma|mb)$")
 
     @override
     def get_scene_paths(self, user_dir: Path) -> list[Path]:

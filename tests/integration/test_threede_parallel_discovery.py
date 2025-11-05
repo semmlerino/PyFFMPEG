@@ -44,7 +44,7 @@ class TestParallelDiscoveryIntegration:
     def teardown_method(self) -> None:
         """Clean up test directories."""
         # Standard library imports
-        import shutil
+        import shutil  # noqa: PLC0415 - lazy import to avoid circular dependency
 
         if self.temp_dir.exists():
             shutil.rmtree(self.temp_dir, ignore_errors=True)
@@ -268,7 +268,7 @@ class TestParallelDiscoveryIntegration:
     def test_concurrent_parallel_discovery(self) -> None:
         """Test multiple parallel discoveries running concurrently."""
         # Standard library imports
-        import threading
+        import threading  # noqa: PLC0415 - lazy import to avoid circular dependency
 
         _shows_root, test_shots = self._create_test_vfx_structure()
 
@@ -375,7 +375,7 @@ class TestParallelDiscoveryIntegration:
 
         # Test parallel discovery on larger dataset
         # Standard library imports
-        import time
+        import time  # noqa: PLC0415 - lazy import to avoid circular dependency
 
         start = time.time()
 

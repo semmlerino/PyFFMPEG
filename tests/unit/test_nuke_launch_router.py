@@ -84,42 +84,6 @@ class TestNukeLaunchRouter:
             assert router.complex_launches == 1
             mock_prepare.assert_called_once()
 
-    def test_route_to_complex_with_undistortion(self, router, mock_shot) -> None:
-        """Test routing to complex launcher when undistortion is requested."""
-        with patch.object(
-            router.complex_launcher, "prepare_nuke_command"
-        ) as mock_prepare:
-            mock_prepare.return_value = ("nuke /path/to/script.nk", ["Complex workflow"])
-
-            options = {"open_latest_scene": True, "include_undistortion": True}
-            _command, _messages = router.prepare_nuke_command(
-                mock_shot, "nuke", options, selected_plate="FG01"
-            )
-
-            assert router.simple_launches == 0
-            assert router.complex_launches == 1
-            mock_prepare.assert_called_once()
-
-    def test_route_to_complex_with_both_media_options(self, router, mock_shot) -> None:
-        """Test routing to complex launcher with both media options."""
-        with patch.object(
-            router.complex_launcher, "prepare_nuke_command"
-        ) as mock_prepare:
-            mock_prepare.return_value = ("nuke /path/to/script.nk", ["Complex workflow"])
-
-            options = {
-                "open_latest_scene": True,
-                "include_raw_plate": True,
-                "include_undistortion": True,
-            }
-            _command, _messages = router.prepare_nuke_command(
-                mock_shot, "nuke", options, selected_plate="FG01"
-            )
-
-            assert router.simple_launches == 0
-            assert router.complex_launches == 1
-            mock_prepare.assert_called_once()
-
     def test_no_options_opens_empty_nuke(self, router, mock_shot) -> None:
         """Test that no options results in opening empty Nuke."""
         options = {}

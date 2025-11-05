@@ -40,11 +40,17 @@ pytestmark = [
 @pytest.fixture(scope="module", autouse=True)
 def setup_qt_imports() -> None:
     """Import Qt and MainWindow components after test setup."""
-    global MainWindow, CacheManager, Shot
+    global MainWindow, CacheManager, Shot  # noqa: PLW0603
     # Local application imports
-    from cache_manager import CacheManager
-    from main_window import MainWindow
-    from shot_model import Shot
+    from cache_manager import (
+        CacheManager,
+    )
+    from main_window import (
+        MainWindow,
+    )
+    from shot_model import (
+        Shot,
+    )
 
 
 class TestMainWindowNoHang:
@@ -63,6 +69,10 @@ class TestMainWindowNoHang:
         # Create window with test process pool to avoid real subprocess calls
         main_window = MainWindow(cache_manager=cache_manager)
         qtbot.addWidget(main_window)
+
+        # CRITICAL: Wait for background shot loading to complete
+        # This prevents state pollution from async operations started in __init__
+        main_window.shot_model.wait_for_async_load(timeout_ms=2000)
 
         # Replace process pool with test double
         test_pool = TestProcessPool()
@@ -130,14 +140,18 @@ class TestMainWindowNoHang:
     def test_refresh_shots_with_test_pool(self, safe_main_window) -> None:
         """Test shot refresh with test process pool."""
         # Configure test pool response - use Config.SHOWS_ROOT for proper test isolation
-        from config import Config
+        from config import (
+            Config,
+        )
 
         test_pool = safe_main_window.shot_model._process_pool
         shows_root = Config.SHOWS_ROOT
         test_pool.set_outputs(f"workspace {shows_root}/test_show/shots/seq01/seq01_0010\n")
 
-        # Clear any existing shots
+        # Clear any existing shots AND cache to ensure clean test start
+        # This is critical because MainWindow.__init__ loads cache during initialize_async()
         safe_main_window.shot_model.shots = []
+        safe_main_window.cache_manager.clear_cache()
 
         # Using legacy ShotModel for synchronous behavior in tests
         safe_main_window._refresh_shots()
@@ -196,7 +210,9 @@ class TestApplicationLaunchingNoHang:
         # Mock the NukeWorkspaceManager to avoid creating directories
 
         # Local application imports
-        from nuke_workspace_manager import NukeWorkspaceManager
+        from nuke_workspace_manager import (
+            NukeWorkspaceManager,
+        )
 
         def mock_get_workspace_script_directory(
             workspace_path, user=None, plate="mm-default", pass_name="PL01"

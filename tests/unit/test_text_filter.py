@@ -408,7 +408,9 @@ class TestMainWindowTextFilterHandlers:
     def mock_main_window(self, qtbot: QtBot, monkeypatch: pytest.MonkeyPatch) -> MainWindow:
         """Create a mock MainWindow setup for testing text filter handlers."""
         # Local application imports
-        from main_window import MainWindow
+        from main_window import (
+            MainWindow,
+        )
 
         # Prevent actual window creation
         monkeypatch.setattr(MainWindow, "__init__", lambda _self: None)
@@ -431,7 +433,9 @@ class TestMainWindowTextFilterHandlers:
         )
 
         # Add RefreshOrchestrator for refactored MainWindow
-        from refresh_orchestrator import RefreshOrchestrator
+        from refresh_orchestrator import (
+            RefreshOrchestrator,
+        )
 
         window.refresh_orchestrator = RefreshOrchestrator(window)
 
@@ -443,7 +447,9 @@ class TestMainWindowTextFilterHandlers:
     def test_on_shot_text_filter_requested(self, mock_main_window: MainWindow) -> None:
         """Test the handler for My Shots text filter request."""
         # Local application imports
-        from main_window import MainWindow
+        from main_window import (
+            MainWindow,
+        )
 
         # Set up test shots
         test_shots = [
@@ -469,7 +475,9 @@ class TestMainWindowTextFilterHandlers:
     def test_on_previous_text_filter_requested(self, mock_main_window: MainWindow) -> None:
         """Test the handler for Previous Shots text filter request."""
         # Local application imports
-        from main_window import MainWindow
+        from main_window import (
+            MainWindow,
+        )
 
         # Set up test previous shots
         test_shots = [
@@ -490,7 +498,9 @@ class TestMainWindowTextFilterHandlers:
     def test_text_and_show_filters_together(self, mock_main_window: MainWindow) -> None:
         """Test that text and show filters work together."""
         # Local application imports
-        from main_window import MainWindow
+        from main_window import (
+            MainWindow,
+        )
 
         # Set up test shots
         test_shots = [

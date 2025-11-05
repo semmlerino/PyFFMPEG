@@ -46,6 +46,8 @@ class OptimizedShotParser:
             )
             _PATTERN_CACHE[shows_root] = (ws_pattern, path_pattern)
 
+        self._ws_pattern: re.Pattern[str]
+        self._path_pattern: re.Pattern[str]
         self._ws_pattern, self._path_pattern = _PATTERN_CACHE[shows_root]
 
     def parse_workspace_line(self, line: str) -> ParseResult | None:

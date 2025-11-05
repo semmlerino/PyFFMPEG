@@ -35,18 +35,8 @@ class TestBaseSceneFinder:
         assert finder is not None
         assert finder.VERSION_PATTERN is not None
 
-    def test_requires_version_pattern(self) -> None:
-        """Test that subclass without VERSION_PATTERN raises error."""
-
-        class BadFinder(BaseSceneFinder):
-            def get_scene_paths(self, user_dir: Path) -> list[Path]:
-                return []
-
-            def get_file_extensions(self) -> list[str]:
-                return []
-
-        with pytest.raises(NotImplementedError):
-            BadFinder()
+    # Test removed: VERSION_PATTERN is now enforced by type system (Pattern[str] not Optional)
+    # Subclasses must define VERSION_PATTERN at class level or basedpyright will error
 
     def test_find_latest_scene_with_files(self, tmp_path: Path) -> None:
         """Test finding latest scene with multiple versions."""

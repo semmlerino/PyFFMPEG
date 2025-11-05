@@ -68,15 +68,18 @@ cd ~/projects/shotbot  # Or cd /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot (
 # Run linting
 ~/.local/bin/uv run ruff check .
 
-# Run tests with recommended parallelism (755 tests in ~19s)
-~/.local/bin/uv run pytest tests/ -n 2
-
-# Run tests serially (slower but most stable for Qt tests)
+# Run tests (serial execution by default for Qt stability)
 ~/.local/bin/uv run pytest tests/
+
+# Run tests with parallelism for faster execution (optional)
+~/.local/bin/uv run pytest tests/ -n 2
+~/.local/bin/uv run pytest tests/ -n auto
 ```
 
 **Test Execution Notes**:
-- Use `-n 2` for faster execution with minimal Qt initialization issues
+- Tests run serially by default for maximum Qt stability (configured in pyproject.toml)
+- Use `-n 2` to override and run with 2 workers for faster execution (~50% faster)
+- Use `-n auto` to use all available CPU cores (fastest, but may have Qt state issues)
 - Higher parallelism (`-n 4`, `-n 16`) may cause Qt C++ initialization crashes in WSL
 - Individual test files run reliably with any parallelism level
 - Qt state cleanup between tests is critical - see Qt Widget Guidelines below
@@ -178,7 +181,7 @@ Check the logs in `.post-commit-output/`:
 
 ### Development Environment
 **Core Dependencies**:
-- Python 3.12+ (via uv)
+- Python 3.11+ (via uv)
 - PySide6 (Qt for Python)
 - Pillow (PIL - image processing)
 - psutil (system and process utilities)
@@ -295,17 +298,20 @@ def cleanup_qt_state(qtbot: QtBot):
 
 ### Running Tests
 ```bash
-# Recommended: Parallel with n=2 for speed + stability
-~/.local/bin/uv run pytest tests/ -n 2
-
-# Serial execution (most stable, but slower)
+# Default: Serial execution for Qt stability (configured in pyproject.toml)
 ~/.local/bin/uv run pytest tests/
+
+# Optional: Parallel execution for faster results
+~/.local/bin/uv run pytest tests/ -n 2     # 2 workers (~50% faster)
+~/.local/bin/uv run pytest tests/ -n auto  # All CPU cores (fastest)
 
 # Single test file (safe at any parallelism)
 ~/.local/bin/uv run pytest tests/unit/test_shot_model.py -v
 ```
 
 ### Known Test Issues
+- Tests run serially by default to avoid Qt state pollution between workers
+- Parallel execution (`-n 2`, `-n auto`) may cause Qt state pollution and failures
 - Qt widget tests may crash with `-n 4+` workers due to Qt C++ initialization limits in WSL
 - Ensure all QWidget subclasses follow [Qt Widget Guidelines](#qt-widget-guidelines)
 - Qt state cleanup fixtures are critical for test isolation in parallel execution

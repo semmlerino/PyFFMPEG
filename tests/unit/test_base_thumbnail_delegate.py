@@ -557,7 +557,9 @@ class TestPaintMethod:
         mock_painter = Mock()
         option = QStyleOptionViewItem()
         option.rect = QRect(0, 0, 200, 240)  # type: ignore
-        from PySide6.QtWidgets import QStyle
+        from PySide6.QtWidgets import (
+            QStyle,
+        )
 
         option.state = QStyle.StateFlag(0)  # type: ignore
 
@@ -585,14 +587,18 @@ class TestPaintMethod:
         mock_painter = Mock()
         option = QStyleOptionViewItem()
         option.rect = QRect(0, 0, 200, 240)  # type: ignore
-        from PySide6.QtWidgets import QStyle
+        from PySide6.QtWidgets import (
+            QStyle,
+        )
 
         option.state = QStyle.StateFlag(0)  # type: ignore
 
         delegate.paint(mock_painter, option, index)
 
         # Verify antialiasing enabled
-        from PySide6.QtGui import QPainter
+        from PySide6.QtGui import (
+            QPainter,
+        )
 
         mock_painter.setRenderHint.assert_called_with(QPainter.RenderHint.Antialiasing)
 
@@ -663,7 +669,9 @@ class TestLoadingStates:
 
     def test_get_loading_rows_with_invalid_parent(self, qtbot) -> None:
         """Test _get_loading_rows when parent is not a view."""
-        from PySide6.QtWidgets import QWidget
+        from PySide6.QtWidgets import (
+            QWidget,
+        )
 
         widget = QWidget()
         qtbot.addWidget(widget)
@@ -833,7 +841,9 @@ class TestResourceCleanup:
 
         # Start loading timer by triggering loading indicator draw
         # (simulated by directly creating timer)
-        from PySide6.QtCore import QTimer
+        from PySide6.QtCore import (
+            QTimer,
+        )
 
         delegate._loading_timer = QTimer()
         delegate._loading_timer.start(50)

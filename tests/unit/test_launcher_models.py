@@ -935,7 +935,9 @@ class TestProcessInfo:
     @pytest.fixture
     def mock_process(self) -> Mock:
         """Create a mock subprocess.Popen object."""
-        from unittest.mock import Mock
+        from unittest.mock import (
+            Mock,
+        )
 
         process = Mock()
         process.pid = 12345

@@ -37,7 +37,7 @@ The Shotbot codebase demonstrates **excellent type hint coverage** (99.3% of fun
 
 ```toml
 [tool.basedpyright]
-pythonVersion = "3.12"
+pythonVersion = "3.11"
 typeCheckingMode = "basic"  # ⚠️ Relaxed mode
 
 # Disabled diagnostic rules (misses valuable checks)
@@ -451,7 +451,7 @@ Enable more diagnostic rules to find hidden issues:
 ```toml
 [tool.basedpyright]
 typeCheckingMode = "recommended"  # Upgrade from "basic"
-pythonVersion = "3.12"
+pythonVersion = "3.11"
 
 # Enable key diagnostic rules
 reportUnknownMemberType = "warning"       # Catch Unknown propagation

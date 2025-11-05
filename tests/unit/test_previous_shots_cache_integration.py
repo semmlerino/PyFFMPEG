@@ -158,7 +158,7 @@ class TestPreviousShootsCacheIntegration:
     def test_cache_ttl_behavior(self, cache_manager, temp_cache_dir) -> None:
         """Test cache TTL (Time To Live) behavior."""
         # Standard library imports
-        import os
+        import os  # noqa: PLC0415 - lazy import to avoid circular dependency
 
         # Cache some data
         test_data = [
@@ -241,6 +241,10 @@ class TestPreviousShootsCacheIntegration:
         self, previous_shots_model, qtbot
     ) -> None:
         """Test model saves to cache after refresh."""
+        # Clear cache to ensure test starts clean
+        # This prevents contamination from other tests that may have cached data
+        previous_shots_model._cache_manager.clear_cache()
+
         # Mock finder to return approved shots
         mock_approved = [
             Shot("new_show", "new_seq", "new_shot", "/new/path"),
@@ -248,7 +252,9 @@ class TestPreviousShootsCacheIntegration:
 
         # Use local import for patch since we removed the global import
         # Standard library imports
-        from unittest.mock import patch
+        from unittest.mock import (
+            patch,
+        )
 
         # Need to patch the ParallelShotsFinder class that the worker uses
         with patch(

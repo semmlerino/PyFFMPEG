@@ -42,7 +42,7 @@ class ThreadSafetyValidationTests(unittest.TestCase):
         """Test that threading utilities can be imported successfully."""
         try:
             # Local application imports
-            from threading_utils import (
+            from threading_utils import (  # noqa: PLC0415 - lazy import to avoid circular dependency
                 CancellationEvent,
                 ThreadPoolManager,
                 ThreadSafeProgressTracker,
@@ -69,7 +69,9 @@ class ThreadSafetyValidationTests(unittest.TestCase):
         """Test ThreadSafeProgressTracker eliminates race conditions."""
         try:
             # Local application imports
-            from threading_utils import ThreadSafeProgressTracker
+            from threading_utils import (
+                ThreadSafeProgressTracker,
+            )
         except ImportError:
             self.skipTest("Threading utilities not available")
 
@@ -132,7 +134,9 @@ class ThreadSafetyValidationTests(unittest.TestCase):
         """Test CancellationEvent provides proper cleanup."""
         try:
             # Local application imports
-            from threading_utils import CancellationEvent
+            from threading_utils import (
+                CancellationEvent,
+            )
         except ImportError:
             self.skipTest("Threading utilities not available")
 
@@ -169,7 +173,10 @@ class ThreadSafetyValidationTests(unittest.TestCase):
         """Test ThreadPoolManager provides proper resource cleanup."""
         try:
             # Local application imports
-            from threading_utils import CancellationEvent, ThreadPoolManager
+            from threading_utils import (  # noqa: PLC0415 - lazy import to avoid circular dependency
+                CancellationEvent,
+                ThreadPoolManager,
+            )
         except ImportError:
             self.skipTest("Threading utilities not available")
 
@@ -229,7 +236,9 @@ class ThreadSafetyValidationTests(unittest.TestCase):
         """Test basic performance characteristics."""
         try:
             # Local application imports
-            from threading_utils import ThreadSafeProgressTracker
+            from threading_utils import (
+                ThreadSafeProgressTracker,
+            )
         except ImportError:
             self.skipTest("Threading utilities not available")
 
@@ -298,7 +307,9 @@ class ThreadSafetyValidationTests(unittest.TestCase):
         try:
             # Test that the updated parallel scanner can be imported
             # Local application imports
-            from threede_scene_finder_optimized import OptimizedThreeDESceneFinder
+            from threede_scene_finder_optimized import (
+                OptimizedThreeDESceneFinder,
+            )
 
             # Test that the new parallel method exists
             assert hasattr(

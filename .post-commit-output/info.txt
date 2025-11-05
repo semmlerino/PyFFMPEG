@@ -1,5 +1,5 @@
-Post-commit hook executed at Mon Nov  3 14:10:51 GMT 2025
-Commit: 9757fa1017b6691374f401165baa71a606fb4724
+Post-commit hook executed at Tue Nov  4 10:35:10 GMT 2025
+Commit: 374c110a9012fca74207d593b0c2410bca6694ec
 Branch: master
 Author: GabrielH <gabrhas@gmail.com>
-Message: fix: Remove 49 duplicate signal connections causing F821 undefined name errors
+Message: refactor: Enable complexity rules for code quality assessment

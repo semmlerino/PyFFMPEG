@@ -61,7 +61,9 @@ def make_shot() -> Callable[[str, str, str], Shot]:
     """Factory for creating test shots (UNIFIED_TESTING_GUIDE: Factory pattern)."""
 
     def _make(show: str = "TEST", seq: str = "seq01", shot: str = "0010") -> Shot:
-        from type_definitions import Shot
+        from type_definitions import (
+            Shot,
+        )
 
         # Use correct VFX path format
         return Shot(show, seq, shot, f"{Config.SHOWS_ROOT}/{show}/shots/{seq}/{seq}_{shot}")
@@ -84,8 +86,12 @@ def make_model(
             shots = [make_shot()]
 
         if model_class_name == "ShotItemModel":
-            from shot_item_model import ShotItemModel
-            from shot_model import ShotModel
+            from shot_item_model import (
+                ShotItemModel,
+            )
+            from shot_model import (
+                ShotModel,
+            )
 
             shot_model = ShotModel(cache_manager=cache_manager)
             shot_model._shots = shots
@@ -95,7 +101,10 @@ def make_model(
             return item_model
 
         if model_class_name == "ThreeDEItemModel":
-            from threede_scene_model import ThreeDEScene, ThreeDESceneModel
+            from threede_scene_model import (  # noqa: PLC0415 - lazy import to avoid circular dependency
+                ThreeDEScene,
+                ThreeDESceneModel,
+            )
 
             scene_model = ThreeDESceneModel(load_cache=False)
             # Convert shots to scenes for testing
@@ -112,7 +121,9 @@ def make_model(
                 for s in shots
             ]
             scene_model.scenes = scenes
-            from threede_item_model import ThreeDEItemModel
+            from threede_item_model import (
+                ThreeDEItemModel,
+            )
 
             item_model = ThreeDEItemModel(cache_manager=cache_manager)
             # Properly initialize the item model with scenes
@@ -120,9 +131,15 @@ def make_model(
             return item_model
 
         if model_class_name == "PreviousShotsItemModel":
-            from previous_shots_item_model import PreviousShotsItemModel
-            from previous_shots_model import PreviousShotsModel
-            from shot_model import ShotModel
+            from previous_shots_item_model import (
+                PreviousShotsItemModel,
+            )
+            from previous_shots_model import (
+                PreviousShotsModel,
+            )
+            from shot_model import (
+                ShotModel,
+            )
 
             # PreviousShotsModel requires a shot_model
             shot_model = ShotModel(cache_manager=cache_manager)

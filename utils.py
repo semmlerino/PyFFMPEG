@@ -37,7 +37,6 @@ _cache_disabled = False  # Test isolation flag
 
 def clear_all_caches() -> None:
     """Clear all utility caches - useful for testing or debugging."""
-    global _path_cache
     with _path_cache_lock:
         _path_cache.clear()
     VersionUtils.clear_version_cache()
@@ -48,7 +47,7 @@ def clear_all_caches() -> None:
 
 def disable_caching() -> None:
     """Disable caching completely - useful for testing."""
-    global _cache_disabled
+    global _cache_disabled  # noqa: PLW0603
     _cache_disabled = True
     clear_all_caches()
     logger.debug("Caching disabled for testing")
@@ -56,7 +55,7 @@ def disable_caching() -> None:
 
 def enable_caching() -> None:
     """Re-enable caching after testing."""
-    global _cache_disabled
+    global _cache_disabled  # noqa: PLW0603
     _cache_disabled = False
     logger.debug("Caching re-enabled after testing")
 
@@ -71,7 +70,6 @@ class CacheIsolation:
 
     def __enter__(self) -> CacheIsolation:
         """Enter context with isolated cache."""
-        global _path_cache, _cache_disabled
         # Save original state
         with _path_cache_lock:
             self.original_cache_state = _path_cache.copy()
@@ -89,7 +87,7 @@ class CacheIsolation:
         exc_tb: TracebackType | None,
     ) -> None:
         """Exit context and restore original state."""
-        global _path_cache, _cache_disabled
+        global _cache_disabled  # noqa: PLW0603
         # Restore original state
         with _path_cache_lock:
             _path_cache.clear()
@@ -474,20 +472,6 @@ class PathUtils:
         return PathUtils.build_path(workspace_path, *Config.RAW_PLATE_SEGMENTS)
 
     @staticmethod
-    def build_undistortion_path(workspace_path: str, username: str) -> Path:
-        """Build undistortion base path.
-
-        Args:
-            workspace_path: Shot workspace path
-            username: Username for the path
-
-        Returns:
-            Path to undistortion directory
-        """
-        segments = ["user", username, *Config.UNDISTORTION_BASE_SEGMENTS[1:]]
-        return PathUtils.build_path(workspace_path, *segments)
-
-    @staticmethod
     def build_threede_scene_path(workspace_path: str, username: str) -> Path:
         """Build 3DE scene base path.
 
@@ -570,7 +554,7 @@ class PathUtils:
 
         Uses atomic update strategy to prevent race conditions during cleanup.
         """
-        global _path_cache
+        global _path_cache  # noqa: PLW0603
 
         with _path_cache_lock:
             # Only clean if cache is significantly over limit
@@ -737,7 +721,7 @@ class PathUtils:
                         if jpeg_file and jpeg_file.suffix.lower() in [".jpg", ".jpeg"]:
                             logger.info(
                                 f"Found undistorted JPEG thumbnail: {jpeg_file.name} "
-                                 f"(camera: {plate_name}, version: {latest_version})"
+                                  f"(camera: {plate_name}, version: {latest_version})"
                             )
                             return jpeg_file
             except (OSError, PermissionError) as e:
@@ -852,7 +836,7 @@ class PathUtils:
                                     ]:
                                         logger.info(
                                             f"Found user workspace JPEG: {jpeg_file.name} "
-                                             f"(user: {user_path.name}, output_type: {output_type}, plate: {plate_name}, version: {latest_version})"
+                                              f"(user: {user_path.name}, output_type: {output_type}, plate: {plate_name}, version: {latest_version})"
                                         )
                                         return jpeg_file
                             except (OSError, PermissionError):
@@ -918,7 +902,7 @@ class PathUtils:
                                 if jpeg_file and jpeg_file.suffix.lower() in [".jpg", ".jpeg"]:
                                     logger.info(
                                         f"Found editorial cutref thumbnail: {jpeg_file.name} "
-                                         f"(version: {latest_version}, resolution: {resolution_dir.name})"
+                                          f"(version: {latest_version}, resolution: {resolution_dir.name})"
                                     )
                                     return jpeg_file
                     except (OSError, PermissionError) as e:
@@ -1252,7 +1236,7 @@ class VersionUtils:
         # Convert pattern to regex, replacing * with appropriate patterns
         # Handle patterns like "shot_*_v*.nk" -> "shot_.*_v(\d{3})\.nk"
         # Standard library imports
-        import re
+        import re  # noqa: PLC0415 - Lazy import used only in this method
 
         regex_pattern = pattern.replace(".", r"\.")  # Escape dots
         regex_pattern = regex_pattern.replace("*", ".*")  # Replace wildcards
@@ -1553,8 +1537,8 @@ class ImageUtils:
         Returns:
             Path to the extracted JPEG frame, or None if extraction failed
         """
-        import subprocess
-        import tempfile
+        import subprocess  # noqa: PLC0415 - Lazy import for frame extraction
+        import tempfile  # noqa: PLC0415 - Lazy import for temp file creation
 
         if not mov_path.exists() or not mov_path.is_file():
             logger.debug(f"MOV file does not exist: {mov_path}")
@@ -1564,7 +1548,7 @@ class ImageUtils:
         if output_path is None:
             # Create temp file with .jpg extension
             temp_fd, temp_path = tempfile.mkstemp(suffix=".jpg", prefix="shotbot_thumb_")
-            import os
+            import os  # noqa: PLC0415 - Lazy import for file descriptor closure
             os.close(temp_fd)  # Close the file descriptor
             output_path = Path(temp_path)
 

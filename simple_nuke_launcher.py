@@ -4,7 +4,7 @@ This module handles the 90% use case where users just want to open their latest
 Nuke script without any fancy script generation or media loading. It's literally
 just `nuke <filepath>` - no over-engineering.
 
-For complex cases (generating scripts with plates/undistortion), use NukeLaunchHandler.
+For complex cases (generating scripts with plates), use NukeLaunchHandler.
 """
 
 from __future__ import annotations

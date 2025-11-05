@@ -1,6 +1,6 @@
 """Unit tests for NukeScriptGenerator following UNIFIED_TESTING_GUIDE.
 
-Tests Nuke script generation with proper Read nodes for plates and undistortion.
+Tests Nuke script generation with proper Read nodes for plates.
 Focuses on script content, colorspace handling, and temporary file management.
 
 Following UNIFIED_TESTING_GUIDE principles:
@@ -80,35 +80,6 @@ class TestNukeScriptGenerator:
             assert "Read {" in content
             assert "test_plate.exr" in content
             assert "linear" in content
-
-    def test_generate_script_with_undistortion(self) -> None:
-        """Test script generation with undistortion file."""
-        with TemporaryDirectory() as temp_dir:
-            temp_path = Path(temp_dir)
-            plate_path = temp_path / "test_plate.exr"
-            undist_path = temp_path / "undistort.nk"
-            plate_path.touch()
-            undist_path.touch()
-
-            # Use create_plate_script_with_undistortion for undistortion support
-            script_path = NukeScriptGenerator.create_plate_script_with_undistortion(
-                plate_path=str(plate_path),
-                undistortion_path=str(undist_path),
-                shot_name="test_shot",
-            )
-
-            assert script_path is not None
-            assert Path(script_path).exists()
-
-            with Path(script_path).open() as f:
-                content = f.read()
-
-            # Test undistortion is included
-            assert (
-                "undistort.nk" in content
-                or "Group {" in content
-                or "StickyNote {" in content
-            )
 
     def test_colorspace_detection(self, monkeypatch) -> None:
         """Test colorspace detection from file paths."""
@@ -259,91 +230,3 @@ class TestNukeScriptGenerator:
                 test_colorspace in content
                 or test_colorspace.replace(" ", "_") in content
             )
-
-    def test_undistortion_node_name_sanitization(self) -> None:
-        """Test that import methods sanitize node names with illegal characters.
-
-        This test verifies the fix for the segmentation fault issue where
-        imported undistortion nodes with hyphens crashed Nuke.
-        """
-        with TemporaryDirectory() as temp_dir:
-            temp_path = Path(temp_dir)
-            plate_path = temp_path / "test_plate.exr"
-            undist_path = temp_path / "LD_3DE4_BRX_170_0100_turnover-plate_PL01.nk"
-            plate_path.touch()
-
-            # Create a mock undistortion file with a node containing illegal characters
-            # This node name has hyphens which are illegal in Nuke and would cause segfault
-            original_node_name = (
-                "LD_3DE4_BRX_170_0100_turnover-plate_PL01_film_lin_v001"
-            )
-            with undist_path.open("w") as f:
-                f.write(f"""# Mock undistortion node with hyphen in name
-Group {{
- name {original_node_name}
- tile_color 0x800080ff
- addUserKnob {{20 User}}
-}}
-""")
-
-            # Generate script with undistortion
-            script_path = NukeScriptGenerator.create_plate_script_with_undistortion(
-                plate_path=str(plate_path),
-                undistortion_path=str(undist_path),
-                shot_name="test_shot",
-            )
-
-            assert script_path is not None
-            assert Path(script_path).exists()
-
-            with Path(script_path).open() as f:
-                content = f.read()
-
-            # Test that the node name has been sanitized (hyphens replaced with underscores)
-            # The original name with hyphens should NOT appear
-            assert original_node_name not in content
-
-            # The sanitized version (with hyphens replaced by underscores) should appear
-            sanitized_name = original_node_name.replace("-", "_")
-            assert sanitized_name in content
-
-            # Check that the Group node itself is present
-            assert "Group {" in content
-
-            # Test that the undistortion file path reference is included
-            assert undist_path.name in content
-
-    def test_create_plate_script_with_undistortion_comprehensive(self) -> None:
-        """Test creating plate script with undistortion - comprehensive functionality."""
-        with TemporaryDirectory() as temp_dir:
-            temp_path = Path(temp_dir)
-            plate_path = temp_path / "test_plate.%04d.exr"
-            undist_path = temp_path / "undist.nk"
-
-            # Create mock undistortion file
-            undist_path.write_text("""#! /usr/local/Nuke16.0v4/nuke-16.0.4 -nx
-version 16.0 v4
-Lens2 {
- inputs 1
- name LensDistortion
- distortion1 {{curve}}
- xpos 0
- ypos -100
-}""")
-
-            script_path = NukeScriptGenerator.create_plate_script_with_undistortion(
-                plate_path=str(plate_path),
-                undistortion_path=str(undist_path),
-                shot_name="test_shot",
-            )
-
-            assert script_path is not None
-            assert Path(script_path).exists()
-
-            with Path(script_path).open() as f:
-                content = f.read()
-
-            # Test script structure includes plate and undistortion
-            assert "Read_Plate" in content
-            assert "Viewer" in content
-            assert "test_plate.%04d.exr" in content

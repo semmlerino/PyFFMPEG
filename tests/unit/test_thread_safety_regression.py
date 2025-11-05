@@ -44,7 +44,9 @@ class TestQThreadInterruptionFix:
 
         # Use real AsyncShotLoader with TestProcessPoolDouble at boundary
         # Local application imports
-        from tests.test_helpers import TestProcessPoolManager
+        from tests.test_helpers import (
+            TestProcessPoolManager,
+        )
 
         test_pool = TestProcessPoolManager()
         test_pool.set_outputs("workspace /shows/TEST/seq01/0010")
@@ -81,7 +83,9 @@ class TestQThreadInterruptionFix:
         """Test that AsyncShotLoader uses interruption requests."""
         # Use real test double at system boundary
         # Local application imports
-        from tests.test_helpers import TestProcessPoolManager
+        from tests.test_helpers import (
+            TestProcessPoolManager,
+        )
 
         test_pool = TestProcessPoolManager()
         test_pool.set_outputs("")  # Empty output for quick test
@@ -104,7 +108,9 @@ class TestQThreadInterruptionFix:
     def test_stop_event_and_interruption_work_together(self) -> None:
         """Test that both stop mechanisms work together."""
         # Local application imports
-        from tests.test_helpers import TestProcessPoolManager
+        from tests.test_helpers import (
+            TestProcessPoolManager,
+        )
 
         test_process_pool = TestProcessPoolManager()
         loader = AsyncShotLoader(test_process_pool)
@@ -163,7 +169,7 @@ class TestDoubleCheckedLockingFix:
 
         # Wait briefly for any async operations
         # Standard library imports
-        import time
+        import time  # noqa: PLC0415 - lazy import to avoid circular dependency
 
         time.sleep(0.1)
 

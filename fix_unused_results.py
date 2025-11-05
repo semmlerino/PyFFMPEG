@@ -3,6 +3,7 @@
 
 import re
 import subprocess
+from pathlib import Path
 from typing import NamedTuple
 
 
@@ -55,7 +56,7 @@ REVIEW_PATTERNS = [
 
 def get_warnings() -> list[Warning]:
     """Get all reportUnusedCallResult warnings from basedpyright."""
-    import os
+    import os  # noqa: PLC0415 - Lazy import for path expansion
     uv_path = os.path.expanduser("~/.local/bin/uv")
     result = subprocess.run(
         [uv_path, "run", "basedpyright"],
@@ -85,7 +86,7 @@ def get_warnings() -> list[Warning]:
 def read_source_line(filepath: str, line_num: int) -> str:
     """Read a specific line from a source file."""
     try:
-        with open(filepath) as f:
+        with Path(filepath).open() as f:
             lines = f.readlines()
             if line_num <= len(lines):
                 return lines[line_num - 1].rstrip()
@@ -172,7 +173,7 @@ def main():
         print("SAFE FIXES (will auto-apply _ = prefix)")
         print("="*80)
         pattern_counts: dict[str, int] = {}
-        for warning, source_line in safe_fixes:
+        for _warning, source_line in safe_fixes:
             for pattern in SAFE_PATTERNS:
                 if re.search(pattern, source_line):
                     pattern_counts[pattern] = pattern_counts.get(pattern, 0) + 1
@@ -220,14 +221,14 @@ def main():
 
             for filepath, fixes in fixes_by_file.items():
                 print(f"\nFixing {filepath}...")
-                with open(filepath) as f:
+                with Path(filepath).open() as f:
                     lines = f.readlines()
 
                 # Apply fixes in reverse order to maintain line numbers
-                for line_num, old_line, new_line in sorted(fixes, reverse=True, key=lambda x: x[0]):
+                for line_num, _old_line, new_line in sorted(fixes, reverse=True, key=lambda x: x[0]):
                     lines[line_num - 1] = new_line + "\n"
 
-                with open(filepath, "w") as f:
+                with Path(filepath).open("w") as f:
                     f.writelines(lines)
 
                 print(f"  Applied {len(fixes)} fixes")

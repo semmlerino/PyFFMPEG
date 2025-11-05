@@ -220,10 +220,10 @@ class TestPerformanceValidation:
     def test_memory_usage_optimization(self, real_cache_manager) -> None:
         """Test memory usage remains reasonable with optimizations."""
         # Standard library imports
-        import os
+        import os  # noqa: PLC0415 - lazy import to avoid circular dependency
 
         # Third-party imports
-        import psutil
+        import psutil  # noqa: PLC0415 - lazy import to avoid circular dependency
 
         process = psutil.Process(os.getpid())
         initial_memory = process.memory_info().rss

@@ -165,7 +165,7 @@ class ThreadSafeTestImage:
         with self._lock:
             return self._height
 
-    def isNull(self) -> bool:
+    def isNull(self) -> bool:  # noqa: N802
         """Check if image is null."""
         return False
 
@@ -192,7 +192,9 @@ def create_real_cache_manager(cache_dir: Path) -> CacheManager:
         Real CacheManager instance with temporary storage
     """
     # Local application imports
-    from cache_manager import CacheManager
+    from cache_manager import (
+        CacheManager,
+    )
 
     return CacheManager(cache_dir=cache_dir)
 
@@ -215,7 +217,9 @@ def create_test_shot_data(
         ShotTestData with real Shot object and paths
     """
     # Local application imports
-    from shot_model import Shot
+    from shot_model import (
+        Shot,
+    )
 
     if workspace_path is None:
         temp_dir = Path(tempfile.mkdtemp())
@@ -339,7 +343,9 @@ def assert_signal_emitted(
         AssertionError: If signal wasn't emitted as expected
     """
     # Third-party imports
-    from PySide6.QtTest import QSignalSpy
+    from PySide6.QtTest import (
+        QSignalSpy,
+    )
 
     spy = QSignalSpy(signal)
 
@@ -390,7 +396,7 @@ class TypedThreadTestHelper:
             List of successful operation results
         """
         # Standard library imports
-        import concurrent.futures
+        import concurrent.futures  # noqa: PLC0415 - lazy import to avoid circular dependency
 
         count = operation_count or self.thread_count
 

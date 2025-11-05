@@ -170,7 +170,9 @@ class TestCacheScenarios:
 
         # Use test double instead of mock to track behavior
         # Local application imports
-        from tests.test_doubles_library import TestProcessPool
+        from tests.test_doubles_library import (
+            TestProcessPool,
+        )
 
         test_pool = TestProcessPool()
         test_pool.default_output = "warming"

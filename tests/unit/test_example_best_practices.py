@@ -173,7 +173,9 @@ class SignalDoubleTestingPatterns:
         # NOTE: Could use LauncherWorkerDouble from test doubles
         # from tests.test_doubles import LauncherWorkerDouble
         # worker = LauncherWorkerDouble(launcher_id="test_123", command="echo test")
-        from tests.test_doubles_library import SignalDouble
+        from tests.test_doubles_library import (
+            SignalDouble,
+        )
 
         class TestLauncherWorker:
             def __init__(self, launcher_id, command) -> None:

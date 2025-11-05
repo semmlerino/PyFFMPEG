@@ -34,7 +34,6 @@ class TestNukeLaunchHandler:
         assert nuke_handler.workspace_manager is not None
         assert nuke_handler.script_generator is not None
         assert nuke_handler.raw_plate_finder is not None
-        assert nuke_handler.undistortion_finder is not None
 
     def test_prepare_nuke_command_basic(self, nuke_handler, mock_shot) -> None:
         """Test basic command preparation without any options."""
@@ -133,81 +132,6 @@ class TestNukeLaunchHandler:
                 "Generated Nuke script with plate: v001" in msg for msg in messages
             )
 
-    def test_handle_media_loading_undistortion_only(
-        self, nuke_handler, mock_shot
-    ) -> None:
-        """Test media loading with undistortion only."""
-        with (
-            patch.object(
-                nuke_handler.undistortion_finder, "find_latest_undistortion"
-            ) as mock_find_undist,
-            patch.object(
-                nuke_handler.undistortion_finder, "get_version_from_path"
-            ) as mock_get_version,
-            patch("nuke_launch_handler.Config.NUKE_UNDISTORTION_MODE", "direct"),
-        ):
-            mock_find_undist.return_value = Path("/test/undist/TEST_0010_v001.nk")
-            mock_get_version.return_value = "v001"
-
-            options = {"include_undistortion": True}
-            command, messages = nuke_handler._handle_media_loading(
-                mock_shot, "nuke", options
-            )
-
-            assert "/test/undist/TEST_0010_v001.nk" in command
-            assert any(
-                "Opening undistortion file directly: v001" in msg for msg in messages
-            )
-
-    def test_handle_media_loading_plate_and_undistortion(
-        self, nuke_handler, mock_shot
-    ) -> None:
-        """Test media loading with both plate and undistortion."""
-        with (
-            patch.object(
-                nuke_handler.raw_plate_finder, "find_latest_raw_plate"
-            ) as mock_find_plate,
-            patch.object(
-                nuke_handler.raw_plate_finder, "verify_plate_exists"
-            ) as mock_verify,
-            patch.object(
-                nuke_handler.undistortion_finder, "find_latest_undistortion"
-            ) as mock_find_undist,
-            patch.object(
-                nuke_handler.script_generator, "create_loader_script"
-            ) as mock_create_loader,
-            patch("nuke_launch_handler.Config.NUKE_USE_LOADER_SCRIPT", True),
-        ):
-            mock_find_plate.return_value = "/test/plates/TEST_0010_v001.exr"
-            mock_verify.return_value = True
-            mock_find_undist.return_value = Path("/test/undist/TEST_0010_v001.nk")
-            mock_create_loader.return_value = "/tmp/loader_script.nk"
-
-            # Mock version getters
-            with (
-                patch.object(
-                    nuke_handler.raw_plate_finder, "get_version_from_path"
-                ) as mock_plate_ver,
-                patch.object(
-                    nuke_handler.undistortion_finder,
-                    "get_version_from_path",
-                ) as mock_undist_ver,
-            ):
-                mock_plate_ver.return_value = "v001"
-                mock_undist_ver.return_value = "v002"
-
-                options = {
-                    "include_raw_plate": True,
-                    "include_undistortion": True,
-                }
-                command, messages = nuke_handler._handle_media_loading(
-                    mock_shot, "nuke", options
-                )
-
-                assert "/tmp/loader_script.nk" in command
-                assert any("Created loader script" in msg for msg in messages)
-                assert any("(v001)" in msg and "(v002)" in msg for msg in messages)
-
     def test_get_environment_fixes_disabled(self, nuke_handler) -> None:
         """Test environment fixes when disabled."""
         with patch("nuke_launch_handler.Config.NUKE_FIX_OCIO_CRASH", False):
@@ -237,7 +161,7 @@ class TestNukeLaunchHandler:
         ), patch(
             "nuke_launch_handler.Config.NUKE_OCIO_FALLBACK_CONFIG",
             "/test/ocio/config.ocio",
-        ), patch("nuke_launch_handler.os.path.exists") as mock_exists:
+        ), patch("pathlib.Path.exists") as mock_exists:
             mock_exists.return_value = True
             fixes = nuke_handler.get_environment_fixes()
 

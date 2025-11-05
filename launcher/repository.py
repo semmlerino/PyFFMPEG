@@ -30,7 +30,7 @@ class LauncherRepository(LoggingMixin):
             config_manager: Configuration manager for persistence
         """
         super().__init__()
-        self._config_manager = config_manager
+        self._config_manager: LauncherConfigManager = config_manager
         self._launchers: dict[str, CustomLauncher] = {}
         self.reload()
 

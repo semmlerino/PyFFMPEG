@@ -359,7 +359,7 @@ def add_class_attribute_annotations(filepath):
 **Before (pyproject.toml - basic mode):**
 ```toml
 typeCheckingMode = "basic"
-pythonVersion = "3.12"  # Wrong!
+pythonVersion = "3.12"  # Wrong - should be 3.11!
 reportMissingImports = false
 reportUnknownMemberType = false
 # ... 6 more disabled checks
@@ -368,7 +368,7 @@ reportUnknownMemberType = false
 **After (pyproject.toml.gradual - standard mode):**
 ```toml
 typeCheckingMode = "standard"
-pythonVersion = "3.13"  # Correct!
+pythonVersion = "3.11"  # Correct for VFX workstation!
 reportMissingImports = "error"
 reportUnknownMemberType = "warning"
 # ... checks enabled as warnings

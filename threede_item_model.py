@@ -301,7 +301,7 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
         self.logger.info("ThreeDEItemModel cleanup complete")
 
     @override
-    def deleteLater(self) -> None:
+    def deleteLater(self) -> None:  # noqa: N802
         """Override deleteLater to ensure cleanup."""
         self.cleanup()
         super().deleteLater()

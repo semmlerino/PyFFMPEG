@@ -122,29 +122,6 @@ class TestPlatePriorityValidation:
             )
             assert priority >= 0, f"Plate {plate} has negative priority {priority}"
 
-    def test_undistortion_plate_priority_consistency(self) -> None:
-        """Validate undistortion priorities are consistent with turnover priorities.
-
-        Undistortion plate priorities should follow the same ordering as
-        turnover priorities for consistency across the application.
-        """
-        undistortion = Config.UNDISTORTION_PLATE_PRIORITY
-
-        # Check common plates maintain ordering
-        common_plates = ["FG", "PL", "BG", "BC"]
-        for i, plate in enumerate(common_plates[:-1]):
-            next_plate = common_plates[i + 1]
-
-            # Both priorities should exist
-            assert plate in undistortion, f"Plate {plate} missing from UNDISTORTION_PLATE_PRIORITY"
-            assert next_plate in undistortion, f"Plate {next_plate} missing from UNDISTORTION_PLATE_PRIORITY"
-
-            # Ordering should be consistent
-            assert undistortion[plate] < undistortion[next_plate], (
-                f"Undistortion priority ordering inconsistent: "
-                f"{plate} ({undistortion[plate]}) should be < {next_plate} ({undistortion[next_plate]})"
-            )
-
     def test_plate_priority_order_legacy_compatibility(self) -> None:
         """Validate legacy PLATE_PRIORITY_ORDER maintains reasonable values.
 
@@ -222,7 +199,6 @@ class TestPathConfigurationValidation:
         segment_lists = [
             ("THUMBNAIL_SEGMENTS", Config.THUMBNAIL_SEGMENTS),
             ("RAW_PLATE_SEGMENTS", Config.RAW_PLATE_SEGMENTS),
-            ("UNDISTORTION_BASE_SEGMENTS", Config.UNDISTORTION_BASE_SEGMENTS),
             ("THREEDE_SCENE_SEGMENTS", Config.THREEDE_SCENE_SEGMENTS),
         ]
 

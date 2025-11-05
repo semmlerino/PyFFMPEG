@@ -44,7 +44,7 @@ from collections.abc import Callable
 
 # Standard library imports
 from enum import Enum, auto
-from typing import TYPE_CHECKING, ClassVar, final, override
+from typing import TYPE_CHECKING, ClassVar, final
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -72,6 +72,7 @@ from PySide6.QtWidgets import (
 
 # Local application imports
 from logging_mixin import get_module_logger
+from typing_compat import override
 
 
 # Module-level logger

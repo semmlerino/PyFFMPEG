@@ -9,10 +9,12 @@ import logging
 import threading
 import weakref
 from collections.abc import Mapping
-from typing import final, override
+from typing import final
 
 # Third-party imports
 from PySide6.QtCore import QRunnable, QThreadPool
+
+from typing_compat import override
 
 
 logger = logging.getLogger(__name__)
@@ -80,7 +82,7 @@ class QRunnableTracker:
 
         logger.debug(
             f"Registered {runnable.__class__.__name__} "
-             f"(active: {current_active}, total: {self._stats['total_registered']})"
+              f"(active: {current_active}, total: {self._stats['total_registered']})"
         )
 
     def unregister(self, runnable: QRunnable) -> None:
@@ -98,7 +100,7 @@ class QRunnableTracker:
 
             logger.debug(
                 f"Unregistered {runnable.__class__.__name__} "
-                 f"(active: {len(self._active_runnables)})"
+                  f"(active: {len(self._active_runnables)})"
             )
         except Exception as e:
             logger.warning(f"Error unregistering runnable: {e}")
@@ -165,9 +167,9 @@ class QRunnableTracker:
 
         logger.info(
             "QRunnableTracker cleanup complete - "
-            f"Total: {self._stats['total_registered']}, "
-            f"Completed: {self._stats['total_completed']}, "
-            f"Peak concurrent: {self._stats['peak_concurrent']}"
+             f"Total: {self._stats['total_registered']}, "
+             f"Completed: {self._stats['total_completed']}, "
+             f"Peak concurrent: {self._stats['peak_concurrent']}"
         )
 
     @classmethod

@@ -293,7 +293,7 @@ class ErrorHandlingMixin(LoggingMixin):
                 if attempt < max_retries:
                     self.logger.warning(
                         f"{operation.__name__} attempt {attempt + 1} failed: {e}. "
-                         f"Retrying in {current_delay:.1f}s..."
+                          f"Retrying in {current_delay:.1f}s..."
                     )
                     time.sleep(current_delay)
                     current_delay *= backoff_factor
@@ -358,7 +358,7 @@ class ErrorAggregator:
         """
         super().__init__()
         self.errors: list[tuple[str, Exception]] = []
-        self.logger = logger or logging.getLogger(__name__)
+        self.logger: logging.Logger = logger or logging.getLogger(__name__)
 
     def add_error(self, context: str, error: Exception) -> None:
         """Add an error to the collection.

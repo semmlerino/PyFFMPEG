@@ -26,19 +26,19 @@ class _TestQApplicationDouble:
         self.palette: QPalette | None = None
         self.executed = False
 
-    def setApplicationName(self, name: str) -> None:
+    def setApplicationName(self, name: str) -> None:  # noqa: N802
         """Set application name."""
         self.application_name = name
 
-    def setOrganizationName(self, name: str) -> None:
+    def setOrganizationName(self, name: str) -> None:  # noqa: N802
         """Set organization name."""
         self.organization_name = name
 
-    def setStyle(self, style: str) -> None:
+    def setStyle(self, style: str) -> None:  # noqa: N802
         """Set application style."""
         self.style = style
 
-    def setPalette(self, palette: QPalette) -> None:
+    def setPalette(self, palette: QPalette) -> None:  # noqa: N802
         """Set application palette."""
         self.palette = palette
 
@@ -71,7 +71,9 @@ class TestShotbotLogging:
 
             # Import after patching to ensure clean state
             # Local application imports
-            from shotbot import setup_logging
+            from shotbot import (
+                setup_logging,
+            )
 
             setup_logging()
 
@@ -95,7 +97,9 @@ class TestShotbotLogging:
                 root_logger.removeHandler(handler)
 
             # Local application imports
-            from shotbot import setup_logging
+            from shotbot import (
+                setup_logging,
+            )
 
             setup_logging()
 
@@ -121,7 +125,9 @@ class TestShotbotLogging:
             # Test with debug enabled
             with patch.dict(os.environ, {"SHOTBOT_DEBUG": "1"}):
                 # Local application imports
-                from shotbot import setup_logging
+                from shotbot import (
+                    setup_logging,
+                )
 
                 setup_logging()
 
@@ -140,7 +146,9 @@ class TestShotbotLogging:
             mock_home.return_value = tmp_path
 
             # Local application imports
-            from shotbot import setup_logging
+            from shotbot import (
+                setup_logging,
+            )
 
             setup_logging()
 
@@ -176,7 +184,9 @@ class TestShotbotMain:
             mock_exit.return_value = None
 
             # Local application imports
-            from shotbot import main
+            from shotbot import (
+                main,
+            )
 
             main()
 
@@ -200,7 +210,9 @@ class TestShotbotMain:
             mock_exit.return_value = None
 
             # Local application imports
-            from shotbot import main
+            from shotbot import (
+                main,
+            )
 
             main()
 
@@ -226,7 +238,9 @@ class TestShotbotMain:
             mock_exit.return_value = None
 
             # Local application imports
-            from shotbot import main
+            from shotbot import (
+                main,
+            )
 
             main()
 
@@ -260,7 +274,9 @@ class TestShotbotMain:
             mock_exit.return_value = None
 
             # Local application imports
-            from shotbot import main
+            from shotbot import (
+                main,
+            )
 
             main()
 
@@ -284,7 +300,9 @@ class TestShotbotMain:
             mock_exit.return_value = None
 
             # Local application imports
-            from shotbot import main
+            from shotbot import (
+                main,
+            )
 
             main()
 
@@ -299,7 +317,7 @@ class TestShotbotMain:
         # This tests the critical requirement that logging is configured
         # before any imports that might trigger PIL
         # Standard library imports
-        import sys
+        import sys  # noqa: PLC0415 - lazy import to avoid circular dependency
 
         # Remove shotbot from modules if it exists
         if "shotbot" in sys.modules:
@@ -312,7 +330,9 @@ class TestShotbotMain:
             patch("sys.exit"),
         ):
             # Local application imports
-            from shotbot import main
+            from shotbot import (
+                main,
+            )
 
             main()
 
@@ -329,7 +349,10 @@ class TestShotbotIntegration:
         # UNIFIED_TESTING_GUIDE: Test real import behavior
         try:
             # Local application imports
-            from shotbot import main, setup_logging
+            from shotbot import (  # noqa: PLC0415 - lazy import to avoid circular dependency
+                main,
+                setup_logging,
+            )
 
             assert callable(setup_logging)
             assert callable(main)
@@ -342,7 +365,9 @@ class TestShotbotIntegration:
             mock_home.return_value = tmp_path
 
             # Local application imports
-            from shotbot import setup_logging
+            from shotbot import (
+                setup_logging,
+            )
 
             # Call setup_logging multiple times
             setup_logging()
@@ -369,7 +394,9 @@ class TestShotbotIntegration:
 
             with patch.dict(os.environ, {"SHOTBOT_DEBUG": debug_value}):
                 # Local application imports
-                from shotbot import setup_logging
+                from shotbot import (
+                    setup_logging,
+                )
 
                 setup_logging()
 

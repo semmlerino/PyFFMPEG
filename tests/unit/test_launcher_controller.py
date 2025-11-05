@@ -49,7 +49,6 @@ class TestCommandLauncher(QObject):
     def launch_app(
         self,
         app_name: str,
-        include_undistortion: bool = False,
         include_raw_plate: bool = False,
         open_latest_threede: bool = False,
         open_latest_maya: bool = False,
@@ -62,7 +61,6 @@ class TestCommandLauncher(QObject):
             (
                 app_name,
                 {
-                    "include_undistortion": include_undistortion,
                     "include_raw_plate": include_raw_plate,
                     "open_latest_threede": open_latest_threede,
                     "open_latest_maya": open_latest_maya,
@@ -97,7 +95,6 @@ class TestCommandLauncher(QObject):
         self,
         app_name: str,
         scene: ThreeDEScene,
-        include_undistortion: bool = False,
         include_raw_plate: bool = False,
     ) -> bool:
         """Simulate launching app with scene context."""
@@ -107,7 +104,6 @@ class TestCommandLauncher(QObject):
                 app_name,
                 {
                     "scene_context": scene.scene_path,
-                    "include_undistortion": include_undistortion,
                     "include_raw_plate": include_raw_plate,
                 },
             )
@@ -176,7 +172,7 @@ def test_shot() -> Shot:
 @pytest.fixture
 def test_scene() -> ThreeDEScene:
     """Create a test 3DE scene."""
-    from pathlib import Path
+    from pathlib import Path  # noqa: PLC0415 - lazy import to avoid circular dependency
 
     return ThreeDEScene(
         scene_path=Path(f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010/3de/v001/scene.3de"),
@@ -375,7 +371,6 @@ class TestApplicationLaunching:
         # Mock launcher panel checkbox states
         target.launcher_panel.get_checkbox_state = Mock(
             side_effect=lambda app, opt: {
-                ("nuke", "include_undistortion"): True,
                 ("nuke", "include_raw_plate"): False,
                 ("nuke", "open_latest_scene"): True,
                 ("nuke", "create_new_file"): False,
@@ -384,7 +379,6 @@ class TestApplicationLaunching:
 
         options = controller.get_launch_options("nuke")
 
-        assert options["include_undistortion"] is True
         assert options["include_raw_plate"] is False
         assert options["open_latest_scene"] is True
         assert options["create_new_file"] is False
@@ -470,7 +464,6 @@ class TestApplicationLaunching:
         # Mock checkbox states for Nuke options
         target.launcher_panel.get_checkbox_state = Mock(
             side_effect=lambda app, opt: {
-                ("nuke", "include_undistortion"): True,
                 ("nuke", "include_raw_plate"): True,
             }.get((app, opt), False)
         )
@@ -484,7 +477,6 @@ class TestApplicationLaunching:
         target.command_launcher.launch_app_with_scene_context.assert_called_once_with(
             "nuke",
             test_scene,
-            True,  # include_undistortion
             True,  # include_raw_plate
         )
 

@@ -171,7 +171,7 @@ class TestSubprocess:
             result.check_returncode()
         return result
 
-    def Popen(
+    def Popen(  # noqa: N802
         self,
         command: str | list[str],
         shell: bool = False,
@@ -530,11 +530,17 @@ class TestCacheManager(QObject):
         """Load a thumbnail asynchronously (test double)."""
         # For tests, just create a simple image and call the callback
         # Standard library imports
-        from concurrent.futures import Future
+        from concurrent.futures import (
+            Future,
+        )
 
         # Third-party imports
-        from PySide6.QtCore import Qt
-        from PySide6.QtGui import QImage
+        from PySide6.QtCore import (
+            Qt,
+        )
+        from PySide6.QtGui import (
+            QImage,
+        )
 
         future = Future()
 
@@ -706,7 +712,7 @@ class TestLauncher:
 
     def __init__(
         self,
-        launcher_id: str = "test_launcher",
+        launcher_id: str | None = None,
         name: str = "Test Launcher",
         command: str = "echo {shot_name}",
         description: str = "Test launcher",
@@ -714,9 +720,11 @@ class TestLauncher:
         enabled: bool = True,
         environment=None,
         terminal=None,
+        id: str | None = None,  # Backwards compatibility alias
     ) -> None:
         """Initialize test launcher."""
-        self.id = launcher_id
+        # Support both launcher_id and id parameter names
+        self.id = id if id is not None else (launcher_id if launcher_id is not None else "test_launcher")
         self.name = name
         self.command = command
         self.description = description
@@ -1047,11 +1055,11 @@ class ThreadSafeTestImage:
         """Save image to file."""
         return self._image.save(str(path))
 
-    def isNull(self) -> bool:
+    def isNull(self) -> bool:  # noqa: N802
         """Check if image is null."""
         return self._image.isNull()
 
-    def sizeInBytes(self) -> int:
+    def sizeInBytes(self) -> int:  # noqa: N802
         """Get size in bytes."""
         return self._image.sizeInBytes()
 

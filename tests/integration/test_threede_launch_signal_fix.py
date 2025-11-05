@@ -59,7 +59,6 @@ class TestCommandLauncherWithSceneSupport(QObject):
     def launch_app(
         self,
         app_name: str,
-        include_undistortion: bool = False,
         include_raw_plate: bool = False,
         open_latest_threede: bool = False,
         open_latest_maya: bool = False,
@@ -74,7 +73,6 @@ class TestCommandLauncherWithSceneSupport(QObject):
             if self._current_scene_path
             else None,
             "options": {
-                "include_undistortion": include_undistortion,
                 "include_raw_plate": include_raw_plate,
                 "open_latest_threede": open_latest_threede,
                 "open_latest_maya": open_latest_maya,
@@ -115,7 +113,13 @@ class MockLauncherTargetForIntegration(QObject):
         super().__init__()
         self.command_launcher = TestCommandLauncherWithSceneSupport()
         self.launcher_manager = None
+
+        # Create mock launcher panel with proper app_sections support
         self.launcher_panel = Mock()
+        mock_nuke_section = Mock()
+        mock_nuke_section.get_selected_plate.return_value = None  # No plate selected by default
+        self.launcher_panel.app_sections = {"nuke": mock_nuke_section}
+
         self.log_viewer = Mock()
         self.status_bar = Mock()
         self.custom_launcher_menu = Mock()

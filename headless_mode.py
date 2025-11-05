@@ -244,7 +244,7 @@ class HeadlessMode:
             if not HeadlessMode.is_display_available():
                 raise RuntimeError(
                     f"{func.__name__} requires a display but none is available. "
-                     "Run with SHOTBOT_HEADLESS=1 to use headless mode."
+                      "Run with SHOTBOT_HEADLESS=1 to use headless mode."
                 )
             return func(*args, **kwargs)
 
@@ -272,8 +272,8 @@ class HeadlessMainWindow:
         mock_pool = create_mock_pool_from_filesystem()
 
         # Create core components
-        self.cache_manager = CacheManager()
-        self.shot_model = ShotModel(self.cache_manager, process_pool=mock_pool)
+        self.cache_manager: CacheManager = CacheManager()
+        self.shot_model: ShotModel = ShotModel(self.cache_manager, process_pool=mock_pool)
 
         # Mock UI methods
         self.show: Callable[[], None] = lambda: None

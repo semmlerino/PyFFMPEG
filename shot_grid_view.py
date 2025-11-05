@@ -8,7 +8,7 @@ and proper Model/View integration.
 from __future__ import annotations
 
 # Standard library imports
-from typing import TYPE_CHECKING, cast, final, override
+from typing import TYPE_CHECKING, cast, final
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -33,6 +33,7 @@ from shot_grid_delegate import ShotGridDelegate
 from shot_item_model import ShotItemModel
 from shot_model import Shot
 from thumbnail_widget_base import FolderOpenerWorker
+from typing_compat import override
 
 
 # Backward compatibility alias

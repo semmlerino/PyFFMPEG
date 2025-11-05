@@ -38,7 +38,7 @@ class ThreadSafeThumbnailCache:
         super().__init__()
         self._image_cache: dict[str, QImage] = {}  # QImage (thread-safe)
         self._pixmap_cache: dict[str, QPixmap] = {}  # QPixmap (main thread only)
-        self._cache_lock = QMutex()
+        self._cache_lock: QMutex = QMutex()
 
     def _assert_main_thread(self, operation: str) -> None:
         """Assert that QPixmap operations only happen on main thread.
@@ -61,8 +61,8 @@ class ThreadSafeThumbnailCache:
             thread_name = getattr(current, "objectName", lambda: str(current))()
             raise RuntimeError(
                 f"QPixmap {operation} attempted from worker thread '{thread_name}'. "
-                "QPixmap operations must only happen on the main Qt thread. "
-                "Use QImage for thread-safe image processing."
+                 "QPixmap operations must only happen on the main Qt thread. "
+                 "Use QImage for thread-safe image processing."
             )
 
     def store_image(self, key: str, image: QImage) -> None:
@@ -212,7 +212,7 @@ def create_thread_safe_pixmap(
                 thread_name = getattr(current, "objectName", lambda: str(current))()
                 logger.error(
                     f"create_thread_safe_pixmap called from worker thread '{thread_name}'. "
-                     "Use QImage.load() instead for thread-safe image loading."
+                      "Use QImage.load() instead for thread-safe image loading."
                 )
                 return None
 

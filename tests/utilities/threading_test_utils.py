@@ -37,6 +37,7 @@ from __future__ import annotations
 
 # Standard library imports
 import logging
+import shutil
 import sys
 import threading
 import time
@@ -121,7 +122,7 @@ class WorkerProtocol(Protocol):
 
     def get_state(self) -> WorkerState: ...
     def request_stop(self) -> bool: ...
-    def isRunning(self) -> bool: ...
+    def isRunning(self) -> bool: ...  # noqa: N802
     def wait(self, timeout_ms: int = 5000) -> bool: ...
 
 
@@ -1072,9 +1073,6 @@ def isolated_launcher_manager() -> Iterator[LauncherManager]:
         manager.shutdown()
 
         # Remove temporary config
-        # Standard library imports
-        import shutil
-
         if temp_config_dir.exists():
             shutil.rmtree(temp_config_dir, ignore_errors=True)
 

@@ -17,7 +17,7 @@ class ThreeDELatestFinder(VersionHandlingMixin):
     """
 
     # Pattern to match version in 3DE filenames (e.g., _v001, _v002)
-    VERSION_PATTERN = re.compile(r"_v(\d{3})\.3de$")
+    VERSION_PATTERN: re.Pattern[str] = re.compile(r"_v(\d{3})\.3de$")
 
     def __init__(self) -> None:
         """Initialize the 3DE finder with version handling capabilities."""

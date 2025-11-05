@@ -76,7 +76,9 @@ def test_mock_environment() -> bool:
 
     # Import and mock the ProcessPoolManager
     # Local application imports
-    from tests.test_doubles_library import TestProcessPool
+    from tests.test_doubles_library import (
+        TestProcessPool,
+    )
 
     mock_pool = TestProcessPool()
 

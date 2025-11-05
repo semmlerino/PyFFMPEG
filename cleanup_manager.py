@@ -43,8 +43,8 @@ class CleanupManager(QObject, LoggingMixin):
     """
 
     # Signals
-    cleanup_started = Signal()
-    cleanup_finished = Signal()
+    cleanup_started: Signal = Signal()
+    cleanup_finished: Signal = Signal()
 
     def __init__(self, main_window: MainWindowProtocol) -> None:
         """Initialize cleanup manager.
@@ -54,7 +54,7 @@ class CleanupManager(QObject, LoggingMixin):
         """
         super().__init__()
         LoggingMixin.__init__(self)
-        self.main_window = main_window
+        self.main_window: MainWindowProtocol = main_window
         self.logger.debug("CleanupManager initialized")
 
     def perform_cleanup(self) -> None:
@@ -107,7 +107,7 @@ class CleanupManager(QObject, LoggingMixin):
             warmer.request_stop()
 
             # Determine timeout based on environment
-            import sys
+            import sys  # noqa: PLC0415 - Lazy import to detect pytest environment
 
             is_test_environment = "pytest" in sys.modules
             session_timeout_ms = 200 if is_test_environment else 2000
@@ -115,7 +115,7 @@ class CleanupManager(QObject, LoggingMixin):
             if not warmer.wait(session_timeout_ms):
                 self.logger.warning(
                     f"Session warmer didn't finish gracefully within {session_timeout_ms}ms, "
-                    "using safe termination"
+                     "using safe termination"
                 )
                 warmer.safe_terminate()
 
@@ -225,13 +225,15 @@ class CleanupManager(QObject, LoggingMixin):
             app.processEvents()
 
         # Clean up any remaining QRunnables in the thread pool
-        from runnable_tracker import cleanup_all_runnables
+        from runnable_tracker import (  # noqa: PLC0415 - Lazy import for cleanup
+            cleanup_all_runnables,
+        )
 
         self.logger.debug("Cleaning up tracked QRunnables")
         cleanup_all_runnables()
 
         # Force garbage collection to clean up any circular references
-        import gc
+        import gc  # noqa: PLC0415 - Lazy import for garbage collection
 
         _ = gc.collect()
 

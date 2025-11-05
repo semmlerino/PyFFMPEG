@@ -23,9 +23,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Protocol, cast
 
 # Third-party imports
-from PySide6.QtWidgets import QMessageBox, QWidget
+from PySide6.QtWidgets import QFileDialog, QMessageBox, QWidget
 
 # Local application imports
+from config import Config
 from logging_mixin import LoggingMixin
 
 
@@ -60,12 +61,12 @@ class SettingsTarget(Protocol):
     """
 
     # Window geometry and state methods
-    def restoreGeometry(self, geometry: QByteArray) -> bool: ...
-    def saveGeometry(self) -> QByteArray: ...
-    def restoreState(self, state: QByteArray) -> bool: ...
-    def saveState(self) -> QByteArray: ...
-    def isMaximized(self) -> bool: ...
-    def showMaximized(self) -> None: ...
+    def restoreGeometry(self, geometry: QByteArray) -> bool: ...  # noqa: N802
+    def saveGeometry(self) -> QByteArray: ...  # noqa: N802
+    def restoreState(self, state: QByteArray) -> bool: ...  # noqa: N802
+    def saveState(self) -> QByteArray: ...  # noqa: N802
+    def isMaximized(self) -> bool: ...  # noqa: N802
+    def showMaximized(self) -> None: ...  # noqa: N802
 
     # Overloaded resize signatures from QMainWindow
     def resize(self, w: int, h: int) -> None: ...
@@ -105,7 +106,7 @@ class SettingsController(LoggingMixin):
             window: The window object that provides the SettingsTarget interface
         """
         super().__init__()
-        self.window = window
+        self.window: SettingsTarget = window
         self.logger.debug("SettingsController initialized")
 
     def load_settings(self) -> None:
@@ -156,9 +157,6 @@ class SettingsController(LoggingMixin):
         except Exception as e:
             self.logger.error(f"Error loading settings: {e}")
             # Fallback to default window size
-            # Local application imports
-            from config import Config
-
             default_size = self.window.settings_manager.get_window_size()
             # get_window_size() returns QSize or tuple[int, int] per protocol
             # In practice, SettingsManager returns QSize, but handle both for robustness
@@ -258,8 +256,8 @@ class SettingsController(LoggingMixin):
 
     def show_preferences(self) -> None:
         """Show the preferences dialog."""
-        # Local application imports
-        from settings_dialog import SettingsDialog
+        # Lazy import to avoid circular dependencies - only needed when showing dialog
+        from settings_dialog import SettingsDialog  # noqa: PLC0415
 
         if self.window._settings_dialog is None:  # pyright: ignore[reportPrivateUsage]
             # MainWindow implements both SettingsTarget and QWidget protocols
@@ -299,9 +297,6 @@ class SettingsController(LoggingMixin):
 
     def import_settings(self) -> None:
         """Import settings from file."""
-        # Third-party imports
-        from PySide6.QtWidgets import QFileDialog
-
         # Cast to QWidget for dialog parent - MainWindow implements both protocols
         # Cast through object first to satisfy type checker
         parent_widget = cast("QWidget", cast("object", self.window))
@@ -332,9 +327,6 @@ class SettingsController(LoggingMixin):
 
     def export_settings(self) -> None:
         """Export settings to file."""
-        # Third-party imports
-        from PySide6.QtWidgets import QFileDialog
-
         # Cast to QWidget for dialog parent - MainWindow implements both protocols
         # Cast through object first to satisfy type checker
         parent_widget = cast("QWidget", cast("object", self.window))
@@ -362,9 +354,6 @@ class SettingsController(LoggingMixin):
 
     def reset_layout(self) -> None:
         """Reset window layout to defaults."""
-        # Local application imports
-        from config import Config
-
         # Cast to QWidget for dialog parent - MainWindow implements both protocols
         # Cast through object first to satisfy type checker
         parent_widget = cast("QWidget", cast("object", self.window))

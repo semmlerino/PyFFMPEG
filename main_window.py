@@ -191,8 +191,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         if current_thread != main_thread:
             raise RuntimeError(
                 "MainWindow must be created in the main thread. "
-                f"Current thread: {current_thread}, "
-                f"Main thread: {main_thread}"
+                 f"Current thread: {current_thread}, "
+                 f"Main thread: {main_thread}"
             )
 
         # Additional safety check for QApplication type (relaxed for tests)
@@ -205,7 +205,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         if not isinstance(app_instance, QApplication) and not is_test_environment:
             raise RuntimeError(
                 "MainWindow: QCoreApplication instance is not a QApplication. "
-                 f"Type: {type(app_instance)}"
+                  f"Type: {type(app_instance)}"
             )
 
         super().__init__()
@@ -272,7 +272,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
                 if persistent_cache:
                     self.logger.debug(
                         f"Model initialized: cache expired ({len(persistent_cache)} shots), "
-                         "background refresh in progress"
+                          "background refresh in progress"
                     )
                 else:
                     self.logger.debug(
@@ -440,9 +440,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         # Keep references to checkboxes for backward compatibility
         # (These are now managed by the launcher_panel)
-        self.undistortion_checkbox = (
-            None  # Will access via launcher_panel.get_checkbox_state
-        )
         self.raw_plate_checkbox = (
             None  # Will access via launcher_panel.get_checkbox_state
         )
@@ -758,7 +755,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self._update_status(
                 (
                     f"Loaded {len(self.shot_model.shots)} shots and "
-                    f"{len(self.threede_scene_model.scenes)} 3DE scenes from cache"
+                     f"{len(self.threede_scene_model.scenes)} 3DE scenes from cache"
                 ),
             )
             # Schedule background refresh for fresh data (non-blocking)
@@ -1492,8 +1489,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             f"About {Config.APP_NAME}",
             (
                 f"{Config.APP_NAME} v{Config.APP_VERSION}\n\n"
-                "VFX Shot Launcher\n\n"
-                "A tool for browsing and launching applications in shot context."
+                 "VFX Shot Launcher\n\n"
+                 "A tool for browsing and launching applications in shot context."
             ),
         )
 
@@ -1561,7 +1558,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self.logger.debug("Completed explicit MainWindow cleanup")
 
     @override
-    def closeEvent(self, event: QCloseEvent) -> None:
+    def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802
         """Thread-safe close event handler.
 
         Implements proper shutdown sequence using CleanupManager.

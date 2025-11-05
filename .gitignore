@@ -22,9 +22,11 @@ wheels/
 MANIFEST
 
 # Virtual environments
+.venv/
 venv/
 env/
 ENV/
+test_venv/
 
 # IDE
 .vscode/
@@ -42,3 +44,35 @@ archive/
 # Temporary files
 *.tmp
 *.temp
+
+# Testing & Coverage
+.pytest_cache/
+.hypothesis/
+htmlcov/
+coverage_html/
+.coverage
+*.cover
+.tox/
+
+# Type checking & Linting
+.mypy_cache/
+.ruff_cache/
+.pytype/
+
+# Encoded releases
+encoded_app_*.txt
+encoded_app_*_metadata.json
+
+# Git hooks output
+.post-commit-output/
+
+# Development tools
+dev-tools/
+
+# Generated documentation and analysis files
+FINAL_DECORATOR_CANDIDATES.md
+UNANNOTATED_CLASS_ATTRIBUTES_ANALYSIS.md
+
+# Legacy config files (migrated to pyproject.toml)
+pytest.ini
+pytest.ini.*

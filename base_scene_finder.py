@@ -23,19 +23,11 @@ class BaseSceneFinder(ABC, VersionHandlingMixin):
     """
 
     # Subclasses must define this pattern
-    VERSION_PATTERN: Pattern[str] | None = None
+    VERSION_PATTERN: Pattern[str]
 
     def __init__(self) -> None:
         """Initialize the scene finder with version handling capabilities."""
         super().__init__()
-        self._validate_subclass()
-
-    def _validate_subclass(self) -> None:
-        """Validate that subclass has required attributes."""
-        if self.VERSION_PATTERN is None:
-            raise NotImplementedError(
-                f"{self.__class__.__name__} must define VERSION_PATTERN"
-            )
 
     @abstractmethod
     def get_scene_paths(self, user_dir: Path) -> list[Path]:

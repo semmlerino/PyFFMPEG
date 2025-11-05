@@ -268,7 +268,7 @@ class TestShadows:
         shadows = Shadows()
 
         # Extract first shadow offset values (should increase with elevation)
-        import re
+        import re  # noqa: PLC0415 - lazy import to avoid circular dependency
 
         def get_first_offset(shadow: str) -> int:
             """Extract the first pixel offset from shadow string."""

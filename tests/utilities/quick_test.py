@@ -51,7 +51,9 @@ def test_basic_functionality():
     # Test 1: Shot model
     try:
         # Local application imports
-        from shot_model import Shot
+        from shot_model import (
+            Shot,
+        )
 
         shot = Shot("test_show", "seq01", "0010", "/test/path")
         assert shot.show == "test_show"
@@ -65,7 +67,9 @@ def test_basic_functionality():
     # Test 2: Utils
     try:
         # Local application imports
-        from utils import PathUtils
+        from utils import (
+            PathUtils,
+        )
 
         path = PathUtils.build_path("/base", "dir", "file.txt")
         assert str(path) == "/base/dir/file.txt"
@@ -78,7 +82,9 @@ def test_basic_functionality():
     # Test 3: Config
     try:
         # Local application imports
-        from config import Config
+        from config import (
+            Config,
+        )
 
         assert Config.CACHE_THUMBNAIL_SIZE > 0
         assert Config.CACHE_EXPIRY_MINUTES > 0
@@ -92,7 +98,9 @@ def test_basic_functionality():
     # Test 4: File utils
     try:
         # Local application imports
-        from utils import FileUtils
+        from utils import (
+            FileUtils,
+        )
 
         # Just test that methods exist
         assert hasattr(FileUtils, "find_files_by_extension")

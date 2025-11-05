@@ -398,7 +398,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
             _ = self.show_combo.blockSignals(False)
 
     @override
-    def wheelEvent(self, event: QWheelEvent) -> None:
+    def wheelEvent(self, event: QWheelEvent) -> None:  # noqa: N802
         """Handle wheel event for thumbnail size adjustment with Ctrl.
 
         This is a common implementation that subclasses can inherit or override.
@@ -419,7 +419,7 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
             super().wheelEvent(event)
 
     @override
-    def keyPressEvent(self, event: QKeyEvent) -> None:
+    def keyPressEvent(self, event: QKeyEvent) -> None:  # noqa: N802
         """Handle keyboard shortcuts.
 
         This base implementation provides common app launch shortcuts.

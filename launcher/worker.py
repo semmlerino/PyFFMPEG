@@ -7,11 +7,12 @@ execution in a separate thread, extracted from the original launcher_manager.py.
 from __future__ import annotations
 
 # Standard library imports
+import logging
 import re
 import shlex
 import subprocess
 import threading
-from typing import IO, final, override
+from typing import IO, final
 
 # Third-party imports
 from PySide6.QtCore import Signal
@@ -19,6 +20,7 @@ from PySide6.QtCore import Signal
 # Local application imports
 from exceptions import SecurityError
 from thread_safe_worker import ThreadSafeWorker
+from typing_compat import override
 
 
 @final
@@ -128,8 +130,6 @@ class LauncherWorker(ThreadSafeWorker):
                     if not allowed:
                         # Note: Using module-level log since this is a static validation method
                         # Will be converted to self.logger when this becomes an instance method
-                        import logging
-
                         logger = logging.getLogger(__name__)
                         logger.warning(
                             f"Command '{base_command}' not in whitelist. Command: {command[:100]}"
@@ -145,8 +145,6 @@ class LauncherWorker(ThreadSafeWorker):
             # If shlex.split fails, the command is malformed
             # Do not fall back to shell=True - this is a security risk
             # Note: Using module-level log since this is a static validation method
-            import logging
-
             logger = logging.getLogger(__name__)
             logger.error(f"Failed to parse command safely: {command[:100]}")
             raise SecurityError(
@@ -277,7 +275,7 @@ class LauncherWorker(ThreadSafeWorker):
                         # Process still alive after termination attempt
                         self.logger.error(
                             f"Failed to terminate process for launcher '{self.launcher_id}', "
-                             f"process {self._process.pid} may be orphaned"
+                              f"process {self._process.pid} may be orphaned"
                         )
                         # Still set to None to avoid repeated termination attempts
                         # but log the issue for debugging
@@ -285,7 +283,7 @@ class LauncherWorker(ThreadSafeWorker):
                 except Exception as e:
                     self.logger.error(
                         f"Exception during process cleanup for launcher '{self.launcher_id}': {e}, "
-                         "process may be orphaned"
+                          "process may be orphaned"
                     )
                     # Set to None to avoid repeated attempts but log the failure
                     self._process = None

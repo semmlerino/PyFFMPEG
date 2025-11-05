@@ -1,12 +1,14 @@
 """Loading indicator widget for thumbnails."""
 from __future__ import annotations
 
-from typing import final, override
+from typing import final
 
 # Third-party imports
 from PySide6.QtCore import Property, QPropertyAnimation, QRect, Qt, QTimer
 from PySide6.QtGui import QColor, QPainter, QPaintEvent, QPen
 from PySide6.QtWidgets import QWidget
+
+from typing_compat import override
 
 
 @final

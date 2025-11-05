@@ -1,1 +1,1 @@
-fix: Remove 49 duplicate signal connections causing F821 undefined name errors
+refactor: Enable complexity rules for code quality assessment

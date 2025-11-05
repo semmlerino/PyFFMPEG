@@ -43,22 +43,24 @@ def test_shows_root_dynamic_configuration():
         with mock.patch.dict(os.environ, {"SHOWS_ROOT": shows_root}):
             # Force reload of config to pick up new environment
             # Standard library imports
-            import importlib
+            import importlib  # noqa: PLC0415 - lazy import to avoid circular dependency
 
             # Local application imports
-            import config
+            import config  # noqa: PLC0415 - lazy import to avoid circular dependency
 
             importlib.reload(config)
 
             # Test targeted_shot_finder.py
             try:
                 # Local application imports
-                import targeted_shot_finder
+                import targeted_shot_finder  # noqa: PLC0415 - lazy import to avoid circular dependency
 
                 # Reload the module to pick up new SHOWS_ROOT
                 importlib.reload(targeted_shot_finder)
 
-                from targeted_shot_finder import TargetedShotsFinder
+                from targeted_shot_finder import (
+                    TargetedShotsFinder,
+                )
 
                 finder = TargetedShotsFinder()
                 pattern = finder._shot_pattern.pattern
@@ -90,12 +92,14 @@ def test_shows_root_dynamic_configuration():
             # Test optimized_shot_parser.py
             try:
                 # Local application imports
-                import optimized_shot_parser
+                import optimized_shot_parser  # noqa: PLC0415 - lazy import to avoid circular dependency
 
                 # Reload the module to pick up new SHOWS_ROOT
                 importlib.reload(optimized_shot_parser)
 
-                from optimized_shot_parser import OptimizedShotParser
+                from optimized_shot_parser import (
+                    OptimizedShotParser,
+                )
 
                 parser = OptimizedShotParser()
                 pattern = parser._ws_pattern.pattern
@@ -183,7 +187,9 @@ def test_json_error_handling():
     print("\n=== Testing JSON Error Handling ===")
 
     # Local application imports
-    from mock_workspace_pool import create_mock_pool_from_filesystem
+    from mock_workspace_pool import (
+        create_mock_pool_from_filesystem,
+    )
 
     success_count = 0
 

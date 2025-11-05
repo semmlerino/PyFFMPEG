@@ -714,7 +714,7 @@ class MainWindow(QMainWindow):
         if window_state:
             self.restoreState(window_state)
 
-    def closeEvent(self, event):
+    def closeEvent(self, event):  # noqa: N802
         """Handle window close event"""
         # Stop any active conversions
         if self.is_converting:

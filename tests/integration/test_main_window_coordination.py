@@ -44,8 +44,10 @@ from tests.test_helpers import TestProcessPoolManager
 @pytest.fixture(scope="module", autouse=True)
 def setup_qt_imports() -> None:
     """Import Qt and MainWindow components after test setup."""
-    global MainWindow
-    from main_window import MainWindow
+    global MainWindow  # noqa: PLW0603
+    from main_window import (
+        MainWindow,
+    )
 
 
 # =============================================================================
@@ -239,14 +241,18 @@ def main_window_with_real_components(
 
     # Mock at the system boundary - ProcessPoolManager singleton
     # Local application imports
-    from process_pool_manager import ProcessPoolManager
+    from process_pool_manager import (
+        ProcessPoolManager,
+    )
 
     monkeypatch.setattr(ProcessPoolManager, "get_instance", mock_get_instance)
 
     # CRITICAL: Replace NotificationManager BEFORE creating MainWindow
     # This prevents Fatal Python errors when Qt objects are called from worker threads
     # Local application imports
-    from notification_manager import NotificationManager
+    from notification_manager import (
+        NotificationManager,
+    )
 
     # Clear any previous test notifications
     TestNotificationManager.clear()
@@ -261,7 +267,9 @@ def main_window_with_real_components(
 
     # Replace ProgressManager with test double to avoid Qt object deletion issues
     # Local application imports
-    from progress_manager import ProgressManager
+    from progress_manager import (
+        ProgressManager,
+    )
 
     test_progress_manager = TestProgressManager()
 
@@ -314,7 +322,9 @@ def main_window_with_real_components(
 
     # Process events to ensure cleanup happens
     # Third-party imports
-    from PySide6.QtCore import QCoreApplication
+    from PySide6.QtCore import (
+        QCoreApplication,
+    )
 
     app = QCoreApplication.instance()
     if app:
@@ -325,7 +335,7 @@ def main_window_with_real_components(
 
     # Force garbage collection
     # Standard library imports
-    import gc
+    import gc  # noqa: PLC0415 - lazy import to avoid circular dependency
 
     gc.collect()
 
@@ -450,7 +460,7 @@ workspace /shows/test/shots/seq01/shot02""")
         )
 
     def test_launcher_execution_workflow(
-        self, main_window_with_real_components: Any, qtbot: Any, monkeypatch: Any
+        self, main_window_with_real_components: Any, qtbot: Any, monkeypatch: Any, tmp_path: Path
     ) -> None:
         """Test complete launcher execution workflow."""
         window = main_window_with_real_components
@@ -459,8 +469,12 @@ workspace /shows/test/shots/seq01/shot02""")
         test_subprocess = TestSubprocess()
         monkeypatch.setattr("subprocess.Popen", test_subprocess.Popen)
 
+        # Create real workspace directory to pass validation
+        workspace_path = tmp_path / "test_workspace"
+        workspace_path.mkdir(parents=True, exist_ok=True)
+
         # Select a shot using the actual handler
-        test_shot = Shot("testshow", "seq01", "shot01", "/test/workspace")
+        test_shot = Shot("testshow", "seq01", "shot01", str(workspace_path))
         window.shot_model.shots = [test_shot]
         window._on_shot_selected(
             test_shot
@@ -494,7 +508,9 @@ workspace /shows/test/shots/seq01/shot02""")
 
         # Trigger an error through command launcher (this is the real error pathway)
         # Standard library imports
-        from datetime import datetime
+        from datetime import (
+            datetime,
+        )
 
         timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
         window.command_launcher.command_error.emit(timestamp, "Test error message")
@@ -753,7 +769,7 @@ class TestMainWindowErrorScenarios:
         cache_dir = tmp_path / "cache"
         if cache_dir.exists():
             # Standard library imports
-            import shutil
+            import shutil  # noqa: PLC0415 - lazy import to avoid circular dependency
 
             shutil.rmtree(cache_dir)
 

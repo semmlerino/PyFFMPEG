@@ -87,8 +87,8 @@ class ContextualLogger:
     """Enhanced logger wrapper that supports structured context."""
 
     def __init__(self, logger: logging.Logger) -> None:  # pyright: ignore[reportMissingSuperCall]
-        self._logger = logger
-        self._lock = threading.RLock()
+        self._logger: logging.Logger = logger
+        self._lock: threading.RLock = threading.RLock()
 
     def _format_message(self, msg: str) -> str:
         """Format message with current context if available."""
@@ -212,7 +212,7 @@ class ContextualLogger:
             extra=extra,
         )
 
-    def isEnabledFor(self, level: int) -> bool:
+    def isEnabledFor(self, level: int) -> bool:  # noqa: N802
         """Check if the logger is enabled for the specified level.
 
         Args:
@@ -223,7 +223,7 @@ class ContextualLogger:
         """
         return self._logger.isEnabledFor(level)
 
-    def setLevel(self, level: int) -> None:
+    def setLevel(self, level: int) -> None:  # noqa: N802
         """Set the logging level for this logger.
 
         Args:

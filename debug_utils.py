@@ -54,10 +54,10 @@ class TimingProfiler(LoggingMixin):
             name: Name for this profiler instance
         """
         super().__init__()
-        self.name = name
+        self.name: str = name
         self.timings: dict[str, list[float]] = {}
         self.active_timers: dict[str, float] = {}
-        self.enabled = DEBUG_TIMING or DEBUG_ALL
+        self.enabled: bool = DEBUG_TIMING or DEBUG_ALL
 
     @contextmanager
     def measure(self, operation_name: str) -> Generator[None, None, None]:
@@ -126,9 +126,9 @@ class TimingProfiler(LoggingMixin):
         for operation, stats in self.get_report().items():
             self.logger.info(
                 f"{operation}: "
-                f"avg={stats['average']:.3f}s, "
-                f"total={stats['total']:.3f}s, "
-                f"count={stats['count']}"
+                 f"avg={stats['average']:.3f}s, "
+                 f"total={stats['total']:.3f}s, "
+                 f"count={stats['count']}"
             )
 
 
@@ -154,7 +154,7 @@ class ProcessStateTracker(LoggingMixin):
         self.states: dict[str, str] = {}
         self.state_history: dict[str, list[tuple[float, str, str, str]]] = {}
         self.state_timings: dict[str, dict[str, float]] = {}
-        self.enabled = DEBUG_STATE or DEBUG_ALL
+        self.enabled: bool = DEBUG_STATE or DEBUG_ALL
 
     def transition(self, session_id: str, to_state: str, reason: str = "") -> None:
         """Record state transition.
@@ -188,12 +188,12 @@ class ProcessStateTracker(LoggingMixin):
             if DEBUG_VERBOSE:
                 self.logger.debug(
                     f"[{session_id}] STATE: {from_state} → {to_state} "
-                     f"(duration: {duration:.2f}s) {f'[{reason}]' if reason else ''}"
+                      f"(duration: {duration:.2f}s) {f'[{reason}]' if reason else ''}"
                 )
         elif DEBUG_VERBOSE:
             self.logger.debug(
                 f"[{session_id}] STATE: {from_state} → {to_state} "
-                 f"{f'[{reason}]' if reason else ''}"
+                  f"{f'[{reason}]' if reason else ''}"
             )
 
         # Record new state start time
@@ -207,7 +207,7 @@ class ProcessStateTracker(LoggingMixin):
 
         Returns:
             Current state or 'UNKNOWN'
-        """
+        + """
         return self.states.get(session_id, "UNKNOWN")
 
     def get_history(self, session_id: str) -> list[tuple[float, str, str, str]]:
@@ -325,7 +325,7 @@ class IOBufferInspector(LoggingMixin):
 
         logger.debug(
             f"[{session_id}] Buffer {context}: "
-             f"{len(data)} bytes, {lines} lines, {non_printable} non-printable"
+              f"{len(data)} bytes, {lines} lines, {non_printable} non-printable"
         )
 
         # Show preview of data
@@ -378,7 +378,7 @@ class DeadlockDetector(LoggingMixin):
         """Initialize deadlock detector."""
         super().__init__()
         self.waiting_on: dict[str, tuple[str, float]] = {}
-        self.enabled = DEBUG_ALL
+        self.enabled: bool = DEBUG_ALL
 
     def waiting(self, session_id: str, resource: str) -> None:
         """Record that session is waiting for resource.

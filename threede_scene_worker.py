@@ -6,7 +6,7 @@ from __future__ import annotations
 import time
 from collections import deque
 from pathlib import Path
-from typing import TYPE_CHECKING, final, override
+from typing import TYPE_CHECKING, final
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -24,6 +24,7 @@ from config import Config
 from logging_mixin import LoggingMixin
 from thread_safe_worker import ThreadSafeWorker
 from threede_scene_finder import ThreeDESceneFinder
+from typing_compat import override
 from utils import ValidationUtils
 
 

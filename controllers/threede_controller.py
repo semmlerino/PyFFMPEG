@@ -15,6 +15,8 @@ a focused, testable component. It handles:
 from __future__ import annotations
 
 # Standard library imports
+import sys
+import warnings
 from typing import TYPE_CHECKING, Protocol
 
 # Third-party imports
@@ -48,7 +50,7 @@ if TYPE_CHECKING:
 # Runtime imports (needed at runtime)
 from config import Config
 from logging_mixin import LoggingMixin
-from notification_manager import NotificationManager
+from notification_manager import NotificationManager, NotificationType
 from progress_manager import ProgressManager
 from shot_model import Shot
 from threede_scene_worker import ThreeDESceneWorker
@@ -77,7 +79,7 @@ class ThreeDETarget(Protocol):
     launcher_controller: LauncherController
 
     # Required methods
-    def setWindowTitle(self, title: str) -> None: ...
+    def setWindowTitle(self, title: str) -> None: ...  # noqa: N802
     def update_status(self, message: str) -> None: ...
     def update_launcher_menu_availability(self, available: bool) -> None: ...
     def enable_custom_launcher_buttons(self, enabled: bool) -> None: ...
@@ -118,11 +120,11 @@ class ThreeDEController(LoggingMixin):
             window: MainWindow implementing ThreeDETarget protocol
         """
         super().__init__()
-        self.window = window
+        self.window: ThreeDETarget = window
 
         # Thread management - mirrors MainWindow's approach
         self._threede_worker: ThreeDESceneWorker | None = None
-        self._worker_mutex = QMutex()
+        self._worker_mutex: QMutex = QMutex()
         # NOTE: Current scene is managed by launcher_controller (single source of truth)
 
         # Connect UI signals to controller methods
@@ -258,9 +260,6 @@ class ThreeDEController(LoggingMixin):
             worker_to_cleanup.stop()
 
             # Use shorter timeout in test environments
-            # Standard library imports
-            import sys
-
             is_test_environment = "pytest" in sys.modules
             worker_timeout_ms = (
                 500 if is_test_environment else Config.WORKER_STOP_TIMEOUT_MS
@@ -500,9 +499,9 @@ class ThreeDEController(LoggingMixin):
         workspace_path = scene.workspace_path
         self.logger.info(f"Scanning for crash files in: {workspace_path}")
 
-        # Import recovery components
-        from threede_recovery import ThreeDERecoveryManager
-        from threede_recovery_dialog import (
+        # Import recovery components - lazy load as this feature may not be used
+        from threede_recovery import ThreeDERecoveryManager  # noqa: PLC0415
+        from threede_recovery_dialog import (  # noqa: PLC0415
             ThreeDERecoveryDialog,
             ThreeDERecoveryResultDialog,
         )
@@ -550,7 +549,6 @@ class ThreeDEController(LoggingMixin):
                 self.logger.info("Refreshing 3DE scenes after recovery")
                 self.refresh_threede_scenes()
 
-                from notification_manager import NotificationType
                 NotificationManager.toast(
                     f"Recovered: {recovered_path.name}",
                     NotificationType.SUCCESS
@@ -791,9 +789,6 @@ class ThreeDEController(LoggingMixin):
         Args:
             worker: The worker thread to disconnect signals from
         """
-        # Standard library imports
-        import warnings
-
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", RuntimeWarning)
             signals_to_disconnect = [

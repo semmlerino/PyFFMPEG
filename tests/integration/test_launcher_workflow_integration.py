@@ -46,6 +46,9 @@ class TestLauncherWorkflowIntegration:
         self.config_dir = self.temp_dir / "config"
         self.config_dir.mkdir(parents=True, exist_ok=True)
 
+        # Track QObject instances for proper cleanup (Qt Widget Guidelines)
+        self.qt_objects: list[Any] = []
+
         # Create test shot data
         self.test_shot = {
             "show": "test_show",
@@ -64,6 +67,22 @@ class TestLauncherWorkflowIntegration:
 
     def teardown_method(self) -> None:
         """Direct cleanup without fixture dependencies."""
+        # Clean up Qt objects to prevent resource leaks (Qt Widget Guidelines)
+        for obj in self.qt_objects:
+            try:
+                # Stop worker threads in LauncherManager before cleanup
+                if hasattr(obj, 'stop_all_workers'):
+                    obj.stop_all_workers()
+
+                if hasattr(obj, 'deleteLater'):
+                    obj.deleteLater()
+            except Exception:
+                pass  # Ignore cleanup errors
+
+        # Clear the list
+        self.qt_objects.clear()
+
+        # Clean up temp directory
         try:
             if self.temp_dir.exists():
                 shutil.rmtree(self.temp_dir, ignore_errors=True)
@@ -75,6 +94,7 @@ class TestLauncherWorkflowIntegration:
         """Test launcher manager executing commands with process tracking."""
         # Create launcher manager with test config directory
         launcher_manager = LauncherManager(config_dir=self.config_dir)
+        self.qt_objects.append(launcher_manager)  # Track for cleanup
 
         # Create test launcher using the real API
         launcher_id = launcher_manager.create_launcher(
@@ -128,6 +148,7 @@ class TestLauncherWorkflowIntegration:
     def test_launcher_manager_process_tracking_integration(self, qtbot: Any) -> None:
         """Test launcher manager process tracking and cleanup."""
         launcher_manager = LauncherManager(config_dir=self.config_dir)
+        self.qt_objects.append(launcher_manager)  # Track for cleanup
 
         # Create test launcher using the real API
         launcher_id = launcher_manager.create_launcher(
@@ -197,6 +218,7 @@ class TestLauncherWorkflowIntegration:
     def test_launcher_manager_signal_emission_flow(self, qtbot: Any) -> None:
         """Test complete signal emission flow during launcher execution."""
         launcher_manager = LauncherManager(config_dir=self.config_dir)
+        self.qt_objects.append(launcher_manager)  # Track for cleanup
 
         # Track all signals
         signal_events = []
@@ -265,6 +287,7 @@ class TestLauncherWorkflowIntegration:
     def test_launcher_manager_concurrent_execution_integration(self, qtbot: Any) -> None:
         """Test launcher manager handling multiple concurrent executions."""
         launcher_manager = LauncherManager(config_dir=self.config_dir)
+        self.qt_objects.append(launcher_manager)  # Track for cleanup
 
         # Create multiple test launchers using the real API
         launcher_id1 = launcher_manager.create_launcher(

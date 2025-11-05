@@ -75,7 +75,9 @@ class TestShotPathProperties:
         """Any valid shot path should parse and reconstruct identically."""
         # Import locally to avoid circular dependencies
         # Local application imports
-        from shot_model import Shot
+        from shot_model import (
+            Shot,
+        )
 
         # Parse the path
         parts = path.split("/")
@@ -97,7 +99,9 @@ class TestShotPathProperties:
     def test_shot_creation_consistency(self, show: str, seq: str, shot: str) -> None:
         """Shot creation should be consistent regardless of input format."""
         # Local application imports
-        from shot_model import Shot
+        from shot_model import (
+            Shot,
+        )
 
         # Create shot with explicit workspace path
         workspace = f"{Config.SHOWS_ROOT}/{show}/shots/{seq}/{seq}_{shot}"
@@ -187,10 +191,12 @@ class TestWorkspaceCommandProperties:
     def test_workspace_parsing_consistency(self, paths) -> None:
         """Workspace output parsing should handle any valid format."""
         # Standard library imports
-        import tempfile
+        import tempfile  # noqa: PLC0415 - lazy import to avoid circular dependency
 
         # Local application imports
-        from shot_model import ShotModel
+        from shot_model import (
+            ShotModel,
+        )
 
         # Generate mock workspace output
         ws_output = "\n".join(f"workspace {path}" for path in paths)
@@ -236,7 +242,9 @@ class TestWorkspaceCommandProperties:
     def test_invalid_workspace_line_handling(self, line: str) -> None:
         """Invalid workspace lines should be handled gracefully."""
         # Local application imports
-        from shot_model import ShotModel
+        from shot_model import (
+            ShotModel,
+        )
 
         # Create model without cache
         model = ShotModel(cache_manager=None)
@@ -263,7 +271,9 @@ class TestPathValidationProperties:
     def test_path_validation_consistency(self, path_str: str) -> None:
         """Path validation should be consistent."""
         # Local application imports
-        from utils import PathUtils
+        from utils import (
+            PathUtils,
+        )
 
         # Skip invalid paths
         if "\x00" in path_str or not path_str.strip():
@@ -293,7 +303,9 @@ class TestPathValidationProperties:
     def test_path_building_consistency(self, components) -> None:
         """Path building should be consistent."""
         # Local application imports
-        from utils import PathUtils
+        from utils import (
+            PathUtils,
+        )
 
         if not components:
             assume(False)
@@ -333,10 +345,12 @@ class TestSceneFinderProperties:
     def test_scene_finding_consistency(self, scene_list) -> None:
         """Scene finding should be consistent."""
         # Standard library imports
-        import tempfile
+        import tempfile  # noqa: PLC0415 - lazy import to avoid circular dependency
 
         # Local application imports
-        from threede_scene_finder import ThreeDESceneFinder
+        from threede_scene_finder import (
+            ThreeDESceneFinder,
+        )
 
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)

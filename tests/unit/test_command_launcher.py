@@ -57,28 +57,6 @@ class TestRawPlateFinder:
         return None
 
 
-class TestUndistortionFinder:
-    """Test double for UndistortionFinder."""
-
-    __test__ = False  # Prevent pytest collection
-
-    @staticmethod
-    def find_latest_undistortion(
-        shot_workspace_path: str, _shot_name: str, _username: str | None = None
-    ) -> Path | None:
-        """Mock finding latest undistortion."""
-        if "TEST" in shot_workspace_path:
-            return Path("/path/to/undist_v002.nk")
-        return None
-
-    @staticmethod
-    def get_version_from_path(undistortion_path: Path) -> str | None:
-        """Mock getting version from path."""
-        if "v002" in str(undistortion_path):
-            return "v002"
-        return "v001"
-
-
 class TestNukeScriptGenerator:
     """Test double for NukeScriptGenerator."""
 
@@ -88,18 +66,6 @@ class TestNukeScriptGenerator:
     def create_plate_script(_plate_path: str, shot_name: str) -> str:
         """Mock creating plate script."""
         return f"/tmp/{shot_name}_plate.nk"
-
-    @staticmethod
-    def create_plate_script_with_undistortion(
-        _plate_path: str, _undist_path: str, shot_name: str
-    ) -> str:
-        """Mock creating plate script with undistortion."""
-        return f"/tmp/{shot_name}_undist.nk"
-
-    @staticmethod
-    def create_loader_script(_plate_path: str, _undist_path: str, shot_name: str) -> str:
-        """Mock creating loader script."""
-        return f"/tmp/{shot_name}_loader.nk"
 
 
 class TestThreeDELatestFinder:
@@ -167,7 +133,6 @@ class TestCommandLauncher:
         """Create CommandLauncher with test doubles."""
         return CommandLauncher(
             raw_plate_finder=TestRawPlateFinder,
-            undistortion_finder=TestUndistortionFinder,
             nuke_script_generator=TestNukeScriptGenerator,
             threede_latest_finder=TestThreeDELatestFinder,
             maya_latest_finder=TestMayaLatestFinder,
@@ -269,37 +234,6 @@ class TestCommandLauncher:
 
         # Launch Nuke with raw plate
         result = launcher.launch_app("nuke", include_raw_plate=True)
-
-        # Verify launch was successful
-        assert result is True
-
-        # Verify subprocess was called
-        assert mock_popen.called
-        call_args = mock_popen.call_args[0][0]
-        assert "nuke" in " ".join(call_args)
-
-    @patch.object(
-        CommandLauncher, "_validate_workspace_before_launch", return_value=True
-    )
-    @patch.object(CommandLauncher, "_is_rez_available", return_value=False)
-    @patch("command_launcher.subprocess.Popen")
-    def test_launch_nuke_with_undistortion(
-        self,
-        mock_popen: MagicMock,
-        mock_rez: MagicMock,
-        mock_validate: MagicMock,
-        launcher: CommandLauncher,
-        test_shot: Shot,
-        qtbot: QtBot,
-    ) -> None:
-        """Test launching Nuke with undistortion."""
-        launcher.set_current_shot(test_shot)
-
-        # Setup mock
-        mock_popen.return_value = MagicMock()
-
-        # Launch Nuke with undistortion
-        result = launcher.launch_app("nuke", include_undistortion=True)
 
         # Verify launch was successful
         assert result is True
@@ -480,7 +414,6 @@ class TestCommandLauncher:
         terminal = TestPersistentTerminalManager()
         launcher = CommandLauncher(
             raw_plate_finder=TestRawPlateFinder,
-            undistortion_finder=TestUndistortionFinder,
             nuke_script_generator=TestNukeScriptGenerator,
             threede_latest_finder=TestThreeDELatestFinder,
             maya_latest_finder=TestMayaLatestFinder,
@@ -516,7 +449,6 @@ class TestCommandLauncher:
 
         launcher = CommandLauncher(
             raw_plate_finder=TestRawPlateFinder,
-            undistortion_finder=TestUndistortionFinder,
             nuke_script_generator=TestNukeScriptGenerator,
             threede_latest_finder=TestThreeDELatestFinder,
             maya_latest_finder=TestMayaLatestFinder,
@@ -550,7 +482,6 @@ class TestCommandLauncherSignals:
         """Create CommandLauncher with test doubles."""
         return CommandLauncher(
             raw_plate_finder=TestRawPlateFinder,
-            undistortion_finder=TestUndistortionFinder,
             nuke_script_generator=TestNukeScriptGenerator,
             threede_latest_finder=TestThreeDELatestFinder,
             maya_latest_finder=TestMayaLatestFinder,

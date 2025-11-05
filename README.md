@@ -21,7 +21,7 @@ A PySide6 GUI application for browsing VFX shots and launching applications in s
 
 ## Requirements
 
-- Python 3.8+
+- Python 3.11+
 - PySide6
 - Access to `ws -sg` command for shot listing
 - Linux environment (for terminal launching)

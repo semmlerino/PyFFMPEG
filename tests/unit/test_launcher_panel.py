@@ -366,11 +366,9 @@ class TestLauncherPanel:
         qtbot.addWidget(panel)
 
         # Test getting checkbox state for nuke (which has checkboxes)
-        nuke_undistortion = panel.get_checkbox_state("nuke", "include_undistortion")
         nuke_raw_plate = panel.get_checkbox_state("nuke", "include_raw_plate")
 
-        # Should get default values (False for both)
-        assert nuke_undistortion is False
+        # Should get default value (False)
         assert nuke_raw_plate is False
 
         # Test getting state for non-existent app/key
@@ -462,7 +460,7 @@ class TestLauncherPanelIntegration:
 
         # 2. Configure checkboxes
         nuke_section = panel.app_sections["nuke"]
-        nuke_section.checkboxes["include_undistortion"].setChecked(True)
+        nuke_section.checkboxes["include_raw_plate"].setChecked(True)
 
         # 3. Launch nuke with options
         qtbot.mouseClick(nuke_section.launch_button, Qt.MouseButton.LeftButton)
@@ -472,8 +470,7 @@ class TestLauncherPanelIntegration:
         assert app_launch_spy.at(0)[0] == "nuke"
 
         # Verify checkbox state is accessible
-        assert panel.get_checkbox_state("nuke", "include_undistortion") is True
-        assert panel.get_checkbox_state("nuke", "include_raw_plate") is False
+        assert panel.get_checkbox_state("nuke", "include_raw_plate") is True
 
     @pytest.mark.integration
     def test_multiple_app_sections_interaction(

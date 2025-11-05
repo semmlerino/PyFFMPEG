@@ -15,11 +15,6 @@ import time
 from typing import Any
 
 # Third-party imports
-from PySide6.QtCore import QCoreApplication
-
-
-# Import after QCoreApplication exists
-app = QCoreApplication.instance() or QCoreApplication([])
 
 
 def test_process_pool_manager_race_condition() -> None:
@@ -30,7 +25,9 @@ def test_process_pool_manager_race_condition() -> None:
     """
     # Clear any existing instance first
     # Local application imports
-    from process_pool_manager import ProcessPoolManager
+    from process_pool_manager import (
+        ProcessPoolManager,
+    )
 
     # Reset singleton state for testing
     ProcessPoolManager._instance = None
@@ -111,10 +108,12 @@ def test_process_pool_manager_resource_leak() -> None:
     resources to be created multiple times.
     """
     # Standard library imports
-    import concurrent.futures
+    import concurrent.futures  # noqa: PLC0415 - lazy import to avoid circular dependency
 
     # Local application imports
-    from process_pool_manager import ProcessPoolManager
+    from process_pool_manager import (
+        ProcessPoolManager,
+    )
 
     # Reset singleton completely
     ProcessPoolManager._instance = None

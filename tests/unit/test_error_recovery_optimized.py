@@ -112,7 +112,9 @@ class TestErrorRecovery:
 
         # Replace cache manager with one using corrupted cache
         # Local application imports
-        from cache_manager import CacheManager
+        from cache_manager import (
+            CacheManager,
+        )
 
         corrupted_cache = CacheManager(cache_dir=cache_dir)
         error_prone_model.cache_manager = corrupted_cache
@@ -148,7 +150,9 @@ class TestErrorRecovery:
 
         # Need to provide parse_function (from UNIFIED_TESTING_GUIDE)
         # Local application imports
-        from base_shot_model import BaseShotModel
+        from base_shot_model import (
+            BaseShotModel,
+        )
 
         base_model = BaseShotModel(
             load_cache=False
@@ -174,8 +178,12 @@ class TestErrorRecovery:
         """Test handling of partial or malformed workspace data."""
         # Test the parsing directly without async complications
         # Local application imports
-        from cache_manager import CacheManager
-        from config import Config
+        from cache_manager import (
+            CacheManager,
+        )
+        from config import (
+            Config,
+        )
 
         # Use test double returning partial data with dynamic SHOWS_ROOT
         class TestProcessPool:  # Named to match the check in refresh_strategy
@@ -190,7 +198,9 @@ workspace {shows_root}/test/shots/seq03/seq03_0030"""
 
         # Use regular ShotModel (not Optimized) for simpler synchronous testing
         # Local application imports
-        from shot_model import ShotModel
+        from shot_model import (
+            ShotModel,
+        )
 
         model = ShotModel(CacheManager(), load_cache=False)
         model._process_pool = TestProcessPool()

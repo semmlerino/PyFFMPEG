@@ -68,7 +68,9 @@ def base_shot_model(
     real_cache_manager: CacheManager, test_process_pool: TestProcessPool
 ) -> BaseShotModel:
     """Create a real BaseShotModel with test process pool."""
-    from base_shot_model import BaseShotModel
+    from base_shot_model import (
+        BaseShotModel,
+    )
 
     return BaseShotModel(
         cache_manager=real_cache_manager,
@@ -391,7 +393,7 @@ class TestDataAccess:
         sequence = shot_item_model.data(index, BaseItemRole.SequenceRole)
         assert sequence == shot.sequence
 
-    def test_rowCount_matches_filtered_shots(
+    def test_rowCount_matches_filtered_shots(  # noqa: N802
         self,
         shot_item_model: ShotItemModel,
         base_shot_model: BaseShotModel,
@@ -549,8 +551,12 @@ class TestCleanup:
         self, shot_item_model: ShotItemModel, qtbot: QtBot, test_shots: list[Shot]
     ) -> None:
         """Test setting items preserves thumbnails for matching shots."""
-        from PySide6.QtCore import QMutexLocker
-        from PySide6.QtGui import QImage
+        from PySide6.QtCore import (
+            QMutexLocker,
+        )
+        from PySide6.QtGui import (
+            QImage,
+        )
 
         shot_item_model.set_shots(test_shots[:2])
 

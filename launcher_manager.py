@@ -78,14 +78,16 @@ class LauncherManager(LoggingMixin, QObject):
         self,
         config_dir: str | Path | None = None,
         process_pool: ProcessPoolInterface | None = None,
+        parent: QObject | None = None,  # ✅ REQUIRED for Qt object
     ) -> None:
         """Initialize the launcher manager with all components.
 
         Args:
             config_dir: Optional configuration directory path
             process_pool: Optional process pool instance (defaults to singleton)
+            parent: Optional parent QObject for proper Qt ownership
         """
-        super().__init__()
+        super().__init__(parent)  # ✅ Pass parent to QObject
 
         # Initialize components
         self._config_manager = LauncherConfigManager(config_dir)

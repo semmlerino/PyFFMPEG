@@ -32,7 +32,7 @@ class LauncherValidator(LoggingMixin):
         """Initialize the validator with security patterns."""
         super().__init__()
         # Define valid placeholder variables
-        self.valid_variables = {
+        self.valid_variables: set[str] = {
             # Shot context variables
             "show",
             "sequence",
@@ -46,7 +46,7 @@ class LauncherValidator(LoggingMixin):
         }
 
         # Security patterns that should be forbidden
-        self.security_patterns = [
+        self.security_patterns: list[str] = [
             "rm -rf",
             "sudo rm",
             "rm /",

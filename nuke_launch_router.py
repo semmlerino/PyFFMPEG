@@ -2,7 +2,7 @@
 
 This module analyzes launch options and routes to the appropriate launcher:
 - SimpleNukeLauncher: For opening existing scripts (90% of use cases)
-- NukeLaunchHandler: For generating scripts with plates/undistortion (10% of use cases)
+- NukeLaunchHandler: For generating scripts with plates (10% of use cases)
 """
 
 from __future__ import annotations
@@ -24,12 +24,12 @@ class NukeLaunchRouter(LoggingMixin):
     def __init__(self) -> None:
         """Initialize with both launchers."""
         super().__init__()
-        self.simple_launcher = SimpleNukeLauncher()
-        self.complex_launcher = NukeLaunchHandler()
+        self.simple_launcher: SimpleNukeLauncher = SimpleNukeLauncher()
+        self.complex_launcher: NukeLaunchHandler = NukeLaunchHandler()
 
         # Usage tracking for metrics
-        self.simple_launches = 0
-        self.complex_launches = 0
+        self.simple_launches: int = 0
+        self.complex_launches: int = 0
 
     def prepare_nuke_command(
         self,
@@ -42,7 +42,7 @@ class NukeLaunchRouter(LoggingMixin):
 
         Decision logic:
         - Simple launcher: open_latest_scene or create_new_file WITHOUT media options
-        - Complex launcher: Any media options (include_raw_plate, include_undistortion)
+        - Complex launcher: Any media options (include_raw_plate)
 
         Args:
             shot: Current shot context
@@ -57,10 +57,9 @@ class NukeLaunchRouter(LoggingMixin):
         open_latest_scene = options.get("open_latest_scene", False)
         create_new_file = options.get("create_new_file", False)
         include_raw_plate = options.get("include_raw_plate", False)
-        include_undistortion = options.get("include_undistortion", False)
 
         # Check if this is a simple workflow (no media generation)
-        has_media_options = include_raw_plate or include_undistortion
+        has_media_options = include_raw_plate
         has_workspace_options = open_latest_scene or create_new_file
 
         if has_workspace_options and not has_media_options:

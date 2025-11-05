@@ -11,10 +11,11 @@ from __future__ import annotations
 
 # Standard library imports
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, TypedDict, Unpack, final, override
+from typing import TYPE_CHECKING, TypedDict, Unpack, final
 
 # Local application imports
 from logging_mixin import LoggingMixin
+from typing_compat import override
 
 
 if TYPE_CHECKING:
@@ -50,9 +51,13 @@ class SceneDiscoveryStrategy(ABC, LoggingMixin):
         # Lazy imports to break circular dependencies
         # Cycle: scene_cache → threede_scene_model → threede_scene_finder →
         # threede_scene_finder_optimized → scene_discovery_coordinator → scene_discovery_strategy → scene_cache
-        from filesystem_scanner import FileSystemScanner
-        from scene_cache import SceneCache
-        from scene_parser import SceneParser
+        from filesystem_scanner import (
+            FileSystemScanner,
+        )
+        from scene_cache import SceneCache  # noqa: PLC0415 - Avoid circular dependency
+        from scene_parser import (
+            SceneParser,
+        )
 
         self.scanner = FileSystemScanner()
         self.parser = SceneParser()
@@ -657,5 +662,5 @@ def create_discovery_strategy(
         return NetworkAwareStrategy(network_timeout=network_timeout)
     raise ValueError(
         f"Unknown strategy type: {strategy_type}. "
-         f"Available: local, parallel, progressive, network"
+          f"Available: local, parallel, progressive, network"
     )

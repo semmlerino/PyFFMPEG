@@ -38,11 +38,14 @@ if TYPE_CHECKING:
     from threede_scene_model import ThreeDEScene
 
 # Runtime imports (needed at runtime)
-from datetime import UTC
+import inspect
+from collections.abc import Callable as CallableABC
+from datetime import UTC, datetime
 
 from logging_mixin import LoggingMixin
 from notification_manager import NotificationManager, NotificationType
 from progress_manager import ProgressManager
+from shot_model import Shot
 
 
 class LauncherTarget(Protocol):
@@ -87,7 +90,7 @@ class LauncherController(LoggingMixin):
             window: MainWindow implementing LauncherTarget protocol
         """
         super().__init__()
-        self.window = window
+        self.window: LauncherTarget = window
 
         # Context tracking
         self._current_scene: ThreeDEScene | None = None
@@ -169,7 +172,7 @@ class LauncherController(LoggingMixin):
         if scene:
             self.logger.info(
                 f"🎬 LauncherController.set_current_scene() called with scene: {scene.full_name} "
-                 f"(user: {scene.user}, path: {scene.scene_path})"
+                  f"(user: {scene.user}, path: {scene.scene_path})"
             )
             # Clear shot context to maintain mutual exclusivity
             self._current_shot = None
@@ -196,7 +199,6 @@ class LauncherController(LoggingMixin):
         # Configuration mapping app names to their available options
         app_options: dict[str, list[str]] = {
             "nuke": [
-                "include_undistortion",
                 "include_raw_plate",
                 "open_latest_scene",
                 "create_new_file",
@@ -238,7 +240,7 @@ class LauncherController(LoggingMixin):
                 # For 3DE, use the scene file directly
                 success = self._launch_app_with_scene(app_name, self._current_scene)
             else:
-                # For other apps, launch in shot context with undistortion/raw plate support
+                # For other apps, launch in shot context with plate support
                 success = self._launch_app_with_scene_context(
                     app_name,
                     self._current_scene,
@@ -247,8 +249,6 @@ class LauncherController(LoggingMixin):
             self.logger.warning("⚠️  No scene context - falling back to shot context")
 
             # Add visible UI feedback about fallback
-            from datetime import datetime
-
             timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
             self.window.log_viewer.add_command(
                 timestamp, "Using shot context (no scene selected)"
@@ -285,7 +285,6 @@ class LauncherController(LoggingMixin):
             options = self.get_launch_options(app_name)
 
             # Extract individual options for command launcher
-            include_undistortion = options.get("include_undistortion", False)
             include_raw_plate = options.get("include_raw_plate", False)
             open_latest_threede = options.get("open_latest_threede", False)
             open_latest_maya = options.get("open_latest_maya", False)
@@ -304,7 +303,6 @@ class LauncherController(LoggingMixin):
                 # Validate plate selection for workspace operations
                 if (open_latest_scene or create_new_file) and not selected_plate:
                     self.logger.error("No plate selected for Nuke workspace operation")
-                    from datetime import datetime
                     timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
                     self.window.log_viewer.add_error(
                         timestamp,
@@ -318,9 +316,6 @@ class LauncherController(LoggingMixin):
 
             # Type-safe launch handling for union type (CommandLauncher | SimplifiedLauncher)
             # Check if launcher supports selected_plate parameter using inspect
-            import inspect
-            from collections.abc import Callable as CallableABC
-
             launcher_method: CallableABC[..., bool] | None = getattr(self.window.command_launcher, "launch_app", None)
             if launcher_method is None or not callable(launcher_method):
                 success = False
@@ -334,7 +329,6 @@ class LauncherController(LoggingMixin):
                     launcher = cast("CommandLauncher", self.window.command_launcher)
                     success = launcher.launch_app(
                         app_name,
-                        include_undistortion,
                         include_raw_plate,
                         open_latest_threede,
                         open_latest_maya,
@@ -346,7 +340,6 @@ class LauncherController(LoggingMixin):
                     # SimplifiedLauncher or no plate selected - both support base parameters
                     success = self.window.command_launcher.launch_app(
                         app_name,
-                        include_undistortion,
                         include_raw_plate,
                         open_latest_threede,
                         open_latest_maya,
@@ -391,13 +384,7 @@ class LauncherController(LoggingMixin):
         Returns:
             True if launch was successful, False otherwise
         """
-        # Check if we should include undistortion and/or raw plate for Nuke
-        include_undistortion = (
-            app_name == "nuke"
-            and self.window.launcher_panel.get_checkbox_state(
-                "nuke", "include_undistortion"
-            )
-        )
+        # Check if we should include raw plate for Nuke
         include_raw_plate = (
             app_name == "nuke"
             and self.window.launcher_panel.get_checkbox_state(
@@ -411,14 +398,11 @@ class LauncherController(LoggingMixin):
             if launcher.launch_app_with_scene_context(
                 app_name,
                 scene,
-                include_undistortion,
                 include_raw_plate,
             ):
                 return True
         else:
             # SimplifiedLauncher doesn't support scene context, fall back to regular launch
-            from shot_model import Shot
-
             scene_shot = Shot(
                 show=scene.show,
                 sequence=scene.sequence,
@@ -445,8 +429,6 @@ class LauncherController(LoggingMixin):
         # Check if we have a current scene selected
         if self._current_scene:
             # Create a Shot object from the scene for context
-            from shot_model import Shot
-
             shot = Shot(
                 show=self._current_scene.show,
                 sequence=self._current_scene.sequence,
@@ -475,16 +457,12 @@ class LauncherController(LoggingMixin):
         if success:
             self.window.update_status(f"Launched '{launcher.name}'")
             # Log the execution
-            from datetime import datetime
-
             timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
             self.window.log_viewer.add_command(
                 timestamp, f"Custom launcher: {launcher.name}"
             )
         else:
             self.window.update_status(f"Failed to launch '{launcher.name}'")
-            from datetime import datetime
-
             timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
             self.window.log_viewer.add_error(
                 timestamp,
@@ -520,12 +498,12 @@ class LauncherController(LoggingMixin):
                 ),  # Cast through object for Protocol
                 "Custom Launchers",
                 ("Custom launchers are not available when using simplified launcher mode.\n"
-                "Set USE_SIMPLIFIED_LAUNCHER=false to use custom launchers.")
+                 "Set USE_SIMPLIFIED_LAUNCHER=false to use custom launchers.")
             )
             return
 
         if self._launcher_dialog is None:
-            from launcher_dialog import LauncherManagerDialog
+            from launcher_dialog import LauncherManagerDialog  # noqa: PLC0415
 
             self._launcher_dialog = LauncherManagerDialog(
                 self.window.launcher_manager, cast("QWidget", cast("object", self.window))

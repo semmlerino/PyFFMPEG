@@ -104,8 +104,12 @@ workspace /shows/jack_ryan/shots/999_xx/999_xx_999"""
     def test_thumbnail_path_construction(self, make_test_shot) -> None:
         """Test correct thumbnail path construction for VFX shots."""
         # Local application imports
-        from config import Config
-        from utils import PathUtils
+        from config import (
+            Config,
+        )
+        from utils import (
+            PathUtils,
+        )
 
         test_cases = [
             # (show, sequence, shot, expected_path_segment)
@@ -195,8 +199,12 @@ workspace /shows/jack_ryan/shots/999_xx/999_xx_999"""
 
         # Verify thumbnail path construction
         # Local application imports
-        from config import Config
-        from utils import PathUtils
+        from config import (
+            Config,
+        )
+        from utils import (
+            PathUtils,
+        )
 
         thumb_path = PathUtils.build_thumbnail_path(
             Config.SHOWS_ROOT, shot.show, shot.sequence, shot.shot
@@ -209,10 +217,14 @@ workspace /shows/jack_ryan/shots/999_xx/999_xx_999"""
     def test_vfx_asset_paths(self) -> None:
         """Test construction and discovery of VFX asset paths."""
         # Standard library imports
-        from pathlib import Path
+        from pathlib import (
+            Path,
+        )
 
         # Local application imports
-        from utils import PathUtils
+        from utils import (
+            PathUtils,
+        )
 
         # Test 3DE scene path construction
         shows_root = Config.SHOWS_ROOT
@@ -232,23 +244,6 @@ workspace /shows/jack_ryan/shots/999_xx/999_xx_999"""
         )
         assert threede_path == expected_3de
 
-        # Test undistortion path construction
-        undist_path = PathUtils.build_undistortion_path(workspace, username)
-        # Note: build_undistortion_path includes a default plate name
-        expected_undist = (
-            Path(workspace)
-            / "user"
-            / username
-            / "mm"
-            / "3de"
-            / "mm-default"
-            / "exports"
-            / "scene"
-            / "bg01"
-            / "nuke_lens_distortion"
-        )
-        assert undist_path == expected_undist
-
         # Test raw plate path construction
         plate_path = PathUtils.build_raw_plate_path(workspace)
         expected_plate = (
@@ -259,7 +254,9 @@ workspace /shows/jack_ryan/shots/999_xx/999_xx_999"""
     def test_actual_vfx_file_paths(self) -> None:
         """Test parsing and construction of actual VFX file paths provided by user."""
         # Standard library imports
-        from pathlib import Path
+        from pathlib import (
+            Path,
+        )
 
         shows_root = Config.SHOWS_ROOT
 
@@ -268,13 +265,6 @@ workspace /shows/jack_ryan/shots/999_xx/999_xx_999"""
             {
                 "description": "3DE scene for Maya",
                 "path": f"{shows_root}/jack_ryan/shots/DB_256/DB_256_1200/user/gabriel-h/mm/3de/mm-default/exports/scene/FG01/mel_script/v002/DB_256_1200_mm_default_scene_v002.mel",
-                "workspace": f"{shows_root}/jack_ryan/shots/DB_256/DB_256_1200",
-                "plate": "FG01",
-                "version": "v002",
-            },
-            {
-                "description": "Nuke undistortion script",
-                "path": f"{shows_root}/jack_ryan/shots/DB_256/DB_256_1200/user/gabriel-h/mm/3de/mm-default/exports/scene/FG01/nuke_lens_distortion/v002/GF_256_1200_turnover-plate_FG01_lin_sgamut3cine_v001/DB_256_1200_mm_default_FG01_LD_v002.nk",
                 "workspace": f"{shows_root}/jack_ryan/shots/DB_256/DB_256_1200",
                 "plate": "FG01",
                 "version": "v002",

@@ -182,7 +182,9 @@ class TestOptimizedFileFinding:
 
         # Test Python method using the refactored FileSystemScanner
         # Local application imports
-        from filesystem_scanner import FileSystemScanner
+        from filesystem_scanner import (
+            FileSystemScanner,
+        )
 
         scanner = FileSystemScanner()
 
@@ -214,7 +216,9 @@ class TestOptimizedFileFinding:
 
         # Test subprocess method using the refactored FileSystemScanner
         # Local application imports
-        from filesystem_scanner import FileSystemScanner
+        from filesystem_scanner import (
+            FileSystemScanner,
+        )
 
         scanner = FileSystemScanner()
 
@@ -232,7 +236,9 @@ class TestOptimizedFileFinding:
     def test_subprocess_fallback_behavior(self, tmp_path) -> None:
         """Test subprocess fallback to Python method."""
         # Local application imports
-        from filesystem_scanner import FileSystemScanner
+        from filesystem_scanner import (
+            FileSystemScanner,
+        )
 
         user_dir = tmp_path / "user"
         artist_dir = user_dir / "artist"
@@ -255,7 +261,9 @@ class TestOptimizedFileFinding:
     def test_subprocess_timeout_handling(self, tmp_path) -> None:
         """Test subprocess timeout handling."""
         # Local application imports
-        from filesystem_scanner import FileSystemScanner
+        from filesystem_scanner import (
+            FileSystemScanner,
+        )
 
         user_dir = tmp_path / "user"
         artist_dir = user_dir / "artist"

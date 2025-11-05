@@ -105,15 +105,6 @@ class TestPathUtils:
         expected = Path("/workspace/shot") / Path(*Config.RAW_PLATE_SEGMENTS)
         assert result == expected
 
-    def test_build_undistortion_path(self) -> None:
-        """Test undistortion path construction with username."""
-        result = PathUtils.build_undistortion_path("/workspace", "testuser")
-
-        # Should use user/username + undistortion segments (minus first element)
-        expected_segments = ["user", "testuser", *Config.UNDISTORTION_BASE_SEGMENTS[1:]]
-        expected = Path("/workspace") / Path(*expected_segments)
-        assert result == expected
-
     def test_build_threede_scene_path(self) -> None:
         """Test 3DE scene path construction."""
         result = PathUtils.build_threede_scene_path("/workspace", "testuser")

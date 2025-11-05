@@ -11,7 +11,7 @@ class NukeScriptTemplates:
     """Template builders for Nuke script components."""
 
     # Window layout XML template
-    WINDOW_LAYOUT_XML = """define_window_layout_xml {<?xml version="1.0" encoding="UTF-8"?>
+    WINDOW_LAYOUT_XML: str = """define_window_layout_xml {<?xml version="1.0" encoding="UTF-8"?>
 <layout version="1.0">
     <window x="0" y="0" w="1920" h="1080" fullscreen="0" screen="0">
         <splitter orientation="1">

@@ -43,7 +43,9 @@ class TestAsyncShotLoaderThreadSafety:
         """Set up test fixtures."""
         # Use real test double at system boundary
         # Local application imports
-        from tests.test_helpers import TestProcessPoolManager
+        from tests.test_helpers import (
+            TestProcessPoolManager,
+        )
 
         self.test_process_pool = TestProcessPoolManager()
         self.test_process_pool.set_outputs("""workspace /shows/TEST/seq01/0010

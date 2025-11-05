@@ -187,7 +187,9 @@ class TestPreviousShotsWorkerWorkflow:
 
         # Replace finder with base class that uses subprocess.run for testing
         # Local application imports
-        from previous_shots_finder import PreviousShotsFinder
+        from previous_shots_finder import (
+            PreviousShotsFinder,
+        )
 
         worker._finder = PreviousShotsFinder(username="testuser")
 
@@ -236,7 +238,9 @@ class TestPreviousShotsWorkerWorkflow:
 
         # Replace finder with base class that uses subprocess.run for testing
         # Local application imports
-        from previous_shots_finder import PreviousShotsFinder
+        from previous_shots_finder import (
+            PreviousShotsFinder,
+        )
 
         worker._finder = PreviousShotsFinder(username="testuser")
 
@@ -271,7 +275,7 @@ class TestPreviousShotsWorkerWorkflow:
         def slow_subprocess(*args: Any, **kwargs: Any) -> TestCompletedProcess:
             # Small delay to allow stop request to be processed
             # Standard library imports
-            import time
+            import time  # noqa: PLC0415 - lazy import to avoid circular dependency
 
             time.sleep(0.1)
             if worker.should_stop():
@@ -291,7 +295,9 @@ class TestPreviousShotsWorkerWorkflow:
 
         # Replace finder with base class that uses subprocess.run for testing
         # Local application imports
-        from previous_shots_finder import PreviousShotsFinder
+        from previous_shots_finder import (
+            PreviousShotsFinder,
+        )
 
         worker._finder = PreviousShotsFinder(username="testuser")
 
@@ -330,7 +336,9 @@ class TestPreviousShotsWorkerWorkflow:
 
         # Replace finder with base class that uses subprocess.run for testing
         # Local application imports
-        from previous_shots_finder import PreviousShotsFinder
+        from previous_shots_finder import (
+            PreviousShotsFinder,
+        )
 
         worker._finder = PreviousShotsFinder(username="testuser")
 
@@ -385,7 +393,9 @@ class TestPreviousShotsWorkerWorkflow:
 
         # Replace finder with base class that uses subprocess.run for testing
         # Local application imports
-        from previous_shots_finder import PreviousShotsFinder
+        from previous_shots_finder import (
+            PreviousShotsFinder,
+        )
 
         worker._finder = PreviousShotsFinder(username="testuser")
 
@@ -523,7 +533,9 @@ class TestPreviousShotsWorkerIntegration:
 
         # Replace finder with base class that uses subprocess.run for testing
         # Local application imports
-        from previous_shots_finder import PreviousShotsFinder
+        from previous_shots_finder import (
+            PreviousShotsFinder,
+        )
 
         worker._finder = PreviousShotsFinder(username="testuser")
 

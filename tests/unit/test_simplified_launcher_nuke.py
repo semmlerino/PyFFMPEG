@@ -76,7 +76,6 @@ class TestSimplifiedLauncherNukeIntegration:
                 "nuke",
                 open_latest=True,
                 include_plate=True,
-                include_undistortion=True,
             )
 
             # Should launch successfully
@@ -92,7 +91,6 @@ class TestSimplifiedLauncherNukeIntegration:
             options = args[2]
             assert options["open_latest_scene"] is True
             assert options["include_raw_plate"] is True
-            assert options["include_undistortion"] is True
 
     @patch("simplified_launcher.subprocess.Popen")
     def test_launch_nuke_with_environment_fixes(
@@ -134,7 +132,7 @@ class TestSimplifiedLauncherNukeIntegration:
         self, mock_popen, launcher, mock_shot, caplog
     ) -> None:
         """Test that log messages from NukeLaunchHandler are captured."""
-        import logging
+        import logging  # noqa: PLC0415 - lazy import to avoid circular dependency
 
         caplog.set_level(logging.INFO)
 

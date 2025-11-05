@@ -118,7 +118,9 @@ def benchmark_all_approaches(iterations: int = 100000) -> None:
 
     # Import and test the current OptimizedShotParser
     # Local application imports
-    from optimized_shot_parser import OptimizedShotParser
+    from optimized_shot_parser import (
+        OptimizedShotParser,
+    )
 
     parser = OptimizedShotParser()
 

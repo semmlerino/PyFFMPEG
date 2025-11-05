@@ -24,7 +24,9 @@ logger = logging.getLogger(__name__)
 def test_mock_pool() -> int:
     """Test the mock workspace pool directly."""
     # Local application imports
-    from mock_workspace_pool import create_mock_pool_from_filesystem
+    from mock_workspace_pool import (
+        create_mock_pool_from_filesystem,
+    )
 
     logger.info("=" * 70)
     logger.info("TESTING MOCK WORKSPACE POOL")
@@ -69,9 +71,11 @@ def test_mock_pool() -> int:
 def test_shot_model() -> int:
     """Test that ShotModel properly loads all shots."""
     # Local application imports
-    from cache_manager import CacheManager
-    from mock_workspace_pool import create_mock_pool_from_filesystem
-    from shot_model import ShotModel
+    from cache_manager import CacheManager  # noqa: PLC0415 - Lazy import for function
+    from mock_workspace_pool import (
+        create_mock_pool_from_filesystem,
+    )
+    from shot_model import ShotModel  # noqa: PLC0415 - Lazy import for function
 
     logger.info("\n" + "=" * 70)
     logger.info("TESTING SHOT MODEL")
@@ -120,7 +124,9 @@ def test_shot_model() -> int:
 def test_headless_app() -> int:
     """Test running the app in headless mode."""
     # Local application imports
-    from headless_mode import HeadlessMainWindow
+    from headless_mode import (
+        HeadlessMainWindow,
+    )
 
     logger.info("\n" + "=" * 70)
     logger.info("TESTING HEADLESS APPLICATION")

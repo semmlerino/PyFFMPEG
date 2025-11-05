@@ -197,7 +197,7 @@ class TestJSONCacheOperations:
         cache_file = cache_manager.shots_cache_file
         old_time = time.time() - (31 * 60)  # 31 minutes ago
         cache_file.touch()
-        import os
+        import os  # noqa: PLC0415 - lazy import to avoid circular dependency
 
         os.utime(cache_file, (old_time, old_time))
 
@@ -351,7 +351,7 @@ class TestThumbnailCaching:
 
         # Set timestamp to 31 minutes ago (would expire data caches)
         old_time = time.time() - (31 * 60)  # 31 minutes ago
-        import os
+        import os  # noqa: PLC0415 - lazy import to avoid circular dependency
 
         os.utime(cached, (old_time, old_time))
 
@@ -430,7 +430,7 @@ class TestThreadSafety:
         pytest-qt event loop cleanup issues. Passes consistently when run alone.
         The cache_manager itself IS thread-safe (uses QMutex properly).
         """
-        import queue
+        import queue  # noqa: PLC0415 - lazy import to avoid circular dependency
 
         results_queue: queue.Queue[bool] = queue.Queue()
 
@@ -474,7 +474,7 @@ class TestThreadSafety:
         self, cache_manager: CacheManager, test_image_jpg: Path
     ) -> None:
         """Test thread-safe concurrent thumbnail operations."""
-        import queue
+        import queue  # noqa: PLC0415 - lazy import to avoid circular dependency
 
         results_queue: queue.Queue[bool] = queue.Queue()
 
@@ -511,7 +511,7 @@ class TestThreadSafety:
         self, cache_manager: CacheManager, sample_shots: list[Shot]
     ) -> None:
         """Test thread-safe cache clearing with concurrent reads."""
-        import queue
+        import queue  # noqa: PLC0415 - lazy import to avoid circular dependency
 
         # Pre-populate cache
         cache_manager.cache_shots(sample_shots)
@@ -679,7 +679,7 @@ class TestErrorHandling:
         manager = CacheManager(cache_dir=cache_dir)
 
         # Make directory read-only
-        import stat
+        import stat  # noqa: PLC0415 - lazy import to avoid circular dependency
 
         cache_dir.chmod(stat.S_IRUSR | stat.S_IXUSR)
 
@@ -721,7 +721,7 @@ class TestPersistentPreviousShotsCache:
         # Manually expire the cache by modifying file timestamp
         cache_file = cache_manager.previous_shots_cache_file
         old_time = time.time() - (60 * 60 * 24)  # 24 hours ago (way past TTL)
-        import os
+        import os  # noqa: PLC0415 - lazy import to avoid circular dependency
 
         os.utime(cache_file, (old_time, old_time))
 
@@ -771,7 +771,7 @@ class TestPersistentPreviousShotsCache:
         self, cache_manager: CacheManager, sample_shots: list[Shot]
     ) -> None:
         """Test thread-safe concurrent access to persistent cache."""
-        import queue
+        import queue  # noqa: PLC0415 - lazy import to avoid circular dependency
 
         results_queue: queue.Queue[int | None] = queue.Queue()
 
@@ -828,7 +828,7 @@ class TestPersistentPreviousShotsCache:
         # Even hours later, it should still be there
         cache_file = manager2.previous_shots_cache_file
         old_time = time.time() - (60 * 60 * 48)  # 48 hours ago
-        import os
+        import os  # noqa: PLC0415 - lazy import to avoid circular dependency
 
         os.utime(cache_file, (old_time, old_time))
 
@@ -856,7 +856,7 @@ class TestPersistentPreviousShotsCache:
         # Expire the cache
         cache_file = cache_manager.previous_shots_cache_file
         old_time = time.time() - (60 * 60)  # 1 hour ago (past 30min TTL)
-        import os
+        import os  # noqa: PLC0415 - lazy import to avoid circular dependency
 
         os.utime(cache_file, (old_time, old_time))
 
@@ -1090,7 +1090,7 @@ class TestIncrementalShotMerging:
 
     def test_merge_performance_linear_time(self, cache_manager: CacheManager) -> None:
         """Merge algorithm completes in O(n) time, not O(n²)."""
-        import time
+        import time  # noqa: PLC0415 - lazy import to avoid circular dependency
 
         # Generate 500 shots
         large_cached = [Shot("show1", "seq01", f"shot{i:04d}", f"/p{i}") for i in range(500)]
@@ -1277,7 +1277,9 @@ class TestShotMigration:
 
     def test_migration_thread_safety(self, cache_manager: CacheManager, qtbot) -> None:
         """Concurrent migrations don't corrupt data."""
-        from concurrent.futures import ThreadPoolExecutor
+        from concurrent.futures import (
+            ThreadPoolExecutor,
+        )
 
         def migrate_batch(batch_id: int) -> None:
             shots = [Shot("show1", "seq01", f"shot{batch_id:03d}", f"/p{batch_id}")]

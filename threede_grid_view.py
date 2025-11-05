@@ -9,7 +9,7 @@ from __future__ import annotations
 
 # Standard library imports
 from pathlib import Path
-from typing import TYPE_CHECKING, final, override
+from typing import TYPE_CHECKING, final
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -34,6 +34,7 @@ from PySide6.QtWidgets import (
 from base_grid_view import BaseGridView
 from threede_grid_delegate import ThreeDEGridDelegate
 from thumbnail_widget_base import FolderOpenerWorker
+from typing_compat import override
 
 
 if TYPE_CHECKING:

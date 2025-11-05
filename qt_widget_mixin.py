@@ -76,9 +76,9 @@ class QtWidgetMixin(LoggingMixin):
             default_size: Default window size if no settings
             default_pos: Default window position if no settings
         """
-        self._geometry_key = settings_key
-        self._default_size = default_size or QSize(1200, 800)
-        self._default_pos = default_pos
+        self._geometry_key: str = settings_key
+        self._default_size: QSize = default_size or QSize(1200, 800)
+        self._default_pos: QPoint | None = default_pos
 
         # Restore geometry from settings
         settings = QSettings()
@@ -108,7 +108,7 @@ class QtWidgetMixin(LoggingMixin):
             interval: Save interval in milliseconds (default 60 seconds)
         """
         if not hasattr(self, "_auto_save_timer"):
-            self._auto_save_timer = QTimer()
+            self._auto_save_timer: QTimer = QTimer()
             _ = self._auto_save_timer.timeout.connect(self._on_auto_save)
             self._auto_save_timer.start(interval)
             self.logger.debug(f"Auto-save timer started with {interval}ms interval")
@@ -304,7 +304,7 @@ class QtWidgetMixin(LoggingMixin):
 
     # Common event handlers that can be overridden
 
-    def closeEvent(self, event: QCloseEvent) -> None:
+    def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802
         """Handle close event with cleanup."""
         if self.safe_close():
             self.save_window_geometry()
@@ -318,7 +318,7 @@ class QtWidgetMixin(LoggingMixin):
         else:
             event.ignore()
 
-    def keyPressEvent(self, event: QKeyEvent) -> None:
+    def keyPressEvent(self, event: QKeyEvent) -> None:  # noqa: N802
         """Handle key press events with standard shortcuts."""
         # Handle Escape key
         if event.key() == Qt.Key.Key_Escape:
@@ -361,7 +361,7 @@ class QtDragDropMixin:
             'application/x-qt-windows-mime;value="FileName"',
         ]
 
-    def dragEnterEvent(self, event: QDragEnterEvent) -> None:
+    def dragEnterEvent(self, event: QDragEnterEvent) -> None:  # noqa: N802
         """Handle drag enter event."""
         if event.mimeData().hasUrls() or any(
             event.mimeData().hasFormat(mime_type)
@@ -371,7 +371,7 @@ class QtDragDropMixin:
         else:
             event.ignore()
 
-    def dropEvent(self, event: QDropEvent) -> None:
+    def dropEvent(self, event: QDropEvent) -> None:  # noqa: N802
         """Handle drop event."""
         mime_data = event.mimeData()
 

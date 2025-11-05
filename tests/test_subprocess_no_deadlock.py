@@ -106,11 +106,17 @@ def test_launcher_worker_no_deadlock() -> bool:
     """Test that the actual LauncherWorker doesn't deadlock with verbose apps."""
 
     # Third-party imports
-    from PySide6.QtCore import QCoreApplication
+    from PySide6.QtCore import (
+        QCoreApplication,
+    )
 
     # Local application imports
-    from launcher.worker import LauncherWorker
-    from tests.helpers.synchronization import process_qt_events
+    from launcher.worker import (
+        LauncherWorker,
+    )
+    from tests.helpers.synchronization import (
+        process_qt_events,
+    )
 
     app = QCoreApplication.instance() or QCoreApplication([])
 

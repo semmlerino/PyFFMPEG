@@ -50,8 +50,10 @@ from tests.test_doubles_library import TestSubprocess
 @pytest.fixture(scope="module", autouse=True)
 def setup_qt_imports() -> None:
     """Import Qt and MainWindow components after test setup."""
-    global MainWindow
-    from main_window import MainWindow
+    global MainWindow  # noqa: PLW0603
+    from main_window import (
+        MainWindow,
+    )
 
 
 pytestmark = [
@@ -104,6 +106,24 @@ def test_subprocess() -> TestSubprocess:
 class TestMainWindowLauncherIntegration:
     """Test launcher panel integration within MainWindow."""
 
+    def setup_method(self) -> None:
+        """Setup method to initialize Qt object tracking."""
+        self.qt_objects: list[Any] = []
+
+    def teardown_method(self) -> None:
+        """Clean up Qt objects to prevent resource leaks."""
+        for obj in self.qt_objects:
+            try:
+                # Stop worker threads in MainWindow's launcher_manager before cleanup
+                if hasattr(obj, 'launcher_manager') and obj.launcher_manager:
+                    obj.launcher_manager.stop_all_workers()
+
+                if hasattr(obj, 'deleteLater'):
+                    obj.deleteLater()
+            except Exception:
+                pass
+        self.qt_objects.clear()
+
     def test_launcher_panel_initialization_in_main_window(
         self, qapp: QApplication, qtbot: QtBot
     ) -> None:
@@ -116,6 +136,7 @@ class TestMainWindowLauncherIntegration:
             mock_factory.return_value = mock_pool
 
             window = MainWindow()
+            self.qt_objects.append(window)  # Track for cleanup
             qtbot.addWidget(window)
             window.show()
             qtbot.waitExposed(window)
@@ -140,6 +161,7 @@ class TestMainWindowLauncherIntegration:
             mock_factory.return_value = mock_pool
 
             window = MainWindow()
+            self.qt_objects.append(window)  # Track for cleanup
             qtbot.addWidget(window)
             window.show()
             qtbot.waitExposed(window)
@@ -172,46 +194,45 @@ class TestMainWindowLauncherIntegration:
             mock_factory.return_value = mock_pool
 
             window = MainWindow()
+            self.qt_objects.append(window)  # Track for cleanup
             qtbot.addWidget(window)
 
             # Set up shot context using proper MainWindow integration
             shot = make_shot(show="signal_test", sequence="seq02", shot="0200")
             window._on_shot_selected(shot)
 
-            # Mock the command launcher's launch_app method to track calls
+            # Mock the launcher controller's launch_app to track calls without executing
             launch_calls: list[str] = []
 
-            def mock_command_launcher_launch_app(*args: Any, **kwargs: Any) -> bool:
-                # Extract app name from args (first argument)
-                app_name = args[0] if args else kwargs.get("app_name", "unknown")
+            def mock_launch_app(app_name: str) -> None:
+                # Record the call for verification
                 launch_calls.append(app_name)
-                return True  # Return success
 
-            # Patch the launcher controller's app launch method (signals connect to launcher_controller, not command_launcher)
-            with patch.object(
-                window.launcher_controller,
-                "launch_app",
-                side_effect=mock_command_launcher_launch_app,
-            ):
-                # Trigger app launch from launcher panel
-                nuke_section = window.launcher_panel.app_sections["nuke"]
+            # Disconnect existing signal and connect to mock
+            window.launcher_panel.app_launch_requested.disconnect(window.launcher_controller.launch_app)
+            window.launcher_panel.app_launch_requested.connect(mock_launch_app)
 
-                # Debug: Check button state
-                assert nuke_section.launch_button.isEnabled(), "Launch button should be enabled after shot selection"
+            # Trigger app launch from launcher panel
+            nuke_section = window.launcher_panel.app_sections["nuke"]
 
-                qtbot.mouseClick(nuke_section.launch_button, Qt.MouseButton.LeftButton)
+            # Debug: Check button state
+            assert nuke_section.launch_button.isEnabled(), "Launch button should be enabled after shot selection"
 
-                # Process Qt events to ensure signal propagation
-                # Third-party imports
-                from PySide6.QtWidgets import QApplication
+            qtbot.mouseClick(nuke_section.launch_button, Qt.MouseButton.LeftButton)
 
-                QApplication.processEvents()
-                qtbot.wait(50)  # Small delay for Qt event loop
-                QApplication.processEvents()
+            # Process Qt events to ensure signal propagation
+            # Third-party imports
+            from PySide6.QtWidgets import (
+                QApplication,
+            )
 
-                # Verify signal reached main window
-                assert len(launch_calls) == 1
-                assert launch_calls[0] == "nuke"
+            QApplication.processEvents()
+            qtbot.wait(50)  # Small delay for Qt event loop
+            QApplication.processEvents()
+
+            # Verify signal reached main window
+            assert len(launch_calls) == 1
+            assert launch_calls[0] == "nuke"
 
     @pytest.mark.slow
     def test_multiple_app_launches_through_main_window(
@@ -225,6 +246,7 @@ class TestMainWindowLauncherIntegration:
             mock_factory.return_value = mock_pool
 
             window = MainWindow()
+            self.qt_objects.append(window)  # Track for cleanup
             qtbot.addWidget(window)
 
             shot = make_shot(show="multi_test", sequence="seq03", shot="0300")
@@ -232,27 +254,24 @@ class TestMainWindowLauncherIntegration:
 
             launch_calls: list[str] = []
 
-            def mock_command_launcher_launch_app(*args: Any, **kwargs: Any) -> bool:
-                # Extract app name from args (first argument)
-                app_name = args[0] if args else kwargs.get("app_name", "unknown")
+            def mock_launch_app(app_name: str) -> None:
+                # Record the call for verification
                 launch_calls.append(app_name)
-                return True  # Return success
 
-            with patch.object(
-                window.command_launcher,
-                "launch_app",
-                side_effect=mock_command_launcher_launch_app,
-            ):
-                # Launch multiple apps in sequence
-                apps_to_launch = ["3de", "maya", "rv"]
-                for app_name in apps_to_launch:
-                    section = window.launcher_panel.app_sections[app_name]
-                    qtbot.mouseClick(section.launch_button, Qt.MouseButton.LeftButton)
-                    # Allow event loop to process without forcing immediate processing
-                    qtbot.wait(50)  # Proper delay for event processing
+            # Disconnect existing signal and connect to mock to avoid double-execution
+            window.launcher_panel.app_launch_requested.disconnect(window.launcher_controller.launch_app)
+            window.launcher_panel.app_launch_requested.connect(mock_launch_app)
 
-                # Verify all launches were processed
-                assert launch_calls == apps_to_launch
+            # Launch multiple apps in sequence
+            apps_to_launch = ["3de", "maya", "rv"]
+            for app_name in apps_to_launch:
+                section = window.launcher_panel.app_sections[app_name]
+                qtbot.mouseClick(section.launch_button, Qt.MouseButton.LeftButton)
+                # Allow event loop to process without forcing immediate processing
+                qtbot.wait(50)  # Proper delay for event processing
+
+            # Verify all launches were processed
+            assert launch_calls == apps_to_launch
 
     def test_checkbox_options_passed_through_main_window(
         self, qtbot: QtBot, make_shot: Callable[..., Shot]
@@ -265,6 +284,7 @@ class TestMainWindowLauncherIntegration:
             mock_factory.return_value = mock_pool
 
             window = MainWindow()
+            self.qt_objects.append(window)  # Track for cleanup
             qtbot.addWidget(window)
 
             shot = make_shot()
@@ -272,18 +292,13 @@ class TestMainWindowLauncherIntegration:
 
             # Configure nuke options
             nuke_section = window.launcher_panel.app_sections["nuke"]
-            nuke_section.checkboxes["include_undistortion"].setChecked(True)
             nuke_section.checkboxes["include_raw_plate"].setChecked(False)
 
             # Test that main window can access checkbox states
-            undistortion_enabled = window.launcher_panel.get_checkbox_state(
-                "nuke", "include_undistortion"
-            )
             raw_plate_enabled = window.launcher_panel.get_checkbox_state(
                 "nuke", "include_raw_plate"
             )
 
-            assert undistortion_enabled is True
             assert raw_plate_enabled is False
 
     def test_custom_launcher_integration(
@@ -297,10 +312,13 @@ class TestMainWindowLauncherIntegration:
             mock_factory.return_value = mock_pool
 
             window = MainWindow()
+            self.qt_objects.append(window)  # Track for cleanup
             qtbot.addWidget(window)
 
             # Mock launcher_manager for custom launcher support
-            from unittest.mock import Mock
+            from unittest.mock import (
+                Mock,
+            )
 
             mock_launcher = Mock()
             mock_launcher.name = "Test Custom Launcher"
@@ -329,7 +347,9 @@ class TestMainWindowLauncherIntegration:
             )
 
             # Add signal spy to verify signal emission
-            from PySide6.QtTest import QSignalSpy
+            from PySide6.QtTest import (
+                QSignalSpy,
+            )
 
             signal_spy = QSignalSpy(window.launcher_panel.custom_launcher_requested)
 
@@ -356,6 +376,24 @@ class TestMainWindowLauncherIntegration:
 class TestEndToEndLauncherWorkflow:
     """Test complete end-to-end launcher workflows."""
 
+    def setup_method(self) -> None:
+        """Setup method to initialize Qt object tracking."""
+        self.qt_objects: list[Any] = []
+
+    def teardown_method(self) -> None:
+        """Clean up Qt objects to prevent resource leaks."""
+        for obj in self.qt_objects:
+            try:
+                # Stop worker threads in MainWindow's launcher_manager before cleanup
+                if hasattr(obj, 'launcher_manager') and obj.launcher_manager:
+                    obj.launcher_manager.stop_all_workers()
+
+                if hasattr(obj, 'deleteLater'):
+                    obj.deleteLater()
+            except Exception:
+                pass
+        self.qt_objects.clear()
+
     @pytest.mark.integration
     def test_complete_nuke_launch_workflow(
         self, qtbot: QtBot, make_shot: Callable[..., Shot]
@@ -368,6 +406,7 @@ class TestEndToEndLauncherWorkflow:
             mock_factory.return_value = mock_pool
 
             window = MainWindow()
+            self.qt_objects.append(window)  # Track for cleanup
             qtbot.addWidget(window)
 
             # Step 1: Select shot using proper MainWindow integration
@@ -376,15 +415,10 @@ class TestEndToEndLauncherWorkflow:
 
             # Step 2: Configure nuke options
             nuke_section = window.launcher_panel.app_sections["nuke"]
-            nuke_section.checkboxes["include_undistortion"].setChecked(True)
             nuke_section.checkboxes["include_raw_plate"].setChecked(True)
 
             # Step 3: Verify UI state before launch
             assert nuke_section.launch_button.isEnabled()
-            assert (
-                window.launcher_panel.get_checkbox_state("nuke", "include_undistortion")
-                is True
-            )
             assert (
                 window.launcher_panel.get_checkbox_state("nuke", "include_raw_plate")
                 is True
@@ -393,36 +427,26 @@ class TestEndToEndLauncherWorkflow:
             # Step 4: Mock the app launch process
             launch_context: dict[str, Any] = {}
 
-            def mock_command_launcher_launch_nuke(*args: Any, **kwargs: Any) -> bool:
-                # Extract app name from args (first argument)
-                app_name = args[0] if args else kwargs.get("app_name", "unknown")
+            def mock_launch_app(app_name: str) -> None:
+                # Capture launch context for verification
                 launch_context["app"] = app_name
                 launch_context["shot"] = window.launcher_panel._current_shot
-                launch_context["undistortion"] = (
-                    window.launcher_panel.get_checkbox_state(
-                        "nuke", "include_undistortion"
-                    )
-                )
                 launch_context["raw_plate"] = window.launcher_panel.get_checkbox_state(
                     "nuke", "include_raw_plate"
                 )
-                return True  # Return success
 
-            with patch.object(
-                window.launcher_controller,
-                "launch_app",
-                side_effect=mock_command_launcher_launch_nuke,
-            ):
-                # Step 5: Launch nuke
-                # Use waitSignal if possible, otherwise use safe wait
-                qtbot.mouseClick(nuke_section.launch_button, Qt.MouseButton.LeftButton)
-                qtbot.wait(50)  # Allow event loop to process
+            # Disconnect existing signal and connect to mock to avoid validation errors
+            window.launcher_panel.app_launch_requested.disconnect(window.launcher_controller.launch_app)
+            window.launcher_panel.app_launch_requested.connect(mock_launch_app)
 
-                # Step 6: Verify complete context was captured
-                assert launch_context["app"] == "nuke"
-                assert launch_context["shot"] == shot
-                assert launch_context["undistortion"] is True
-                assert launch_context["raw_plate"] is True
+            # Step 5: Launch nuke
+            qtbot.mouseClick(nuke_section.launch_button, Qt.MouseButton.LeftButton)
+            qtbot.wait(50)  # Allow event loop to process
+
+            # Step 6: Verify complete context was captured
+            assert launch_context["app"] == "nuke"
+            assert launch_context["shot"] == shot
+            assert launch_context["raw_plate"] is True
 
     @pytest.mark.integration
     def test_3de_launch_with_scene_options(
@@ -436,6 +460,7 @@ class TestEndToEndLauncherWorkflow:
             mock_factory.return_value = mock_pool
 
             window = MainWindow()
+            self.qt_objects.append(window)  # Track for cleanup
             qtbot.addWidget(window)
 
             shot = make_shot(show="threedee", sequence="tracking", shot="0050")
@@ -485,6 +510,7 @@ class TestEndToEndLauncherWorkflow:
             mock_factory.return_value = mock_pool
 
             window = MainWindow()
+            self.qt_objects.append(window)  # Track for cleanup
             qtbot.addWidget(window)
 
             # Set initial shot and configure options
@@ -492,21 +518,21 @@ class TestEndToEndLauncherWorkflow:
             window.launcher_panel.set_shot(shot1)
 
             nuke_section = window.launcher_panel.app_sections["nuke"]
-            nuke_section.checkboxes["include_undistortion"].setChecked(True)
+            nuke_section.checkboxes["include_raw_plate"].setChecked(True)
 
             # Change to different shot
             shot2 = make_shot(show="state2", sequence="seq2", shot="0020")
             window.launcher_panel.set_shot(shot2)
 
             # Verify checkbox states persist (they should maintain their UI state)
-            assert nuke_section.checkboxes["include_undistortion"].isChecked() is True
+            assert nuke_section.checkboxes["include_raw_plate"].isChecked() is True
 
             # Clear shot
             window.launcher_panel.set_shot(None)
 
             # Verify buttons are disabled but checkboxes maintain state
             assert not nuke_section.launch_button.isEnabled()
-            assert nuke_section.checkboxes["include_undistortion"].isChecked() is True
+            assert nuke_section.checkboxes["include_raw_plate"].isChecked() is True
 
     @pytest.mark.slow
     def test_rapid_shot_switching_stability(
@@ -520,6 +546,7 @@ class TestEndToEndLauncherWorkflow:
             mock_factory.return_value = mock_pool
 
             window = MainWindow()
+            self.qt_objects.append(window)  # Track for cleanup
             qtbot.addWidget(window)
 
             shots = [
@@ -555,6 +582,24 @@ class TestEndToEndLauncherWorkflow:
 class TestLauncherIntegrationErrorHandling:
     """Test error handling in integrated launcher scenarios."""
 
+    def setup_method(self) -> None:
+        """Setup method to initialize Qt object tracking."""
+        self.qt_objects: list[Any] = []
+
+    def teardown_method(self) -> None:
+        """Clean up Qt objects to prevent resource leaks."""
+        for obj in self.qt_objects:
+            try:
+                # Stop worker threads in MainWindow's launcher_manager before cleanup
+                if hasattr(obj, 'launcher_manager') and obj.launcher_manager:
+                    obj.launcher_manager.stop_all_workers()
+
+                if hasattr(obj, 'deleteLater'):
+                    obj.deleteLater()
+            except Exception:
+                pass
+        self.qt_objects.clear()
+
     def test_main_window_without_shot_model(
         self, qapp: QApplication, qtbot: QtBot
     ) -> None:
@@ -566,6 +611,7 @@ class TestLauncherIntegrationErrorHandling:
             mock_factory.return_value = mock_pool
 
             window = MainWindow()
+            self.qt_objects.append(window)  # Track for cleanup
             qtbot.addWidget(window)
 
             # Launcher should still be functional even without shot model integration
@@ -583,6 +629,7 @@ class TestLauncherIntegrationErrorHandling:
             mock_factory.return_value = mock_pool
 
             window = MainWindow()
+            self.qt_objects.append(window)  # Track for cleanup
             qtbot.addWidget(window)
 
             # Try to set invalid shot data (should handle gracefully)
@@ -604,6 +651,7 @@ class TestLauncherIntegrationErrorHandling:
             mock_factory.return_value = mock_pool
 
             window = MainWindow()
+            self.qt_objects.append(window)  # Track for cleanup
             qtbot.addWidget(window)
 
             shot = make_shot()

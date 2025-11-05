@@ -111,7 +111,9 @@ class InjectableProcessPoolManager(ProcessPoolManager):
         """Override to bypass singleton pattern in tests."""
         # Don't use singleton for test instances - use QObject's __new__
         # Third-party imports
-        from PySide6.QtCore import QObject
+        from PySide6.QtCore import (
+            QObject,
+        )
 
         return QObject.__new__(cls)
 
@@ -119,13 +121,17 @@ class InjectableProcessPoolManager(ProcessPoolManager):
         """Initialize with optional session injection."""
         # Initialize directly without calling super().__init__() to avoid singleton issues
         # Standard library imports
-        import concurrent.futures
+        import concurrent.futures  # noqa: PLC0415 - lazy import to avoid circular dependency
 
         # Third-party imports
-        from PySide6.QtCore import QObject
+        from PySide6.QtCore import (
+            QObject,
+        )
 
         # Local application imports
-        from secure_command_executor import get_secure_executor
+        from secure_command_executor import (
+            get_secure_executor,
+        )
 
         QObject.__init__(self)  # Initialize QObject directly
 
@@ -144,7 +150,9 @@ class InjectableProcessPoolManager(ProcessPoolManager):
         self._test_session: BashSessionDouble | None = None
         # Instance-level mutex and shutdown flag (added to parent class)
         # Third-party imports
-        from PySide6.QtCore import QMutex
+        from PySide6.QtCore import (
+            QMutex,
+        )
 
         self._mutex = QMutex()
         self._shutdown_requested = False
@@ -163,7 +171,7 @@ class InjectableProcessPoolManager(ProcessPoolManager):
         if self._test_session:
             # Use test session instead of secure executor
             # Standard library imports
-            import time
+            import time  # noqa: PLC0415 - lazy import to avoid circular dependency
 
             # Check cache first (same as parent)
             cached = self._cache.get(command)
@@ -208,7 +216,7 @@ class InjectableProcessPoolManager(ProcessPoolManager):
         if self._test_session:
             # Use test session instead of secure executor for batch commands
             # Standard library imports
-            import time
+            import time  # noqa: PLC0415 - lazy import to avoid circular dependency
 
             start_time = time.time()
             result = self._test_session.execute(command, timeout=30)
@@ -511,8 +519,10 @@ class TestProcessPoolManagerBehavior:
         3. No Qt threading violations occur
         """
         # Standard library imports
-        import queue
-        from concurrent.futures import ThreadPoolExecutor
+        import queue  # noqa: PLC0415 - lazy import to avoid circular dependency
+        from concurrent.futures import (
+            ThreadPoolExecutor,
+        )
 
         # Reset singleton to ensure clean state
         ProcessPoolManager._instance = None
@@ -621,7 +631,7 @@ class TestPythonFileOperations:
         # Test BEHAVIOR: Manager remains functional after error
         # (Can still perform other operations)
         # Standard library imports
-        import tempfile
+        import tempfile  # noqa: PLC0415 - lazy import to avoid circular dependency
 
         with tempfile.TemporaryDirectory() as temp_dir:
             Path(temp_dir, "test.txt").touch()

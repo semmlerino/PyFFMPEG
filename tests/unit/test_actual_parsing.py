@@ -121,10 +121,14 @@ def test_parsing(actual_output: str) -> None:
 def test_shot_item_model(qapp, actual_output: str) -> None:
     """Test ShotItemModel with parsed shots."""
     # Third-party imports
-    from PySide6.QtCore import Qt
+    from PySide6.QtCore import (
+        Qt,
+    )
 
     # Local application imports
-    from shot_item_model import ShotItemModel
+    from shot_item_model import (
+        ShotItemModel,
+    )
 
     print("\nTesting ShotItemModel...")
     print("=" * 40)

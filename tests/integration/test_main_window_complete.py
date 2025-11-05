@@ -59,10 +59,14 @@ if TYPE_CHECKING:
 @pytest.fixture(scope="module", autouse=True)
 def setup_qt_imports() -> None:
     """Import Qt and MainWindow components after test setup."""
-    global MainWindow, Shot
+    global MainWindow, Shot  # noqa: PLW0603
     # Local application imports
-    from main_window import MainWindow
-    from shot_model import Shot
+    from main_window import (
+        MainWindow,
+    )
+    from shot_model import (
+        Shot,
+    )
 
 
 # Mark all tests in this module as qt_heavy and integration_unsafe
@@ -72,10 +76,12 @@ pytestmark = [pytest.mark.qt_heavy, pytest.mark.integration_unsafe]
 def is_testing_environment() -> bool:
     """Check if we're running in a testing environment where some Qt features may not work reliably."""
     # Standard library imports
-    import os
+    import os  # noqa: PLC0415 - lazy import to avoid circular dependency
 
     # Third-party imports
-    from PySide6.QtCore import QCoreApplication
+    from PySide6.QtCore import (
+        QCoreApplication,
+    )
 
     # Check if pytest is running
     if "pytest" in sys.modules:
@@ -143,7 +149,9 @@ class TestMainWindowCompleteWorkflows:
 
         # Process events to ensure cleanup happens
         # Third-party imports
-        from PySide6.QtCore import QCoreApplication
+        from PySide6.QtCore import (
+            QCoreApplication,
+        )
 
         app = QCoreApplication.instance()
         if app:
@@ -154,7 +162,7 @@ class TestMainWindowCompleteWorkflows:
 
         # Force garbage collection
         # Standard library imports
-        import gc
+        import gc  # noqa: PLC0415 - lazy import to avoid circular dependency
 
         gc.collect()
 
@@ -224,7 +232,9 @@ class TestMainWindowCompleteWorkflows:
 
         # Step 3: Test scene model can handle scenes
         # Local application imports
-        from threede_scene_model import ThreeDEScene
+        from threede_scene_model import (
+            ThreeDEScene,
+        )
 
         test_scene = ThreeDEScene(
             show="test",
@@ -522,7 +532,9 @@ class TestMainWindowCompleteWorkflows:
 
         # Test close event handling
         # Third-party imports
-        from PySide6.QtGui import QCloseEvent
+        from PySide6.QtGui import (
+            QCloseEvent,
+        )
 
         close_event = QCloseEvent()
 

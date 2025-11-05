@@ -31,7 +31,6 @@ if TYPE_CHECKING:
     from shot_model import Shot
     from threede_latest_finder import ThreeDELatestFinder as ThreeDELatestFinderType
     from threede_scene_model import ThreeDEScene
-    from undistortion_finder import UndistortionFinder as UndistortionFinderType
 else:
     # Import at runtime to avoid circular imports
     # Local application imports
@@ -53,7 +52,6 @@ class CommandLauncher(LoggingMixin, QObject):
     def __init__(
         self,
         raw_plate_finder: type[RawPlateFinderType] | None = None,
-        undistortion_finder: type[UndistortionFinderType] | None = None,
         nuke_script_generator: type[NukeScriptGeneratorType] | None = None,
         threede_latest_finder: type[ThreeDELatestFinderType] | None = None,
         maya_latest_finder: type[MayaLatestFinderType] | None = None,
@@ -63,7 +61,6 @@ class CommandLauncher(LoggingMixin, QObject):
 
         Args:
             raw_plate_finder: Class for finding raw plates (defaults to RawPlateFinder)
-            undistortion_finder: Class for finding undistortion files (defaults to UndistortionFinder)
             nuke_script_generator: Class for generating Nuke scripts (defaults to NukeScriptGenerator)
             threede_latest_finder: Class for finding latest 3DE scenes (defaults to ThreeDELatestFinder)
             maya_latest_finder: Class for finding latest Maya scenes (defaults to MayaLatestFinder)
@@ -85,23 +82,19 @@ class CommandLauncher(LoggingMixin, QObject):
         # They're kept for backward compatibility with other methods
         if raw_plate_finder is None:
             # Local application imports
-            from raw_plate_finder import RawPlateFinder
+            from raw_plate_finder import (  # noqa: PLC0415 - Lazy import for optional dependency
+                RawPlateFinder,
+            )
 
             self._raw_plate_finder = RawPlateFinder
         else:
             self._raw_plate_finder = raw_plate_finder
 
-        if undistortion_finder is None:
-            # Local application imports
-            from undistortion_finder import UndistortionFinder
-
-            self._undistortion_finder = UndistortionFinder
-        else:
-            self._undistortion_finder = undistortion_finder
-
         if nuke_script_generator is None:
             # Local application imports
-            from nuke_script_generator import NukeScriptGenerator
+            from nuke_script_generator import (
+                NukeScriptGenerator,
+            )
 
             self._nuke_script_generator = NukeScriptGenerator
         else:
@@ -109,7 +102,9 @@ class CommandLauncher(LoggingMixin, QObject):
 
         if threede_latest_finder is None:
             # Local application imports
-            from threede_latest_finder import ThreeDELatestFinder
+            from threede_latest_finder import (
+                ThreeDELatestFinder,
+            )
 
             self._threede_latest_finder = ThreeDELatestFinder()
         else:
@@ -117,7 +112,9 @@ class CommandLauncher(LoggingMixin, QObject):
 
         if maya_latest_finder is None:
             # Local application imports
-            from maya_latest_finder import MayaLatestFinder
+            from maya_latest_finder import (
+                MayaLatestFinder,
+            )
 
             self._maya_latest_finder = MayaLatestFinder()
         else:
@@ -208,7 +205,7 @@ class CommandLauncher(LoggingMixin, QObject):
             ValueError: If path contains dangerous characters that cannot be escaped
         """
         # Standard library imports
-        import shlex
+        import shlex  # noqa: PLC0415 - Lazy import for command escaping
 
         # Check for command injection attempts
         dangerous_chars = [
@@ -256,7 +253,6 @@ class CommandLauncher(LoggingMixin, QObject):
     def launch_app(
         self,
         app_name: str,
-        include_undistortion: bool = False,
         include_raw_plate: bool = False,
         open_latest_threede: bool = False,
         open_latest_maya: bool = False,
@@ -268,7 +264,6 @@ class CommandLauncher(LoggingMixin, QObject):
 
         Args:
             app_name: Name of the application to launch
-            include_undistortion: Whether to include undistortion nodes (Nuke only)
             include_raw_plate: Whether to include raw plate Read node (Nuke only)
             open_latest_threede: Whether to open the latest 3DE scene file (3DE only)
             open_latest_maya: Whether to open the latest Maya scene file (Maya only)
@@ -303,7 +298,6 @@ class CommandLauncher(LoggingMixin, QObject):
                 "open_latest_scene": open_latest_scene,
                 "create_new_file": create_new_file,
                 "include_raw_plate": include_raw_plate,
-                "include_undistortion": include_undistortion,
             }
 
             command, log_messages = self.nuke_handler.prepare_nuke_command(
@@ -434,10 +428,10 @@ class CommandLauncher(LoggingMixin, QObject):
         # Enhanced debug logging for command integrity verification
         self.logger.debug(
             f"Constructed command for {app_name}:\n"
-            f"  Command: {full_command!r}\n"
-            f"  Length: {len(full_command)} chars\n"
-            f"  Workspace: {self.current_shot.workspace_path if self.current_shot else 'None'}\n"
-            f"  Shot: {self.current_shot.full_name if self.current_shot else 'None'}"
+             f"  Command: {full_command!r}\n"
+             f"  Length: {len(full_command)} chars\n"
+             f"  Workspace: {self.current_shot.workspace_path if self.current_shot else 'None'}\n"
+             f"  Shot: {self.current_shot.full_name if self.current_shot else 'None'}"
         )
 
         # Use persistent terminal if available and enabled
@@ -465,10 +459,10 @@ class CommandLauncher(LoggingMixin, QObject):
             )
             self.logger.debug(
                 "Command details:\n"
-                f"  Original: {full_command!r}\n"
-                f"  To send: {command_to_send!r}\n"
-                f"  Is GUI app: {self._is_gui_app(app_name)}\n"
-                f"  Auto-background: {Config.AUTO_BACKGROUND_GUI_APPS}"
+                 f"  Original: {full_command!r}\n"
+                 f"  To send: {command_to_send!r}\n"
+                 f"  Is GUI app: {self._is_gui_app(app_name)}\n"
+                 f"  Auto-background: {Config.AUTO_BACKGROUND_GUI_APPS}"
             )
 
             success = self.persistent_terminal.send_command(command_to_send)
@@ -523,7 +517,7 @@ class CommandLauncher(LoggingMixin, QObject):
             )
             self._emit_error(
                 f"Cannot launch {app_name}: Application or terminal not found. "
-                f"Details: {filename}"
+                 f"Details: {filename}"
             )
             NotificationManager.error(
                 "Launch Failed", f"{app_name} executable not found"
@@ -540,7 +534,7 @@ class CommandLauncher(LoggingMixin, QObject):
             )
             self._emit_error(
                 f"Cannot launch {app_name}: Permission denied. "
-                f"Check file permissions for: {filename}"
+                 f"Check file permissions for: {filename}"
             )
             return False
 
@@ -733,7 +727,7 @@ class CommandLauncher(LoggingMixin, QObject):
             filename: str = str(filename_raw) if filename_raw is not None else "unknown"
             self._emit_error(
                 f"Cannot launch {app_name} with scene: Application or terminal not found. "
-                f"Details: {filename}"
+                 f"Details: {filename}"
             )
             NotificationManager.error(
                 "Launch Failed", f"{app_name} executable not found"
@@ -748,7 +742,7 @@ class CommandLauncher(LoggingMixin, QObject):
             filename: str = str(filename_raw) if filename_raw is not None else "unknown"
             self._emit_error(
                 f"Cannot launch {app_name} with scene: Permission denied. "
-                f"Check file permissions for: {filename}"
+                 f"Check file permissions for: {filename}"
             )
             return False
 
@@ -781,7 +775,6 @@ class CommandLauncher(LoggingMixin, QObject):
         self,
         app_name: str,
         scene: ThreeDEScene,
-        include_undistortion: bool = False,
         include_raw_plate: bool = False,
     ) -> bool:
         """Launch an application in the context of a 3DE scene (shot context only, no scene file).
@@ -789,7 +782,6 @@ class CommandLauncher(LoggingMixin, QObject):
         Args:
             app_name: Name of the application to launch
             scene: The 3DE scene providing shot context
-            include_undistortion: Whether to include undistortion nodes (Nuke only)
             include_raw_plate: Whether to include raw plate Read node (Nuke only)
 
         Returns:
@@ -856,35 +848,6 @@ class CommandLauncher(LoggingMixin, QObject):
                     "Warning: Raw plate not found for this shot",
                 )
 
-        # Handle undistortion for Nuke
-        if app_name == "nuke" and include_undistortion:
-            undistortion_path = self._undistortion_finder.find_latest_undistortion(
-                scene.workspace_path,
-                scene.full_name,
-            )
-
-            if undistortion_path:
-                # Include the undistortion file in the Nuke command (safely escaped)
-                safe_undistortion_path = self._validate_path_for_shell(
-                    str(undistortion_path)
-                )
-                command = f"{command} {safe_undistortion_path}"
-                timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
-                version = self._undistortion_finder.get_version_from_path(
-                    undistortion_path
-                )
-                self.command_executed.emit(
-                    timestamp,
-                    f"Found undistortion file: {version}/{undistortion_path.name}",
-                )
-            else:
-                # Log warning if undistortion requested but not found
-                timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
-                self.command_executed.emit(
-                    timestamp,
-                    "Warning: Undistortion file not found for this shot",
-                )
-
         # Build full command with ws (workspace setup)
         # Validate and escape workspace path to prevent injection
         try:
@@ -935,7 +898,7 @@ class CommandLauncher(LoggingMixin, QObject):
             filename: str = str(filename_raw) if filename_raw is not None else "unknown"
             self._emit_error(
                 f"Cannot launch {app_name} in scene context: Application or terminal not found. "
-                f"Details: {filename}"
+                 f"Details: {filename}"
             )
             NotificationManager.error(
                 "Launch Failed", f"{app_name} executable not found"
@@ -950,7 +913,7 @@ class CommandLauncher(LoggingMixin, QObject):
             filename: str = str(filename_raw) if filename_raw is not None else "unknown"
             self._emit_error(
                 f"Cannot launch {app_name} in scene context: Permission denied. "
-                f"Check file permissions for: {filename}"
+                 f"Check file permissions for: {filename}"
             )
             return False
 

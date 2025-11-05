@@ -4,7 +4,7 @@ from __future__ import annotations
 # Standard library imports
 import time
 from pathlib import Path
-from typing import final, override
+from typing import final
 
 # Third-party imports
 from PySide6.QtCore import QObject, Signal
@@ -13,6 +13,7 @@ from PySide6.QtCore import QObject, Signal
 from previous_shots_finder import ParallelShotsFinder
 from shot_model import Shot
 from thread_safe_worker import ThreadSafeWorker
+from typing_compat import override
 
 
 @final
@@ -199,7 +200,7 @@ class PreviousShotsWorker(ThreadSafeWorker):
             elapsed = time.time() - start_time
             self.logger.info(
                 f"Previous shots scan completed in {elapsed:.2f}s. "
-                 f"Found {len(approved_shots)} approved shots."
+                  f"Found {len(approved_shots)} approved shots."
             )
 
             # Emit final results

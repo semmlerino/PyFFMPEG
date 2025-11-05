@@ -364,11 +364,13 @@ class TestGetWorkspaceFromPath:
     def test_extract_workspace(self, monkeypatch) -> None:
         """Test extracting workspace from full path."""
         # Import config and patch it directly to avoid environment pollution issues
-        import sys
+        import sys  # noqa: PLC0415 - lazy import to avoid circular dependency
         # Force clean import
         if "config" in sys.modules:
             del sys.modules["config"]
-        from config import Config
+        from config import (
+            Config,
+        )
 
         # Set up test SHOWS_ROOT
         test_shows_root = "/tmp/mock_vfx/shows"
@@ -377,7 +379,9 @@ class TestGetWorkspaceFromPath:
         # Also clean up finder_utils to ensure it uses the patched Config
         if "finder_utils" in sys.modules:
             del sys.modules["finder_utils"]
-        from finder_utils import FinderUtils
+        from finder_utils import (
+            FinderUtils,
+        )
 
         # Follow VFX naming convention: {sequence}_{shot}
         path = f"{test_shows_root}/test/shots/010/010_0010/user/john/maya/scenes/file.ma"

@@ -16,7 +16,7 @@ class LogViewer(QtWidgetMixin, LoggingMixin, QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._setup_ui()
-        self._line_count = 0
+        self._line_count: int = 0
 
     def _setup_ui(self) -> None:
         """Set up the UI."""
@@ -24,7 +24,7 @@ class LogViewer(QtWidgetMixin, LoggingMixin, QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
 
         # Text edit for logs
-        self.log_text = QTextEdit()
+        self.log_text: QTextEdit = QTextEdit()
         self.log_text.setReadOnly(True)
         self.log_text.setFont(QFont("Consolas", 9))
 
@@ -46,7 +46,7 @@ class LogViewer(QtWidgetMixin, LoggingMixin, QWidget):
         button_layout.addStretch()
 
         # Clear button
-        self.clear_button = QPushButton("Clear Log")
+        self.clear_button: QPushButton = QPushButton("Clear Log")
         _ = self.clear_button.clicked.connect(self.clear_log)
         button_layout.addWidget(self.clear_button)
 

@@ -3,6 +3,7 @@
 # Standard library imports
 import os
 import tempfile
+import time
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -102,7 +103,9 @@ def mock_shows_structure(integration_temp_dir: Path) -> dict[str, Any]:
 
                 # Create shot object
                 # Local application imports
-                from shot_model import Shot
+                from shot_model import (
+                    Shot,
+                )
 
                 shot = Shot(show_name, seq_name, shot_name, str(shot_path))
                 created_shots.append(shot)
@@ -145,7 +148,9 @@ def performance_dataset(integration_temp_dir: Path) -> dict[str, Any]:
                 ).touch()
 
                 # Local application imports
-                from shot_model import Shot
+                from shot_model import (
+                    Shot,
+                )
 
                 shot = Shot(show_name, seq_name, shot_name, str(shot_path))
                 shots.append(shot)
@@ -217,7 +222,6 @@ def vfx_production_environment(integration_temp_dir: Path) -> dict[str, Any]:
                     "work/comp/nuke/renders",
                     "mm/nuke/comp/scenes",
                     "mm/nuke/comp/scripts",
-                    "mm/nuke/undistortion",
                     "mm/3de/mm-default/scenes/scene",
                     "sourceimages/reference",
                     "sourceimages/plates",
@@ -270,9 +274,6 @@ def vfx_production_environment(integration_temp_dir: Path) -> dict[str, Any]:
                                 )  # Realistic file size
 
                                 # Set realistic modification times
-                                # Standard library imports
-                                import time
-
                                 base_time = time.time() - (
                                     30 * 24 * 3600
                                 )  # 30 days ago
@@ -300,7 +301,9 @@ def vfx_production_environment(integration_temp_dir: Path) -> dict[str, Any]:
 
                 # Create shot object
                 # Local application imports
-                from shot_model import Shot
+                from shot_model import (
+                    Shot,
+                )
 
                 shot = Shot(
                     show_name,
@@ -327,3 +330,77 @@ def vfx_production_environment(integration_temp_dir: Path) -> dict[str, Any]:
         "total_thumbnails": len(created_thumbnails),
         "total_plates": len(created_plates),
     }
+
+
+
+@pytest.fixture
+def launcher_controller_target(qtbot: Any) -> Any:
+    """Create a mock target object for LauncherController testing."""
+    from PySide6.QtWidgets import QMenu, QStatusBar
+    from unittest.mock import Mock
+
+    target = Mock()
+    target.command_launcher = Mock()
+    target.launcher_manager = None
+    target.launcher_panel = Mock()
+    target.log_viewer = Mock()
+    target.status_bar = QStatusBar()
+    target.custom_launcher_menu = QMenu()
+    target.update_status = Mock()
+
+    return target
+
+
+@pytest.fixture
+def threede_controller_target(qtbot: Any, launcher_controller_target: Any) -> Any:
+    """Create a mock target object for ThreeDEController testing."""
+    from PySide6.QtWidgets import QStatusBar
+    from controllers.launcher_controller import LauncherController
+    from unittest.mock import Mock
+
+    target = Mock()
+
+    # Widget references
+    target.threede_shot_grid = Mock()
+    target.shot_info_panel = Mock()
+    target.launcher_panel = Mock()
+    target.status_bar = QStatusBar()
+
+    # Model references
+    target.shot_model = Mock()
+    target.threede_scene_model = Mock()
+    target.threede_item_model = Mock()
+    target.cache_manager = Mock()
+    target.command_launcher = Mock()
+
+    # Create a real LauncherController for this target
+    target.launcher_controller = LauncherController(launcher_controller_target)
+
+    # Methods
+    target.setWindowTitle = Mock()
+    target.update_status = Mock()
+    target.update_launcher_menu_availability = Mock()
+    target.enable_custom_launcher_buttons = Mock()
+    target.launch_app = Mock()
+    target.closing = False
+
+    return target
+
+
+@pytest.fixture(autouse=True)
+def clear_singleton_state() -> Iterator[None]:
+    """Clear singleton state between tests to prevent state pollution.
+
+    This fixture runs automatically for every test to ensure clean state.
+    Prevents issues like:
+    - NotificationManager holding dangling MainWindow references
+    - Other singletons retaining state from previous tests
+    """
+    yield
+
+    # Clear NotificationManager singleton state after each test
+    try:
+        from notification_manager import NotificationManager
+        NotificationManager.clear_references()
+    except Exception:
+        pass  # Ignore if NotificationManager not imported yet

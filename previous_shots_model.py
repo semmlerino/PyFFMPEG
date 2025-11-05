@@ -275,7 +275,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
                 self.shots_updated.emit()
                 self.logger.info(
                     f"Added {len(new_shots)} new shots to cache "
-                     f"(total: {len(self._previous_shots)} shots)"
+                      f"(total: {len(self._previous_shots)} shots)"
                 )
             else:
                 self.logger.debug("No new shots found - cache unchanged")
@@ -405,7 +405,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
 
         self.logger.debug(
             f"Filtered {len(self._previous_shots)} shots to {len(filtered)} "
-             f"(show='{self._filter_show}', text='{self._filter_text}')"
+              f"(show='{self._filter_show}', text='{self._filter_text}')"
         )
         return filtered
 
@@ -452,7 +452,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
 
             self.logger.info(
                 f"Loaded {len(scanned_data)} scanned + {len(migrated_data)} migrated "
-                 f"= {len(shots)} total (after dedup)"
+                  f"= {len(shots)} total (after dedup)"
             )
 
             return shots

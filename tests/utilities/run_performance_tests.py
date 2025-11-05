@@ -9,6 +9,7 @@ validating real performance characteristics.
 from __future__ import annotations
 
 # Standard library imports
+import re
 import subprocess
 import sys
 import time
@@ -75,9 +76,6 @@ def extract_performance_metrics(output: str) -> dict[str, str]:
         if "speedup:" in stripped_line.lower() or "Speedup factor:" in stripped_line:
             try:
                 # Find the number followed by 'x'
-                # Standard library imports
-                import re
-
                 match = re.search(r"(\d+\.?\d*)x", stripped_line)
                 if match:
                     metrics["speedup"] = match.group(1) + "x"
@@ -87,9 +85,6 @@ def extract_performance_metrics(output: str) -> dict[str, str]:
         # Extract improvement percentages
         if "improvement:" in line.lower() and "%" in line:
             try:
-                # Standard library imports
-                import re
-
                 match = re.search(r"(\d+\.?\d*)%", line)
                 if match:
                     metrics["improvement"] = match.group(1) + "%"
@@ -99,9 +94,6 @@ def extract_performance_metrics(output: str) -> dict[str, str]:
         # Extract memory usage
         if "memory" in line.lower() and "mb" in line.lower():
             try:
-                # Standard library imports
-                import re
-
                 match = re.search(r"(\d+\.?\d*)\s*mb", line.lower())
                 if match:
                     metrics["memory"] = match.group(1) + "MB"
@@ -113,9 +105,6 @@ def extract_performance_metrics(output: str) -> dict[str, str]:
             "entries" in line.lower() or "size" in line.lower()
         ):
             try:
-                # Standard library imports
-                import re
-
                 match = re.search(r"(\d+)\s*(entries|size)", line.lower())
                 if match:
                     metrics["cache_entries"] = match.group(1)

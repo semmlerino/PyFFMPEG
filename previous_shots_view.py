@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, cast
 
 # Third-party imports
 from PySide6.QtCore import (
+    QAbstractItemModel,
     QModelIndex,
     Qt,
     QThreadPool,
@@ -64,6 +65,9 @@ class PreviousShotsView(BaseGridView):
     # Additional signals specific to PreviousShotsView
     shot_selected = Signal(object)  # Shot object
     shot_double_clicked = Signal(object)  # Shot object
+
+    # Class-level type annotation for base class _model attribute
+    _model: QAbstractItemModel | None
 
     def __init__(
         self,
@@ -185,7 +189,7 @@ class PreviousShotsView(BaseGridView):
             model: Previous shots item model
         """
         self._unified_model = model
-        self._model = model  # Also store in base class attribute
+        self._model = model  # type: ignore[assignment]
         self.list_view.setModel(model)
 
         # Set up selection model
@@ -382,7 +386,7 @@ class PreviousShotsView(BaseGridView):
             self._unified_model.set_visible_range(start, end)
 
     @override
-    def contextMenuEvent(self, event: QContextMenuEvent) -> None:
+    def contextMenuEvent(self, event: QContextMenuEvent) -> None:  # noqa: N802
         """Handle right-click context menu.
 
         Args:
@@ -492,7 +496,7 @@ class PreviousShotsView(BaseGridView):
         self._update_timer.start(50)
 
     @override
-    def closeEvent(self, event: QCloseEvent) -> None:
+    def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802
         """Handle widget close event to clean up resources.
 
         Args:

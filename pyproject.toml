@@ -173,6 +173,7 @@ ignore = [
     "S101",    # assert (asserts are the point of tests)
     "ARG001",  # unused-function-argument (pytest fixtures)
     "PLR2004", # magic-value-comparison (test data can be literal)
+    "PLR0913", # too-many-arguments (pytest fixtures often need many params)
     "S108",    # hardcoded-temp-file (fine in tests)
     "DTZ001",  # call-datetime-without-tzinfo (tests don't need tz)
     "B018",    # useless-expression (testing expressions)
@@ -223,9 +224,9 @@ addopts = [
     "--cov-report=html:coverage_html",
     "-p", "no:rerunfailures",
     "-p", "no:xvfb",
-    # Parallel execution with 2 workers (balanced speed/stability for Qt)
-    "-n", "2",
-    "--dist=worksteal",
+    # Serial execution by default for Qt stability
+    # Override with `pytest tests/ -n 2` or `pytest tests/ -n auto` for parallel execution
+    "-n", "0",
     "--timeout=10",
 ]
 

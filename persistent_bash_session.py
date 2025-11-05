@@ -195,7 +195,7 @@ class PersistentBashSession(LoggingMixin):
 
             # Verify process started successfully
             if self._process.poll() is not None:
-                raise RuntimeError("Bash process died immediately after starting")
+                raise RuntimeError("Bash process died immediately after starting")  # noqa: TRY301
 
             # Start stderr drain thread to prevent buffer-full deadlock
             self._stderr_drain_thread = threading.Thread(
@@ -260,7 +260,7 @@ class PersistentBashSession(LoggingMixin):
                     _ = self._process.stdin.write(init_command)
                     self._process.stdin.flush()
                 else:
-                    raise RuntimeError("Process stdin is None")
+                    raise RuntimeError("Process stdin is None")  # noqa: TRY301
 
                 # CRITICAL FIX: Read output until we find our marker
                 # This ensures the session is ready and prevents deadlock
@@ -392,7 +392,7 @@ class PersistentBashSession(LoggingMixin):
                         self.logger.error(
                             f"[{self.session_id}] Bash process died during initialization with exit code: {exit_code}",
                         )
-                        raise RuntimeError(
+                        raise RuntimeError(  # noqa: TRY301
                             f"Bash process died during initialization (exit code: {exit_code})",
                         )
 

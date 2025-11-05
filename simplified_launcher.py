@@ -118,7 +118,6 @@ class SimplifiedLauncher(LoggingMixin, QObject):
                 "open_latest_scene": bool(options.get("open_latest")),
                 "create_new_file": bool(options.get("create_new_file")),
                 "include_raw_plate": bool(options.get("include_plate")),
-                "include_undistortion": bool(options.get("include_undistortion")),
             }
 
             base_command = Config.APPS[app_name]
@@ -624,7 +623,6 @@ class SimplifiedLauncher(LoggingMixin, QObject):
     def launch_app(
         self,
         app_name: str,
-        include_undistortion: bool = False,
         include_raw_plate: bool = False,
         open_latest_threede: bool = False,
         open_latest_maya: bool = False,
@@ -633,7 +631,6 @@ class SimplifiedLauncher(LoggingMixin, QObject):
     ) -> bool:
         """Launch app with options (backward compatibility)."""
         options = {
-            "include_undistortion": include_undistortion,
             "include_plate": include_raw_plate,
             "open_latest": open_latest_threede or open_latest_maya or open_latest_scene,
             "create_new": create_new_file,

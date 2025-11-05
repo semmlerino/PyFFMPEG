@@ -144,7 +144,9 @@ class TestPreviousShotsThreadSafety:
     def test_data_roles_thread_safety(self, model, test_shots) -> None:
         """Test data() method with various roles."""
         # Local application imports
-        from base_item_model import BaseItemRole as UnifiedRole
+        from base_item_model import (
+            BaseItemRole as UnifiedRole,
+        )
 
         # Update the underlying model's shots
         model._underlying_model._shots = test_shots
@@ -215,7 +217,9 @@ class TestDataConsistency:
     def test_shot_data_integrity(self, model, test_shots) -> None:
         """Test that shot data remains consistent."""
         # Local application imports
-        from base_item_model import BaseItemRole as UnifiedRole
+        from base_item_model import (
+            BaseItemRole as UnifiedRole,
+        )
 
         # Update the underlying model's shots
         model._underlying_model._shots = test_shots

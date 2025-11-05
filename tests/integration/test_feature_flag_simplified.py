@@ -170,7 +170,7 @@ class TestFeatureFlagBehavior:
                 self.delete_later_called = False
                 self._running = True
 
-            def isRunning(self):
+            def isRunning(self):  # noqa: N802
                 return self._running
 
             def stop(self) -> None:
@@ -189,7 +189,7 @@ class TestFeatureFlagBehavior:
                 self._running = False
                 return True
 
-            def deleteLater(self) -> None:
+            def deleteLater(self) -> None:  # noqa: N802
                 self.delete_later_called = True
                 super().deleteLater()
 

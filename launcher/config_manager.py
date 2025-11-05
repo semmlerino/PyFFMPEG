@@ -32,10 +32,10 @@ class LauncherConfigManager(LoggingMixin):
     def __init__(self, config_dir: str | Path | None = None) -> None:
         super().__init__()
         if config_dir is not None:
-            self.config_dir = Path(config_dir)
+            self.config_dir: Path = Path(config_dir)
         else:
             self.config_dir = Path.home() / ".shotbot"
-        self.config_file = self.config_dir / "custom_launchers.json"
+        self.config_file: Path = self.config_dir / "custom_launchers.json"
         self._ensure_config_dir()
 
     def _ensure_config_dir(self) -> None:

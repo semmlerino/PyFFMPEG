@@ -29,7 +29,9 @@ def test_process_pool_simple() -> Generator[object, None, None]:
             result = test_process_pool_simple.execute_command("echo test")
             assert "test" in result
     """
-    from tests.test_doubles_library import TestProcessPool
+    from tests.test_doubles_library import (
+        TestProcessPool,
+    )
 
     pool = TestProcessPool()
     pool.set_outputs("workspace /shows/test/shots/010/0010")

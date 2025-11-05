@@ -94,7 +94,9 @@ class TestThreeDEDiscoveryIntegration:
     def make_user_shots(self, temp_vfx_structure):
         """Factory for creating user's assigned shots."""
         # Standard library imports
-        from collections import namedtuple
+        from collections import (
+            namedtuple,
+        )
 
         Shot = namedtuple("Shot", ["workspace_path", "show", "sequence", "shot"])
         shows_root, _ = temp_vfx_structure
@@ -130,8 +132,12 @@ class TestThreeDEDiscoveryIntegration:
         user_shots = make_user_shots()
 
         # Local application imports
-        from config import Config
-        from scene_discovery_coordinator import RefactoredThreeDESceneFinder
+        from config import (
+            Config,
+        )
+        from scene_discovery_coordinator import (
+            RefactoredThreeDESceneFinder,
+        )
 
         # Set up excluded users (current user)
         excluded_users = {"gabriel-h"}
@@ -178,14 +184,18 @@ class TestThreeDEDiscoveryIntegration:
         Following Worker Thread Pattern (GUIDE line 91).
         """
         # Local application imports
-        from threede_scene_worker import ThreeDESceneWorker
+        from threede_scene_worker import (
+            ThreeDESceneWorker,
+        )
 
         shows_root, _created_files = temp_vfx_structure
         user_shots = make_user_shots()
 
         # Mock Config to use temp structure
         # Local application imports
-        from config import Config
+        from config import (
+            Config,
+        )
 
         with patch.object(Config, "SHOWS_ROOT", str(shows_root)):
             # Create worker with scan_all_shots=True (as in production)
@@ -221,7 +231,9 @@ class TestThreeDEDiscoveryIntegration:
     def test_scene_filtering_with_real_parser(self, temp_vfx_structure) -> None:
         """Test scene filtering using the real SceneParser component."""
         # Local application imports
-        from scene_parser import SceneParser
+        from scene_parser import (
+            SceneParser,
+        )
 
         shows_root, created_files = temp_vfx_structure
         parser = SceneParser()
@@ -249,7 +261,9 @@ class TestThreeDEDiscoveryIntegration:
     def test_end_to_end_with_filesystem_scanner(self, temp_vfx_structure) -> None:
         """Test complete end-to-end with FileSystemScanner."""
         # Local application imports
-        from filesystem_scanner import FileSystemScanner
+        from filesystem_scanner import (
+            FileSystemScanner,
+        )
 
         shows_root, _created_files = temp_vfx_structure
         scanner = FileSystemScanner()
@@ -289,7 +303,9 @@ class TestThreeDEDiscoveryIntegration:
         if not user_shots:
             # Create a dummy shot for shows user isn't assigned to
             # Standard library imports
-            from collections import namedtuple
+            from collections import (
+                namedtuple,
+            )
 
             Shot = namedtuple("Shot", ["workspace_path", "show", "sequence", "shot"])
             user_shots = [
@@ -297,8 +313,12 @@ class TestThreeDEDiscoveryIntegration:
             ]
 
         # Local application imports
-        from config import Config
-        from scene_discovery_coordinator import RefactoredThreeDESceneFinder
+        from config import (
+            Config,
+        )
+        from scene_discovery_coordinator import (
+            RefactoredThreeDESceneFinder,
+        )
 
         with patch.object(Config, "SHOWS_ROOT", str(shows_root)):
             scenes = RefactoredThreeDESceneFinder.find_all_scenes_in_shows_truly_efficient_parallel(

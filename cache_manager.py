@@ -86,6 +86,15 @@ class ShotMergeResult(NamedTuple):
     has_changes: bool  # Any changes detected
 
 
+class SceneMergeResult(NamedTuple):
+    """Result of incremental scene merge operation."""
+
+    updated_scenes: list[ThreeDESceneDict]  # All scenes (kept + new)
+    new_scenes: list[ThreeDESceneDict]  # Just new additions
+    removed_scenes: list[ThreeDESceneDict]  # No longer in fresh data
+    has_changes: bool  # Any changes detected
+
+
 def _get_shot_key(shot: ShotDict) -> tuple[str, str, str]:
     """Get composite unique key for shot.
 
@@ -113,6 +122,37 @@ def _shot_to_dict(shot: Shot | ShotDict) -> ShotDict:
     if isinstance(shot, dict):
         return shot
     return shot.to_dict()
+
+
+def _get_scene_key(scene: ThreeDESceneDict) -> tuple[str, str, str]:
+    """Get composite unique key for scene.
+
+    Uses (show, sequence, shot) tuple for shot-level deduplication.
+    This aligns with the current deduplication strategy where only one
+    scene per shot is kept (selected by mtime and plate priority).
+
+    Args:
+        scene: Scene dictionary with show, sequence, shot fields
+
+    Returns:
+        Tuple of (show, sequence, shot) for use as dict key
+    """
+    return (scene["show"], scene["sequence"], scene["shot"])
+
+
+def _scene_to_dict(scene: object) -> ThreeDESceneDict:
+    """Convert ThreeDEScene object or dict to ThreeDESceneDict.
+
+    Args:
+        scene: ThreeDEScene object with to_dict() method or ThreeDESceneDict
+
+    Returns:
+        ThreeDESceneDict with all required fields
+    """
+    if isinstance(scene, dict):
+        return scene  # type: ignore[return-value]
+    # Assume ThreeDEScene object with to_dict method
+    return scene.to_dict()  # type: ignore[return-value, attr-defined]
 
 
 # Backward compatibility exports from old cache system
@@ -162,7 +202,7 @@ class CacheManager(LoggingMixin, QObject):
         # Setup cache directory
         if cache_dir is None:
             # Standard library imports
-            import sys
+            import sys  # noqa: PLC0415 - Lazy import to detect pytest environment
 
             # Use default cache location based on mode
             # Detect pytest automatically (takes highest priority)
@@ -324,7 +364,10 @@ class CacheManager(LoggingMixin, QObject):
             # Try MOV fallback if PIL can't read the image (e.g., EXR files)
             self.logger.debug(f"Attempting MOV fallback for {source.name}")
 
-            from utils import ImageUtils, PathUtils
+            from utils import (  # noqa: PLC0415 - Lazy import for fallback handling
+                ImageUtils,
+                PathUtils,
+            )
 
             mov_path = PathUtils.find_mov_file_for_path(source)
             if mov_path:
@@ -497,14 +540,14 @@ class CacheManager(LoggingMixin, QObject):
             if write_success:
                 self.logger.info(
                     f"Migrated {len(to_migrate)} shots to Previous "
-                    f"(total: {len(merged)} after dedup)"
+                     f"(total: {len(merged)} after dedup)"
                 )
                 # Emit specific signal (NOT generic cache_updated)
                 self.shots_migrated.emit(to_migrate)
             else:
                 self.logger.error(
                     f"Failed to persist {len(to_migrate)} migrated shots to disk. "
-                    "Migration will be lost on restart."
+                     "Migration will be lost on restart."
                 )
 
     def get_cached_previous_shots(self) -> list[ShotDict] | None:
@@ -771,12 +814,12 @@ class CacheManager(LoggingMixin, QObject):
     # ========================================================================
 
     @property
-    def CACHE_THUMBNAIL_SIZE(self) -> int:
+    def CACHE_THUMBNAIL_SIZE(self) -> int:  # noqa: N802
         """Get the cached thumbnail size."""
         return THUMBNAIL_SIZE
 
     @property
-    def CACHE_EXPIRY_MINUTES(self) -> int:
+    def CACHE_EXPIRY_MINUTES(self) -> int:  # noqa: N802
         """Get cache expiry time in minutes."""
         return DEFAULT_TTL_MINUTES
 

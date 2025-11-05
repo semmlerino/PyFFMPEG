@@ -44,13 +44,19 @@ pytestmark = [
 @pytest.fixture(scope="module", autouse=True)
 def setup_qt_imports() -> None:
     """Import Qt and CacheManager components after test setup."""
-    global CacheManager, QCoreApplication, process_qt_events
+    global CacheManager, QCoreApplication, process_qt_events  # noqa: PLW0603
     # Third-party imports
-    from PySide6.QtCore import QCoreApplication
+    from PySide6.QtCore import (
+        QCoreApplication,
+    )
 
     # Local application imports
-    from cache_manager import CacheManager
-    from tests.helpers.synchronization import process_qt_events
+    from cache_manager import (
+        CacheManager,
+    )
+    from tests.helpers.synchronization import (
+        process_qt_events,
+    )
 
 
 class TestCorruptedFiles:
@@ -345,7 +351,10 @@ class TestResourceExhaustion:
 
     def test_cache_cleanup_under_pressure(self, tmp_path) -> None:
         """Cache should clean up when cleared (simplified cache system)."""
-        from PySide6.QtGui import QColor, QImage
+        from PySide6.QtGui import (  # noqa: PLC0415 - lazy import to avoid circular dependency
+            QColor,
+            QImage,
+        )
 
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
 

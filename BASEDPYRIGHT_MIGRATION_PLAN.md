@@ -4,7 +4,7 @@
 
 ### Problems
 1. ❌ **Duplicate configs**: `pyproject.toml` + `pyrightconfig.json` conflict
-2. ❌ **Wrong Python version**: Config says 3.12, actual is 3.13.3
+2. ✅ **Python version**: Config correctly targets 3.11 (VFX workstation), local dev is 3.13.3
 3. ❌ **Wrong paths**: Points to Windows mount `/mnt/c/...` instead of Linux
 4. ❌ **Contradictory rules**: Include and exclude lists conflict
 5. ❌ **Too permissive**: 7 important checks disabled → bugs slip through

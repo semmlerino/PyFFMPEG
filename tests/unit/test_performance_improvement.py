@@ -26,8 +26,12 @@ pytestmark = pytest.mark.performance
 def test_original_startup() -> None:
     """Measure original ShotModel startup time."""
     # Local application imports
-    from cache_manager import CacheManager
-    from shot_model import ShotModel
+    from cache_manager import (
+        CacheManager,
+    )
+    from shot_model import (
+        ShotModel,
+    )
 
     with tempfile.TemporaryDirectory() as tmpdir:
         cache = CacheManager(cache_dir=Path(tmpdir))
@@ -54,15 +58,21 @@ workspace /shows/TEST/seq02/0010"""
 def test_optimized_startup() -> None:
     """Measure optimized ShotModel startup time."""
     # Local application imports
-    from cache_manager import CacheManager
-    from shot_model import ShotModel
+    from cache_manager import (
+        CacheManager,
+    )
+    from shot_model import (
+        ShotModel,
+    )
 
     with tempfile.TemporaryDirectory() as tmpdir:
         cache = CacheManager(cache_dir=Path(tmpdir))
 
         # Pre-cache some data to simulate real scenario
         # Local application imports
-        from shot_model import Shot
+        from shot_model import (
+            Shot,
+        )
 
         cached_shot = Shot("CACHED", "seq01", "0010", "/cached/path")
         cache.cache_shots([cached_shot])  # Use real Shot objects
@@ -98,9 +108,15 @@ workspace /shows/TEST/seq02/0010"""
 def test_with_session_warming() -> None:
     """Test with session pre-warming strategy."""
     # Local application imports
-    from cache_manager import CacheManager
-    from process_pool_manager import ProcessPoolManager
-    from shot_model import ShotModel
+    from cache_manager import (
+        CacheManager,
+    )
+    from process_pool_manager import (
+        ProcessPoolManager,
+    )
+    from shot_model import (
+        ShotModel,
+    )
 
     with tempfile.TemporaryDirectory() as tmpdir:
         cache = CacheManager(cache_dir=Path(tmpdir))

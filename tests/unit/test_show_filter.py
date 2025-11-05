@@ -458,7 +458,9 @@ class TestMainWindowFilterHandlers:
         Instead, we test the handler methods directly.
         """
         # Local application imports
-        from main_window import MainWindow
+        from main_window import (
+            MainWindow,
+        )
 
         # Prevent actual window creation
         monkeypatch.setattr(MainWindow, "__init__", lambda _self: None)
@@ -467,7 +469,10 @@ class TestMainWindowFilterHandlers:
 
         # Set up minimal required attributes
         # Local application imports
-        from tests.test_doubles_library import TestCacheManager, TestProcessPool
+        from tests.test_doubles_library import (  # noqa: PLC0415 - lazy import to avoid circular dependency
+            TestCacheManager,
+            TestProcessPool,
+        )
 
         # Create test models
         window.shot_model = ShotModel(
@@ -494,7 +499,9 @@ class TestMainWindowFilterHandlers:
         qtbot.addWidget(window.previous_shots_grid)
 
         # Add RefreshOrchestrator for refactored MainWindow
-        from refresh_orchestrator import RefreshOrchestrator
+        from refresh_orchestrator import (
+            RefreshOrchestrator,
+        )
 
         window.refresh_orchestrator = RefreshOrchestrator(window)
 
@@ -508,7 +515,9 @@ class TestMainWindowFilterHandlers:
     def test_on_shot_show_filter_requested(self, mock_main_window: Any) -> None:
         """Test the handler for My Shots show filter request."""
         # Local application imports
-        from main_window import MainWindow
+        from main_window import (
+            MainWindow,
+        )
 
         # Set up test shots
         test_shots = [
@@ -534,7 +543,9 @@ class TestMainWindowFilterHandlers:
     def test_on_previous_show_filter_requested(self, mock_main_window: Any) -> None:
         """Test the handler for Previous Shots show filter request."""
         # Local application imports
-        from main_window import MainWindow
+        from main_window import (
+            MainWindow,
+        )
 
         # Set up test previous shots
         test_shots = [
@@ -566,7 +577,9 @@ class TestMainWindowFilterHandlers:
         suite runs due to Qt singleton state contamination.
         """
         # Local application imports
-        from main_window import MainWindow
+        from main_window import (
+            MainWindow,
+        )
 
         # Set up test shots
         test_shots = [
@@ -591,7 +604,9 @@ class TestMainWindowFilterHandlers:
     def test_on_previous_shots_updated(self, mock_main_window: Any) -> None:
         """Test the handler for previous shots updated signal."""
         # Local application imports
-        from main_window import MainWindow
+        from main_window import (
+            MainWindow,
+        )
 
         # Set up test previous shots
         test_shots = [

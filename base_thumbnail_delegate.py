@@ -525,7 +525,7 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
         return loading_rows
 
     @override
-    def sizeHint(
+    def sizeHint(  # noqa: N802
         self, option: QStyleOptionViewItem, index: QModelIndex | QPersistentModelIndex
     ) -> QSize:
         """Return the size hint for an item.

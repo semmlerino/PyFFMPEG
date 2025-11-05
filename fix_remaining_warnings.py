@@ -12,9 +12,10 @@ def get_warnings():
     uv_path = os.path.expanduser("~/.local/bin/uv")
     result = subprocess.run(
         [uv_path, "run", "basedpyright"],
-        check=False, capture_output=True,
+        check=False,
+        capture_output=True,
         text=True,
-        shell=False
+        shell=False,
     )
 
     warnings = []
@@ -35,7 +36,7 @@ def get_warnings():
 
 def fix_file(filepath, line_numbers):
     """Add _ = prefix to specified lines in a file."""
-    with open(filepath) as f:
+    with Path(filepath).open() as f:
         lines = f.readlines()
 
     fixed_count = 0
@@ -52,7 +53,7 @@ def fix_file(filepath, line_numbers):
             lines[line_num - 1] = f"{indent}_ = {stripped}"
             fixed_count += 1
 
-    with open(filepath, "w") as f:
+    with Path(filepath).open("w") as f:
         f.writelines(lines)
 
     return fixed_count
@@ -65,7 +66,7 @@ def main():
 
     # Group by file
     by_file = {}
-    for filepath, line_num, return_type in warnings:
+    for filepath, line_num, _return_type in warnings:
         if filepath not in by_file:
             by_file[filepath] = []
         by_file[filepath].append(line_num)

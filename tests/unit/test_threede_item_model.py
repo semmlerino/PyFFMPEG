@@ -126,7 +126,9 @@ class TestThreadSafety:
 
         # Manually populate cache to test limit - no need to patch anything
         # Third-party imports
-        from PySide6.QtCore import QMutexLocker
+        from PySide6.QtCore import (
+            QMutexLocker,
+        )
 
         for _, scene in enumerate(many_scenes[:110]):  # Try to exceed limit
             if len(model._thumbnail_cache) < 100:  # Respect MAX_CACHE_SIZE
@@ -173,7 +175,9 @@ class TestThreadSafety:
         test_image = QImage(100, 100, QImage.Format.Format_RGB32)
         # Use QMutexLocker for Qt mutex
         # Third-party imports
-        from PySide6.QtCore import QMutexLocker
+        from PySide6.QtCore import (
+            QMutexLocker,
+        )
 
         with QMutexLocker(model._cache_mutex):
             model._thumbnail_cache[str(test_scenes[0].scene_path)] = test_image
@@ -312,7 +316,9 @@ class TestThreadSafety:
         # Loading all visible thumbnails should stop timer
         # Simulate all loaded
         # Third-party imports
-        from PySide6.QtCore import QMutexLocker
+        from PySide6.QtCore import (
+            QMutexLocker,
+        )
 
         with QMutexLocker(model._cache_mutex):
             for scene in test_scenes[:3]:
@@ -347,7 +353,9 @@ class TestDataIntegrity:
     ) -> None:
         """Test that all data roles return consistent data."""
         # Local application imports
-        from base_item_model import BaseItemRole as ThreeDERole
+        from base_item_model import (
+            BaseItemRole as ThreeDERole,
+        )
 
         model.set_scenes(test_scenes)
 
@@ -372,7 +380,9 @@ class TestDataIntegrity:
         # Add to cache
         test_image = QImage(100, 100, QImage.Format.Format_RGB32)
         # Third-party imports
-        from PySide6.QtCore import QMutexLocker
+        from PySide6.QtCore import (
+            QMutexLocker,
+        )
 
         with QMutexLocker(model._cache_mutex):
             model._thumbnail_cache[str(test_scenes[0].scene_path)] = test_image

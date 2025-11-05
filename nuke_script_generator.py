@@ -1,7 +1,7 @@
-"""Generate Nuke scripts with proper Read nodes for plates and undistortion.
+"""Generate Nuke scripts with proper Read nodes for plates.
 
-This module has been refactored to use separate modules for templates, detection,
-and undistortion parsing while maintaining backward compatibility.
+This module has been refactored to use separate modules for templates and detection
+while maintaining backward compatibility.
 """
 
 from __future__ import annotations
@@ -17,7 +17,6 @@ from typing import ClassVar, final
 from logging_mixin import get_module_logger
 from nuke_media_detector import NukeMediaDetector
 from nuke_script_templates import NukeScriptTemplates
-from nuke_undistortion_parser import NukeUndistortionParser
 from plate_discovery import PlateDiscovery
 
 
@@ -40,93 +39,11 @@ class NukeScriptGenerator:
     # Backward compatibility: expose WINDOW_LAYOUT_XML as class attribute
     WINDOW_LAYOUT_XML = NukeScriptTemplates.WINDOW_LAYOUT_XML
 
-    # onCreate Python script for undistortion loader
-    UNDISTORTION_ONCREATE_SCRIPT = """import nuke
-import os
-import sys
-import re
-
-try:
-    print('DEBUG: Starting undistortion import...')
-    print(f'DEBUG: Python version: {sys.version}')
-
-    undist_file = r"{undist_file}"
-    print(f'DEBUG: Looking for undistortion file: {undist_file}')
-
-    if os.path.exists(undist_file):
-        print('DEBUG: File exists, attempting to source...')
-        try:
-            # Source the undistortion file
-            nuke.scriptSource(undist_file)
-            print('DEBUG: Successfully sourced undistortion file')
-
-            # Get all imported nodes and sanitize their names
-            imported_nodes = nuke.selectedNodes()
-            print(f'DEBUG: Found {len(imported_nodes)} imported nodes')
-
-            # Sanitize node names - replace illegal characters
-            for node in imported_nodes:
-                try:
-                    original_name = node.name()
-                    # Replace hyphens and other illegal characters with underscores
-                    # Nuke node names can only contain letters, numbers, and underscores
-                    sanitized_name = re.sub(r'[^a-zA-Z0-9_]', '_', original_name)
-                    if sanitized_name != original_name:
-                        # Find a unique name if the sanitized name already exists
-                        base_name = sanitized_name
-                        counter = 1
-                        while nuke.exists(sanitized_name):
-                            sanitized_name = f'{base_name}_{counter}'
-                            counter += 1
-                        node.setName(sanitized_name)
-                        print(f'DEBUG: Renamed node from {original_name} to ' +
-                              f'{sanitized_name}')
-                except Exception as rename_ex:
-                    print(f'DEBUG: Could not rename node {node}: {rename_ex}')
-                    continue
-
-            # Now try to connect imported nodes to Read_Plate
-            try:
-                read_plate = nuke.toNode('Read_Plate')
-                if imported_nodes and read_plate:
-                    for node in imported_nodes:
-                        if hasattr(node, 'maxInputs') and node.maxInputs() > 0:
-                            if hasattr(node, 'input') and node.input(0) is None:
-                                try:
-                                    node.setInput(0, read_plate)
-                                    print(f'DEBUG: Connected {node.name()} to ' +
-                                          'Read_Plate')
-                                    break
-                                except Exception as ex:
-                                    print(f'DEBUG: Could not connect ' +
-                                          f'{node.name()}: {ex}')
-                else:
-                    print('DEBUG: No nodes to connect or Read_Plate not found')
-            except Exception as connect_ex:
-                print(f'DEBUG: Error during node connection: {connect_ex}')
-
-            # Success - just log it, no popup
-            print(f'INFO: Undistortion imported successfully from {undist_file}')
-        except Exception as e:
-            print(f'ERROR: Failed to source undistortion: {e}')
-            import traceback
-            traceback.print_exc()
-            # No popup on error, just log it
-            print(f'ERROR: Could not import undistortion from {undist_file}: {str(e)}')
-    else:
-        print(f'WARNING: Undistortion file not found: {undist_file}')
-        # No popup, just log warning
-except Exception as e:
-    print(f'ERROR: Unexpected error in Python executor: {e}')
-    import traceback
-    traceback.print_exc()"""
-
     def __init__(self) -> None:
         """Initialize the generator with helper modules."""
         super().__init__()
         self.templates = NukeScriptTemplates()
         self.detector = NukeMediaDetector()
-        self.parser = NukeUndistortionParser()
 
     @classmethod
     def _register_cleanup(cls) -> None:
@@ -166,17 +83,13 @@ except Exception as e:
     def _create_script(
         self,
         plate_path: str = "",
-        undistortion_path: str = "",
         shot_name: str = "",
-        script_type: str = "standard",
     ) -> str:
         """Internal method to create Nuke script content.
 
         Args:
             plate_path: Path to plate sequence (optional)
-            undistortion_path: Path to undistortion file (optional)
             shot_name: Name of the shot
-            script_type: Type of script ("standard", "loader", "with_undistortion")
 
         Returns:
             Complete Nuke script content as string
@@ -221,90 +134,6 @@ except Exception as e:
             # Add Grade node for color correction
             script_parts.append(self.templates.get_grade_node(xpos=0, ypos=-50))
 
-        # Handle different script types
-        if script_type == "loader" and undistortion_path:
-            # Create loader script with Python onCreate
-            nuke_undist_path = self.templates.escape_path(undistortion_path)
-
-            # Prepare the onCreate script for the NoOp node
-            backslash = chr(92)  # Avoid backslash in f-string
-            quote = chr(34)  # Avoid quote escaping in f-string
-            formatted_oncreate_script = (
-                self.UNDISTORTION_ONCREATE_SCRIPT.replace(
-                    chr(10), backslash + "n"
-                )  # Replace newlines with \n
-                .replace(quote, backslash + quote)  # Escape quotes
-                .format(undist_file=nuke_undist_path)
-            )
-
-            # Add NoOp node with Python script
-            script_parts.append(
-                self.templates.get_noop_node(
-                    "PythonExecutor",
-                    "Python Script Loader\\nImports undistortion nodes",
-                    200,
-                    -300,
-                    oncreate_script=formatted_oncreate_script,
-                )
-            )
-
-            # Add note about undistortion source
-            script_parts.append(
-                self.templates.get_sticky_note(
-                    f"Undistortion imported from:\\n{nuke_undist_path}",
-                    200,
-                    -300,
-                    "Note_Undistortion_Source",
-                )
-            )
-
-        elif script_type == "with_undistortion" and undistortion_path:
-            # Parse and import undistortion nodes
-            imported_nodes = self.parser.parse_undistortion_file(
-                undistortion_path, ypos_offset=-200
-            )
-
-            if imported_nodes:
-                logger.info("Successfully imported undistortion nodes into script")
-                # Fix the first node to connect to Read_Plate (if it exists)
-                if plate_path and nuke_plate_path:
-                    # Connect first undistortion node to Read_Plate
-                    imported_nodes = imported_nodes.replace(
-                        "inputs 0",
-                        "inputs 1",
-                        1,
-                    )
-                    logger.debug("Connected first undistortion node to Read_Plate")
-
-                script_parts.append(imported_nodes)
-                script_parts.append(
-                    self.templates.get_sticky_note(
-                        (f"Undistortion imported from:\\n"
-                        f"{self.templates.escape_path(undistortion_path)}"),
-                        200,
-                        -300,
-                        "Note_Undistortion_Source",
-                    )
-                )
-            else:
-                # Fallback to reference if import failed
-                logger.warning(
-                    f"Failed to import undistortion nodes from {undistortion_path}, "
-                     "creating reference note instead"
-                )
-                escaped_undist_path = self.templates.escape_path(undistortion_path)
-                script_parts.append(
-                    self.templates.get_sticky_note(
-                        (f"UNDISTORTION AVAILABLE\\nFile > Import Script:\\n"
-                        f"{escaped_undist_path}"),
-                        200,
-                        -300,
-                        "Note_Undistortion",
-                        color="0xff8800ff",
-                        font_size=16,
-                    )
-                )
-
         # Add Viewer node
         script_parts.append(
             self.templates.get_viewer_node(first_frame, last_frame, xpos=0, ypos=100)
@@ -328,7 +157,6 @@ except Exception as e:
             script_content = generator._create_script(
                 plate_path=plate_path,
                 shot_name=shot_name,
-                script_type="standard",
             )
 
             # Create temporary file
@@ -348,106 +176,6 @@ except Exception as e:
 
         except Exception as e:
             print(f"Error creating Nuke script: {e}")
-            return None
-
-    @staticmethod
-    def create_loader_script(
-        plate_path: str,
-        undistortion_path: str,
-        shot_name: str,
-    ) -> str | None:
-        """Create a minimal Nuke loader script that uses Nuke's Python API.
-
-        This method creates a simple script that loads both the plate and undistortion
-        using Nuke's built-in scriptSource() command.
-
-        Args:
-            plate_path: Path to the plate sequence
-            undistortion_path: Path to undistortion .nk file
-            shot_name: Name of the shot
-
-        Returns:
-            Path to the temporary loader script, or None on error
-        """
-        try:
-            generator = NukeScriptGenerator()
-            script_content = generator._create_script(
-                plate_path=plate_path,
-                undistortion_path=undistortion_path,
-                shot_name=shot_name,
-                script_type="loader",
-            )
-
-            # Create temporary file
-            safe_shot_name = generator.detector.sanitize_shot_name(shot_name)
-            with tempfile.NamedTemporaryFile(
-                mode="w",
-                suffix=".nk",
-                prefix=f"{safe_shot_name}_loader_",
-                delete=False,
-                encoding="utf-8",
-            ) as tmp_file:
-                _ = tmp_file.write(script_content)
-                temp_path = tmp_file.name
-
-            # Track temp file for cleanup
-            _ = NukeScriptGenerator._track_temp_file(temp_path)
-
-            print(f"Created Nuke loader script: {temp_path}")
-            print(f"  Plate: {plate_path}")
-            print(f"  Undistortion: {undistortion_path}")
-
-            return temp_path
-
-        except Exception as e:
-            print(f"Error creating loader script: {e}")
-            return None
-
-    @staticmethod
-    def create_plate_script_with_undistortion(
-        plate_path: str,
-        undistortion_path: str | None,
-        shot_name: str,
-    ) -> str | None:
-        """Create a Nuke script with plate and optional undistortion.
-
-        This version properly imports the undistortion nodes from the .nk file
-        and integrates them into the compositing graph.
-
-        Args:
-            plate_path: Path to the plate sequence (can be empty)
-            undistortion_path: Path to undistortion .nk file (optional)
-            shot_name: Name of the shot
-
-        Returns:
-            Path to the temporary .nk script
-        """
-        try:
-            generator = NukeScriptGenerator()
-            script_content = generator._create_script(
-                plate_path=plate_path or "",
-                undistortion_path=undistortion_path or "",
-                shot_name=shot_name,
-                script_type="with_undistortion",
-            )
-
-            # Create temporary file
-            safe_shot_name = generator.detector.sanitize_shot_name(shot_name)
-            with tempfile.NamedTemporaryFile(
-                mode="w",
-                suffix=".nk",
-                prefix=f"{safe_shot_name}_comp_",
-                delete=False,
-                encoding="utf-8",
-            ) as tmp_file:
-                _ = tmp_file.write(script_content)
-                temp_path = tmp_file.name
-
-            # Track the file for cleanup at program exit
-            return NukeScriptGenerator._track_temp_file(temp_path)
-
-        except Exception as e:
-            print(f"Error creating Nuke script with undistortion: {e}")
             return None
 
     @staticmethod
@@ -597,7 +325,6 @@ except Exception as e:
             script_content = generator._create_script(
                 plate_path=plate_path,
                 shot_name=shot_name,
-                script_type="standard",
             )
 
             # Get workspace script directory using PlateDiscovery
@@ -607,7 +334,7 @@ except Exception as e:
             if not script_dir:
                 logger.error(
                     f"Failed to get workspace script directory for {plate_name} "
-                     f"in workspace {workspace_path}"
+                      f"in workspace {workspace_path}"
                 )
                 return None
 
@@ -656,7 +383,6 @@ except Exception as e:
             script_content = generator._create_script(
                 plate_path="",  # Empty plate path = no Read node
                 shot_name=shot_name,
-                script_type="standard",
             )
 
             # Get workspace script directory

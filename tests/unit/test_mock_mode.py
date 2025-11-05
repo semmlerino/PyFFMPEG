@@ -40,7 +40,7 @@ def test_mock_setup() -> None:
     print("\n2. Testing command-line argument parsing...")
     try:
         # Standard library imports
-        import argparse
+        import argparse  # noqa: PLC0415 - lazy import to avoid circular dependency
 
         parser = argparse.ArgumentParser()
         parser.add_argument("--mock", action="store_true")

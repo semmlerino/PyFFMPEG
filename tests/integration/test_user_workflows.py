@@ -69,8 +69,10 @@ from threede_scene_model import ThreeDESceneModel
 @pytest.fixture(scope="module", autouse=True)
 def setup_qt_imports() -> None:
     """Import Qt and MainWindow components after test setup."""
-    global MainWindow
-    from main_window import MainWindow
+    global MainWindow  # noqa: PLW0603
+    from main_window import (
+        MainWindow,
+    )
 
 
 pytestmark = [
@@ -191,7 +193,9 @@ class TestUserWorkflows:
 
             # Clear any active progress operations to avoid Qt cleanup issues
             # Local application imports
-            from progress_manager import ProgressManager
+            from progress_manager import (
+                ProgressManager,
+            )
 
             with contextlib.suppress(Exception):
                 ProgressManager.clear_all_operations()
@@ -282,12 +286,12 @@ class TestUserWorkflows:
 
         # Set up realistic shot data
         shot_data = self.test_shots[0]
-        self._create_realistic_shot_structure(shot_data)
+        actual_workspace_path = self._create_realistic_shot_structure(shot_data)
         test_shot = Shot(
             shot_data["show"],
             shot_data["sequence"],
             shot_data["shot"],
-            shot_data["workspace_path"],
+            str(actual_workspace_path),  # Use actual created path, not hardcoded absolute path
         )
 
         # Set up shot context directly on the command launcher to test the launch functionality
@@ -310,7 +314,7 @@ class TestUserWorkflows:
             # Simulate user clicking Nuke launch button by calling the command launcher
             # This is what the UI does when _launch_app() is called
             success = main_window.command_launcher.launch_app(
-                "nuke", include_undistortion=False, include_raw_plate=False
+                "nuke", include_raw_plate=False
             )
 
             # Verify launch was initiated successfully
@@ -390,7 +394,9 @@ class TestUserWorkflows:
         ):
             # Create a 3DE scene object for testing
             # Local application imports
-            from threede_scene_model import ThreeDEScene
+            from threede_scene_model import (
+                ThreeDEScene,
+            )
 
             test_scene = ThreeDEScene(
                 show=shot_data["show"],
@@ -697,7 +703,7 @@ class TestUserWorkflows:
 
         # Use legacy model to avoid async loading interference in tests
         # Standard library imports
-        import os
+        import os  # noqa: PLC0415 - lazy import to avoid circular dependency
 
         os.environ["SHOTBOT_USE_LEGACY_MODEL"] = "1"
 
@@ -706,10 +712,14 @@ class TestUserWorkflows:
 
         # Use a mock process pool to prevent workspace command execution
         # Standard library imports
-        from unittest.mock import patch
+        from unittest.mock import (
+            patch,
+        )
 
         # Local application imports
-        from tests.test_doubles_library import TestProcessPool
+        from tests.test_doubles_library import (
+            TestProcessPool,
+        )
 
         test_pool = TestProcessPool()
         test_pool.set_outputs("")  # Empty output, no shots
@@ -732,7 +742,9 @@ class TestUserWorkflows:
 
         # Stop any async loaders that might interfere
         # Third-party imports
-        from PySide6.QtCore import QMutexLocker
+        from PySide6.QtCore import (
+            QMutexLocker,
+        )
 
         with QMutexLocker(main_window.shot_model._loader_lock):
             if main_window.shot_model._async_loader:
@@ -847,7 +859,9 @@ class TestUserWorkflows:
 
         # Test that we can access shots from the model
         # Local application imports
-        from base_item_model import BaseItemRole as UnifiedRole
+        from base_item_model import (
+            BaseItemRole as UnifiedRole,
+        )
 
         for i in range(main_window.shot_item_model.rowCount()):
             index = main_window.shot_item_model.index(i, 0)
@@ -1280,13 +1294,13 @@ if __name__ == "__main__":
         try:
             # Create a minimal qtbot-like object for standalone testing
             class StandaloneQtBot:
-                def addWidget(self, widget) -> None:
+                def addWidget(self, widget) -> None:  # noqa: N802
                     pass
 
                 def wait(self, ms) -> None:
                     QTest.qWait(ms)
 
-                def waitUntil(self, condition, timeout=1000) -> bool:
+                def waitUntil(self, condition, timeout=1000) -> bool:  # noqa: N802
                     start_time = time.time()
                     while time.time() - start_time < timeout / 1000:
                         if condition():

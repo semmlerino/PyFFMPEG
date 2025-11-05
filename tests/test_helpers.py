@@ -52,11 +52,11 @@ class ThreadSafeTestImage:
             color = QColor(255, 255, 255)
         self._image.fill(color)
 
-    def isNull(self) -> bool:
+    def isNull(self) -> bool:  # noqa: N802
         """Check if the image is null."""
         return self._image.isNull()
 
-    def sizeInBytes(self) -> int:
+    def sizeInBytes(self) -> int:  # noqa: N802
         """Return the size of the image in bytes."""
         return self._image.sizeInBytes()
 
@@ -153,7 +153,7 @@ class TestProcessPoolManager:
         # Simple cache implementation for testing
         self._cache: dict[str, tuple[str, float]] = {}  # command -> (output, timestamp)
         # Standard library imports
-        import time
+        import time  # noqa: PLC0415 - lazy import to avoid circular dependency
 
         self._time = time
 
@@ -271,7 +271,7 @@ class MockMainWindow(QObject):
         """Set extraction parameters for testing."""
         self.extraction_params = params
 
-    def showStatusMessage(self, message: str, timeout: int = 0) -> None:
+    def showStatusMessage(self, message: str, timeout: int = 0) -> None:  # noqa: N802
         """Show status message (mocked)."""
         self.status_messages.append(message)
 
@@ -416,7 +416,9 @@ def with_thread_safe_images(test_func: Callable) -> Callable:
     in the decorated test function.
     """
     # Standard library imports
-    from unittest.mock import patch
+    from unittest.mock import (
+        patch,
+    )
 
     def wrapper(*args, **kwargs):
         with patch("PySide6.QtGui.QPixmap", ThreadSafeTestImage):

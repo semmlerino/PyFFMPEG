@@ -18,6 +18,7 @@ Test Coverage Goals:
 from __future__ import annotations
 
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, Mock, patch
@@ -397,6 +398,22 @@ class TestBaseThumbnailLoader:
 
 class TestThumbnailWidgetBaseLoadingOperations:
     """Test ThumbnailWidgetBase thumbnail loading and caching operations."""
+
+    @pytest.fixture(autouse=True)
+    def cleanup_cache_manager(self) -> Iterator[None]:
+        """Reset ThumbnailWidget cache manager after each test.
+
+        This prevents cache manager pollution between tests.
+        Critical for test isolation when tests use set_cache_manager().
+        """
+        # Save the current cache manager before test
+        original_cache = ThumbnailWidget._cache_manager if hasattr(ThumbnailWidget, '_cache_manager') else None
+
+        yield
+
+        # Restore original cache manager after test to prevent pollution
+        # This ensures tests in other classes don't break
+        ThumbnailWidget.set_cache_manager(original_cache)
 
     @pytest.fixture
     def test_shot(self) -> Shot:

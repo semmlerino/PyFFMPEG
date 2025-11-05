@@ -8,6 +8,7 @@ specific to the ShotBot VFX asset management application.
 from __future__ import annotations
 
 import os
+import warnings
 
 
 # ==============================================================================
@@ -66,7 +67,6 @@ def qapp() -> Iterator[QApplication]:
         # This should always be true now due to the environment variable
         platform = os.environ.get("QT_QPA_PLATFORM", "")
         if platform != "offscreen":
-            import warnings
             warnings.warn(
                 f"QApplication was created with platform '{platform}' instead of 'offscreen'. "
                 f"This may cause 'real widgets' to appear during tests and crash in WSL. "
@@ -130,7 +130,9 @@ def temp_cache_dir() -> Iterator[Path]:
 @pytest.fixture
 def cache_manager(temp_cache_dir: Path) -> Iterator[object]:
     """Create CacheManager instance for testing."""
-    from cache_manager import CacheManager
+    from cache_manager import (
+        CacheManager,
+    )
 
     manager = CacheManager(cache_dir=temp_cache_dir)
     yield manager
@@ -156,11 +158,17 @@ def qt_cleanup(qapp: QApplication) -> Iterator[None]:
     This autouse fixture processes Qt events before and after each test
     to ensure widgets are fully cleaned up and Qt is in a stable state.
 
+    Also waits for QThread background threads to finish to prevent crashes
+    from AsyncShotLoader or other background operations.
+
     Critical for preventing Qt state pollution that causes crashes when
     running the full test suite (tests pass individually but crash together).
 
     See TESTING.md section "Test Isolation and Parallel Execution" for details.
     """
+    # Third-party imports
+    from PySide6.QtCore import QThreadPool
+
     # Process any pending events before test
     qapp.processEvents()
     # Process all pending deleteLater() calls from previous tests
@@ -171,6 +179,38 @@ def qt_cleanup(qapp: QApplication) -> Iterator[None]:
     # Process events after test to ensure all deleteLater() calls are executed
     qapp.processEvents()
     qapp.sendPostedEvents(None, 0)  # Process DeferredDelete events
+
+    # Wait for any background QThreads to finish (max 2000ms)
+    # This prevents AsyncShotLoader or other background threads from
+    # interfering with subsequent tests.
+    # Increased from 500ms to 2000ms to allow MainWindow async operations
+    # (shot model initialization, cache loading) to complete fully.
+    QThreadPool.globalInstance().waitForDone(2000)
+
+
+@pytest.fixture(autouse=True)
+def clear_module_caches() -> Iterator[None]:
+    """Clear all module-level caches before each test.
+
+    This autouse fixture ensures that cached values from previous tests
+    don't contaminate the current test. Module-level caches are a common
+    source of test isolation failures in parallel execution.
+
+    Clearing happens FIRST (before test execution) to prevent
+    contamination from previous tests on any worker.
+
+    See TESTING.md section "Common Root Causes of Isolation Failures" for details.
+    """
+    # Local application imports - import here to avoid circular dependencies
+    from utils import clear_all_caches
+
+    # Clear ALL caches FIRST, before any test operations
+    clear_all_caches()
+
+    yield
+
+    # Optional: Clear caches after test as well (defense in depth)
+    clear_all_caches()
 
 
 @pytest.fixture(autouse=True)
@@ -195,24 +235,23 @@ def mock_all_message_boxes() -> Iterator[None]:
         yield
 
 
-@pytest.fixture(autouse=True)
-def mock_subprocess_run() -> Iterator[None]:
-    """Mock subprocess.run to prevent real workspace commands during tests.
+@pytest.fixture
+def mock_subprocess_workspace() -> Iterator[None]:
+    """Mock subprocess.run for tests that call VFX workspace commands.
 
-    This autouse fixture ensures that no real shell commands are executed
-    during tests, particularly the 'ws' VFX workspace command which doesn't
-    exist in the dev environment.
+    Use this fixture explicitly in tests that need subprocess mocking.
+    Most tests don't need subprocess mocking at all.
 
-    Critical for:
-    - Preventing "ws: command not found" errors
-    - Avoiding subprocess crashes during tests
-    - Ensuring tests work in any environment (dev, CI, etc.)
+    Provides:
+    - Mock responses for 'ws' (workspace) commands
+    - Prevents "ws: command not found" errors
+    - Returns realistic workspace command output
 
-    The mock intercepts workspace commands and returns realistic test data.
-    Individual tests can override this mock if they need specific behavior.
+    Usage:
+        def test_workspace_parsing(mock_subprocess_workspace):
+            # Test code that calls subprocess.run with workspace commands
+            pass
     """
-    from unittest.mock import Mock
-
     def mock_run_side_effect(*args, **kwargs):
         """Mock subprocess.run with realistic workspace command responses."""
         # Extract the command being run
@@ -283,7 +322,9 @@ def isolated_test_environment(qapp: QApplication) -> Iterator[None]:
     See TESTING.md section "Test Isolation and Parallel Execution".
     """
     # Import here to avoid circular imports
-    from utils import clear_all_caches
+    from utils import (
+        clear_all_caches,
+    )
 
     # Clear all utility caches before test
     clear_all_caches()
@@ -340,7 +381,9 @@ def make_test_shot(tmp_path: Path):
     Implements TestShotFactory protocol from test_protocols.py.
     """
     # Local application imports
-    from shot_model import Shot
+    from shot_model import (
+        Shot,
+    )
 
     def _make_shot(
         show: str = "test",
@@ -386,7 +429,9 @@ def make_test_filesystem(tmp_path: Path):
             fs.create_file(shot_path / "user/artist/scene.3de", "content")
     """
     # Import here to avoid circular imports
-    from tests.test_doubles_extended import TestFileSystem
+    from tests.test_doubles_extended import (
+        TestFileSystem,
+    )
 
     def _make_filesystem() -> TestFileSystem:
         """Create a TestFileSystem instance with tmp_path as base."""
@@ -512,10 +557,28 @@ def test_process_pool():
             self.fail_with_timeout = False
             self.call_count = 0
             self.commands = []
-            self._outputs = ""
+            self._outputs_queue = []
             self._errors = ""
 
     return TestProcessPool()
+
+
+@pytest.fixture(autouse=True)
+def mock_process_pool_manager(monkeypatch, test_process_pool):
+    """Globally patch ProcessPoolManager to use test double.
+
+    This autouse fixture ensures that ALL code (including AsyncShotLoader,
+    MainWindow initialization, etc.) uses the test double instead of trying
+    to execute real subprocess commands.
+
+    Critical for preventing worker crashes from background threads calling
+    non-existent commands like 'ws -sg' during test execution.
+    """
+    # Patch ProcessPoolManager.get_instance() to return our test double
+    monkeypatch.setattr(
+        "process_pool_manager.ProcessPoolManager.get_instance",
+        lambda: test_process_pool,
+    )
 
 
 @pytest.fixture
@@ -530,7 +593,9 @@ def make_test_launcher():
             launcher = make_test_launcher(name="Test", command="echo test")
             assert launcher.name == "Test"
     """
-    from launcher import CustomLauncher
+    from launcher import (
+        CustomLauncher,
+    )
 
     def _make_launcher(
         name: str = "Test Launcher",
@@ -573,7 +638,9 @@ def real_shot_model(tmp_path: Path, test_process_pool, cache_manager):
     a test process pool, and a shared cache manager.
     """
     # Local application imports
-    from shot_model import ShotModel
+    from shot_model import (
+        ShotModel,
+    )
 
     # Create shows root
     shows_root = tmp_path / "shows"

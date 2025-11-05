@@ -7,7 +7,6 @@ eliminating the need to spawn new terminals for each command.
 from __future__ import annotations
 
 import contextlib
-from typing import final
 
 # Standard library imports
 import errno
@@ -18,6 +17,7 @@ import subprocess
 import threading
 import time
 from pathlib import Path
+from typing import final
 
 # Third-party imports
 from PySide6.QtCore import QObject, Signal
@@ -272,7 +272,7 @@ class PersistentTerminalManager(LoggingMixin, QObject):
             terminal_alive = self._is_terminal_alive()
             self.logger.warning(
                 f"Terminal dispatcher not reading from FIFO {self.fifo_path}. "
-                 f"Terminal process alive: {terminal_alive}"
+                  f"Terminal process alive: {terminal_alive}"
             )
 
             # If terminal is alive but dispatcher is dead, we need to force restart
@@ -315,10 +315,10 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         # Debug logging: log command details before sending
         self.logger.debug(
             "Preparing to send command to FIFO:\n"
-            f"  Command: {command!r}\n"
-            f"  Length: {len(command)} chars\n"
-            f"  FIFO: {self.fifo_path}\n"
-            f"  Terminal PID: {self.terminal_pid}"
+             f"  Command: {command!r}\n"
+             f"  Length: {len(command)} chars\n"
+             f"  FIFO: {self.fifo_path}\n"
+             f"  Terminal PID: {self.terminal_pid}"
         )
 
         # Acquire lock to serialize FIFO writes (prevents corruption from concurrent calls)

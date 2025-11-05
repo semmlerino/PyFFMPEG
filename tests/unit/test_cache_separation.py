@@ -25,7 +25,9 @@ def test_cache_config() -> None:
     logger.info("=" * 50)
 
     # Local application imports
-    from cache_config import CacheConfig
+    from cache_config import (
+        CacheConfig,
+    )
 
     # Save original environment
     original_env = dict(os.environ)
@@ -68,8 +70,12 @@ def test_cache_manager_separation() -> None:
     logger.info("=" * 50)
 
     # Local application imports
-    from cache_config import CacheConfig
-    from cache_manager import CacheManager
+    from cache_config import (
+        CacheConfig,
+    )
+    from cache_manager import (
+        CacheManager,
+    )
 
     # Save original environment
     original_env = dict(os.environ)
@@ -114,8 +120,12 @@ def test_cache_isolation() -> None:
     logger.info("=" * 50)
 
     # Local application imports
-    from cache_config import CacheConfig
-    from cache_manager import CacheManager
+    from cache_config import (
+        CacheConfig,
+    )
+    from cache_manager import (
+        CacheManager,
+    )
 
     # Save original environment
     original_env = dict(os.environ)
@@ -192,7 +202,9 @@ def test_cache_info() -> None:
     logger.info("=" * 50)
 
     # Local application imports
-    from cache_config import CacheConfig
+    from cache_config import (
+        CacheConfig,
+    )
 
     info = CacheConfig.get_cache_info()
 
@@ -227,7 +239,7 @@ def main() -> None:
     except Exception as e:
         logger.error(f"❌ Unexpected error: {e}")
         # Standard library imports
-        import traceback
+        import traceback  # noqa: PLC0415 - lazy import to avoid circular dependency
 
         traceback.print_exc()
         sys.exit(1)

@@ -221,7 +221,9 @@ class TestThreeDEGridViewAppLaunchSignals:
         threede_grid.list_view.setCurrentIndex(index)
 
         # Simulate Enter key press
-        from PySide6.QtGui import QKeyEvent
+        from PySide6.QtGui import (
+            QKeyEvent,
+        )
 
         key_event = QKeyEvent(
             QKeyEvent.Type.KeyPress,

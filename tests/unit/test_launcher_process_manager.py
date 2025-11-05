@@ -107,7 +107,9 @@ class TestInitialization:
         self, process_manager: LauncherProcessManager
     ) -> None:
         """Test manager creates thread-safe mutexes."""
-        from PySide6.QtCore import QRecursiveMutex
+        from PySide6.QtCore import (
+            QRecursiveMutex,
+        )
         # _process_lock is QRecursiveMutex, _cleanup_lock is QMutex
         assert isinstance(process_manager._process_lock, QRecursiveMutex)
         assert isinstance(process_manager._cleanup_lock, QMutex)

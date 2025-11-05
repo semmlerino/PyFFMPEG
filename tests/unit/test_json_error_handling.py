@@ -15,10 +15,12 @@ os.environ["SHOWS_ROOT"] = "/tmp/mock_vfx"
 def test_json_error_handling() -> None:
     """Test various JSON error scenarios."""
     # Standard library imports
-    import tempfile
+    import tempfile  # noqa: PLC0415 - lazy import to avoid circular dependency
 
     # Local application imports
-    from mock_workspace_pool import create_mock_pool_from_filesystem
+    from mock_workspace_pool import (
+        create_mock_pool_from_filesystem,
+    )
 
     print("=" * 60)
     print("Testing JSON Error Handling in mock_workspace_pool.py")

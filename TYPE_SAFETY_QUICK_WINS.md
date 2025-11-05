@@ -13,7 +13,7 @@
 ```toml
 [tool.basedpyright]
 typeCheckingMode = "recommended"  # Changed from "basic"
-pythonVersion = "3.12"
+pythonVersion = "3.11"
 
 # Enable key diagnostics (change from false to "warning")
 reportUnknownMemberType = "warning"

@@ -316,7 +316,7 @@ def cleanup_cache(cache_dir: Path) -> None:
     Args:
         cache_dir: Path to cache directory to remove
     """
-    import shutil
+    import shutil  # noqa: PLC0415 - Lazy import for directory cleanup
 
     try:
         shutil.rmtree(cache_dir)

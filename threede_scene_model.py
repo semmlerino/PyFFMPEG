@@ -81,7 +81,7 @@ class ThreeDEScene:
         # DEBUG: Log thumbnail search for 3DE scenes
         logger.debug(
             f"ThreeDEScene.get_thumbnail_path() called for {self.full_name} "
-             f"(show={self.show}, seq={self.sequence}, shot={self.shot})"
+              f"(show={self.show}, seq={self.sequence}, shot={self.shot})"
         )
 
         # Use the unified thumbnail discovery method
@@ -142,9 +142,9 @@ class ThreeDESceneModel:
     ) -> None:
         super().__init__()
         self.scenes: list[ThreeDEScene] = []
-        self.cache_manager = cache_manager or CacheManager()
+        self.cache_manager: CacheManager = cache_manager or CacheManager()
         # Get excluded users dynamically (current user + any additional)
-        self._excluded_users = ValidationUtils.get_excluded_users()
+        self._excluded_users: set[str] = ValidationUtils.get_excluded_users()
         # Show filtering
         self._filter_show: str | None = None
         self._filter_text: str | None = None  # Text filter for real-time search
@@ -298,7 +298,7 @@ class ThreeDESceneModel:
 
         logger.debug(
             f"Filtered {len(self.scenes)} scenes to {len(scenes)} "
-             f"(show='{self._filter_show}', text='{self._filter_text}')"
+              f"(show='{self._filter_show}', text='{self._filter_text}')"
         )
         return scenes
 

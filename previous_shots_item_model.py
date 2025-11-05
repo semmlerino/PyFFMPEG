@@ -30,8 +30,8 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
     """
 
     # Previous shots-specific signals
-    shots_updated = Signal()  # Emitted when shots list changes
-    show_filter_changed = Signal(
+    shots_updated: Signal = Signal()  # Emitted when shots list changes
+    show_filter_changed: Signal = Signal(
         str
     )  # Emitted when show filter changes (show name or "All Shows")
 
@@ -50,7 +50,7 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
         """
         super().__init__(cache_manager, parent)
 
-        self._underlying_model = underlying_model
+        self._underlying_model: PreviousShotsModel = underlying_model
 
         # Connect generic items_updated to shot-specific signal
         _ = self.items_updated.connect(self.shots_updated)
@@ -237,7 +237,7 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
         # Clear selection
         from PySide6.QtCore import QPersistentModelIndex
 
-        self._selected_index = QPersistentModelIndex()
+        self._selected_index: QPersistentModelIndex = QPersistentModelIndex()
 
         # Disconnect from underlying model
         # Note: We check receivers() before disconnecting to avoid RuntimeWarnings
@@ -261,7 +261,7 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
         self.logger.info("PreviousShotsItemModel cleanup complete")
 
     @override
-    def deleteLater(self) -> None:
+    def deleteLater(self) -> None:  # noqa: N802
         """Override deleteLater to ensure cleanup."""
         self.cleanup()
         super().deleteLater()

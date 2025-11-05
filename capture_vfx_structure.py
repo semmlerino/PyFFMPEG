@@ -312,7 +312,9 @@ def main() -> None:
         else:
             # Auto-generate filename with timestamp and hostname
             # Standard library imports
-            from datetime import datetime
+            from datetime import (  # noqa: PLC0415 - Lazy import for timestamp generation
+                datetime,
+            )
 
             timestamp = datetime.now(tz=UTC).strftime("%Y%m%d_%H%M%S")
             hostname = os.uname().nodename.split(".")[0]  # First part of hostname

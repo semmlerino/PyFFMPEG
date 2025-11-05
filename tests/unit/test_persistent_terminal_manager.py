@@ -89,14 +89,14 @@ class TestPersistentTerminalManager:
         assert terminal_manager.terminal_pid is None
         assert terminal_manager.terminal_process is None
 
-    @patch("os.path.exists")
+    @patch("pathlib.Path.exists")
     @patch("os.mkfifo")
-    @patch("os.stat")
+    @patch("pathlib.Path.stat")
     def test_ensure_fifo_creates_when_missing(
         self, mock_stat: MagicMock, mock_mkfifo: MagicMock, mock_exists: MagicMock
     ) -> None:
         """Test FIFO creation when it doesn't exist."""
-        # Arrange: FIFO doesn't exist initially
+        # Arrange: FIFO doesn't exist initially, then exists after creation
         mock_exists.side_effect = [False, True]  # Not exists, then exists
         mock_stat.return_value = MagicMock(st_mode=stat.S_IFIFO | 0o600)
 
@@ -443,7 +443,9 @@ class TestPersistentTerminalManager:
 
         # Assert: Terminal closed and FIFO removed
         mock_close.assert_called_once()
-        mock_unlink.assert_called_once_with(terminal_manager.fifo_path)
+        # Path.unlink() passes Path object to os.unlink (not string)
+        mock_unlink.assert_called_once()
+        assert str(mock_unlink.call_args[0][0]) == str(terminal_manager.fifo_path)
 
     @patch("os.path.exists", return_value=True)
     @patch("os.unlink")
@@ -459,7 +461,9 @@ class TestPersistentTerminalManager:
             terminal_manager.cleanup_fifo_only()
 
         # Assert: FIFO removed but terminal NOT closed
-        mock_unlink.assert_called_once_with(terminal_manager.fifo_path)
+        # Path.unlink() passes Path object to os.unlink (not string)
+        mock_unlink.assert_called_once()
+        assert str(mock_unlink.call_args[0][0]) == str(terminal_manager.fifo_path)
         mock_close.assert_not_called()
 
 

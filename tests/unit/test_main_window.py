@@ -35,11 +35,17 @@ pytestmark = [
 @pytest.fixture(scope="module", autouse=True)
 def setup_qt_imports() -> None:
     """Import Qt and MainWindow components after test setup."""
-    global MainWindow, CacheManager, Shot
+    global MainWindow, CacheManager, Shot  # noqa: PLW0603
     # Local application imports
-    from cache_manager import CacheManager
-    from main_window import MainWindow
-    from shot_model import Shot
+    from cache_manager import (
+        CacheManager,
+    )
+    from main_window import (
+        MainWindow,
+    )
+    from shot_model import (
+        Shot,
+    )
 
 
 class TestMainWindowInitialization:
@@ -191,7 +197,9 @@ class TestShotRefresh:
     ) -> None:
         """Test that refreshing shots updates the display."""
         # QMessageBox mocking now handled by autouse fixture in conftest.py
-        from config import Config
+        from config import (
+            Config,
+        )
 
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
         main_window = MainWindow(cache_manager=cache_manager)
@@ -212,7 +220,7 @@ class TestShotRefresh:
 
         # CRITICAL: Recreate parser to use correct SHOWS_ROOT from test environment
         # Manually create pattern with correct shows_root to bypass Config import issues
-        import re
+        import re  # noqa: PLC0415 - lazy import to avoid circular dependency
         shows_root_escaped = re.escape(shows_root)
         ws_pattern = re.compile(
             rf"workspace\s+({shows_root_escaped}/([^/]+)/shots/([^/]+)/([^/]+))"
@@ -310,29 +318,28 @@ class TestSignalConnections:
         monkeypatch,
     ) -> None:
         """Test that shot model refresh works correctly."""
-        # Force use of legacy ShotModel for synchronous behavior testing
-        monkeypatch.setenv("SHOTBOT_USE_LEGACY_MODEL", "1")
+        # Prevent initial load from starting async background refresh
+        monkeypatch.setenv("SHOTBOT_NO_INITIAL_LOAD", "1")
 
         cache_manager = CacheManager(cache_dir=tmp_path / "cache")
         main_window = MainWindow(cache_manager=cache_manager)
         qtbot.addWidget(main_window)
 
-        # The autouse fixture patches ProcessPoolManager.get_instance(), but the shot model
-        # has already gotten the real instance during MainWindow.__init__().
-        # We need to replace the shot model's _process_pool with our test instance.
-        test_process_pool.reset()  # Reset the pool first to clear any previous outputs
-        shows_root = Config.SHOWS_ROOT
-        test_process_pool.set_outputs(
-            f"workspace {shows_root}/different/shots/seq01/seq01_0010"
-        )
+        # CRITICAL: Wait for background shot loading to complete
+        # This prevents state pollution from async operations started in __init__
+        main_window.shot_model.wait_for_async_load(timeout_ms=2000)
 
         # Replace the shot model's process pool with our test instance
+        # This must be done BEFORE any refresh operations
         main_window.shot_model._process_pool = test_process_pool
 
-        # Clear any existing shots first to ensure test starts clean
+        # Clear any existing shots AND cache to ensure test starts clean
+        # This is critical because MainWindow.__init__ loads cache during initialize_async()
         main_window.shot_model.shots = []
+        cache_manager.clear_cache()
 
-        # Set test output for the refresh operation
+        # Configure test outputs for the refresh operation
+        shows_root = Config.SHOWS_ROOT
         test_process_pool.set_outputs(
             f"workspace {shows_root}/different/shots/seq01/seq01_0010"
         )
@@ -464,8 +471,14 @@ class TestMainWindowIntegration:
         main_window = MainWindow(cache_manager=cache_manager)
         qtbot.addWidget(main_window)
 
-        # Clear existing shots to ensure clean test start
+        # CRITICAL: Wait for background shot loading to complete
+        # This prevents state pollution from async operations started in __init__
+        main_window.shot_model.wait_for_async_load(timeout_ms=2000)
+
+        # Clear existing shots AND cache to ensure clean test start
+        # This is critical because MainWindow.__init__ loads cache during initialize_async()
         main_window.shot_model.shots = []
+        cache_manager.clear_cache()
 
         # Set up test process pool for 'ws' command with different data than autouse fixture
         test_process_pool.reset()

@@ -38,8 +38,10 @@ if TYPE_CHECKING:
 @pytest.fixture(scope="module", autouse=True)
 def setup_qt_imports() -> None:
     """Import Qt and MainWindow components after test setup."""
-    global MainWindow
-    from main_window import MainWindow
+    global MainWindow  # noqa: PLW0603
+    from main_window import (
+        MainWindow,
+    )
 
 
 class ExtendedTestCacheManager(TestCacheManager):
@@ -93,7 +95,9 @@ class TestFeatureFlagSwitching:
             ) as mock_get_instance:
                 # Return a test double for ProcessPoolManager
                 # Local application imports
-                from tests.test_doubles_library import TestProcessPool
+                from tests.test_doubles_library import (
+                    TestProcessPool,
+                )
 
                 mock_get_instance.return_value = TestProcessPool()
                 window = MainWindow()
@@ -185,7 +189,9 @@ class TestFeatureFlagSwitching:
                                 "process_pool_manager.ProcessPoolManager.get_instance"
                             ) as mock_get_instance:
                                 # Local application imports
-                                from tests.test_doubles_library import TestProcessPool
+                                from tests.test_doubles_library import (
+                                    TestProcessPool,
+                                )
 
                                 mock_get_instance.return_value = TestProcessPool()
                                 window = MainWindow()
@@ -328,7 +334,7 @@ class TestFeatureFlagSwitching:
                 self.request_stop_called = False
                 self.safe_terminated = False
 
-            def isRunning(self):
+            def isRunning(self):  # noqa: N802
                 return self.is_running
 
             def stop(self) -> None:
@@ -339,7 +345,7 @@ class TestFeatureFlagSwitching:
                 self.waited = True
                 return True
 
-            def deleteLater(self) -> None:
+            def deleteLater(self) -> None:  # noqa: N802
                 self.deleted = True
 
             def request_stop(self) -> bool:
@@ -419,7 +425,9 @@ class TestMainWindowIntegration:
                 "process_pool_manager.ProcessPoolManager.get_instance"
             ) as mock_get_instance:
                 # Local application imports
-                from tests.test_doubles_library import TestProcessPool
+                from tests.test_doubles_library import (
+                    TestProcessPool,
+                )
 
                 mock_get_instance.return_value = TestProcessPool()
                 # Should not raise any exceptions
@@ -473,7 +481,7 @@ class TestMainWindowIntegration:
         finally:
             os.environ.pop("SHOTBOT_USE_LEGACY_MODEL", None)
 
-    def test_closeEvent_handles_optimized_model(self, qapp: "QApplication", qtbot: "QtBot") -> None:
+    def test_closeEvent_handles_optimized_model(self, qapp: "QApplication", qtbot: "QtBot") -> None:  # noqa: N802
         """Test that closeEvent properly handles ShotModel cleanup (default behavior)."""
         # Use default ShotModel (no environment variable needed)
         os.environ.pop("SHOTBOT_USE_LEGACY_MODEL", None)
@@ -493,7 +501,9 @@ class TestMainWindowIntegration:
                     ) as mock_get_instance,
                 ):
                     # Local application imports
-                    from tests.test_doubles_library import TestProcessPool
+                    from tests.test_doubles_library import (
+                        TestProcessPool,
+                    )
 
                     mock_get_instance.return_value = TestProcessPool()
                     window = MainWindow()

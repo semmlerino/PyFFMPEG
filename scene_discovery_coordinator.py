@@ -65,10 +65,16 @@ class SceneDiscoveryCoordinator(LoggingMixin):
 
         # Lazy imports to break circular dependencies
         # Import only when needed at runtime, not at module load time
-        from filesystem_scanner import FileSystemScanner
-        from scene_cache import SceneCache
-        from scene_discovery_strategy import create_discovery_strategy
-        from scene_parser import SceneParser
+        from filesystem_scanner import (
+            FileSystemScanner,
+        )
+        from scene_cache import SceneCache  # noqa: PLC0415 - Avoid circular dependency
+        from scene_discovery_strategy import (
+            create_discovery_strategy,
+        )
+        from scene_parser import (
+            SceneParser,
+        )
 
         # Core components
         self.scanner = FileSystemScanner()

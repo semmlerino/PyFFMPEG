@@ -32,16 +32,18 @@ class MockWorkspacePool(LoggingMixin):
         self.shots: list[str] = []
         self._cache: dict[str, str] = {}
         self.commands_executed: list[str] = []
-        self.mock_root = Path("/tmp/mock_vfx")
+        self.mock_root: Path = Path("/tmp/mock_vfx")
         # Use Config.SHOWS_ROOT for workspace paths (what parser expects)
         # Local application imports
-        from config import Config
+        from config import (
+            Config,
+        )
 
-        self.shows_root_for_parser = Config.SHOWS_ROOT
+        self.shows_root_for_parser: str = Config.SHOWS_ROOT
         # Actual filesystem location for file operations
-        self.shows_root = self.mock_root / "shows"
+        self.shows_root: Path = self.mock_root / "shows"
         # Demo shots path for testing flexibility
-        self.demo_shots_path = demo_shots_path or (Path(__file__).parent / "demo_shots.json")
+        self.demo_shots_path: Path = demo_shots_path or (Path(__file__).parent / "demo_shots.json")
 
     def set_shots_from_filesystem(self, mock_root: Path | None = None) -> None:
         """Scan the mock filesystem and set up all available shots.
@@ -259,17 +261,19 @@ def create_mock_pool_from_filesystem(demo_shots_path: Path | None = None) -> Moc
 
             # Runtime validation before casting
             if not isinstance(raw_data, dict):
-                raise ValueError(f"Expected dict, got {type(raw_data).__name__}")
+                raise ValueError(  # noqa: TRY301
+                    f"Expected dict, got {type(raw_data).__name__}"
+                )
 
             # After isinstance check, cast to expected structure
             demo_data = cast("dict[str, object]", raw_data)
 
             if "shots" not in demo_data:
-                raise ValueError("Missing 'shots' key in demo data")
+                raise ValueError("Missing 'shots' key in demo data")  # noqa: TRY301
 
             raw_shots = demo_data["shots"]
             if not isinstance(raw_shots, list):
-                raise ValueError(
+                raise ValueError(  # noqa: TRY301
                     f"'shots' must be a list, got {type(raw_shots).__name__}"
                 )
 
@@ -280,13 +284,13 @@ def create_mock_pool_from_filesystem(demo_shots_path: Path | None = None) -> Moc
             validated_shots: list[dict[str, str]] = []
             for i, shot_item in enumerate(shots_data):
                 if not isinstance(shot_item, dict):
-                    raise ValueError(f"Shot {i} is not a dict")
+                    raise ValueError(f"Shot {i} is not a dict")  # noqa: TRY301
                 # Cast after runtime validation
                 shot_dict = cast("dict[str, object]", shot_item)
                 required_fields = ["show", "seq", "shot"]
                 missing = [f for f in required_fields if f not in shot_dict]
                 if missing:
-                    raise ValueError(f"Shot {i} missing fields: {missing}")
+                    raise ValueError(f"Shot {i} missing fields: {missing}")  # noqa: TRY301
                 # After validation, cast to typed dict
                 validated_shots.append(cast("dict[str, str]", shot_dict))
 

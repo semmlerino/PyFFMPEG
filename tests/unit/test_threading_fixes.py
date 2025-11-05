@@ -137,7 +137,9 @@ class TestQTimerCascadePrevention:
     def test_cleanup_coordination(self, launcher_manager, qtbot) -> None:
         """Test cleanup coordination behavior."""
         # Third-party imports
-        from PySide6.QtCore import QMutexLocker
+        from PySide6.QtCore import (
+            QMutexLocker,
+        )
 
         mock_worker = MagicMock()
         mock_worker.get_state.return_value = WorkerState.STOPPED

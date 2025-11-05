@@ -267,7 +267,9 @@ class TestMainWindowRefactoringSafety:
     def test_ui_initialization(self, app: QApplication, qtbot: QtBot) -> None:
         """Verify UI initializes without errors."""
         # Local application imports
-        from main_window import MainWindow
+        from main_window import (
+            MainWindow,
+        )
 
         # Create window
         window = MainWindow()
@@ -283,7 +285,9 @@ class TestMainWindowRefactoringSafety:
     def test_tab_creation(self, app: QApplication, qtbot: QtBot) -> None:
         """Verify all tabs are created."""
         # Local application imports
-        from main_window import MainWindow
+        from main_window import (
+            MainWindow,
+        )
 
         window = MainWindow()
         qtbot.addWidget(window)
@@ -302,7 +306,9 @@ class TestMainWindowRefactoringSafety:
     def test_menu_structure(self, app: QApplication, qtbot: QtBot) -> None:
         """Verify menu structure is preserved."""
         # Local application imports
-        from main_window import MainWindow
+        from main_window import (
+            MainWindow,
+        )
 
         window = MainWindow()
         qtbot.addWidget(window)
@@ -320,7 +326,9 @@ class TestMainWindowRefactoringSafety:
     def test_signal_connections(self, app: QApplication, qtbot: QtBot) -> None:
         """Verify critical signal-slot connections work."""
         # Local application imports
-        from main_window import MainWindow
+        from main_window import (
+            MainWindow,
+        )
 
         with patch("main_window.ShotModel") as mock_model_class:
             # Create mock shot model
@@ -347,10 +355,12 @@ class TestCombinedIntegration:
     def test_launcher_execution_from_ui(self, qapp: QApplication, qtbot: QtBot) -> None:
         """Verify launchers can be executed from UI context."""
         # Standard library imports
-        import time
+        import time  # noqa: PLC0415 - lazy import to avoid circular dependency
 
         # Local application imports
-        from main_window import MainWindow
+        from main_window import (
+            MainWindow,
+        )
 
         with patch("subprocess.Popen"):
             window = MainWindow()
@@ -382,10 +392,12 @@ def test_import_compatibility() -> None:
     """Verify all imports still work after refactoring."""
     # These imports should not fail
     # Local application imports
-    from launcher.models import (
+    from launcher.models import (  # noqa: PLC0415 - lazy import to avoid circular dependency
         CustomLauncher,
     )
-    from launcher_manager import LauncherManager
+    from launcher_manager import (
+        LauncherManager,
+    )
 
     # Verify classes can be instantiated
     manager = LauncherManager()

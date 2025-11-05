@@ -86,7 +86,7 @@ class ModernButton(QPushButton):
         self.hover_animation.setEasingCurve(QEasingCurve.Type.InOutQuad)
 
     @override
-    def enterEvent(self, event: QEnterEvent) -> None:
+    def enterEvent(self, event: QEnterEvent) -> None:  # noqa: N802
         """Animate on hover."""
         self.hover_animation.setStartValue(1.0)
         self.hover_animation.setEndValue(0.9)
@@ -94,7 +94,7 @@ class ModernButton(QPushButton):
         super().enterEvent(event)
 
     @override
-    def leaveEvent(self, event: QEvent) -> None:
+    def leaveEvent(self, event: QEvent) -> None:  # noqa: N802
         """Animate on leave."""
         self.hover_animation.setStartValue(0.9)
         self.hover_animation.setEndValue(1.0)
@@ -127,7 +127,7 @@ class LoadingSpinner(QWidget):
         self.update()
 
     @override
-    def paintEvent(self, event: QPaintEvent) -> None:
+    def paintEvent(self, event: QPaintEvent) -> None:  # noqa: N802
         """Paint the spinner."""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -517,7 +517,9 @@ class FloatingActionButton(QPushButton):
 
         # Add shadow
         # Third-party imports
-        from PySide6.QtWidgets import QGraphicsDropShadowEffect
+        from PySide6.QtWidgets import (
+            QGraphicsDropShadowEffect,
+        )
 
         shadow = QGraphicsDropShadowEffect()
         shadow.setBlurRadius(15)
@@ -541,7 +543,7 @@ class FloatingActionButton(QPushButton):
             self.move(x, y)
 
     @override
-    def enterEvent(self, event: QEnterEvent) -> None:
+    def enterEvent(self, event: QEnterEvent) -> None:  # noqa: N802
         """Scale up on hover."""
         current_rect = self.geometry()
         expanded_rect = QRect(
@@ -556,7 +558,7 @@ class FloatingActionButton(QPushButton):
         super().enterEvent(event)
 
     @override
-    def leaveEvent(self, event: QEvent) -> None:
+    def leaveEvent(self, event: QEvent) -> None:  # noqa: N802
         """Scale back on leave."""
         current_rect = self.geometry()
         normal_rect = QRect(

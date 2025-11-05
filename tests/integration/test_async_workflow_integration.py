@@ -340,7 +340,9 @@ class TestAsyncWorkflowIntegration:
         qtbot: QtBot,
     ) -> None:
         """Test thread safety - verify Qt operations only allowed on main thread."""
-        from base_item_model import QtThreadError
+        from base_item_model import (
+            QtThreadError,
+        )
 
         item_model, _info_panel, _cache_manager = integration_components()
 
@@ -382,7 +384,9 @@ class TestAsyncCallbackIntegration:
     ) -> None:
         """Test model reset while async callbacks are in progress."""
         # Local application imports
-        from shot_item_model import ShotItemModel
+        from shot_item_model import (
+            ShotItemModel,
+        )
 
         # Create test setup
         image_path = tmp_path / "test.jpg"

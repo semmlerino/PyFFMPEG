@@ -12,7 +12,9 @@ def mock_shows_root(monkeypatch: pytest.MonkeyPatch) -> str:
     Sets SHOWS_ROOT to a test path that many tests expect.
     Can be used as a simple fixture parameter to avoid @patch decorators.
     """
-    from config import Config
+    from config import (
+        Config,
+    )
 
     monkeypatch.setattr(Config, "SHOWS_ROOT", "/tmp/mock_vfx/shows")
     return "/tmp/mock_vfx/shows"

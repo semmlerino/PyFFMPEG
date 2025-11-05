@@ -33,7 +33,7 @@ class NukeWorkspaceManager(ErrorHandlingMixin, LoggingMixin):
         """Get a logger for static methods."""
         # Create a temporary instance to get the logger
         if not hasattr(cls, "_logger_instance"):
-            cls._logger_instance = cls()
+            cls._logger_instance: NukeWorkspaceManager = cls()
         return cls._logger_instance.logger
 
     @classmethod

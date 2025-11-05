@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 # Standard library imports
+import gc
+import os
+import threading
 import time
 from collections.abc import Generator
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
 
 # Third-party imports
+import psutil
 from PySide6.QtCore import QEventLoop, QTimer, Signal
 from PySide6.QtTest import QSignalSpy
 
@@ -146,9 +150,6 @@ class SynchronizationHelpers:
             with wait_for_threads_to_start():
                 thread.start()
         """
-        # Standard library imports
-        import threading
-
         initial_count = threading.active_count()
 
         yield
@@ -238,13 +239,6 @@ class SynchronizationHelpers:
             # Instead of: del large_object; time.sleep(0.1); gc.collect()
             # Use: del large_object; wait_for_memory_cleanup(100, 1000)
         """
-        # Standard library imports
-        import gc
-        import os
-
-        # Third-party imports
-        import psutil
-
         process = psutil.Process(os.getpid())
         threshold_bytes = threshold_mb * 1024 * 1024
 

@@ -228,7 +228,9 @@ class TestShotModelSignals:
         to an already-populated model.
         """
         # Pre-populate cache with initial shots to simulate a real "update" scenario
-        from type_definitions import Shot
+        from type_definitions import (
+            Shot,
+        )
         initial_shot = Shot(
             show="OLD",
             sequence="seq01",

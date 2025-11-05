@@ -12,7 +12,6 @@ from nuke_script_generator import NukeScriptGenerator
 from nuke_workspace_manager import NukeWorkspaceManager
 from plate_discovery import PlateDiscovery
 from raw_plate_finder import RawPlateFinder
-from undistortion_finder import UndistortionFinder
 
 
 if TYPE_CHECKING:
@@ -29,12 +28,11 @@ class NukeLaunchHandler(LoggingMixin):
     def __init__(self) -> None:
         """Initialize with all required Nuke modules."""
         super().__init__()
-        self.workspace_manager = NukeWorkspaceManager()
+        self.workspace_manager: NukeWorkspaceManager = NukeWorkspaceManager()
 
         # These are stored as classes since they use static methods
-        self.script_generator = NukeScriptGenerator
-        self.raw_plate_finder = RawPlateFinder
-        self.undistortion_finder = UndistortionFinder
+        self.script_generator: type[NukeScriptGenerator] = NukeScriptGenerator
+        self.raw_plate_finder: type[RawPlateFinder] = RawPlateFinder
 
     def prepare_nuke_command(
         self,
@@ -53,7 +51,6 @@ class NukeLaunchHandler(LoggingMixin):
                 - open_latest_scene: Open latest existing script
                 - create_new_file: Create new script version
                 - include_raw_plate: Include raw plate in script
-                - include_undistortion: Include undistortion in script
             selected_plate: Selected plate space (e.g., "FG01", "BG01")
 
         Returns:
@@ -71,7 +68,7 @@ class NukeLaunchHandler(LoggingMixin):
         if options.get("open_latest_scene") or options.get("create_new_file"):
             command, msgs = self._handle_workspace_scripts(shot, command, options, selected_plate)
             log_messages.extend(msgs)
-        elif options.get("include_raw_plate") or options.get("include_undistortion"):
+        elif options.get("include_raw_plate"):
             command, msgs = self._handle_media_loading(shot, command, options)
             log_messages.extend(msgs)
 
@@ -221,7 +218,7 @@ class NukeLaunchHandler(LoggingMixin):
     def _handle_media_loading(
         self, shot: Shot, command: str, options: dict[str, bool]
     ) -> tuple[str, list[str]]:
-        """Handle raw plate and undistortion loading.
+        """Handle raw plate loading.
 
         Args:
             shot: Current shot context
@@ -233,7 +230,6 @@ class NukeLaunchHandler(LoggingMixin):
         """
         log_messages: list[str] = []
         raw_plate_path = None
-        undistortion_path = None
 
         # Get raw plate if requested
         if options.get("include_raw_plate"):
@@ -247,108 +243,27 @@ class NukeLaunchHandler(LoggingMixin):
             ):
                 raw_plate_path = None
 
-        # Get undistortion if requested
-        if options.get("include_undistortion"):
-            undistortion_path = self.undistortion_finder.find_latest_undistortion(
-                shot.workspace_path,
+        # Handle raw plate
+        if raw_plate_path:
+            # Plate only
+            script_path = self.script_generator.create_plate_script(
+                raw_plate_path,
                 shot.full_name,
             )
-
-        # Handle different scenarios based on what we have
-        if raw_plate_path or undistortion_path:
-            if (
-                Config.NUKE_UNDISTORTION_MODE == "direct"
-                and undistortion_path
-                and not raw_plate_path
-            ):
-                # Direct mode: Open undistortion file directly (no plate)
-                safe_undist_path = shlex.quote(str(undistortion_path))
-                command = f"{command} {safe_undist_path}"
-                version = self.undistortion_finder.get_version_from_path(
-                    undistortion_path
+            if script_path:
+                safe_script_path = shlex.quote(script_path)
+                command = f"{command} {safe_script_path}"
+                version = self.raw_plate_finder.get_version_from_path(
+                    raw_plate_path
                 )
-                log_messages.append(f"Opening undistortion file directly: {version}")
-            elif raw_plate_path and undistortion_path and Config.NUKE_USE_LOADER_SCRIPT:
-                # Both plate and undistortion - create loader script
-                script_path = self.script_generator.create_loader_script(
-                    raw_plate_path,
-                    str(undistortion_path),
-                    shot.full_name,
-                )
-                if script_path:
-                    safe_script_path = shlex.quote(script_path)
-                    command = f"{command} {safe_script_path}"
-                    plate_version = self.raw_plate_finder.get_version_from_path(
-                        raw_plate_path
-                    )
-                    undist_version = self.undistortion_finder.get_version_from_path(
-                        undistortion_path
-                    )
-                    log_messages.append(
-                        f"Created loader script with plate ({plate_version}) and undistortion ({undist_version})"
-                    )
-                else:
-                    # Fallback to old parsing method if loader script fails
-                    script_path = (
-                        self.script_generator.create_plate_script_with_undistortion(
-                            raw_plate_path,
-                            str(undistortion_path),
-                            shot.full_name,
-                        )
-                    )
-                    if script_path:
-                        safe_script_path = shlex.quote(script_path)
-                        command = f"{command} {safe_script_path}"
-                        log_messages.append(
-                            "Warning: Using fallback parsing method for undistortion"
-                        )
-                    else:
-                        log_messages.append("Error: Failed to generate Nuke script")
-            elif raw_plate_path:
-                # Plate only
-                script_path = self.script_generator.create_plate_script(
-                    raw_plate_path,
-                    shot.full_name,
-                )
-                if script_path:
-                    safe_script_path = shlex.quote(script_path)
-                    command = f"{command} {safe_script_path}"
-                    version = self.raw_plate_finder.get_version_from_path(
-                        raw_plate_path
-                    )
-                    log_messages.append(f"Generated Nuke script with plate: {version}")
-                else:
-                    log_messages.append("Error: Failed to generate plate script")
-            elif undistortion_path and Config.NUKE_UNDISTORTION_MODE != "direct":
-                # Undistortion only with parse mode (backward compatibility)
-                script_path = (
-                    self.script_generator.create_plate_script_with_undistortion(
-                        "",
-                        str(undistortion_path),
-                        shot.full_name,
-                    )
-                )
-                if script_path:
-                    safe_script_path = shlex.quote(script_path)
-                    command = f"{command} {safe_script_path}"
-                    version = self.undistortion_finder.get_version_from_path(
-                        undistortion_path
-                    )
-                    log_messages.append(
-                        f"Generated Nuke script with undistortion (parse mode): {version}"
-                    )
-                else:
-                    log_messages.append("Error: Failed to generate undistortion script")
-        else:
-            # Log warnings for missing files
-            if options.get("include_raw_plate"):
-                log_messages.append(
-                    "Warning: Raw plate not found or no frames exist for this shot"
-                )
-            if options.get("include_undistortion"):
-                log_messages.append(
-                    "Warning: Undistortion file not found for this shot"
-                )
+                log_messages.append(f"Generated Nuke script with plate: {version}")
+            else:
+                log_messages.append("Error: Failed to generate plate script")
+        # Log warning for missing file
+        elif options.get("include_raw_plate"):
+            log_messages.append(
+                "Warning: Raw plate not found or no frames exist for this shot"
+            )
 
         return command, log_messages
 
@@ -370,7 +285,7 @@ class NukeLaunchHandler(LoggingMixin):
         ):
             self.logger.info(
                 f"Setting up runtime filter for {len(Config.NUKE_PROBLEMATIC_PLUGIN_PATHS)} problematic "
-                 f"plugin paths in NUKE_PATH"
+                  f"plugin paths in NUKE_PATH"
             )
 
             # Build grep patterns for all problematic paths
@@ -384,9 +299,9 @@ class NukeLaunchHandler(LoggingMixin):
 
             # Create a bash command that filters NUKE_PATH at runtime
             filter_command = (
-                f'FILTERED_NUKE_PATH=$(echo "$NUKE_PATH" | tr ":" "\\n" | '
-                f'grep -v {grep_pattern_str} | tr "\\n" ":" | sed "s/:$//") && '
-                f'export NUKE_PATH="$FILTERED_NUKE_PATH"'
+                'FILTERED_NUKE_PATH=$(echo "$NUKE_PATH" | tr ":" "\\n" | '
+                 f'grep -v {grep_pattern_str} | tr "\\n" ":" | sed "s/:$//") && '
+                 'export NUKE_PATH="$FILTERED_NUKE_PATH"'
             )
 
             env_exports.append(filter_command)

@@ -10,10 +10,11 @@ from __future__ import annotations
 import json
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import cast, final, override
+from typing import cast, final
 
 # Local application imports
 from logging_mixin import LoggingMixin, get_module_logger
+from typing_compat import override
 
 
 # Module-level logger for static methods
@@ -279,7 +280,7 @@ class UnifiedMockPool(LoggingMixin):
 
         self.logger.info(
             f"UnifiedMockPool initialized with {len(self.shots)} shots "
-             f"using {self.strategy.__class__.__name__}"
+              f"using {self.strategy.__class__.__name__}"
         )
 
     @staticmethod

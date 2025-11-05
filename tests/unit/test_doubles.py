@@ -378,7 +378,7 @@ class TestQApplication:
         """Get clipboard mock."""
         return self
 
-    def setText(self, text: str) -> None:
+    def setText(self, text: str) -> None:  # noqa: N802
         """Set clipboard text."""
         self.clipboard_text = text
 
@@ -386,7 +386,7 @@ class TestQApplication:
         """Get clipboard text."""
         return self.clipboard_text
 
-    def setStyleSheet(self, style: str) -> None:
+    def setStyleSheet(self, style: str) -> None:  # noqa: N802
         """Set application style sheet."""
         self.style_sheet = style
 
@@ -394,7 +394,7 @@ class TestQApplication:
         """Mark application as quit."""
         self.quit_called = True
 
-    def processEvents(self) -> None:
+    def processEvents(self) -> None:  # noqa: N802
         """Process events (no-op in test)."""
 
     @staticmethod

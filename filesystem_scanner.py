@@ -733,8 +733,8 @@ class FileSystemScanner(LoggingMixin):
                             elapsed = time.time() - start_time
                             self.logger.info(
                                 f"Progress: Found {file_count} .3de files, "
-                                f"parsed {parsed_count} valid scenes from {len(unique_shots)} shots "
-                                f"({elapsed:.1f}s)"
+                                 f"parsed {parsed_count} valid scenes from {len(unique_shots)} shots "
+                                 f"({elapsed:.1f}s)"
                             )
 
                         # Parse the file path using the extracted parser

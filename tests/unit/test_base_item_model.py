@@ -70,7 +70,9 @@ class TestBaseItemModelInitialization:
 
     def test_initialization_requires_main_thread(self, qapp: QApplication) -> None:
         """Test that model creation fails outside main thread."""
-        from threading import Thread
+        from threading import (
+            Thread,
+        )
 
         error_occurred = False
 
@@ -508,9 +510,11 @@ class TestSetItems:
         visible range, schedules thumbnail load, and thumbnails eventually load.
         This is an integration test that verifies the fix works end-to-end.
         """
-        import tempfile
+        import tempfile  # noqa: PLC0415 - lazy import to avoid circular dependency
 
-        from cache_manager import CacheManager
+        from cache_manager import (
+            CacheManager,
+        )
 
         # Create temp cache directory
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -571,7 +575,9 @@ class TestSetItems:
         when a CacheManager is provided.
         """
 
-        from cache_manager import CacheManager
+        from cache_manager import (
+            CacheManager,
+        )
 
         # Create cache manager with temp directory
         cache_dir = tmp_path / "cache"
@@ -698,7 +704,9 @@ class TestThreadSafety:
 
         # This should not raise even with concurrent access
         # (actual concurrent testing would require threading)
-        from PySide6.QtCore import QMutexLocker
+        from PySide6.QtCore import (
+            QMutexLocker,
+        )
 
         with QMutexLocker(model._cache_mutex):
             model._thumbnail_cache[shot.full_name] = QImage()

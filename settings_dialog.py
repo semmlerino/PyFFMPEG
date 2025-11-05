@@ -48,7 +48,7 @@ from __future__ import annotations
 # Standard library imports
 import json
 import logging
-from typing import TYPE_CHECKING, cast, override
+from typing import TYPE_CHECKING, cast
 
 # Third-party imports
 from PySide6.QtCore import Qt, Signal, Slot
@@ -81,6 +81,7 @@ from PySide6.QtWidgets import (
 from config import Config
 from logging_mixin import LoggingMixin
 from qt_widget_mixin import QtWidgetMixin
+from typing_compat import override
 
 
 if TYPE_CHECKING:
@@ -95,8 +96,8 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
     """Comprehensive settings dialog with tabbed interface."""
 
     # Signals
-    settings_applied = Signal()  # Emitted when settings are applied
-    settings_changed = Signal(str, object)  # Setting key, new value
+    settings_applied: Signal = Signal()  # Emitted when settings are applied
+    settings_changed: Signal = Signal(str, object)  # Setting key, new value
 
     def __init__(
         self,
@@ -112,7 +113,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
             initial_tab: Initial tab to show ("general", "performance", "applications", "advanced")
         """
         super().__init__(parent)
-        self.settings_manager = settings_manager
+        self.settings_manager: SettingsManager = settings_manager
 
         # Temporary settings copy for preview/cancel functionality
         self.temp_settings: dict[str, object] = {}

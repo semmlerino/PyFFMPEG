@@ -332,7 +332,9 @@ def test_integration() -> None:
 
         # 4. Test deduplication
         # Local application imports
-        from threede_scene_model import ThreeDEScene
+        from threede_scene_model import (
+            ThreeDEScene,
+        )
 
         # Create mock scenes for deduplication test
         mock_scenes = [

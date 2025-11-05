@@ -263,7 +263,7 @@ class TestThreeDESceneWorker:
         # Inject test double by replacing the module-level finder
         # This follows UNIFIED_TESTING_GUIDE: "Real components with test doubles at boundaries"
         # Local application imports
-        import threede_scene_worker
+        import threede_scene_worker  # noqa: PLC0415 - lazy import to avoid circular dependency
 
         original_finder = getattr(threede_scene_worker, "ThreeDESceneFinder", None)
         threede_scene_worker.ThreeDESceneFinder = test_finder
@@ -384,7 +384,7 @@ class TestThreeDESceneWorker:
 
         # Inject test double and create worker
         # Local application imports
-        import threede_scene_worker
+        import threede_scene_worker  # noqa: PLC0415 - lazy import to avoid circular dependency
 
         original_finder = getattr(threede_scene_worker, "ThreeDESceneFinder", None)
         threede_scene_worker.ThreeDESceneFinder = test_finder
@@ -465,7 +465,7 @@ class TestThreeDESceneWorker:
 
         # Inject test double
         # Local application imports
-        import threede_scene_worker
+        import threede_scene_worker  # noqa: PLC0415 - lazy import to avoid circular dependency
 
         original_finder = getattr(threede_scene_worker, "ThreeDESceneFinder", None)
         threede_scene_worker.ThreeDESceneFinder = test_finder
@@ -509,7 +509,7 @@ class TestThreeDESceneWorker:
 
         # Inject test double
         # Local application imports
-        import threede_scene_worker
+        import threede_scene_worker  # noqa: PLC0415 - lazy import to avoid circular dependency
 
         original_finder = getattr(threede_scene_worker, "ThreeDESceneFinder", None)
         threede_scene_worker.ThreeDESceneFinder = test_finder
@@ -556,7 +556,9 @@ class TestThreeDESceneWorker:
                     worker.deleteLater()
 
             # Process any pending deleteLater events
-            from PySide6.QtCore import QCoreApplication
+            from PySide6.QtCore import (
+                QCoreApplication,
+            )
             app = QCoreApplication.instance()
             if app:
                 app.processEvents()

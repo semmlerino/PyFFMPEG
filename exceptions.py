@@ -42,9 +42,9 @@ class ShotBotError(Exception):
             error_code: Optional error code for categorization
         """
         super().__init__(message)
-        self.message = message
-        self.details = details or {}
-        self.error_code = error_code or "SHOTBOT_ERROR"
+        self.message: str = message
+        self.details: dict[str, str | int | None] = details or {}
+        self.error_code: str = error_code or "SHOTBOT_ERROR"
 
     @override
     def __str__(self) -> str:

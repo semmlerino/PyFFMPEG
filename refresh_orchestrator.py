@@ -47,8 +47,8 @@ class RefreshOrchestrator(QObject, LoggingMixin):
     """
 
     # Signals
-    refresh_started = Signal(int)  # tab_index
-    refresh_finished = Signal(int, bool)  # tab_index, success
+    refresh_started: Signal = Signal(int)  # tab_index
+    refresh_finished: Signal = Signal(int, bool)  # tab_index, success
 
     def __init__(self, main_window: RefreshOrchestratorMainWindowProtocol) -> None:
         """Initialize refresh orchestrator.
@@ -58,7 +58,7 @@ class RefreshOrchestrator(QObject, LoggingMixin):
         """
         super().__init__()
         LoggingMixin.__init__(self)
-        self.main_window = main_window
+        self.main_window: RefreshOrchestratorMainWindowProtocol = main_window
         self.logger.debug("RefreshOrchestrator initialized")
 
     def refresh_current_tab(self) -> None:

@@ -45,7 +45,7 @@ class OptimizedThreeDESceneFinder:
     """
 
     # Maintain backward compatibility for class-level cache access
-    _dir_cache = DirectoryCache(ttl_seconds=300, enable_auto_expiry=False)
+    _dir_cache: DirectoryCache = DirectoryCache(ttl_seconds=300, enable_auto_expiry=False)
 
     @classmethod
     def get_cache_stats(cls) -> dict[str, int]:

@@ -2,7 +2,7 @@
 
 ## Python Version
 - **Minimum**: Python 3.11
-- **Target**: Python 3.12+
+- **Target**: Python 3.11+
 - **Type Syntax**: Modern union syntax (`str | None`, not `Optional[str]`)
 
 ## Critical Import Rule
@@ -33,7 +33,7 @@ from typing import override
 - **Line length**: 88 characters (Black-compatible)
 - **Indent**: 4 spaces
 - **Quote style**: Double quotes
-- **Target**: Python 3.12+
+- **Target**: Python 3.11+
 
 ### Enabled Rule Categories
 - **E, W**: pycodestyle (PEP 8 basics)

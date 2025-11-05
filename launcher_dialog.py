@@ -197,7 +197,7 @@ class LauncherEditDialog(QDialog, QtWidgetMixin, LoggingMixin):
         self.command_field = QTextEdit()
         self.command_field.setPlaceholderText(
             "e.g., nuke --nc {workspace_path}/nuke/{shot}_v001.nk\n"
-             "Available variables: {show}, {sequence}, {shot}, {full_name}, {workspace_path}"
+              "Available variables: {show}, {sequence}, {shot}, {full_name}, {workspace_path}"
         )
         self.command_field.setMaximumHeight(100)
         form_layout.addRow("Command:", self.command_field)
@@ -433,13 +433,13 @@ class LauncherEditDialog(QDialog, QtWidgetMixin, LoggingMixin):
 
     # Override mixin event handlers with proper keyword parameter signatures
     @override
-    def closeEvent(self, event: QCloseEvent) -> None:
+    def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802
         """Handle close event with cleanup."""
         # Call parent implementation from QtWidgetMixin
         super().closeEvent(event)
 
     @override
-    def keyPressEvent(self, event: QKeyEvent) -> None:
+    def keyPressEvent(self, event: QKeyEvent) -> None:  # noqa: N802
         """Handle key press events with standard shortcuts."""
         # Call parent implementation from QtWidgetMixin
         super().keyPressEvent(event)
@@ -801,13 +801,13 @@ class LauncherManagerDialog(QDialog, QtWidgetMixin, LoggingMixin):
 
     # Override mixin event handlers with proper keyword parameter signatures
     @override
-    def keyPressEvent(self, event: QKeyEvent) -> None:
+    def keyPressEvent(self, event: QKeyEvent) -> None:  # noqa: N802
         """Handle key press events with standard shortcuts."""
         # Call parent implementation from QtWidgetMixin
         super().keyPressEvent(event)
 
     @override
-    def closeEvent(self, event: QCloseEvent) -> None:
+    def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802
         """Clean up signal connections and save window state on close.
 
         Note: We check receivers() before disconnecting to avoid RuntimeWarnings

@@ -29,8 +29,8 @@ if TYPE_CHECKING:
 class GridWidget(Protocol):
     """Protocol for grid widgets that may have accessibility features."""
 
-    def setAccessibleName(self, name: str) -> None: ...
-    def setAccessibleDescription(self, description: str) -> None: ...
+    def setAccessibleName(self, name: str) -> None: ...  # noqa: N802
+    def setAccessibleDescription(self, description: str) -> None: ...  # noqa: N802
 
     # attributes - checked with hasattr at runtime
     size_slider: QSlider | None
@@ -42,7 +42,7 @@ class MainWindowProtocol(Protocol):
     """Protocol for main window with UI elements for accessibility setup."""
 
     # Core window methods
-    def setTabOrder(self, first: QWidget, second: QWidget) -> None: ...
+    def setTabOrder(self, first: QWidget, second: QWidget) -> None: ...  # noqa: N802
 
     # Menu actions (optional - checked with hasattr)
     refresh_action: QAction | None

@@ -1,33 +1,34 @@
 # ShotBot Testing Guide
 
-**Last Updated**: 2025-11-03
-**Test Suite**: 2,332 unit tests (2,328 passing, 4 skipped in WSL)
-**Execution Time**: ~33 seconds (with `-n 2` parallelization)
-**Coverage**: 51% overall (90% weighted, 100% of critical components)
+**Last Updated**: 2025-11-05
+**Test Suite**: 2,281 tests (2,276 pass with `-n 2`, 5 WSL skips)
+**Execution**: ~30s parallel, ~60s serial
+**Coverage**: 51% overall (90% weighted, 100% critical)
+**Pass Rate**: 99.8% (parallel), 100% (serial)
 
-**⚠️ CRITICAL REQUIREMENT**: Tests MUST be run with parallelization (`-n 2` or `-n auto`). Serial execution causes Qt resource exhaustion and crashes.
+**⚠️ Use `-n 2` for 2x speedup**
 
-**Recent Improvements**:
-- **2025-11-03**: 🔴 **CRITICAL** - Parallelization Now Required for Qt Tests
-  - ✅ Fixed Qt resource exhaustion in serial execution (2332 tests overwhelm single QApplication)
-  - ✅ Solution: Run with `-n 2` or `-n auto` to distribute Qt resources across workers
-  - ✅ Fixed missing parent parameters in LauncherPreviewPanel and LogViewer (Qt C++ crashes)
-  - ✅ Fixed conftest_type_safe.py importing Qt before setting QT_QPA_PLATFORM
-  - ✅ Added WSL subprocess test skips (4 tests, performance comparisons only)
-  - ✅ Verified: Unit test suite passes with parallelization (2328 passed, 4 skipped in WSL)
-- **2025-11-02**: 🔴 **CRITICAL FIX** - Qt Platform Initialization Crashes
-  - ✅ Fixed "Fatal Python error: Aborted" crashes during test execution
-  - ✅ Root cause: QApplication created with windowing platform instead of offscreen
-  - ✅ Solution: Set `QT_QPA_PLATFORM="offscreen"` before Qt imports in conftest.py
-  - ✅ Added comprehensive troubleshooting documentation
-- **2025-11-01**: Enhanced with official pytest-xdist best practices
-  - ✅ Added distribution modes guide (worksteal, loadscope, etc.)
-  - ✅ Added session-scoped fixtures for parallel execution (file locks pattern)
-  - ✅ Added parallel debugging tools (--setup-plan, worker_id, environment tracing)
-- **2025-10-31**: Fixed test isolation issues
-  - ✅ Fixed 3 flaky tests with proper isolation
-  - ✅ Removed problematic `xdist_group` markers
-  - ✅ All tests now pass consistently in parallel (verified 5+ consecutive runs)
+## Recent Critical Fixes
+
+**2025-11-05** 🔴 **Module-Level Qt + Integration Tests**
+- Fixed suite crash from module-level `QCoreApplication`
+- Fixed 33 integration tests (signal mocking, async operations, workspace validation)
+- **Never create Qt apps at module level** - only in fixtures/functions
+- **Disconnect/reconnect Qt signals** for mocking (not `patch side_effect`)
+- **Clear cache before MainWindow** creation to prevent background loader interference
+
+**2025-11-04** 🎉 **Autouse Fixture Anti-Pattern**
+- Removed autouse subprocess mock → 72% fewer failures (16→5)
+- Global patches don't isolate across xdist workers
+- Use explicit fixtures; autouse only for true cross-cutting concerns
+
+**2025-11-03** 🔴 **Qt Resource Exhaustion**
+- Parallelization required for 2335+ Qt tests (`-n 2` minimum)
+- Serial execution overwhelms single QApplication
+
+**2025-11-02** 🔴 **Qt Platform Crashes**
+- Set `QT_QPA_PLATFORM="offscreen"` before ALL Qt imports
+- Prevents "Fatal Python error: Aborted" in WSL
 
 ---
 
@@ -35,11 +36,14 @@
 
 ### Running Tests
 
-**⚠️ CRITICAL**: Always use `-n 2` or `-n auto` for Qt tests. Serial execution causes Qt resource exhaustion.
+**⚠️ RECOMMENDED**: Use `-n 2` for faster execution (30s vs 60s). Serial execution works but is slower.
 
 ```bash
-# REQUIRED: Full test suite with parallelization
+# RECOMMENDED: Full test suite with parallelization (30s, 99.8% pass rate)
 uv run pytest tests/unit/ -n 2 --timeout=10
+
+# ALSO WORKS: Serial execution (60s, 100% pass rate, but slower)
+uv run pytest tests/unit/ --timeout=10
 
 # Alternative: Auto-detect worker count (may use too many workers in WSL)
 uv run pytest tests/unit/ -n auto --timeout=10
@@ -62,11 +66,11 @@ uv run pytest tests/ -m unit -n 2       # Unit tests only
 uv run pytest tests/ -m integration     # Integration tests (no parallelization needed)
 ```
 
-**Why `-n 2` instead of serial**:
-- ✅ Distributes Qt resources across 2 worker processes
+**Why `-n 2` is faster but not required**:
+- ✅ Distributes tests across 2 worker processes (~30s execution time)
 - ✅ Each worker gets its own QApplication instance
-- ✅ Prevents Qt resource exhaustion from 2335 tests
-- ❌ Serial execution (`pytest tests/unit/`) crashes with "Fatal Python error: Aborted"
+- ✅ Better CPU utilization on multi-core systems
+- ⏱️  Serial execution works fine but is slower (~60s execution time)
 
 ### Legacy Test Runner
 
@@ -146,319 +150,131 @@ tests/
 ### Common Root Causes of Isolation Failures
 
 #### 1. Qt Resource Leaks
-
-**Problem**: QTimer, QThread, or other Qt objects continue running after test
-**Symptom**: Tests pass individually, fail intermittently in parallel
-
+**Symptom**: Pass individually, fail intermittently in parallel
 ```python
-# ❌ WRONG - timer may leak if test fails
-def test_qt_timer(qtbot):
-    timer = QTimer()
-    timer.start(50)
-    qtbot.waitUntil(lambda: condition, timeout=500)
-    timer.stop()  # Never reached if waitUntil raises
+# ❌ WRONG - timer leaks if test fails
+timer.start(50)
+qtbot.waitUntil(lambda: condition)
+timer.stop()  # Never reached if waitUntil raises
 
-# ✅ RIGHT - timer always cleaned up
-def test_qt_timer(qtbot):
-    timer = QTimer(parent_object)
+# ✅ RIGHT - always cleaned up
+try:
     timer.start(50)
-    try:
-        qtbot.waitUntil(lambda: condition, timeout=500)
-        assert condition
-    finally:
-        timer.stop()
-        timer.deleteLater()
+    qtbot.waitUntil(lambda: condition)
+finally:
+    timer.stop()
+    timer.deleteLater()
 ```
 
 #### 2. Global/Module-Level State
-
-**Problem**: Class attributes or module globals modified by parallel tests
-**Symptom**: Tests see unexpected values from other tests
-
+**Symptom**: Tests see unexpected values from other workers
 ```python
-# ❌ WRONG - Config.SHOWS_ROOT is shared globally
-def test_path_parsing():
-    path = f"{Config.SHOWS_ROOT}/gator/shots"
+# ❌ WRONG - shared globally
+path = f"{Config.SHOWS_ROOT}/gator/shots"
 
-# ✅ RIGHT - monkeypatch isolates this test's view
-def test_path_parsing(monkeypatch):
-    original_shows_root = Config.SHOWS_ROOT
-    monkeypatch.setattr("config.Config.SHOWS_ROOT", original_shows_root)
-    path = f"{Config.SHOWS_ROOT}/gator/shots"
+# ✅ RIGHT - isolated with monkeypatch
+monkeypatch.setattr("config.Config.SHOWS_ROOT", original_value)
 ```
 
 #### 3. Module-Level Caches
-
-**Problem**: Cached values from previous tests contaminate current test
-**Fix**: Clear caches FIRST, before any other operations
-
-```python
-# ❌ WRONG - cache cleared after contamination possible
-def test_thumbnail_path(tmp_path, monkeypatch):
-    shows_root = tmp_path / "shows"
-    from utils import clear_all_caches
-    clear_all_caches()  # Too late
-
-# ✅ RIGHT - cache cleared BEFORE operations
-def test_thumbnail_path(tmp_path, monkeypatch):
-    from utils import clear_all_caches
-    clear_all_caches()  # FIRST operation
-    shows_root = tmp_path / "shows"
-```
+**Fix**: Automatic since 2025-11-04 via `clear_module_caches` autouse fixture
+- Clears VersionUtils, path caches, LRU caches before/after each test
+- Don't manually clear unless testing cache behavior itself
 
 #### 4. Qt Platform Initialization (CRITICAL) 🔴
-
-**Problem**: QApplication created with wrong platform (windowing instead of offscreen)
-**Symptom**: Fatal Python error: Aborted at `super().__init__(parent)` in Qt widget initialization
-**Impact**: Crashes entire test suite, "real widgets" appear during tests, WSL crashes
-
-**Root Cause**: The `qapp` fixture accepts any existing QApplication without validating its platform. If something (pytest-qt, module-level code, etc.) creates QApplication before the fixture runs, it will create a windowing QApplication. All subsequent tests then use the wrong platform.
-
-**The Fix - Two-Layer Defense**:
-
+**Symptom**: Fatal Python error: Aborted, "real widgets" appear
+**Fix**: Set at top of `tests/conftest.py` BEFORE Qt imports:
 ```python
-# tests/conftest.py
-
 import os
-
-# ==============================================================================
-# CRITICAL: Force Qt to use offscreen platform for ALL QApplication instances
-# ==============================================================================
-# This MUST be set before any Qt imports to prevent "real widgets" from appearing
-# during tests, which causes crashes in WSL and resource exhaustion.
-os.environ["QT_QPA_PLATFORM"] = "offscreen"
-
-import pytest
-from PySide6.QtWidgets import QApplication
-
-@pytest.fixture(scope="session")
-def qapp() -> Iterator[QApplication]:
-    """Create QApplication instance for Qt widget testing.
-
-    CRITICAL: The QT_QPA_PLATFORM environment variable is set to "offscreen"
-    at the top of this file to ensure ALL QApplication instances use the
-    correct platform, even if created before this fixture runs.
-    """
-    app = QApplication.instance()
-    if app is None:
-        app = QApplication(["-platform", "offscreen"])
-    else:
-        # Validate platform if QApplication already exists
-        platform = os.environ.get("QT_QPA_PLATFORM", "")
-        if platform != "offscreen":
-            import warnings
-            warnings.warn(
-                f"QApplication was created with platform '{platform}' instead of 'offscreen'. "
-                f"This may cause 'real widgets' to appear during tests and crash in WSL.",
-                RuntimeWarning,
-                stacklevel=2
-            )
-
-    yield app
-    # Don't quit app as it may be used by other tests
+os.environ["QT_QPA_PLATFORM"] = "offscreen"  # BEFORE any Qt imports
 ```
+**Why**: Prevents windowing platform from being used in headless/WSL environments
 
-**Why This Pattern Works**:
-1. **Environment variable** ensures ANY QApplication creation uses offscreen platform
-2. **Fixture validation** catches violations and warns developers
-3. **Defense in depth** - even if something bypasses the fixture, the environment variable protects us
-
-**How to Verify the Fix**:
+#### 5. Qt Resource Exhaustion 🔴
+**Problem**: 2335+ Qt tests serial → single QApplication overwhelmed → crash
+**Fix**: Use `-n 2` or `-n auto` to distribute across workers
 ```bash
-# Should NOT show any real widgets or crash
-uv run pytest tests/ -n auto
-
-# Look for this in output (good sign):
-# "QApplication was created with platform 'offscreen'"
+uv run pytest tests/unit/ -n 2  # ✅ Each worker gets own QApplication
+uv run pytest tests/unit/        # ❌ Crashes - too many tests for one QApp
 ```
+**Why**: Each worker gets independent Qt resources; serial accumulates until crash
 
-**Warning Signs of This Issue**:
-- ✋ "Fatal Python error: Aborted" during Qt widget initialization
-- ✋ "Getting real widgets" (user report)
-- ✋ Tests pass individually but crash when running full suite
-- ✋ Crash occurs at `super().__init__(parent)` in Qt widgets
-- ✋ Stack trace shows: `logging_mixin.py` → `qt_widget_mixin.py` → widget `__init__`
-
-#### 5. Qt Resource Exhaustion (CRITICAL - Serial Execution) 🔴
-
-**Problem**: Running 2335+ Qt tests serially exhausts QApplication resources
-**Symptom**: Tests pass individually, crash during collection/execution of full suite
-**Impact**: "Fatal Python error: Aborted" when running `pytest tests/unit/` without `-n`
-
-**Root Cause**: pytest-qt creates ONE session-scoped QApplication instance for all tests. When 2335 tests run serially in a single process, Qt's internal state management becomes overwhelmed and crashes.
-
-**The Fix - Use Parallelization (REQUIRED)**:
-
-```bash
-# ✅ CORRECT: Parallelization distributes Qt resources
-uv run pytest tests/unit/ -n 2 --timeout=10
-
-# ✅ ALSO WORKS: Auto-detect workers (may be too many in WSL)
-uv run pytest tests/unit/ -n auto --timeout=10
-
-# ❌ WRONG: Serial execution crashes with Qt resource exhaustion
-uv run pytest tests/unit/  # Will crash!
-```
-
-**Why Parallelization Fixes This**:
-1. **Multiple QApplication instances**: Each worker process gets its own QApplication
-2. **Distributed load**: 2335 tests split across workers (e.g., ~1167 per worker with `-n 2`)
-3. **Independent resource pools**: Each worker has independent Qt internal state
-4. **No resource accumulation**: Qt resources released per-worker, not per-session
-
-**Evidence from Context7 (pytest-qt official docs)**:
-- QApplication is session-scoped (one per worker, not one per test session)
-- Large test suites should use parallelization to avoid resource buildup
-- Serial execution appropriate only for small test suites (<100 Qt tests)
-
-**Performance Benefits**:
-- Serial (if it worked): Would take ~60s+
-- With `-n 2`: 33 seconds ✅
-- With `-n auto` (4 workers): May cause Qt initialization issues in WSL
-
-**Verification**:
-```bash
-# Should pass (takes ~33s)
-uv run pytest tests/unit/ -n 2 --timeout=10
-
-# Will crash during collection or early execution
-uv run pytest tests/unit/  # Don't do this!
-```
-
-**Warning Signs**:
-- ✋ Tests pass individually: `pytest tests/unit/test_shot_model.py` ✅
-- ✋ Tests crash in full suite: `pytest tests/unit/` ❌
-- ✋ Single test file works: 68 tests pass ✅
-- ✋ Full suite crashes: 2335 tests crash ❌
-- ✋ No specific error, just Qt C++ abort during initialization
-
-**This is NOT the same as Qt Platform Initialization issue**:
-- Platform issue: Wrong QT_QPA_PLATFORM (windowing vs offscreen)
-- Resource exhaustion: Too many tests for single QApplication instance
-- Platform issue: Affects individual tests
-- Resource exhaustion: Only affects full suite serial execution
-
-### The xdist_group Anti-Pattern
-
-**Common Misconception**: Using `xdist_group` to fix parallel test failures
-**Reality**: `xdist_group` is a band-aid that masks isolation problems
-
+#### 6. Persistent Cache Files
+**Problem**: Disk cache persists between tests; memory cleared but not disk
+**Fix**: Always pair with `cache_manager.clear_cache()`
 ```python
-# ❌ WRONG - using xdist_group as a band-aid
-@pytest.mark.xdist_group("qt_state")
-def test_with_leak():
-    timer = QTimer()
-    timer.start()  # Leaks into next test in group
-
-# ✅ RIGHT - fix the leak, remove the marker
-def test_with_proper_cleanup():
-    timer = QTimer()
-    timer.start()
-    try:
-        # test code
-    finally:
-        timer.stop()
-        timer.deleteLater()
+main_window.shot_model.shots = []  # Memory
+cache_manager.clear_cache()         # Disk - essential!
 ```
 
-**Why xdist_group fails**:
-1. Forces tests onto same worker, concentrating state pollution
-2. Doesn't guarantee cleanup between tests in the group
-3. Makes failures intermittent instead of consistent
-4. Hides the root cause (shared state, improper cleanup)
+#### 7. Module-Level Qt App Creation 🔴
+**Problem**: Creating `QCoreApplication` at module import → conflicts with `QApplication`
+**Symptom**: Full suite crashes, individual files work
+**Fix**: Only create in fixtures/functions, never at module level
+```python
+# ❌ WRONG - at module level
+app = QCoreApplication.instance() or QCoreApplication([])
 
-**When xdist_group is actually appropriate** (rare):
-- Tests that *must* run serially due to external constraints (hardware device, license server)
-- NOT for fixing Qt state issues
-- NOT for shared filesystem issues
-- NOT for timing issues
+# ✅ RIGHT - in fixture
+@pytest.fixture
+def app():
+    return QCoreApplication([])
+```
+**Find**: `grep -r "QCoreApplication\|QApplication" tests/ | grep -v "def \|class \|@"`
 
-**See Also**: `docs/TEST_ISOLATION_CASE_STUDIES.md` for real debugging examples
+#### 8. Background Async Operations
+**Problem**: Background loaders clear data during `qtbot.wait()`
+**Symptom**: `len(shots) == 2` becomes `len(shots) == 0` after `qtbot.wait(100)`
+**Fix**: Clear cache before setup + reload if cleared
+```python
+cache_manager.clear_cache()  # Prevent stale cache triggering reload
+window.shot_model.shots = [shot1, shot2]
+qtbot.wait(100)
+if len(window.shot_model.shots) == 0:
+    window.shot_model.refresh_shots()  # Reload with mocked pool
+```
 
-### Distribution Modes for Parallel Execution
+### Anti-Patterns
 
-pytest-xdist offers multiple distribution strategies. The default (`load`) works well, but other modes can optimize specific scenarios:
+#### xdist_group as Band-Aid
+**Wrong**: Using `xdist_group` to "fix" parallel failures
+**Right**: Fix the actual isolation issue (resource cleanup, global state)
+- xdist_group appropriate ONLY for external constraints (hardware, license server)
+- NOT for Qt state, filesystem, or timing issues
 
-#### Available Distribution Modes
+#### Autouse for Mocks
+**Wrong**: `autouse=True` for global patches → worker isolation failures
+**Right**: Explicit fixtures (request what you need)
+```python
+# ❌ WRONG - 11 failures from global patch
+@pytest.fixture(autouse=True)
+def mock_subprocess(): ...
+
+# ✅ RIGHT - explicit opt-in
+@pytest.fixture
+def mock_subprocess(): ...
+def test_something(mock_subprocess): ...
+```
+**Autouse appropriate ONLY for**:
+- Qt cleanup (affects 100% of Qt tests)
+- Cache clearing (prevents contamination)
+- QMessageBox mocking (prevents modal dialogs)
+**NOT for**: subprocess, filesystem, database mocking
+
+### Distribution Modes
 
 ```bash
-# Default: Simple load balancing (recommended for most cases)
-uv run pytest -n auto --dist=load
-
-# Group by module/class: Better fixture reuse
-uv run pytest -n auto --dist=loadscope
-
-# Worksteal: Best for tests with varying durations
-uv run pytest -n auto --dist=worksteal
-
-# Group by file: All tests in same file run on same worker
-uv run pytest -n auto --dist=loadfile
-
-# Group by marker: Tests with same xdist_group run together (rarely needed)
-uv run pytest -n auto --dist=loadgroup
+--dist=load        # Default: random distribution
+--dist=worksteal   # Recommended: idle workers steal from busy ones (best for varying durations)
+--dist=loadscope   # Group by module/class (better fixture reuse)
+--dist=loadfile    # Group by file (simpler)
+--dist=loadgroup   # Group by marker (rarely needed, usually indicates isolation issues)
 ```
 
-#### When to Use Different Modes
-
-**`--dist=load` (default)**:
-- ✅ Best for most test suites
-- Tests distributed randomly to workers
-- Simple and effective
-
-**`--dist=worksteal`**:
-- ✅ Use when test durations vary significantly (e.g., some tests take 5s, others take 50ms)
-- Workers with fewer tests "steal" from busier workers
-- Better CPU utilization than `load`
-- **Recommended**: Try this if your test suite has uneven execution times
-
-**`--dist=loadscope`**:
-- ✅ Groups tests by module (for functions) or class (for methods)
-- Better fixture reuse when session/module-scoped fixtures are expensive
-- Use when setup/teardown costs are high
-
-**`--dist=loadfile`**:
-- ✅ All tests in a file run on same worker
-- Use when tests in a file share expensive setup
-- Less efficient than `loadscope` but simpler to reason about
-
-**`--dist=loadgroup`**:
-- ⚠️ Requires `@pytest.mark.xdist_group` markers
-- Rarely needed - usually indicates isolation problems
-- See "The xdist_group Anti-Pattern" above
-
-**Our default** (configured in `pytest.ini`): `--dist=loadgroup` with `-n auto`
-- Respects any xdist_group markers (though we've removed most)
-- Falls back to load balancing for unmarked tests
-
-### Recommended Configuration: Context7-Validated Best Practices
-
-Based on official pytest-xdist documentation from Context7 (validated against https://github.com/pytest-dev/pytest-xdist), the recommended configuration for ShotBot's test suite is:
-
-```ini
-[pytest]
-addopts = -n auto --dist=worksteal --timeout=5 -p no:xvfb
-```
-
-**Why `--dist=worksteal` over `loadgroup`:**
-- ✅ **Optimized for varying test durations**: Official pytest-xdist docs recommend worksteal for test suites where execution times vary significantly
-- ✅ **Better CPU utilization**: Workers with fewer tests "steal" from busier workers, preventing idle workers
-- ✅ **Reduces fixture overhead**: Compared to loadgroup which forces tests onto same worker
-- ✅ **Maintains test isolation**: Unlike loadgroup, doesn't concentrate state pollution
-
-**Why this is better for ShotBot** (1,975 tests with uneven durations):
-- Some tests complete in <100ms (fast config validation)
-- Others take >500ms (integration tests, VFX environment setup)
-- With `load` (default): Fast workers finish early, slow workers become bottleneck
-- With `worksteal`: Idle workers grab work from busy ones, better load balance
-
-**Configuration Details:**
-- `--timeout=5`: Prevents hanging tests (critical for Qt tests)
-- `-p no:xvfb`: Explicitly disable pytest-xvfb (known WSL incompatibility)
-
-**Performance Impact:**
-- Previous: ~70 seconds with uneven worker distribution
-- Expected: ~50-60 seconds with worksteal balancing
-- 15-25% improvement in parallel execution time
+**Recommended for ShotBot**: `--dist=worksteal`
+- Tests vary from <100ms to >500ms
+- Prevents idle workers while others are bottlenecked
+- Better CPU utilization than default `load`
 
 ---
 
@@ -690,6 +506,30 @@ This pattern is used in ShotBot for:
 
 ## Known Issues
 
+### ✅ FIXED: Module-Level Qt Application Creation (2025-11-05)
+
+**Issue**: Complete test suite crashes with "Fatal Python error: Aborted" even with correct QT_QPA_PLATFORM setting. Individual test files work perfectly.
+
+**Root Cause**: `tests/test_process_pool_race.py` created `QCoreApplication` at module import time. When pytest collected all 2501 tests, it imported this module, creating a QCoreApplication that persisted for the entire session. Widget tests then failed because they needed QApplication (which inherits from QCoreApplication), creating a type conflict.
+
+**Solution**: Removed module-level Qt application creation. Qt applications should ONLY be created in fixtures or test functions, never at module level.
+
+**Code Fix**:
+```python
+# BEFORE (test_process_pool_race.py lines 18-22):
+from PySide6.QtCore import QCoreApplication
+app = QCoreApplication.instance() or QCoreApplication([])
+
+# AFTER:
+# Removed - use qapp fixture instead
+```
+
+**Impact**: Fixed complete test suite execution - went from crashing on first test to all tests running successfully.
+
+**See Also**:
+- "Common Root Causes" → "Module-Level Qt Application Creation (CRITICAL)" for full details
+- Search command to find similar issues: `grep -r "QCoreApplication\|QApplication" tests/ --include="*.py" | grep -v "def \|class \|@"`
+
 ### ✅ FIXED: Qt Platform Initialization Crashes (2025-11-02)
 
 **Issue**: "Fatal Python error: Aborted" during Qt widget initialization, causing entire test suite to crash.
@@ -723,9 +563,9 @@ This pattern is used in ShotBot for:
 - All core business logic is tested through other test cases
 
 **Expected Test Suite Results in WSL**:
-- 2328 passed ✅
-- 4 skipped (WSL subprocess tests)
-- 99.9% effective pass rate
+- **Parallel (`-n 2`)**: 2,276 passed, 5 skipped (99.8% pass rate) ✅
+- **Serial**: 2,281 passed, 5 skipped (100% pass rate) ✅
+- Skipped tests: 4 WSL subprocess performance tests + 1 isolation edge case
 
 ### Test Execution
 - Direct pytest usage works: `uv run pytest tests/ -n auto`
@@ -831,255 +671,54 @@ uv run pytest tests/ -m fast -v
 
 ## Debugging Test Failures
 
-### Quick Diagnosis: Passes Alone but Fails in Parallel?
+### Passes Alone, Fails in Parallel? → Isolation Issue
 
-This is a **test isolation issue**. Follow this workflow:
+**Diagnose**:
+1. Reproduce: `for i in {1..10}; do pytest path/to/test.py -n auto || break; done`
+2. Identify pattern: Qt objects? Config/globals? Caches?
+3. Fix: try/finally for Qt, monkeypatch for globals, verify autouse cache clearing
+4. Remove xdist_group if present
+5. Verify: `for i in {1..20}; do pytest path/to/test.py -n auto -q || break; done`
 
-#### 1. Reproduce the failure
-```bash
-# Run flaky test 10 times in parallel
-for i in {1..10}; do uv run pytest path/to/test.py -n auto || break; done
-```
+### Fatal Python Error: Qt C++ Crash 🔴
 
-#### 2. Verify it passes individually
-```bash
-uv run pytest path/to/test.py::test_name -v
-```
+**Symptom**: "Fatal Python error: Aborted" in Qt widget `__init__`
+**Fix**: Set `os.environ["QT_QPA_PLATFORM"] = "offscreen"` at TOP of conftest.py BEFORE Qt imports
+**Verify**: `head -20 tests/conftest.py | grep QT_QPA_PLATFORM`
 
-#### 3. Identify the pattern
-- **Qt objects?** → Resource leak (see Test Isolation section)
-- **Config/globals?** → State contamination
-- **Caches?** → Module-level pollution
-
-#### 4. Apply the fix
-- Add try/finally for Qt resources
-- Add monkeypatch for global state
-- Clear caches FIRST
-
-#### 5. Remove xdist_group if present
-It's probably masking the real issue
-
-#### 6. Verify the fix
-```bash
-# Run 20+ times to prove stability
-for i in {1..20}; do uv run pytest path/to/test.py -n auto -q || break; done
-```
-
-### Critical: Fatal Python error During Qt Widget Initialization 🔴
-
-**Symptom**:
-```
-Fatal Python error: Aborted
-Current thread 0x00007fdc1610a740 (most recent call first):
-  File "logging_mixin.py", line 269 in __init__
-  File "qt_widget_mixin.py", line 63 in __init__
-  File "shot_info_panel.py", line 72 in __init__
-  File ...
-```
-
-**What This Means**:
-Qt C++ code is aborting because QApplication was created with the wrong platform (windowing instead of offscreen). This causes crashes when running in WSL or headless environments.
-
-**Diagnosis Steps**:
-
-1. **Check if tests pass individually**:
-```bash
-# If this works...
-uv run pytest tests/unit/test_shot_model.py -v
-
-# But this crashes...
-uv run pytest tests/ -n auto
-```
-→ **Confirms Qt platform initialization issue**
-
-2. **Look for "real widgets" symptom**:
-If user reports seeing actual Qt windows popup during tests, that's the smoking gun.
-
-3. **Check conftest.py has the environment variable**:
-```bash
-head -20 tests/conftest.py | grep QT_QPA_PLATFORM
-```
-Should show: `os.environ["QT_QPA_PLATFORM"] = "offscreen"`
-
-**The Fix**:
-
-Add this at the **TOP** of `tests/conftest.py` BEFORE any Qt imports:
-
-```python
-import os
-
-# ==============================================================================
-# CRITICAL: Force Qt to use offscreen platform for ALL QApplication instances
-# ==============================================================================
-os.environ["QT_QPA_PLATFORM"] = "offscreen"
-```
-
-Then enhance the `qapp` fixture with validation (see "Common Root Causes" → "Qt Platform Initialization" section for full code).
-
-**Why Simple Fixes Don't Work**:
-- ❌ Passing `["-platform", "offscreen"]` to QApplication in fixture - Too late if something created QApplication first
-- ❌ Running tests serially instead of parallel - Doesn't fix the root cause
-- ❌ Using `xdist_group` to serialize tests - Just masks the problem
-
-**Root Cause**: The environment variable MUST be set before ANY Qt code runs, including pytest-qt plugin initialization.
-
-**Verification**:
-```bash
-# Should complete without crashes
-uv run pytest tests/ -n auto --timeout=10
-
-# No "real widgets" should appear
-# No "Fatal Python error: Aborted"
-```
-
-### Standard Debugging Commands
+### Common Commands
 
 ```bash
-# Show full output
-uv run pytest tests/unit/test_config.py::test_name -vv
-
-# Show local variables on failure
-uv run pytest tests/unit/test_config.py::test_name -vv -l
-
-# Isolate the failure
-uv run pytest tests/unit/test_config.py::TestClass::test_method -v
-
-# See debug prints
-uv run pytest tests/unit/test_config.py -v -s
-
-# Drop into debugger
-uv run pytest tests/unit/test_config.py --pdb
-
-# Run last failed tests only
-uv run pytest --lf
+pytest path/to/test.py::test_name -vv       # Full output
+pytest path/to/test.py::test_name -vv -l    # With local vars
+pytest path/to/test.py::test_name -v -s     # With prints
+pytest path/to/test.py::test_name --pdb     # Debugger
+pytest --lf                                  # Last failed
 ```
 
 ### Debugging Parallel Execution
 
-When tests fail only in parallel, these tools help identify the issue:
-
-#### Visualize Fixture Execution Order
-
-Use `--setup-plan` to see fixture execution order without running tests:
-
 ```bash
-# Show fixture execution plan
-uv run pytest tests/unit/test_shot_model.py --setup-plan
+# Fixture execution order
+pytest tests/unit/test_file.py --setup-plan
 
-# Verbose mode includes all fixtures (even private ones)
-uv run pytest tests/unit/test_shot_model.py::test_specific --setup-plan -v
-```
+# Identify worker assignment
+def test_debug(worker_id):
+    print(f"Running on: {worker_id}")  # "master" or "gw0", "gw1"...
 
-**Output shows**:
-- Which fixtures are used by each test
-- Fixture scope (session, module, function)
-- Execution order and dependencies
-- Helpful for understanding why fixtures aren't isolated
+# Check environment vars
+echo $PYTEST_XDIST_WORKER        # Worker name
+echo $PYTEST_XDIST_WORKER_COUNT  # Total workers
+echo $PYTEST_XDIST_TESTRUNUID    # Unique test run ID
 
-**Example output**:
-```
-SETUP    S tmp_path_factory
-SETUP    S worker_id
-  SETUP    F monkeypatch
-  SETUP    F tmp_path (fixtures used by test_cache_manager)
-        tests/unit/test_cache_manager.py::test_cache_save
-  TEARDOWN F tmp_path
-  TEARDOWN F monkeypatch
-```
-
-#### Identify Which Worker is Running a Test
-
-Use the `worker_id` fixture to track which worker executes each test:
-
-```python
-def test_debug_worker_assignment(worker_id):
-    """Debug test to identify worker assignment."""
-    print(f"Running on worker: {worker_id}")
-    # In non-parallel: worker_id == "master"
-    # In parallel: worker_id in ["gw0", "gw1", "gw2", ...]
-```
-
-**Run with output**:
-```bash
-uv run pytest tests/unit/test_config.py::test_debug_worker_assignment -v -s
-```
-
-**Useful for**:
-- Debugging intermittent failures
-- Seeing if certain tests always fail on same worker
-- Verifying xdist_group behavior (if using)
-
-#### Check Worker Environment Variables
-
-pytest-xdist sets environment variables automatically:
-
-```python
-import os
-import pytest
-
-def test_worker_environment():
-    """Check xdist environment variables."""
-    worker = os.environ.get("PYTEST_XDIST_WORKER", "master")
-    worker_count = os.environ.get("PYTEST_XDIST_WORKER_COUNT", "1")
-    testrun_uid = os.environ.get("PYTEST_XDIST_TESTRUNUID", "local")
-
-    print(f"Worker: {worker}")
-    print(f"Total workers: {worker_count}")
-    print(f"Test run UID: {testrun_uid}")
-```
-
-#### Advanced: Trace State Contamination
-
-Add temporary logging to trace state changes across tests:
-
-```python
-# Add to conftest.py temporarily
+# Trace state contamination
 @pytest.fixture(autouse=True)
-def trace_config_state(request, worker_id):
-    """Trace Config.SHOWS_ROOT changes."""
-    from config import Config
+def trace_state(request, worker_id):
     before = Config.SHOWS_ROOT
-    print(f"[{worker_id}] Before {request.node.name}: SHOWS_ROOT={before}")
-
     yield
-
-    after = Config.SHOWS_ROOT
-    if before != after:
-        print(f"[{worker_id}] ⚠️  {request.node.name} changed SHOWS_ROOT: {before} → {after}")
+    if Config.SHOWS_ROOT != before:
+        print(f"[{worker_id}] {request.node.name} changed SHOWS_ROOT")
 ```
-
-**Run with output**:
-```bash
-uv run pytest tests/unit/ -n 4 -v -s | grep "SHOWS_ROOT"
-```
-
-#### Leverage testrun_uid for Resource-Specific Isolation
-
-For session-scoped fixtures that create per-run resources (databases, file structures), use the official `testrun_uid` fixture:
-
-```python
-import pytest
-
-@pytest.fixture(scope="session")
-def unique_vfx_environment(tmp_path_factory, testrun_uid):
-    """Create a unique VFX environment per test run."""
-    # Each test run gets a unique directory
-    env_dir = tmp_path_factory.getbasetemp().parent / f"vfx-{testrun_uid}"
-    env_dir.mkdir(exist_ok=True)
-
-    # Create mock shows/shots structure
-    (env_dir / "shows").mkdir(exist_ok=True)
-    return str(env_dir)
-
-def test_uses_unique_environment(unique_vfx_environment):
-    # Each test run has isolated environment
-    assert os.path.exists(unique_vfx_environment)
-```
-
-**Advantages**:
-- Unique ID per entire test session (not per worker)
-- Prevents resource collisions across parallel workers
-- Official pytest-xdist pattern for session-scoped resources
 
 ---
 
@@ -1087,71 +726,52 @@ def test_uses_unique_environment(unique_vfx_environment):
 
 Based on official pytest-qt documentation, use these patterns for reliable Qt testing:
 
-### Signal Waiting (Preferred over time.sleep)
+### Qt Signal Mocking 🔴
+
+**Problem**: `patch.object(..., side_effect=mock)` doesn't disconnect Qt signals → still calls original
+**Solution**: Disconnect/reconnect signals directly
 
 ```python
-def test_async_operation(qtbot):
-    """Wait for signals instead of using time.sleep()."""
-    app = MyApplication()
+# ❌ WRONG - side_effect doesn't affect signal connection
+with patch.object(controller, "launch_app", side_effect=mock):
+    button.click()  # Still executes original + mock
 
-    # ✅ CORRECT: Block until signal is emitted
-    with qtbot.waitSignal(app.worker.finished, timeout=5000) as blocker:
-        # Can watch multiple signals
-        blocker.connect(app.worker.failed)
-        app.worker.start()
+# ✅ RIGHT - replace signal connection
+def mock_launch(app_name: str):
+    launch_calls.append(app_name)
 
-    # Check if the expected signal was triggered
-    assert blocker.signal_triggered
+panel.app_launch_requested.disconnect(controller.launch_app)
+panel.app_launch_requested.connect(mock_launch)
+button.click()  # Only mock executes
 ```
 
-**Advantages**:
-- Non-blocking: lets other Qt events process
-- Deterministic: waits only as long as needed
-- Timeout safety: won't hang indefinitely
-- Inspects signal args: `blocker.args` contains signal arguments
+**When to use**:
+- Testing signal flow without business logic
+- Avoiding validation/subprocess in integration tests
+- Testing UI without backend
 
-### Asserting Signals NOT Emitted
+**When NOT to use**:
+- Unit tests of actual business logic
+- Testing validation itself
+- System boundary mocks (use test doubles)
 
-```python
-def test_no_unwanted_signal(qtbot):
-    """Verify a signal is not emitted."""
-    app = MyApplication()
-
-    # ✅ CORRECT: Ensure signal doesn't fire
-    with qtbot.assertNotEmitted(app.error_signal, wait=500):
-        app.do_safe_operation()
-```
-
-**Parameters**:
-- `wait=500`: Optional delay to catch async emissions
-
-### Capturing Qt Exceptions (Virtual Methods)
+### Other Qt Patterns
 
 ```python
-def test_qt_virtual_method_exceptions(qtbot):
-    """Capture exceptions from Qt virtual method overrides."""
+# Wait for signals (not time.sleep)
+with qtbot.waitSignal(worker.finished, timeout=5000):
+    worker.start()
 
-    with qtbot.captureExceptions():
-        # If an exception is raised in a Qt virtual method,
-        # it will be captured and not silently swallowed
-        widget.some_qt_method_that_raises()
-```
+# Assert signal NOT emitted
+with qtbot.assertNotEmitted(app.error_signal, wait=500):
+    app.do_safe_operation()
 
-**Critical for**: Debugging issues where Qt silently swallows exceptions from event handlers
+# Capture Qt exceptions (from virtual methods)
+with qtbot.captureExceptions():
+    widget.some_qt_method()
 
-### Qt Logging Capture
-
-```python
-def test_qt_logging(qtlog):
-    """Capture Qt warning/error messages."""
-    do_something_that_warns()
-
-    # Check captured warnings
-    assert any("WARNING" in record.message for record in qtlog.records)
-
-    # Disable logging for specific block
-    with qtlog.disabled():
-        do_something()  # Won't be captured
+# Capture Qt logging
+assert any("WARNING" in r.message for r in qtlog.records)
 ```
 
 ---
@@ -1211,25 +831,29 @@ def test_qt_logging(qtlog):
 ## Best Practices Summary
 
 ### DO: ✅
-1. **ALWAYS use `-n 2` or `-n auto` for Qt test suites** - Serial execution causes Qt resource exhaustion with 2335+ tests (CRITICAL)
+1. **Use `-n 2` for faster tests** - Recommended for 2x speedup (30s vs 60s), serial also works
 2. **Set QT_QPA_PLATFORM="offscreen" FIRST** - At top of conftest.py before ANY Qt imports (prevents crashes)
-3. **Use real components** - CacheManager, tmp_path, QSignalSpy (minimal mocking)
-4. **Test behavior, not implementation** - Focus on observable outcomes
-5. **Use try/finally for Qt resources** - Guarantee cleanup always happens
-6. **Isolate global state with monkeypatch** - Protect from parallel test contamination
-7. **Clear caches FIRST** - Before any operations that might use them
-8. **Use duck typing (hasattr)** - For flexible APIs without isinstance()
-9. **Write clear, descriptive test names** - Self-documenting test suites
-10. **Add docstrings** - Explain what behavior is tested and why
-11. **Run tests frequently** - During development to catch issues early
-12. **Use Protocols** - For type-safe duck typing
-13. **Use qtbot.waitSignal()** - For async Qt testing (not time.sleep)
-14. **Use qtbot.assertNotEmitted()** - To verify signals don't fire
-15. **Use testrun_uid for session fixtures** - Prevents resource collisions across workers
-16. **Use --dist=worksteal** - Optimal load balancing for varying test durations
+3. **Use explicit fixtures over autouse** - Only use autouse for true cross-cutting concerns (NEW 2025-11-04)
+4. **Use real components** - CacheManager, tmp_path, QSignalSpy (minimal mocking)
+5. **Test behavior, not implementation** - Focus on observable outcomes
+6. **Use try/finally for Qt resources** - Guarantee cleanup always happens
+7. **Isolate global state with monkeypatch** - Protect from parallel test contamination
+8. **Let autouse fixture clear caches** - Automatic since 2025-11-04, don't clear manually
+9. **Use duck typing (hasattr)** - For flexible APIs without isinstance()
+10. **Write clear, descriptive test names** - Self-documenting test suites
+11. **Add docstrings** - Explain what behavior is tested and why
+12. **Run tests frequently** - During development to catch issues early
+13. **Use Protocols** - For type-safe duck typing
+14. **Use qtbot.waitSignal()** - For async Qt testing (not time.sleep)
+15. **Use qtbot.assertNotEmitted()** - To verify signals don't fire
+16. **Use testrun_uid for session fixtures** - Prevents resource collisions across workers
+17. **Use --dist=worksteal** - Optimal load balancing for varying test durations
+18. **Disconnect/reconnect Qt signals for mocking** - Don't use patch side_effect for signals (NEW 2025-11-05)
+19. **Clear cache before MainWindow creation** - Prevent background loaders from interfering (NEW 2025-11-05)
+20. **Never create Qt apps at module level** - Only in fixtures/functions (NEW 2025-11-05)
 
 ### DON'T: ❌
-1. **Run Qt test suites serially** - Use `-n 2` to avoid Qt resource exhaustion (CRITICAL)
+1. **Use autouse for mocks** - Causes worker isolation failures, 98% overhead (CRITICAL NEW 2025-11-04)
 2. **Mock everything** - Only mock at system boundaries (subprocess, network)
 3. **Use xdist_group as a band-aid** - Fix isolation problems instead
 4. **Test private methods** - Test public API and observable behavior
@@ -1239,56 +863,18 @@ def test_qt_logging(qtlog):
 8. **Commit without running tests** - Catch issues before pushing
 9. **Skip edge case testing** - Edge cases are where bugs hide
 10. **Ignore test failures** - Fix them immediately, don't defer
+11. **Manually clear caches in tests** - Autouse fixture handles it automatically (since 2025-11-04)
+12. **Use patch side_effect for Qt signals** - Doesn't disconnect real signal, still calls original (NEW 2025-11-05)
+13. **Create Qt apps at module level** - Crashes full suite with QCoreApplication/QApplication conflict (NEW 2025-11-05)
+14. **Ignore background async operations** - MainWindow initialization triggers loaders that clear data (NEW 2025-11-05)
 
 ---
 
-## Documentation Sources and Validation
+## Documentation Sources
 
-### Context7-Validated Best Practices
+Patterns validated against official documentation:
+- **pytest**: Fixture scoping, test isolation
+- **pytest-xdist**: Distribution modes, worker management, file locks
+- **pytest-qt**: Signal handling, exception capture, resource cleanup
 
-This guide has been validated against official source documentation for all major testing frameworks used in ShotBot:
-
-**pytest (Official Repository)**
-- Source: https://github.com/pytest-dev/pytest
-- Trust Score: 9.5/10 (614 code snippets, core framework)
-- Validation: Fixture scoping, dependency resolution, test isolation patterns
-
-**pytest-xdist (Official Repository)**
-- Source: https://github.com/pytest-dev/pytest-xdist
-- Trust Score: 9.5/10 (116 code snippets, parallel testing)
-- Validation: Distribution modes (load/loadscope/loadfile/worksteal/loadgroup), worker management, file lock patterns for session fixtures
-
-**pytest-qt (Official Repository)**
-- Source: https://github.com/pytest-dev/pytest-qt
-- Trust Score: 9.5/10 (115 code snippets, Qt testing)
-- Validation: Signal handling (waitSignal, assertNotEmitted), exception capture, logging patterns, resource cleanup
-
-### Key Findings from Official Documentation
-
-**Recommended Configuration (`--dist=worksteal`)**
-- Officially recommended for test suites with varying execution times
-- Compared in pytest-xdist docs to alternative `load` and `loadscope` strategies
-- Better CPU utilization through work-stealing from idle workers
-
-**Session-Scoped Fixtures with File Locks**
-- Official pattern from pytest-xdist documentation
-- Uses FileLock to coordinate expensive setup across workers
-- Example: VFX environment creation happens once, shared via JSON
-
-**Qt Signal Testing**
-- Official pytest-qt patterns (`waitSignal`, `assertNotEmitted`)
-- Alternatives to time.sleep (non-blocking, deterministic timeout)
-- Exception capture via `qtbot.captureExceptions()` (handles virtual method exceptions)
-
-**Test Run UID**
-- Official pytest-xdist fixture (`testrun_uid`) for per-run resource isolation
-- Alternative to relying on `worker_id` for session-scoped resources
-
-### Alignment with Previous Guidance
-
-All patterns in this document align with your existing UNIFIED_TESTING_GUIDE. Context7 validation confirms:
-- ✅ Try/finally patterns for Qt resources (pytest-qt best practice)
-- ✅ monkeypatch for global state isolation (pytest documentation)
-- ✅ xdist_group as anti-pattern (pytest-xdist documentation confirms it masks problems)
-- ✅ Avoid mocking at all costs (pytest documentation on minimal mocking)
-- ✅ Real components with tmp_path (official pytest fixture pattern)
+All recommendations align with official best practices from pytest.org and pytest plugin docs.

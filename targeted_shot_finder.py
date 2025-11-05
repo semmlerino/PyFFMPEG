@@ -13,12 +13,13 @@ import concurrent.futures
 import re
 import subprocess
 from pathlib import Path
-from typing import TYPE_CHECKING, override
+from typing import TYPE_CHECKING
 
 # Local application imports
 from config import Config, ThreadingConfig
 from shot_finder_base import FindShotsKwargs, ShotDetailsDict, ShotFinderBase
 from shot_model import Shot
+from typing_compat import override
 
 
 if TYPE_CHECKING:
@@ -49,13 +50,13 @@ class TargetedShotsFinder(ShotFinderBase):
         super().__init__(username=username)
 
         # Additional initialization specific to TargetedShotsFinder
-        self.max_workers = (
+        self.max_workers: int = (
             max_workers or ThreadingConfig.PREVIOUS_SHOTS_PARALLEL_WORKERS
         )
 
         # Pattern for parsing shot paths (dynamic based on configured SHOWS_ROOT)
         shows_root_escaped = re.escape(Config.SHOWS_ROOT)
-        self._shot_pattern = re.compile(
+        self._shot_pattern: re.Pattern[str] = re.compile(
             rf"{shows_root_escaped}/([^/]+)/shots/([^/]+)/([^/]+)/"
         )
 
@@ -338,7 +339,7 @@ class TargetedShotsFinder(ShotFinderBase):
         elapsed = time.time() - start_time
         self.logger.info(
             f"Targeted search found {len(approved_shots)} approved shots "
-             f"in {elapsed:.1f} seconds (was 60-120s with global search)"
+              f"in {elapsed:.1f} seconds (was 60-120s with global search)"
         )
 
         self._report_progress(100, 100, "Targeted search complete")

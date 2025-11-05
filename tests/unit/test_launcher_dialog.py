@@ -57,7 +57,7 @@ def create_test_launcher(
 ) -> TestLauncher:
     """Factory for creating test launchers."""
     return TestLauncher(
-        id=launcher_id,
+        launcher_id=launcher_id,
         name=name,
         description=description,
         command=command,
@@ -69,10 +69,10 @@ def create_test_launcher(
 
 def create_rez_launcher() -> TestLauncher:
     """Factory for rez environment launcher."""
-    env = TestLauncherEnvironment(type="rez", packages=["PySide6_Essentials", "pillow"])
+    env = TestLauncherEnvironment(env_type="rez", packages=["PySide6_Essentials", "pillow"])
     terminal = TestLauncherTerminal(persist=True)
     return TestLauncher(
-        id="rez_launcher",
+        launcher_id="rez_launcher",
         name="Rez Launcher",
         command="nuke {workspace_path}/{shot}.nk",
         environment=env,
@@ -82,9 +82,9 @@ def create_rez_launcher() -> TestLauncher:
 
 def create_conda_launcher() -> TestLauncher:
     """Factory for conda environment launcher."""
-    env = TestLauncherEnvironment(type="conda", command_prefix="vfx_env")
+    env = TestLauncherEnvironment(env_type="conda", command_prefix="vfx_env")
     return TestLauncher(
-        id="conda_launcher",
+        launcher_id="conda_launcher",
         name="Conda Launcher",
         command="python script.py",
         environment=env,

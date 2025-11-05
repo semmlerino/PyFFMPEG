@@ -40,8 +40,13 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
     ) -> None:
         # Ensure we're in the main thread for Qt widget creation
         # Third-party imports
-        from PySide6.QtCore import QCoreApplication, QThread
-        from PySide6.QtWidgets import QApplication
+        from PySide6.QtCore import (  # noqa: PLC0415 - Lazy import for thread checking
+            QCoreApplication,
+            QThread,
+        )
+        from PySide6.QtWidgets import (
+            QApplication,
+        )
 
         # Check if QApplication exists
         app_instance = QCoreApplication.instance()
@@ -62,7 +67,7 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
         # Additional safety check for QApplication type (relaxed for tests)
         # In test environments, QCoreApplication is acceptable since pytest-qt may create it
         # Standard library imports
-        import sys
+        import sys  # noqa: PLC0415 - Lazy import to detect test environment
 
         is_test_environment = "pytest" in sys.modules or "unittest" in sys.modules
 

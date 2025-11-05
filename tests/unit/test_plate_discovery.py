@@ -74,7 +74,9 @@ class TestPlatePriorityOrdering:
 
         # When discovering plates dynamically, PL should have higher priority (0.5 vs 1)
         # Note: get_available_plates filters to FG/BG only, so we test internal discovery
-        from utils import PathUtils
+        from utils import (
+            PathUtils,
+        )
         all_plates = PathUtils.discover_plate_directories(str(plate_base))
 
         # Should find both plates
@@ -113,7 +115,9 @@ class TestPlatePriorityOrdering:
         for plate_name in plates:
             (plate_base / plate_name).mkdir(parents=True, exist_ok=True)
 
-        from utils import PathUtils
+        from utils import (
+            PathUtils,
+        )
         all_plates = PathUtils.discover_plate_directories(str(plate_base))
 
         # Should only find known plate types (FG, BG)
