@@ -188,12 +188,12 @@ class ProcessStateTracker(LoggingMixin):
             if DEBUG_VERBOSE:
                 self.logger.debug(
                     f"[{session_id}] STATE: {from_state} → {to_state} "
-                      f"(duration: {duration:.2f}s) {f'[{reason}]' if reason else ''}"
+                     f"(duration: {duration:.2f}s) {f'[{reason}]' if reason else ''}"
                 )
         elif DEBUG_VERBOSE:
             self.logger.debug(
                 f"[{session_id}] STATE: {from_state} → {to_state} "
-                  f"{f'[{reason}]' if reason else ''}"
+                 f"{f'[{reason}]' if reason else ''}"
             )
 
         # Record new state start time
@@ -325,7 +325,7 @@ class IOBufferInspector(LoggingMixin):
 
         logger.debug(
             f"[{session_id}] Buffer {context}: "
-              f"{len(data)} bytes, {lines} lines, {non_printable} non-printable"
+             f"{len(data)} bytes, {lines} lines, {non_printable} non-printable"
         )
 
         # Show preview of data

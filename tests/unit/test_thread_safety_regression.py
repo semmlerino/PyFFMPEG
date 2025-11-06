@@ -287,15 +287,22 @@ class TestMemoryLeakPrevention:
         cache_manager = CacheManager(cache_dir=Path(self.temp_dir.name))
         model = ShotModel(cache_manager)
 
-        # Create multiple loaders (simulating multiple refreshes)
-        for _ in range(5):
-            model._start_background_refresh()
-            # Simulate completion
-            if model._async_loader:
-                model._on_loader_finished()
+        # Use test double to avoid real subprocess calls
+        test_pool = TestProcessPool()
+        test_pool.set_outputs("")  # Empty output for fast completion
+        model._process_pool = test_pool
 
-        # Final cleanup
-        model.cleanup()
+        try:
+            # Create multiple loaders (simulating multiple refreshes)
+            for _ in range(5):
+                model._start_background_refresh()
+                # Wait for loader to actually finish before simulating callback
+                if model._async_loader:
+                    assert model._async_loader.wait(2000), "Loader should finish within 2s"
+                    model._on_loader_finished()
+        finally:
+            # Final cleanup - always runs even if test fails
+            model.cleanup()
 
         # Verify no loader references remain
         assert model._async_loader is None

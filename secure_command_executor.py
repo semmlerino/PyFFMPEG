@@ -114,7 +114,7 @@ class SecureCommandExecutor(LoggingMixin):
         if executable not in self.ALLOWED_EXECUTABLES:
             raise ValueError(
                 f"Executable '{executable}' not in allowed list. "
-                  f"Allowed: {sorted(self.ALLOWED_EXECUTABLES)}"
+                 f"Allowed: {sorted(self.ALLOWED_EXECUTABLES)}"
             )
 
         # Validate arguments for specific commands
@@ -127,7 +127,7 @@ class SecureCommandExecutor(LoggingMixin):
                 if arg not in allowed_args:
                     raise ValueError(
                         f"Argument '{arg}' not allowed for '{executable}'. "
-                          f"Allowed: {sorted(allowed_args)}"
+                         f"Allowed: {sorted(allowed_args)}"
                     )
 
         # Validate paths in arguments
@@ -206,7 +206,7 @@ class SecureCommandExecutor(LoggingMixin):
         if not path_allowed:
             raise ValueError(
                 f"Path '{path}' not in allowed directories. "
-                  f"Allowed bases: {self.ALLOWED_PATHS}"
+                 f"Allowed bases: {self.ALLOWED_PATHS}"
             )
 
         # Additional safety checks

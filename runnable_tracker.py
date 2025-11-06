@@ -82,7 +82,7 @@ class QRunnableTracker:
 
         logger.debug(
             f"Registered {runnable.__class__.__name__} "
-              f"(active: {current_active}, total: {self._stats['total_registered']})"
+             f"(active: {current_active}, total: {self._stats['total_registered']})"
         )
 
     def unregister(self, runnable: QRunnable) -> None:
@@ -100,7 +100,7 @@ class QRunnableTracker:
 
             logger.debug(
                 f"Unregistered {runnable.__class__.__name__} "
-                  f"(active: {len(self._active_runnables)})"
+                 f"(active: {len(self._active_runnables)})"
             )
         except Exception as e:
             logger.warning(f"Error unregistering runnable: {e}")

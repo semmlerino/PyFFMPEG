@@ -32,6 +32,23 @@ if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
 
+@pytest.fixture(autouse=True)
+def ensure_qt_cleanup(qtbot: QtBot):
+    """Ensure Qt event processing completes after each test.
+
+    This prevents Qt state pollution between tests, specifically:
+    - QTimer.singleShot callbacks scheduled by CommandLauncher
+    - QObject instances that need proper deletion
+    - Event queue cleanup
+
+    CRITICAL: CommandLauncher.launch_app() schedules QTimer.singleShot(100ms)
+    callbacks that must complete before the next test starts.
+    """
+    yield
+    # Wait for any pending timers (CommandLauncher uses 100ms timers)
+    qtbot.wait(150)
+
+
 class TestRawPlateFinder:
     """Test double for RawPlateFinder."""
 
@@ -200,6 +217,9 @@ class TestCommandLauncher:
         # Verify launch was successful
         assert result is True
 
+        # Wait for QTimer.singleShot(100ms) callback to complete
+        qtbot.wait(150)
+
         # Verify subprocess was called
         assert mock_popen.called
         call_args = mock_popen.call_args[0][0]
@@ -238,6 +258,9 @@ class TestCommandLauncher:
         # Verify launch was successful
         assert result is True
 
+        # Wait for QTimer.singleShot(100ms) callback to complete
+        qtbot.wait(150)
+
         # Verify subprocess was called
         assert mock_popen.called
         call_args = mock_popen.call_args[0][0]
@@ -269,6 +292,9 @@ class TestCommandLauncher:
         # Verify launch was successful
         assert result is True
 
+        # Wait for QTimer.singleShot(100ms) callback to complete
+        qtbot.wait(150)
+
         # Verify subprocess was called
         assert mock_popen.called
         call_args = mock_popen.call_args[0][0]
@@ -293,6 +319,9 @@ class TestCommandLauncher:
 
         # Verify launch was successful
         assert result is True
+
+        # Wait for QTimer.singleShot(100ms) callback to complete
+        qtbot.wait(150)
 
         # Verify subprocess was called
         assert mock_popen.called
@@ -326,6 +355,9 @@ class TestCommandLauncher:
         # Verify launch was successful
         assert result is True
 
+        # Wait for QTimer.singleShot(100ms) callback to complete
+        qtbot.wait(150)
+
         # Verify subprocess was called
         assert mock_popen.called
         call_args = mock_popen.call_args[0][0]
@@ -356,6 +388,9 @@ class TestCommandLauncher:
 
         # Verify launch was successful
         assert result is True
+
+        # Wait for QTimer.singleShot(100ms) callback to complete
+        qtbot.wait(150)
 
         # Verify subprocess was called
         assert mock_popen.called
@@ -398,6 +433,9 @@ class TestCommandLauncher:
         # Should return False when subprocess fails
         assert result is False
 
+        # Wait for any pending Qt events (QTimer won't fire due to failure, but process events)
+        qtbot.wait(50)
+
         # Verify subprocess was attempted
         assert mock_popen.called
 
@@ -428,6 +466,9 @@ class TestCommandLauncher:
 
         # Should be successful
         assert result is True
+
+        # Wait for any Qt events to process
+        qtbot.wait(50)
 
         # Verify terminal was used
         assert len(terminal.executed_commands) == 1
@@ -470,6 +511,9 @@ class TestCommandLauncher:
             # Should be successful
             assert result is True
 
+            # Wait for QTimer.singleShot(100ms) callback to complete
+            qtbot.wait(150)
+
             # Verify subprocess was used as fallback
             assert mock_popen.called
 
@@ -505,6 +549,9 @@ class TestCommandLauncherSignals:
             # Launch should succeed
             result = launcher.launch_app("nuke")
             assert result is True
+
+            # Wait for QTimer.singleShot(100ms) callback to complete
+            qtbot.wait(150)
 
             # Should have called Popen
             assert mock_popen.called

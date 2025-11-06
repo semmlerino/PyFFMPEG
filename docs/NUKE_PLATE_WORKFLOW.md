@@ -477,7 +477,7 @@ ls {workspace}/user/{user}/mm/nuke/scripts/{PLATE}/
 ## Related Documentation
 
 - **Configuration**: See `docs/CONFIG_VALIDATION.md` for priority validation
-- **Testing**: See `TESTING.md` for test patterns and coverage
+- **Testing**: See `UNIFIED_TESTING_V2.MD` for test patterns and coverage
 - **Implementation**: See `plate_discovery.py` and `nuke_launch_handler.py` source code
 - **Bug History**: Commit a77b8cb (feat), fde59a4 (fix), 4b266b4 (fix)
 

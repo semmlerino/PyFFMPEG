@@ -335,10 +335,18 @@ class NotificationManager(QObject):
         cls._main_window = None
         cls._status_bar = None
         if cls._current_progress:
-            _ = cls._current_progress.close()
+            try:
+                _ = cls._current_progress.close()
+            except RuntimeError:
+                # Qt C++ object already deleted
+                pass
             cls._current_progress = None
         for toast in cls._active_toasts:
-            _ = toast.close()
+            try:
+                _ = toast.close()
+            except RuntimeError:
+                # Qt C++ object already deleted
+                pass
         cls._active_toasts.clear()
         if cls._instance:
             logger.debug("NotificationManager cleaned up")

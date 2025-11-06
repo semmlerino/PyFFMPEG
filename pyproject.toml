@@ -217,18 +217,26 @@ python_functions = ["test_*"]
 
 # Test execution options
 addopts = [
-    "--verbose",
+    "--strict-markers",     # Fail on unknown markers
+    "-ra",                  # Show all test summary info
+    "-q",                   # Quiet mode - focus on failures
+    "--durations=20",       # Show slowest 20 tests
     "--tb=short",
     "--cov=.",
     "--cov-report=term-missing:skip-covered",
     "--cov-report=html:coverage_html",
     "-p", "no:rerunfailures",
     "-p", "no:xvfb",
-    # Serial execution by default for Qt stability
-    # Override with `pytest tests/ -n 2` or `pytest tests/ -n auto` for parallel execution
+    # Serial execution by default for Qt stability and leak detection
+    # Override with `pytest tests/ -n 2` for faster development
+    # Override with `pytest tests/ -n auto` for maximum parallelism
     "-n", "0",
     "--timeout=10",
 ]
+
+# Timeout configuration
+timeout = 300  # 5 minutes per test
+timeout_method = "thread"
 
 # Filter warnings
 filterwarnings = [
@@ -242,7 +250,14 @@ markers = [
     "integration: Integration tests",
     "qt: Tests requiring Qt GUI",
     "hardware: Tests requiring specific hardware",
-    "slow: Tests that take a long time to run",
+    "slow: Tests that take a long time to run (>1 second)",
+    "fast: Tests under 100ms",
+    "perf: Performance comparison tests (may be skipped in CI/WSL)",
     "threading: Tests for thread safety and concurrency",
+    "thread_safety: Tests for thread safety",
+    "concurrent: Tests for concurrent/threading behavior",
     "regression: Regression tests for specific bugs",
+    "flaky: Tests that may fail intermittently (should be investigated and fixed)",
+    "critical: Critical/high priority tests",
+    "performance: Tests for performance",
 ]

@@ -72,7 +72,7 @@ class FilesystemCoordinator(LoggingMixin):
                     self._cache_hits += 1
                     self.logger.debug(
                         f"Cache hit for {path.name} "
-                          f"(hit rate: {self._get_hit_rate():.1%})"
+                         f"(hit rate: {self._get_hit_rate():.1%})"
                     )
                     return listing.copy()  # Return copy to prevent mutation
 
@@ -89,7 +89,7 @@ class FilesystemCoordinator(LoggingMixin):
 
             self.logger.debug(
                 f"Cached {len(listing)} items from {path.name} "
-                  f"(hit rate: {self._get_hit_rate():.1%})"
+                 f"(hit rate: {self._get_hit_rate():.1%})"
             )
             return listing
 

@@ -444,6 +444,5 @@ The three case studies show a common pattern:
 ---
 
 **See Also**:
-- `TESTING_BEST_PRACTICES.md` - General testing guidelines
-- `TESTING.md` - Test suite overview and running tests
+- `UNIFIED_TESTING_V2.MD` - Comprehensive testing guide (5 hygiene rules, patterns, debugging)
 - Pytest xdist documentation: https://pytest-xdist.readthedocs.io/

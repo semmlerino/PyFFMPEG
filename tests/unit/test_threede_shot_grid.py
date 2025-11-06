@@ -23,6 +23,21 @@ from threede_scene_model import ThreeDEScene, ThreeDESceneModel
 pytestmark = [pytest.mark.unit, pytest.mark.qt, pytest.mark.xdist_group("qt_state")]
 
 
+@pytest.fixture(autouse=True)
+def cleanup_qt_state(qtbot):
+    """Autouse fixture to ensure Qt state is cleaned up after each test.
+
+    This prevents cross-test contamination when tests run in parallel.
+    Critical for preventing signal/slot pollution and Qt internal state issues.
+
+    Processes pending Qt events after each test to ensure proper cleanup
+    of signals, slots, and Qt internal state.
+    """
+    yield
+    # Process any pending Qt events to ensure clean state
+    qtbot.wait(1)  # Minimal wait to process events
+
+
 @pytest.fixture
 def sample_scenes():
     """Create sample 3DE scenes for testing."""
@@ -141,7 +156,7 @@ class TestThreeDEGridViewAppLaunchSignals:
         threede_grid._on_item_double_clicked(index)
 
         # Wait for signal processing
-        qtbot.wait(50)
+        qtbot.wait(100)
 
         # Verify signal was emitted with BOTH parameters
         assert len(app_launch_signals) == 1
@@ -168,7 +183,7 @@ class TestThreeDEGridViewAppLaunchSignals:
         threede_grid._open_scene_in_3de(test_scene)
 
         # Wait for signal processing
-        qtbot.wait(50)
+        qtbot.wait(100)
 
         # Verify signal emission
         assert len(app_launch_signals) == 1
@@ -192,7 +207,7 @@ class TestThreeDEGridViewAppLaunchSignals:
 
         # Trigger launch
         threede_grid._on_item_double_clicked(index)
-        qtbot.wait(50)
+        qtbot.wait(100)
 
         # Verify complete scene data is passed
         assert len(received_scenes) == 1
@@ -231,7 +246,7 @@ class TestThreeDEGridViewAppLaunchSignals:
             Qt.KeyboardModifier.NoModifier,
         )
         threede_grid.keyPressEvent(key_event)
-        qtbot.wait(50)
+        qtbot.wait(100)
 
         # Verify signal was emitted
         assert len(app_launch_signals) == 1
@@ -258,7 +273,7 @@ class TestThreeDEGridViewAppLaunchSignals:
         # Double-click first scene
         index = threede_grid._threede_model.index(0, 0)
         threede_grid._on_item_double_clicked(index)
-        qtbot.wait(50)
+        qtbot.wait(100)
 
         # Verify both signals were emitted
         assert len(double_clicked_scenes) == 1

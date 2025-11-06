@@ -662,5 +662,5 @@ def create_discovery_strategy(
         return NetworkAwareStrategy(network_timeout=network_timeout)
     raise ValueError(
         f"Unknown strategy type: {strategy_type}. "
-          f"Available: local, parallel, progressive, network"
+         f"Available: local, parallel, progressive, network"
     )

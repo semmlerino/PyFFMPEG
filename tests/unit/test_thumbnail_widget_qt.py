@@ -21,6 +21,7 @@ Following UNIFIED_TESTING_GUIDE:
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from typing import TYPE_CHECKING
 
 # Third-party imports
@@ -428,6 +429,16 @@ class TestThumbnailWidgetMemoryManagement:
 class TestThumbnailWidgetEdgeCases:
     """Test edge cases and error conditions."""
 
+    @pytest.fixture(autouse=True)
+    def cleanup_cache_manager(self, cache_manager) -> Iterator[None]:
+        """Reset ThumbnailWidget cache manager after each test.
+
+        Per UNIFIED_TESTING_V2.MD: Use monkeypatch for global state isolation.
+        """
+        yield
+        # Restore to CLEAN cache manager (from fixture) to prevent pollution
+        ThumbnailWidget.set_cache_manager(cache_manager)
+
     def test_widget_with_empty_shot_name(self, qtbot: QtBot) -> None:
         """Test widget handles empty shot names gracefully."""
         shot = Shot("", "", "", "")  # Empty shot data
@@ -531,6 +542,16 @@ class TestThumbnailWidgetLoadingStates:
 
 class TestThumbnailWidgetIntegration:
     """Integration tests for thumbnail widget with cache manager."""
+
+    @pytest.fixture(autouse=True)
+    def cleanup_cache_manager(self, cache_manager) -> Iterator[None]:
+        """Reset ThumbnailWidget cache manager after each test.
+
+        Per UNIFIED_TESTING_V2.MD: Use monkeypatch for global state isolation.
+        """
+        yield
+        # Restore to CLEAN cache manager (from fixture) to prevent pollution
+        ThumbnailWidget.set_cache_manager(cache_manager)
 
     @pytest.fixture
     def integrated_widget(

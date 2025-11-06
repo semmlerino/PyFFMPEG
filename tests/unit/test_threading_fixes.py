@@ -73,7 +73,7 @@ def test_subprocess():
 
 
 @pytest.fixture
-def launcher_manager(qtbot, test_subprocess, monkeypatch):
+def launcher_manager(qtbot, test_subprocess, monkeypatch, mock_process_pool_manager):
     """Create LauncherManager with test subprocess double and proper cleanup."""
     # Use monkeypatch for safer patching that auto-restores
     monkeypatch.setattr(subprocess, "Popen", lambda *_args, **_kwargs: test_subprocess)
@@ -100,9 +100,16 @@ def launcher_manager(qtbot, test_subprocess, monkeypatch):
         # Clear the workers dict
         manager._active_workers.clear()
 
-        # Stop timers
+        # Stop and clean up timers
         if hasattr(manager, "_cleanup_retry_timer"):
-            manager._cleanup_retry_timer.stop()
+            timer = manager._cleanup_retry_timer
+            timer.stop()
+            try:
+                # Disconnect all signals to prevent late firing
+                timer.timeout.disconnect()
+            except (RuntimeError, TypeError):
+                pass  # Already disconnected or no connections
+            timer.deleteLater()
 
     except Exception as e:
         logger.warning(f"Cleanup error (non-fatal): {e}")
@@ -115,24 +122,45 @@ class TestQTimerCascadePrevention:
         """Test rapid cleanup requests don't cascade timers."""
         timer_activations = []
         original_start = launcher_manager._cleanup_retry_timer.start
+        test_timers = []  # Track all test timers for cleanup
 
         def track_timer_start(interval) -> None:
             timer_activations.append(time.time())
             original_start(interval)
 
-        launcher_manager._cleanup_retry_timer.start = track_timer_start
+        # Per UNIFIED_TESTING_V2.MD: Use try/finally for Qt resources
+        try:
+            launcher_manager._cleanup_retry_timer.start = track_timer_start
 
-        for _ in range(10):
-            QTimer.singleShot(1, launcher_manager._cleanup_finished_workers)
+            # Create explicit QTimer instances instead of singleShot
+            # This allows proper cleanup and prevents resource leaks
+            for _ in range(10):
+                timer = QTimer()
+                timer.setSingleShot(True)
+                timer.timeout.connect(launcher_manager._cleanup_finished_workers)
+                test_timers.append(timer)
+                timer.start(1)
 
-        qtbot.wait(100)
+            qtbot.wait(100)
 
-        assert len(timer_activations) <= 3, (
-            f"Too many timer activations: {len(timer_activations)}"
-        )
+            assert len(timer_activations) <= 3, (
+                f"Too many timer activations: {len(timer_activations)}"
+            )
 
-        assert hasattr(launcher_manager, "_cleanup_scheduled")
-        launcher_manager._cleanup_retry_timer.start = original_start
+            assert hasattr(launcher_manager, "_cleanup_scheduled")
+        finally:
+            # Clean up all test timers
+            for timer in test_timers:
+                if timer is not None:
+                    timer.stop()
+                    try:
+                        timer.timeout.disconnect()
+                    except RuntimeError:
+                        pass  # Already disconnected
+                    timer.deleteLater()
+
+            # Always restore original method, even on test failure
+            launcher_manager._cleanup_retry_timer.start = original_start
 
     def test_cleanup_coordination(self, launcher_manager, qtbot) -> None:
         """Test cleanup coordination behavior."""
@@ -235,14 +263,32 @@ class TestPerformanceImprovements:
     def test_timer_efficiency(self, launcher_manager, qtbot) -> None:
         """Test timer efficiency."""
         start_time = time.time()
+        test_timers = []  # Track all test timers for cleanup
 
-        for _ in range(20):
-            QTimer.singleShot(1, lambda: None)
+        try:
+            # Create explicit QTimer instances instead of singleShot
+            # This allows proper cleanup and prevents resource leaks
+            for _ in range(20):
+                timer = QTimer()
+                timer.setSingleShot(True)
+                timer.timeout.connect(lambda: None)
+                test_timers.append(timer)
+                timer.start(1)
 
-        qtbot.wait(50)
+            qtbot.wait(50)
 
-        elapsed = time.time() - start_time
-        assert elapsed < 1.0, f"Timer operations took too long: {elapsed}s"
+            elapsed = time.time() - start_time
+            assert elapsed < 1.0, f"Timer operations took too long: {elapsed}s"
+        finally:
+            # Clean up all test timers
+            for timer in test_timers:
+                if timer is not None:
+                    timer.stop()
+                    try:
+                        timer.timeout.disconnect()
+                    except RuntimeError:
+                        pass  # Already disconnected
+                    timer.deleteLater()
 
 
 class TestSimpleThreadingIntegration:
@@ -252,17 +298,34 @@ class TestSimpleThreadingIntegration:
     def test_basic_worker_integration(self, qtbot) -> None:
         """Test basic worker integration without cache."""
         worker = SimpleTestWorker(work_steps=2)
-        worker.start()
 
-        qtbot.wait(50)
+        try:
+            worker.start()
 
-        if worker.isRunning():
-            worker.request_stop()
-            if not worker.wait(1000):
-                worker.quit()
-                worker.wait(500)
+            qtbot.wait(50)
 
-        assert worker.work_started, "Worker did not start work"
+            if worker.isRunning():
+                worker.request_stop()
+                if not worker.wait(1000):
+                    worker.quit()
+                    worker.wait(500)
+
+            assert worker.work_started, "Worker did not start work"
+        finally:
+            # Clean up worker to prevent Qt resource leaks in parallel execution
+            if worker is not None:
+                # Ensure worker is stopped
+                if worker.isRunning():
+                    worker.request_stop()
+                    if not worker.wait(1000):
+                        worker.terminate()
+                        worker.wait(100)
+
+                # Schedule for deletion (let Qt handle signal cleanup)
+                worker.deleteLater()
+
+            # Process Qt events to ensure cleanup is executed
+            qtbot.wait(1)
 
 
 if __name__ == "__main__":

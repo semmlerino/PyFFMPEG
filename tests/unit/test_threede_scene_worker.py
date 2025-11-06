@@ -21,7 +21,6 @@ from typing import TYPE_CHECKING, ClassVar
 
 # Third-party imports
 import pytest
-from PySide6.QtTest import QSignalSpy
 
 import threede_scene_worker
 from config import Config
@@ -325,28 +324,48 @@ class TestThreeDESceneWorker:
         """Test worker behavior with empty shot list."""
         worker = ThreeDESceneWorker(shots=[], enable_progressive=False)
 
-        # Set up signal spy before starting
-        spy_finished = QSignalSpy(worker.finished)
-        spy_started = QSignalSpy(worker.started)
+        # Track signals with lambda handlers (not QSignalSpy)
+        started_count = []
+        finished_scenes = []
 
-        # Start worker
-        worker.start()
+        started_handler = lambda: started_count.append(True)
+        finished_handler = lambda scenes: finished_scenes.append(scenes)
 
-        # Wait for completion
-        qtbot.waitUntil(lambda: not worker.isRunning(), timeout=2000)
+        worker.started.connect(started_handler)
+        worker.finished.connect(finished_handler)
 
-        # Check signals were emitted (at least once)
-        assert spy_started.count() >= 1
-        assert spy_finished.count() >= 1
+        def cleanup_worker() -> None:
+            # Disconnect signals BEFORE stopping
+            try:
+                worker.started.disconnect(started_handler)
+            except (TypeError, RuntimeError):
+                pass
+            try:
+                worker.finished.disconnect(finished_handler)
+            except (TypeError, RuntimeError):
+                pass
 
-        # Result should be empty list
-        if spy_finished.count() > 0:
-            assert spy_finished.at(0)[0] == []
+            if worker.isRunning():
+                worker.stop()
+                worker.wait(5000)
 
-        # Cleanup
-        if worker.isRunning():
-            worker.stop()
-            worker.wait(1000)
+        try:
+            # Start worker
+            worker.start()
+
+            # Wait for completion
+            qtbot.waitUntil(lambda: not worker.isRunning(), timeout=2000)
+
+            # Check signals were emitted (at least once)
+            assert len(started_count) >= 1
+            assert len(finished_scenes) >= 1
+
+            # Result should be empty list
+            if len(finished_scenes) > 0:
+                assert finished_scenes[0] == []
+
+        finally:
+            cleanup_worker()
 
     def test_scene_discovery_with_test_double(
         self, qtbot, test_shots, test_finder
@@ -396,38 +415,64 @@ class TestThreeDESceneWorker:
                 batch_size=10,
             )
 
-            # Set up signal spies BEFORE starting (UNIFIED_TESTING_GUIDE pattern)
-            spy_started = QSignalSpy(worker.started)
-            spy_finished = QSignalSpy(worker.finished)
-            QSignalSpy(worker.progress)
+            # Track signals with lambda handlers (not QSignalSpy)
+            started_count = []
+            finished_scenes = []
+            progress_updates = []
 
-            # Start worker
-            worker.start()
+            started_handler = lambda: started_count.append(True)
+            finished_handler = lambda scenes: finished_scenes.append(scenes)
+            progress_handler = lambda *args: progress_updates.append(args)
 
-            # Wait for completion
-            qtbot.waitUntil(lambda: spy_finished.count() > 0, timeout=3000)
+            worker.started.connect(started_handler)
+            worker.finished.connect(finished_handler)
+            worker.progress.connect(progress_handler)
 
-            # Verify signals were emitted (may be >= 1 due to test setup)
-            assert spy_started.count() >= 1
-            assert spy_finished.count() >= 1
+            def cleanup_worker() -> None:
+                # Disconnect signals BEFORE stopping
+                try:
+                    worker.started.disconnect(started_handler)
+                except (TypeError, RuntimeError):
+                    pass
+                try:
+                    worker.finished.disconnect(finished_handler)
+                except (TypeError, RuntimeError):
+                    pass
+                try:
+                    worker.progress.disconnect(progress_handler)
+                except (TypeError, RuntimeError):
+                    pass
 
-            # Check discovered scenes (behavior testing, not implementation)
-            if spy_finished.count() > 0:
-                discovered_scenes = spy_finished.at(0)[0]
-                # Progressive discovery accumulates scenes from batches
-                assert len(discovered_scenes) == len(test_scenes)
-                assert all(
-                    isinstance(scene, ThreeDEScene) for scene in discovered_scenes
-                )
+                if worker.isRunning():
+                    worker.stop()
+                    worker.wait(5000)
 
-            # Verify test double was called through progressive interface
-            # (Progressive path doesn't call find_scenes_calls directly)
-            assert len(test_finder.progressive_calls) >= 0  # May be called
+            try:
+                # Start worker
+                worker.start()
 
-            # Cleanup
-            if worker.isRunning():
-                worker.stop()
-                worker.wait(1000)
+                # Wait for completion
+                qtbot.waitUntil(lambda: len(finished_scenes) > 0, timeout=3000)
+
+                # Verify signals were emitted (may be >= 1 due to test setup)
+                assert len(started_count) >= 1
+                assert len(finished_scenes) >= 1
+
+                # Check discovered scenes (behavior testing, not implementation)
+                if len(finished_scenes) > 0:
+                    discovered_scenes = finished_scenes[0]
+                    # Progressive discovery accumulates scenes from batches
+                    assert len(discovered_scenes) == len(test_scenes)
+                    assert all(
+                        isinstance(scene, ThreeDEScene) for scene in discovered_scenes
+                    )
+
+                # Verify test double was called through progressive interface
+                # (Progressive path doesn't call find_scenes_calls directly)
+                assert len(test_finder.progressive_calls) >= 0  # May be called
+
+            finally:
+                cleanup_worker()
 
         finally:
             # Restore original finder
@@ -475,19 +520,34 @@ class TestThreeDESceneWorker:
                 shots=test_shots, batch_size=1, enable_progressive=True
             )
 
-            # Set up signal spy BEFORE starting
-            spy_batch = QSignalSpy(worker.batch_ready)
+            # Track signals with lambda handlers (not QSignalSpy)
+            batch_ready_count = []
 
-            worker.start()
+            batch_handler = lambda scenes: batch_ready_count.append(len(scenes))
+            worker.batch_ready.connect(batch_handler)
 
-            # Wait for some batch emissions
-            qtbot.wait(500)
+            def cleanup_worker() -> None:
+                # Disconnect signals BEFORE stopping
+                try:
+                    worker.batch_ready.disconnect(batch_handler)
+                except (TypeError, RuntimeError):
+                    pass
 
-            worker.stop()
-            worker.wait(1000)
+                if worker.isRunning():
+                    worker.stop()
+                    worker.wait(5000)
 
-            # Should have emitted batches (exact count depends on timing)
-            assert spy_batch.count() >= 0
+            try:
+                worker.start()
+
+                # Wait for some batch emissions
+                qtbot.wait(500)
+
+                # Should have emitted batches (exact count depends on timing)
+                assert len(batch_ready_count) >= 0
+
+            finally:
+                cleanup_worker()
 
         finally:
             # Restore original finder
@@ -518,43 +578,51 @@ class TestThreeDESceneWorker:
         try:
             worker = ThreeDESceneWorker(shots=test_shots, enable_progressive=False)
 
-            # Set up signal spies BEFORE starting
-            spy_error = QSignalSpy(worker.error)
-            spy_finished = QSignalSpy(worker.finished)
+            # Track signals with lambda handlers (not QSignalSpy)
+            error_messages = []
+            finished_scenes = []
 
-            worker.start()
+            error_handler = lambda msg: error_messages.append(msg)
+            finished_handler = lambda scenes: finished_scenes.append(scenes)
 
-            # Wait for completion with try/except to ensure cleanup even on timeout
-            # Under high parallel load (16 workers), QThread exceptions can cause issues
-            with contextlib.suppress(Exception):
-                qtbot.waitUntil(
-                    lambda: spy_finished.count() > 0 or spy_error.count() > 0,
-                    timeout=3000,  # Increased timeout for parallel execution
-                )
+            worker.error.connect(error_handler)
+            worker.finished.connect(finished_handler)
 
-            # Should have error or empty result (if we got here)
-            # Under parallel load, this assertion is best-effort
-            if not worker.isRunning():
-                assert spy_error.count() > 0 or spy_finished.count() > 0
+            def cleanup_worker() -> None:
+                # Disconnect signals BEFORE stopping
+                try:
+                    worker.error.disconnect(error_handler)
+                except (TypeError, RuntimeError):
+                    pass
+                try:
+                    worker.finished.disconnect(finished_handler)
+                except (TypeError, RuntimeError):
+                    pass
+
+                if worker.isRunning():
+                    worker.stop()
+                    worker.wait(5000)
+
+            try:
+                worker.start()
+
+                # Wait for completion with try/except to ensure cleanup even on timeout
+                # Under high parallel load (16 workers), QThread exceptions can cause issues
+                with contextlib.suppress(Exception):
+                    qtbot.waitUntil(
+                        lambda: len(finished_scenes) > 0 or len(error_messages) > 0,
+                        timeout=3000,  # Increased timeout for parallel execution
+                    )
+
+                # Should have error or empty result (if we got here)
+                # Under parallel load, this assertion is best-effort
+                if not worker.isRunning():
+                    assert len(error_messages) > 0 or len(finished_scenes) > 0
+
+            finally:
+                cleanup_worker()
 
         finally:
-            # Robust cleanup for QThread (critical for preventing worker crashes)
-            if worker is not None:
-                # Always try to stop, quit, and wait - even if not running
-                # This ensures full cleanup under extreme parallel load (16 workers)
-                with contextlib.suppress(Exception):
-                    worker.stop()
-
-                with contextlib.suppress(Exception):
-                    worker.quit()  # Ensure event loop exits
-
-                with contextlib.suppress(Exception):
-                    worker.wait(10000)  # Extended wait for high parallel load
-
-                # Force deletion to trigger cleanup
-                with contextlib.suppress(Exception):
-                    worker.deleteLater()
-
             # Process any pending deleteLater events
             from PySide6.QtCore import (
                 QCoreApplication,
@@ -611,20 +679,34 @@ class TestThreeDESceneWorkerIntegration:
             shots=shots, excluded_users=set(), enable_progressive=False
         )
 
-        spy_finished = QSignalSpy(worker.finished)
+        # Track signals with lambda handlers (not QSignalSpy)
+        finished_scenes = []
 
-        worker.start()
+        finished_handler = lambda scenes: finished_scenes.append(scenes)
+        worker.finished.connect(finished_handler)
 
-        # Wait for completion
-        qtbot.waitUntil(lambda: spy_finished.count() > 0, timeout=5000)
+        def cleanup_worker() -> None:
+            # Disconnect signal BEFORE stopping
+            try:
+                worker.finished.disconnect(finished_handler)
+            except (TypeError, RuntimeError):
+                pass
 
-        # Check we found the scenes
-        if spy_finished.count() > 0:
-            scenes = spy_finished.at(0)[0]
-            # Should find the 2 .3de files we created
-            assert isinstance(scenes, list)
+            if worker.isRunning():
+                worker.stop()
+                worker.wait(5000)
 
-        # Cleanup
-        if worker.isRunning():
-            worker.stop()
-            worker.wait(1000)
+        try:
+            worker.start()
+
+            # Wait for completion
+            qtbot.waitUntil(lambda: len(finished_scenes) > 0, timeout=5000)
+
+            # Check we found the scenes
+            if len(finished_scenes) > 0:
+                scenes = finished_scenes[0]
+                # Should find the 2 .3de files we created
+                assert isinstance(scenes, list)
+
+        finally:
+            cleanup_worker()

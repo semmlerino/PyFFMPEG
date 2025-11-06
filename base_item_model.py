@@ -489,7 +489,7 @@ class BaseItemModel(
             self._schedule_data_changed(row, [BaseItemRole.LoadingStateRole])
 
     def _load_cached_pixmap(
-        self, cached_path: Path, row: int, item: T, index: QModelIndex
+        self, cached_path: Path, row: int, item: T, _index: QModelIndex
     ) -> None:
         """Load pixmap from cached path (main thread only)."""
         # Load the cached JPEG as QPixmap

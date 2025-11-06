@@ -197,7 +197,7 @@ class LauncherEditDialog(QDialog, QtWidgetMixin, LoggingMixin):
         self.command_field = QTextEdit()
         self.command_field.setPlaceholderText(
             "e.g., nuke --nc {workspace_path}/nuke/{shot}_v001.nk\n"
-              "Available variables: {show}, {sequence}, {shot}, {full_name}, {workspace_path}"
+             "Available variables: {show}, {sequence}, {shot}, {full_name}, {workspace_path}"
         )
         self.command_field.setMaximumHeight(100)
         form_layout.addRow("Command:", self.command_field)

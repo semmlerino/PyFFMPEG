@@ -40,10 +40,9 @@
 - **[KNOWN_ISSUES.md](./KNOWN_ISSUES.md)** - Current known issues
 
 ### Development Guides
-- **[TESTING.md](./TESTING.md)** - Testing guide and commands
-- **[TESTING_BEST_PRACTICES.md](./TESTING_BEST_PRACTICES.md)** - Testing standards
+- **[UNIFIED_TESTING_V2.MD](./UNIFIED_TESTING_V2.MD)** - Comprehensive testing guide (5 hygiene rules, isolation patterns, Qt testing)
+- **[WSL-TESTING.md](./WSL-TESTING.md)** - WSL-specific testing notes
 - **[QT_CONCURRENCY_BEST_PRACTICES.md](./QT_CONCURRENCY_BEST_PRACTICES.md)** - Qt threading guide
-- **[WSL-TESTING.md](./WSL-TESTING.md)** - WSL-specific testing info
 
 ### Infrastructure
 - **[POST_COMMIT_BUNDLE_GUIDE.md](./POST_COMMIT_BUNDLE_GUIDE.md)** - Git hook documentation
@@ -128,9 +127,9 @@
 3. Check **[SECURITY_CONTEXT.md](./SECURITY_CONTEXT.md)** for VFX context
 
 ### Working with Tests
-1. Read **[TESTING.md](./TESTING.md)** for commands
+1. Read **[UNIFIED_TESTING_V2.MD](./UNIFIED_TESTING_V2.MD)** for commands
 2. Check **[tests/README.md](./tests/README.md)** for test organization
-3. Follow **[TESTING_BEST_PRACTICES.md](./TESTING_BEST_PRACTICES.md)**
+3. Follow **[UNIFIED_TESTING_V2.MD](./UNIFIED_TESTING_V2.MD)** - 5 Basic Qt Testing Hygiene rules
 
 ### Qt Threading Issues
 1. Read **[QT_CONCURRENCY_BEST_PRACTICES.md](./QT_CONCURRENCY_BEST_PRACTICES.md)**

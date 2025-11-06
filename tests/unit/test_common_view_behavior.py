@@ -32,7 +32,6 @@ if TYPE_CHECKING:
 pytestmark = [
     pytest.mark.unit,
     pytest.mark.qt,
-    pytest.mark.xdist_group("qt_state"),  # CRITICAL for parallel safety
 ]
 
 
@@ -76,6 +75,7 @@ def make_model(
     qtbot: QtBot,
     make_shot: Callable[[str, str, str], Shot],
     cache_manager: CacheManager,
+    mock_process_pool_manager,
 ) -> Callable[[str, list[Shot] | None], ShotItemModel | ThreeDEItemModel | PreviousShotsItemModel]:
     """Factory for creating test models with proper data."""
 
@@ -202,6 +202,7 @@ class TestCommonViewBehavior:
         )
 
         view.wheelEvent(wheel_event)
+        qtbot.wait(50)  # Process events from wheel event
 
         # Test behavior, not implementation
         assert view._thumbnail_size > initial_size
@@ -222,6 +223,7 @@ class TestCommonViewBehavior:
         )
 
         view.wheelEvent(wheel_event)
+        qtbot.wait(50)  # Process events from wheel event
 
         # Should decrease but not below initial
         assert view._thumbnail_size < view.size_slider.value() + 10
@@ -242,6 +244,7 @@ class TestCommonViewBehavior:
         )
 
         view.wheelEvent(wheel_event)
+        qtbot.wait(50)  # Process events from wheel event
         assert view._thumbnail_size == current_size  # Should not change
 
     def test_context_menu_exists(
@@ -286,6 +289,9 @@ class TestCommonViewBehavior:
         view = view_class(model=model)
         qtbot.addWidget(view)
 
+        # Ensure clean state before testing
+        qtbot.wait(50)
+
         # Test initial setup
         assert view.size_slider.minimum() == Config.MIN_THUMBNAIL_SIZE
         assert view.size_slider.maximum() == Config.MAX_THUMBNAIL_SIZE
@@ -311,6 +317,9 @@ class TestCommonViewBehavior:
         view.size_slider.setValue(Config.MAX_THUMBNAIL_SIZE)
         qtbot.wait(100)
         assert view._thumbnail_size == Config.MAX_THUMBNAIL_SIZE
+
+        # Ensure all events are processed before cleanup
+        qtbot.wait(50)
 
     def test_visibility_timer_updates(
         self,

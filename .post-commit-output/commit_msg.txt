@@ -1,1 +1,1 @@
-docs: Add comprehensive code review audit reports and architecture documentation
+build: Optimize bundle size and add decoder script

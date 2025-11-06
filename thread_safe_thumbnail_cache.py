@@ -212,7 +212,7 @@ def create_thread_safe_pixmap(
                 thread_name = getattr(current, "objectName", lambda: str(current))()
                 logger.error(
                     f"create_thread_safe_pixmap called from worker thread '{thread_name}'. "
-                      "Use QImage.load() instead for thread-safe image loading."
+                     "Use QImage.load() instead for thread-safe image loading."
                 )
                 return None
 

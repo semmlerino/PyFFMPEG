@@ -17,7 +17,15 @@ import warnings
 # This MUST be set before any Qt imports to prevent "real widgets" from appearing
 # during tests, which causes crashes in WSL and resource exhaustion.
 # See: https://doc.qt.io/qt-6/qguiapplication.html#platform
-os.environ["QT_QPA_PLATFORM"] = "offscreen"
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
+# Create unique XDG runtime directory per worker (0700 perms to avoid Qt6 warnings/races)
+# This prevents Qt6 warnings and races across xdist workers.
+run_id = os.environ.get("PYTEST_XDIST_TESTRUNUID", "solo")
+worker = os.environ.get("PYTEST_XDIST_WORKER", "master")
+xdg = f"/tmp/xdg-{run_id}-{worker}"
+os.makedirs(xdg, mode=0o700, exist_ok=True)
+os.environ.setdefault("XDG_RUNTIME_DIR", xdg)
 import sys
 import tempfile
 import uuid
@@ -52,10 +60,20 @@ def qapp() -> Iterator[QApplication]:
     Uses offscreen platform to prevent widgets from actually displaying
     during test execution, which speeds up tests and prevents UI popups.
 
+    Enables test mode via QStandardPaths.setTestModeEnabled(True) to ensure
+    all file writes go to temp locations instead of user directories.
+
     CRITICAL: The QT_QPA_PLATFORM environment variable is set to "offscreen"
     at the top of this file to ensure ALL QApplication instances use the
     correct platform, even if created before this fixture runs.
     """
+    # Third-party imports
+    from PySide6.QtCore import QStandardPaths
+
+    # Enable test mode BEFORE creating QApplication
+    # This ensures file writes go to temp locations
+    QStandardPaths.setTestModeEnabled(True)
+
     app = QApplication.instance()
     if app is None:
         # Use offscreen platform to prevent actual widget display
@@ -155,37 +173,54 @@ def real_cache_manager(cache_manager: object) -> Iterator[object]:
 def qt_cleanup(qapp: QApplication) -> Iterator[None]:
     """Ensure Qt state is clean between tests.
 
-    This autouse fixture processes Qt events before and after each test
-    to ensure widgets are fully cleaned up and Qt is in a stable state.
+    This autouse fixture implements proper Qt test hygiene to prevent
+    test-hygiene issues that cause crashes in large test suites:
 
-    Also waits for QThread background threads to finish to prevent crashes
-    from AsyncShotLoader or other background operations.
+    1. Flushes deferred deletes (deleteLater()) to prevent dangling signals/slots
+    2. Clears Qt caches (QPixmapCache) to prevent memory accumulation
+    3. Waits for background threads to prevent use-after-free
+    4. Processes events multiple times to ensure complete cleanup
 
-    Critical for preventing Qt state pollution that causes crashes when
-    running the full test suite (tests pass individually but crash together).
+    Qt's object model is robust - it doesn't "accumulate leaks" from creating
+    thousands of widgets. Crashes in large suites are from test-hygiene issues,
+    not Qt corruption. This fixture ensures proper cleanup between tests.
 
-    See TESTING.md section "Test Isolation and Parallel Execution" for details.
+    See Qt Test best practices: doc.qt.io/qt-6/qttest-index.html
     """
     # Third-party imports
-    from PySide6.QtCore import QThreadPool
+    from PySide6.QtCore import QCoreApplication, QEvent, QThreadPool
+    from PySide6.QtGui import QPixmapCache
 
-    # Process any pending events before test
-    qapp.processEvents()
-    # Process all pending deleteLater() calls from previous tests
-    qapp.sendPostedEvents(None, 0)  # QEvent::DeferredDelete = 0
+    # BEFORE TEST: Clean up state from previous test
+    # Multiple rounds ensure complete event processing
+    for _ in range(2):
+        QCoreApplication.processEvents()
+        # Flush deferred deletes explicitly (deleteLater() calls)
+        QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+    
+    # Clear Qt caches to prevent memory accumulation
+    QPixmapCache.clear()
 
     yield
 
-    # Process events after test to ensure all deleteLater() calls are executed
-    qapp.processEvents()
-    qapp.sendPostedEvents(None, 0)  # Process DeferredDelete events
+    # AFTER TEST: Ensure current test's resources are cleaned up
+    # Multiple rounds to catch cascading cleanups
+    for _ in range(3):
+        QCoreApplication.processEvents()
+        # Flush deferred deletes - prevents dangling signals/slots
+        QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+    
+    # Clear Qt caches again after test
+    QPixmapCache.clear()
 
     # Wait for any background QThreads to finish (max 2000ms)
     # This prevents AsyncShotLoader or other background threads from
     # interfering with subsequent tests.
-    # Increased from 500ms to 2000ms to allow MainWindow async operations
-    # (shot model initialization, cache loading) to complete fully.
     QThreadPool.globalInstance().waitForDone(2000)
+    
+    # Final event processing after thread cleanup
+    QCoreApplication.processEvents()
+    QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
 
 
 @pytest.fixture(autouse=True)
@@ -199,7 +234,7 @@ def clear_module_caches() -> Iterator[None]:
     Clearing happens FIRST (before test execution) to prevent
     contamination from previous tests on any worker.
 
-    See TESTING.md section "Common Root Causes of Isolation Failures" for details.
+    See UNIFIED_TESTING_V2.MD section "Common Root Causes of Isolation Failures" for details.
     """
     # Local application imports - import here to avoid circular dependencies
     from utils import clear_all_caches
@@ -214,41 +249,55 @@ def clear_module_caches() -> Iterator[None]:
 
 
 @pytest.fixture(autouse=True)
-def mock_message_boxes_unless_overridden() -> Iterator[None]:
-    """Mock QMessageBox dialogs with low-priority defaults.
+def suppress_qmessagebox(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Auto-dismiss modal dialogs to prevent blocking tests.
 
     This autouse fixture provides default mocks for QMessageBox to prevent
     real dialogs from appearing. Individual tests can override these mocks
-    with their own patch.object() calls - test-specific patches take priority.
+    with their own monkeypatch calls - test-specific patches take priority.
 
     Critical for:
     - Preventing real widgets from appearing ("getting real widgets" issue)
     - Avoiding timeouts from modal dialogs waiting for user input
     - Preventing resource exhaustion under high parallel load
 
-    Note:
-        These are DEFAULT mocks only. Tests that patch QMessageBox methods
-        in their own fixtures or test bodies will override these defaults.
-        This is intentional - test-specific mocks should take precedence.
+    Pattern from UNIFIED_TESTING_V2.MD section "Essential Autouse Fixtures".
     """
-    with patch.object(QMessageBox, "question", return_value=QMessageBox.StandardButton.Yes), \
-         patch.object(QMessageBox, "warning"), \
-         patch.object(QMessageBox, "critical"), \
-         patch.object(QMessageBox, "information"):
-        yield
+    def _noop(*args, **kwargs):
+        return QMessageBox.StandardButton.Ok
+
+    for name in ("information", "warning", "critical", "question"):
+        monkeypatch.setattr(QMessageBox, name, _noop, raising=True)
 
 
 @pytest.fixture(autouse=True)
-def cleanup_threading_state(qtbot: QtBot) -> Iterator[None]:
+def stable_random_seed() -> None:
+    """Fix random seeds for reproducible tests (pairs well with pytest-randomly).
+
+    This fixture makes each test's random values deterministic while pytest-randomly
+    still shuffles test ORDER to surface hidden test coupling.
+
+    Pattern from UNIFIED_TESTING_V2.MD section "Essential Autouse Fixtures".
+    """
+    import random
+
+    random.seed(12345)
+
+    try:
+        import numpy as np
+        np.random.seed(12345)
+    except ImportError:
+        pass  # numpy not installed
+
+
+@pytest.fixture(autouse=True)
+def cleanup_threading_state() -> Iterator[None]:
     """Clean up all threading and singleton state between tests.
 
     This autouse fixture ensures clean state for each test by:
     - Resetting ProcessPoolManager singleton
     - Clearing ThreadSafeWorker zombie threads
     - Processing pending Qt events
-
-    Args:
-        qtbot: pytest-qt's QtBot fixture for Qt event processing
 
     Note:
         This is an autouse fixture that runs automatically for every test.
@@ -258,11 +307,13 @@ def cleanup_threading_state(qtbot: QtBot) -> Iterator[None]:
 
     # Qt Event Processing FIRST - before any cleanup that might delete Qt objects
     # This ensures Qt is in a stable state before we start tearing things down
-    try:
-        qtbot.wait(10)  # Reduced from 50ms - just enough to process pending events
-    except RuntimeError:
-        # Qt objects may already be deleted, ignore
-        pass
+    # DISABLED: This was causing Qt C++ segfaults. Now that NotificationManager.cleanup()
+    # handles deleted Qt objects gracefully, this event processing may not be needed.
+    # try:
+    #     qtbot.wait(10)  # Reduced from 50ms - just enough to process pending events
+    # except RuntimeError:
+    #     # Qt objects may already be deleted, ignore
+    #     pass
 
     # NotificationManager Cleanup (must happen early to avoid Qt object access after deletion)
     from notification_manager import NotificationManager
@@ -273,7 +324,10 @@ def cleanup_threading_state(qtbot: QtBot) -> Iterator[None]:
 
     if ProcessPoolManager._instance is not None:
         try:
-            ProcessPoolManager._instance.shutdown(timeout=1.0)
+            # Only shutdown if it's a real ProcessPoolManager instance
+            # Test doubles (TestProcessPool) don't have shutdown method
+            if hasattr(ProcessPoolManager._instance, 'shutdown'):
+                ProcessPoolManager._instance.shutdown(timeout=1.0)
         except Exception as e:
             import warnings
 
@@ -293,6 +347,57 @@ def cleanup_threading_state(qtbot: QtBot) -> Iterator[None]:
             cleaned = ThreadSafeWorker.cleanup_old_zombies()
             ThreadSafeWorker._zombie_threads.clear()
             ThreadSafeWorker._zombie_timestamps.clear()
+
+
+@pytest.fixture(autouse=True)
+def reset_config_state(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Reset Config.SHOWS_ROOT to default value to prevent test pollution.
+    
+    This fixture ensures that Config.SHOWS_ROOT starts at its default value
+    ("/shows") for all tests, preventing pollution from tests that modify it.
+    
+    Tests that need a different SHOWS_ROOT should use monkeypatch explicitly,
+    which will override this default for that specific test.
+    
+    Per UNIFIED_TESTING_V2.MD: Use monkeypatch for global state isolation.
+    """
+    # Import here to avoid circular dependencies
+    from config import Config
+    
+    # Reset to the actual default from config.py: "/shows"
+    # This matches Config.SHOWS_ROOT = os.environ.get("SHOWS_ROOT", "/shows")
+    monkeypatch.setattr(Config, "SHOWS_ROOT", "/shows")
+
+    yield
+
+    # Monkeypatch auto-restores and clears any cached values
+    # Force garbage collection to clean up any TargetedShotsFinder instances
+    # that cached the old SHOWS_ROOT value in regex patterns
+    import gc
+    gc.collect()
+
+
+@pytest.fixture(autouse=True)
+def cleanup_launcher_manager_state() -> Iterator[None]:
+    """Clean up LauncherManager state between tests.
+    
+    Prevents pollution from tests that create LauncherManager instances
+    with stale state from previous tests.
+    """
+    yield
+    
+    # Import here to avoid circular dependencies
+    try:
+        from launcher_manager import LauncherManager
+        
+        # Clear any class-level state if it exists
+        # LauncherManager instances should be cleaned up by Qt, but we ensure
+        # any dangling references are released
+        import gc
+        gc.collect()  # Force garbage collection to clean up Qt objects
+    except ImportError:
+        # LauncherManager not available in this test
+        pass
 
 
 @pytest.fixture
@@ -379,7 +484,7 @@ def isolated_test_environment(qapp: QApplication) -> Iterator[None]:
     Critical for parallel test execution with pytest-xdist to prevent
     cache pollution between tests running in different workers.
 
-    See TESTING.md section "Test Isolation and Parallel Execution".
+    See UNIFIED_TESTING_V2.MD section "Test Isolation and Parallel Execution".
     """
     # Import here to avoid circular imports
     from utils import (
@@ -633,16 +738,21 @@ def test_process_pool():
     return TestProcessPool()
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def mock_process_pool_manager(monkeypatch, test_process_pool):
-    """Globally patch ProcessPoolManager to use test double.
+    """Patch ProcessPoolManager to use test double.
 
-    This autouse fixture ensures that ALL code (including AsyncShotLoader,
-    MainWindow initialization, etc.) uses the test double instead of trying
-    to execute real subprocess commands.
+    This fixture patches ProcessPoolManager for tests that need subprocess mocking.
+    Use this fixture explicitly in tests that need it (not autouse).
 
-    Critical for preventing worker crashes from background threads calling
-    non-existent commands like 'ws -sg' during test execution.
+    Per UNIFIED_TESTING_V2.MD:
+    - Autouse appropriate ONLY for: Qt cleanup, cache clearing, QMessageBox mocking, random seed
+    - NOT for: subprocess, filesystem, database mocking (use explicit fixtures)
+
+    Usage:
+        def test_something(mock_process_pool_manager):
+            # Test code that uses ProcessPoolManager
+            pass
     """
     # Patch ProcessPoolManager.get_instance() to return our test double
     monkeypatch.setattr(

@@ -334,7 +334,7 @@ class NukeScriptGenerator:
             if not script_dir:
                 logger.error(
                     f"Failed to get workspace script directory for {plate_name} "
-                      f"in workspace {workspace_path}"
+                     f"in workspace {workspace_path}"
                 )
                 return None
 

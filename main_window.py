@@ -209,7 +209,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         if not isinstance(app_instance, QApplication) and not is_test_environment:
             raise RuntimeError(
                 "MainWindow: QCoreApplication instance is not a QApplication. "
-                  f"Type: {type(app_instance)}"
+                 f"Type: {type(app_instance)}"
             )
 
         super().__init__(parent)
@@ -276,7 +276,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
                 if persistent_cache:
                     self.logger.debug(
                         f"Model initialized: cache expired ({len(persistent_cache)} shots), "
-                          "background refresh in progress"
+                         "background refresh in progress"
                     )
                 else:
                     self.logger.debug(

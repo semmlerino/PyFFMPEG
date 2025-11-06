@@ -57,9 +57,6 @@ class TestCrossTabSynchronization:
         """Clean up Qt state between tests to prevent segfaults."""
         # Clear ProcessPoolManager singleton before test
         # Local application imports
-        from process_pool_manager import (
-            ProcessPoolManager,
-        )
 
         # Track windows created during test
         self.test_windows: list[MainWindow] = []
@@ -391,9 +388,6 @@ class TestCacheUICoordination:
     def setup_and_teardown(self: TestCacheUICoordination, qtbot: QtBot, tmp_path: Path) -> None:
         """Clean up state between tests."""
         # Local application imports
-        from process_pool_manager import (
-            ProcessPoolManager,
-        )
 
         # Clear test cache directory
         # Standard library imports
@@ -570,9 +564,6 @@ class TestErrorPropagationChains:
     def setup_and_teardown(self, qtbot: QtBot) -> None:
         """Clean up state between tests."""
         # Local application imports
-        from process_pool_manager import (
-            ProcessPoolManager,
-        )
 
         # Track windows for cleanup
         self.test_windows: list[MainWindow] = []

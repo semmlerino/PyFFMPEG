@@ -280,7 +280,7 @@ class UnifiedMockPool(LoggingMixin):
 
         self.logger.info(
             f"UnifiedMockPool initialized with {len(self.shots)} shots "
-              f"using {self.strategy.__class__.__name__}"
+             f"using {self.strategy.__class__.__name__}"
         )
 
     @staticmethod

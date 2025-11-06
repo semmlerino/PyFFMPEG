@@ -57,10 +57,16 @@ class TestMainWindowNoHang:
     """Fixed MainWindow tests that don't hang."""
 
     @pytest.fixture
-    def safe_main_window(self, qtbot, tmp_path: Path, monkeypatch):
+    def safe_main_window(self, qtbot, tmp_path: Path, monkeypatch, mock_process_pool_manager):
         """Create MainWindow with test doubles for subprocess operations."""
         # Force legacy ShotModel for predictable synchronous behavior in tests
         monkeypatch.setenv("SHOTBOT_USE_LEGACY_MODEL", "1")
+
+        # Ensure consistent SHOWS_ROOT for test isolation
+        # This prevents interference from previous tests that might have modified Config.SHOWS_ROOT
+        # Use setattr like other tests instead of setenv to avoid module reload complexity
+        from config import Config
+        monkeypatch.setattr(Config, "SHOWS_ROOT", "/shows")
 
         cache_dir = tmp_path / "cache"
         cache_dir.mkdir(exist_ok=True)
@@ -69,6 +75,11 @@ class TestMainWindowNoHang:
         # Create window with test process pool to avoid real subprocess calls
         main_window = MainWindow(cache_manager=cache_manager)
         qtbot.addWidget(main_window)
+
+        # CRITICAL: Recreate shot_model's _shot_finder to use the correct SHOWS_ROOT
+        # The MainWindow may have been created with a cached finder that uses the wrong SHOWS_ROOT
+        from targeted_shot_finder import TargetedShotsFinder
+        main_window.shot_model._shot_finder = TargetedShotsFinder()
 
         # CRITICAL: Wait for background shot loading to complete
         # This prevents state pollution from async operations started in __init__
@@ -139,13 +150,12 @@ class TestMainWindowNoHang:
 
     def test_refresh_shots_with_test_pool(self, safe_main_window) -> None:
         """Test shot refresh with test process pool."""
-        # Configure test pool response - use Config.SHOWS_ROOT for proper test isolation
-        from config import (
-            Config,
-        )
+        # Use the SHOWS_ROOT that was set by the fixture via monkeypatch
+        # The fixture sets Config.SHOWS_ROOT to "/shows" for test isolation
+        from config import Config
+        shows_root = Config.SHOWS_ROOT
 
         test_pool = safe_main_window.shot_model._process_pool
-        shows_root = Config.SHOWS_ROOT
         test_pool.set_outputs(f"workspace {shows_root}/test_show/shots/seq01/seq01_0010\n")
 
         # Clear any existing shots AND cache to ensure clean test start
@@ -292,8 +302,8 @@ class TestApplicationLaunchingNoHang:
 
 # Helper fixture for all tests
 @pytest.fixture(autouse=True)
-def cleanup_workers() -> None:
+def cleanup_workers(qtbot) -> None:
     """Ensure all workers are cleaned up after each test."""
-    return
-    # Cleanup happens after test
-    # Qt widgets are automatically cleaned up by qtbot
+    yield
+    # Process Qt events to ensure proper cleanup
+    qtbot.wait(10)  # Process pending events and signals

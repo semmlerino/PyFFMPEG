@@ -313,41 +313,41 @@ def cleanup_qt_state(qtbot: QtBot):
 
 ## Testing
 
+**📖 See [UNIFIED_TESTING_V2.MD](./UNIFIED_TESTING_V2.MD) for comprehensive testing guidance**, including:
+- Quick Start commands
+- 5 Basic Qt Testing Hygiene Rules (essential for reliable tests)
+- Test isolation and parallel execution patterns
+- Qt-specific testing patterns and pitfalls
+- Debugging workflows and common issues
+
 ### Current Test Status
-- **755 tests passing** (with n=2 workers, 19s runtime)
+- **2,296+ tests passing** (with `-n 2` workers, ~30s runtime)
+- **99.8% pass rate** in parallel, 100% serial
 - Comprehensive coverage across:
   - Core business logic
   - Controllers and managers
   - UI components (Qt widgets)
   - Integration scenarios
 
-### Running Tests
+### Quick Start
 ```bash
-# Default: Serial execution for Qt stability (configured in pyproject.toml)
-~/.local/bin/uv run pytest tests/
+# Recommended: Parallel execution for speed
+~/.local/bin/uv run pytest tests/ -n 2     # 2 workers (~30s)
 
-# Optional: Parallel execution for faster results
-~/.local/bin/uv run pytest tests/ -n 2     # 2 workers (~50% faster)
-~/.local/bin/uv run pytest tests/ -n auto  # All CPU cores (fastest)
+# Alternative: Serial execution (slower but simpler)
+~/.local/bin/uv run pytest tests/          # ~60s
 
-# Single test file (safe at any parallelism)
+# Single test file
 ~/.local/bin/uv run pytest tests/unit/test_shot_model.py -v
+
+# With coverage
+~/.local/bin/uv run pytest tests/ -n 2 --cov=. --cov-report=html
 ```
 
-### Known Test Issues
-- Tests run serially by default to avoid Qt state pollution between workers
-- Parallel execution (`-n 2`, `-n auto`) may cause Qt state pollution and failures
-- Qt widget tests may crash with `-n 4+` workers due to Qt C++ initialization limits in WSL
-- Ensure all QWidget subclasses follow [Qt Widget Guidelines](#qt-widget-guidelines)
-- Qt state cleanup fixtures are critical for test isolation in parallel execution
-
 ### Test Coverage
-Coverage reports are generated automatically and can be viewed:
 ```bash
-# Run tests with coverage
+# Generate and view coverage report
 ~/.local/bin/uv run pytest tests/ --cov=. --cov-report=html
-
-# View coverage report
 open coverage_html/index.html
 ```
 

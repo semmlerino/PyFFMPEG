@@ -400,20 +400,22 @@ class TestThumbnailWidgetBaseLoadingOperations:
     """Test ThumbnailWidgetBase thumbnail loading and caching operations."""
 
     @pytest.fixture(autouse=True)
-    def cleanup_cache_manager(self) -> Iterator[None]:
+    def cleanup_cache_manager(self, cache_manager) -> Iterator[None]:
         """Reset ThumbnailWidget cache manager after each test.
 
         This prevents cache manager pollution between tests.
         Critical for test isolation when tests use set_cache_manager().
+
+        Per UNIFIED_TESTING_V2.MD: Use monkeypatch for global state isolation.
         """
         # Save the current cache manager before test
         original_cache = ThumbnailWidget._cache_manager if hasattr(ThumbnailWidget, "_cache_manager") else None
 
         yield
 
-        # Restore original cache manager after test to prevent pollution
-        # This ensures tests in other classes don't break
-        ThumbnailWidget.set_cache_manager(original_cache)
+        # Restore to CLEAN cache manager (from fixture) to prevent pollution
+        # Don't restore to original_cache as it may already be polluted from previous tests
+        ThumbnailWidget.set_cache_manager(cache_manager)
 
     @pytest.fixture
     def test_shot(self) -> Shot:
