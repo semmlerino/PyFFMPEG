@@ -9,6 +9,9 @@ import sys
 import tempfile
 from pathlib import Path
 
+# Third-party imports
+import pytest
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -18,7 +21,20 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def test_cache_config() -> None:
+@pytest.fixture(autouse=True)
+def reset_cache_flag(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Reset module-level cache disabled flag to prevent test contamination.
+
+    The _cache_disabled flag in utils.py is a global state that can persist
+    across tests, causing subsequent tests to see incorrect cache behavior.
+    This fixture ensures each test starts with a clean state.
+    """
+    import utils
+
+    monkeypatch.setattr(utils, "_cache_disabled", False)
+
+
+def test_cache_config(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test CacheConfig mode detection and directory selection."""
     logger.info("=" * 50)
     logger.info("Testing CacheConfig")
@@ -29,41 +45,32 @@ def test_cache_config() -> None:
         CacheConfig,
     )
 
-    # Save original environment
-    original_env = dict(os.environ)
+    # Clear all mode indicators using monkeypatch (parallel-safe)
+    monkeypatch.delenv("SHOTBOT_MOCK", raising=False)
+    monkeypatch.delenv("SHOTBOT_TEST_MODE", raising=False)
+    monkeypatch.delenv("SHOTBOT_HEADLESS", raising=False)
 
-    try:
-        # Clear all mode indicators
-        os.environ.pop("SHOTBOT_MOCK", None)
-        os.environ.pop("SHOTBOT_TEST_MODE", None)
-        os.environ.pop("SHOTBOT_HEADLESS", None)
+    # Since we're running under pytest, we'll always be in test mode
+    # So we can't test production mode directly, only verify test mode is working
+    cache_dir = CacheConfig.get_cache_directory()
+    assert cache_dir == CacheConfig.TEST_CACHE_DIR
+    logger.info(f"✅ Test cache (expected under pytest): {cache_dir}")
 
-        # Since we're running under pytest, we'll always be in test mode
-        # So we can't test production mode directly, only verify test mode is working
-        cache_dir = CacheConfig.get_cache_directory()
-        assert cache_dir == CacheConfig.TEST_CACHE_DIR
-        logger.info(f"✅ Test cache (expected under pytest): {cache_dir}")
+    # Test mock mode - but since we're under pytest, test mode takes precedence
+    monkeypatch.setenv("SHOTBOT_MOCK", "1")
+    cache_dir = CacheConfig.get_cache_directory()
+    # Test mode takes precedence over mock when running under pytest
+    assert cache_dir == CacheConfig.TEST_CACHE_DIR
+    logger.info(f"✅ Test cache (overrides mock under pytest): {cache_dir}")
 
-        # Test mock mode - but since we're under pytest, test mode takes precedence
-        os.environ["SHOTBOT_MOCK"] = "1"
-        cache_dir = CacheConfig.get_cache_directory()
-        # Test mode takes precedence over mock when running under pytest
-        assert cache_dir == CacheConfig.TEST_CACHE_DIR
-        logger.info(f"✅ Test cache (overrides mock under pytest): {cache_dir}")
-
-        # Test test mode explicitly set - should still be test mode
-        os.environ["SHOTBOT_TEST_MODE"] = "1"
-        cache_dir = CacheConfig.get_cache_directory()
-        assert cache_dir == CacheConfig.TEST_CACHE_DIR
-        logger.info(f"✅ Test cache (explicit): {cache_dir}")
-
-    finally:
-        # Restore environment
-        os.environ.clear()
-        os.environ.update(original_env)
+    # Test test mode explicitly set - should still be test mode
+    monkeypatch.setenv("SHOTBOT_TEST_MODE", "1")
+    cache_dir = CacheConfig.get_cache_directory()
+    assert cache_dir == CacheConfig.TEST_CACHE_DIR
+    logger.info(f"✅ Test cache (explicit): {cache_dir}")
 
 
-def test_cache_manager_separation() -> None:
+def test_cache_manager_separation(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test that CacheManager uses separate directories."""
     logger.info("=" * 50)
     logger.info("Testing CacheManager directory separation")
@@ -77,43 +84,34 @@ def test_cache_manager_separation() -> None:
         CacheManager,
     )
 
-    # Save original environment
-    original_env = dict(os.environ)
+    # Since we're running under pytest, all CacheManagers will use test mode
+    monkeypatch.delenv("SHOTBOT_MOCK", raising=False)
+    monkeypatch.delenv("SHOTBOT_TEST_MODE", raising=False)
 
-    try:
-        # Since we're running under pytest, all CacheManagers will use test mode
-        os.environ.pop("SHOTBOT_MOCK", None)
-        os.environ.pop("SHOTBOT_TEST_MODE", None)
+    # Test mode is automatically detected when running under pytest
+    test_manager = CacheManager()
+    assert test_manager.cache_dir == CacheConfig.TEST_CACHE_DIR
+    logger.info(f"✅ Test CacheManager (under pytest): {test_manager.cache_dir}")
 
-        # Test mode is automatically detected when running under pytest
-        test_manager = CacheManager()
-        assert test_manager.cache_dir == CacheConfig.TEST_CACHE_DIR
-        logger.info(f"✅ Test CacheManager (under pytest): {test_manager.cache_dir}")
+    # Even with mock mode set, test mode takes precedence
+    monkeypatch.setenv("SHOTBOT_MOCK", "1")
+    mock_manager = CacheManager()
+    assert mock_manager.cache_dir == CacheConfig.TEST_CACHE_DIR
+    logger.info(f"✅ Test CacheManager (overrides mock): {mock_manager.cache_dir}")
 
-        # Even with mock mode set, test mode takes precedence
-        os.environ["SHOTBOT_MOCK"] = "1"
-        mock_manager = CacheManager()
-        assert mock_manager.cache_dir == CacheConfig.TEST_CACHE_DIR
-        logger.info(f"✅ Test CacheManager (overrides mock): {mock_manager.cache_dir}")
+    # Explicitly setting test mode should still work
+    monkeypatch.setenv("SHOTBOT_TEST_MODE", "1")
+    test_manager2 = CacheManager()
+    assert test_manager2.cache_dir == CacheConfig.TEST_CACHE_DIR
+    logger.info(f"✅ Test CacheManager (explicit): {test_manager2.cache_dir}")
 
-        # Explicitly setting test mode should still work
-        os.environ["SHOTBOT_TEST_MODE"] = "1"
-        test_manager2 = CacheManager()
-        assert test_manager2.cache_dir == CacheConfig.TEST_CACHE_DIR
-        logger.info(f"✅ Test CacheManager (explicit): {test_manager2.cache_dir}")
-
-        # In test mode, all managers point to the same test directory
-        assert test_manager.cache_dir == mock_manager.cache_dir
-        assert test_manager.cache_dir == test_manager2.cache_dir
-        logger.info("✅ All cache directories are different")
-
-    finally:
-        # Restore environment
-        os.environ.clear()
-        os.environ.update(original_env)
+    # In test mode, all managers point to the same test directory
+    assert test_manager.cache_dir == mock_manager.cache_dir
+    assert test_manager.cache_dir == test_manager2.cache_dir
+    logger.info("✅ All cache directories are different")
 
 
-def test_cache_isolation() -> None:
+def test_cache_isolation(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Test that data written to one cache doesn't appear in another."""
     logger.info("=" * 50)
     logger.info("Testing cache isolation")
@@ -127,72 +125,53 @@ def test_cache_isolation() -> None:
         CacheManager,
     )
 
-    # Save original environment
-    original_env = dict(os.environ)
+    # Create temporary test directories (parallel-safe)
+    test_base = tmp_path / "cache_test"
+    test_base.mkdir(parents=True, exist_ok=True)
 
-    # Create temporary test directories
-    test_base = Path(tempfile.mkdtemp(prefix="shotbot_cache_test_"))
+    # Override cache directories to use temp locations (parallel-safe via monkeypatch)
+    monkeypatch.setattr(CacheConfig, "PRODUCTION_CACHE_DIR", test_base / "prod")
+    monkeypatch.setattr(CacheConfig, "MOCK_CACHE_DIR", test_base / "mock")
+    monkeypatch.setattr(CacheConfig, "TEST_CACHE_DIR", test_base / "test")
 
-    try:
-        # Override cache directories to use temp locations
-        CacheConfig.PRODUCTION_CACHE_DIR = test_base / "prod"
-        CacheConfig.MOCK_CACHE_DIR = test_base / "mock"
-        CacheConfig.TEST_CACHE_DIR = test_base / "test"
+    # Under pytest, all cache operations go to the test cache directory
+    # So we can't test true isolation between production and mock
+    # Instead, test that the cache functionality works
 
-        # Under pytest, all cache operations go to the test cache directory
-        # So we can't test true isolation between production and mock
-        # Instead, test that the cache functionality works
-        os.environ.clear()
-        os.environ.update(original_env)
+    # All managers will use test cache under pytest
+    test_manager = CacheManager()
+    test_data = [{"name": "test_shot", "path": "/test/path"}]
+    test_manager.cache_shots(test_data)
+    logger.info("✅ Wrote data to test cache")
 
-        # All managers will use test cache under pytest
-        test_manager = CacheManager()
-        test_data = [{"name": "test_shot", "path": "/test/path"}]
-        test_manager.cache_shots(test_data)
-        logger.info("✅ Wrote data to test cache")
+    # Even with mock mode set, still uses test cache
+    monkeypatch.setenv("SHOTBOT_MOCK", "1")
+    mock_manager = CacheManager()
+    # This will overwrite the previous data in the same test cache
+    mock_data = [{"name": "mock_shot", "path": "/mock/path"}]
+    mock_manager.cache_shots(mock_data)
+    logger.info("✅ Overwrote data in test cache")
 
-        # Even with mock mode set, still uses test cache
-        os.environ["SHOTBOT_MOCK"] = "1"
-        mock_manager = CacheManager()
-        # This will overwrite the previous data in the same test cache
-        mock_data = [{"name": "mock_shot", "path": "/mock/path"}]
-        mock_manager.cache_shots(mock_data)
-        logger.info("✅ Overwrote data in test cache")
+    # Verify the last written data is available
+    test_manager2 = CacheManager()
+    cached = test_manager2.get_cached_shots()
 
-        # Verify the last written data is available
-        test_manager2 = CacheManager()
-        cached = test_manager2.get_cached_shots()
+    if cached:
+        assert len(cached) == 1
+        # Should have the mock data since it was written last
+        assert cached[0]["name"] == "mock_shot"
+    logger.info("✅ Cache functionality works (all using test cache under pytest)")
 
-        if cached:
-            assert len(cached) == 1
-            # Should have the mock data since it was written last
-            assert cached[0]["name"] == "mock_shot"
-        logger.info("✅ Cache functionality works (all using test cache under pytest)")
+    # Verify same cache is used regardless of env vars
+    monkeypatch.delenv("SHOTBOT_MOCK", raising=False)
+    test_manager3 = CacheManager()
+    cached2 = test_manager3.get_cached_shots()
 
-        # Verify same cache is used regardless of env vars
-        os.environ.pop("SHOTBOT_MOCK", None)
-        test_manager3 = CacheManager()
-        cached2 = test_manager3.get_cached_shots()
-
-        if cached2:
-            assert len(cached2) == 1
-            # Still has mock data since all managers use the same test cache
-            assert cached2[0]["name"] == "mock_shot"
-        logger.info("✅ All managers use the same test cache under pytest")
-
-    finally:
-        # Clean up temp directories
-        if test_base.exists():
-            shutil.rmtree(test_base)
-
-        # Restore environment
-        os.environ.clear()
-        os.environ.update(original_env)
-
-        # Restore default directories
-        CacheConfig.PRODUCTION_CACHE_DIR = Path.home() / ".shotbot" / "cache"
-        CacheConfig.MOCK_CACHE_DIR = Path.home() / ".shotbot" / "cache_mock"
-        CacheConfig.TEST_CACHE_DIR = Path.home() / ".shotbot" / "cache_test"
+    if cached2:
+        assert len(cached2) == 1
+        # Still has mock data since all managers use the same test cache
+        assert cached2[0]["name"] == "mock_shot"
+    logger.info("✅ All managers use the same test cache under pytest")
 
 
 def test_cache_info() -> None:
@@ -239,7 +218,7 @@ def main() -> None:
     except Exception as e:
         logger.error(f"❌ Unexpected error: {e}")
         # Standard library imports
-        import traceback  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import traceback
 
         traceback.print_exc()
         sys.exit(1)

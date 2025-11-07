@@ -13,13 +13,14 @@ import tempfile
 import threading
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 from unittest.mock import patch
 
 # Third-party imports
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
+from pytestqt.qtbot import QtBot
 
 
 # Add parent directory to path for imports
@@ -32,6 +33,20 @@ from shot_model import AsyncShotLoader, ShotModel
 
 
 pytestmark = pytest.mark.thread_safety
+
+
+# =============================================================================
+# PYTEST FIXTURES
+# =============================================================================
+
+
+@pytest.fixture(autouse=True)
+def cleanup_process_pool():
+    """Ensure ProcessPoolManager is shut down after test."""
+    yield
+    if ProcessPoolManager._instance:
+        ProcessPoolManager._instance.shutdown(timeout=5.0)
+        ProcessPoolManager._instance = None
 
 
 class TestAsyncShotLoaderThreadSafety:
@@ -107,7 +122,8 @@ workspace /shows/TEST/seq02/0030""")
 
         # Try to stop from multiple threads while running
         def attempt_stop() -> None:
-            time.sleep(0.01)  # Let it start
+            # Use wait() to ensure loader thread has started
+            loader.wait(10)  # Brief wait for thread to start
             loader.stop()
 
         threads = [threading.Thread(target=attempt_stop) for _ in range(5)]
@@ -136,8 +152,8 @@ class TestShotModelThreadSafety:
         # Process Qt events to complete deleteLater()
         qapp = QApplication.instance()
         if qapp:
-            qapp.processEvents()
-        time.sleep(0.1)  # Let Qt finish cleanup
+            for _ in range(10):  # Multiple passes to ensure all events processed
+                qapp.processEvents()
         self.temp_dir.cleanup()
 
     def test_concurrent_background_refresh(self) -> None:
@@ -168,44 +184,40 @@ class TestShotModelThreadSafety:
         # Mock the command execution to be slow instead of mocking run()
         # This preserves Qt's thread lifecycle while still testing cleanup
         original_execute = self.model._process_pool.execute_workspace_command
-        
+
         def slow_execute(*args: Any, **kwargs: Any) -> str:
             """Slow command execution that checks for interruption."""
             # Simulate slow command execution
             for _ in range(10):  # 10 iterations of 0.05s = 0.5s total
                 time.sleep(0.05)
             return "workspace /shows/TEST/seq01/0010"
-        
+
         try:
             # Patch the execute method
             self.model._process_pool.execute_workspace_command = slow_execute  # pyright: ignore[reportAttributeAccessIssue]
-            
+
             # Start background load
             self.model.initialize_async()
-            
-            # Give it time to start
-            time.sleep(0.1)
-            
+
+            # Brief wait to ensure thread has started
+            # The loader's isRunning() method will indicate when ready
+            if self.model._async_loader:  # pyright: ignore[reportPrivateUsage]
+                self.model._async_loader.wait(100)  # pyright: ignore[reportPrivateUsage]
+
             # Cleanup should handle running thread
             start_time = time.time()
             self.model.cleanup()
             cleanup_time = time.time() - start_time
-            
+
             # Should complete within reasonable time
             assert cleanup_time < 5, "Cleanup should not take more than 5 seconds"
             assert self.model._async_loader is None, "Loader should be cleaned up"  # pyright: ignore[reportPrivateUsage]
         finally:
             # Restore original method
             self.model._process_pool.execute_workspace_command = original_execute  # pyright: ignore[reportAttributeAccessIssue]
-            
+
             # Ensure cleanup
             self.model.cleanup()
-            
-            # Process Qt events to complete deleteLater()
-            qapp = QApplication.instance()
-            if qapp:
-                qapp.processEvents()
-            time.sleep(0.1)
 
     def test_race_condition_protection_in_refresh(self) -> None:
         """Test that rapid refresh calls don't cause race conditions."""

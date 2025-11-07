@@ -7,15 +7,17 @@ import os
 import sys
 from pathlib import Path
 
+# Third-party imports
+import pytest
 
-# Set environment for mock
-os.environ["SHOWS_ROOT"] = "/tmp/mock_vfx"
 
-
-def test_json_error_handling() -> None:
+def test_json_error_handling(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test various JSON error scenarios."""
     # Standard library imports
-    import tempfile  # noqa: PLC0415 - lazy import to avoid circular dependency
+    import tempfile
+
+    # Set environment for mock (parallel-safe)
+    monkeypatch.setenv("SHOWS_ROOT", "/tmp/mock_vfx")
 
     # Local application imports
     from mock_workspace_pool import (

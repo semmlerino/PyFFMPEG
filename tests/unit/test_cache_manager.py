@@ -30,7 +30,7 @@ from threede_scene_model import ThreeDEScene
 
 
 if TYPE_CHECKING:
-    from type_definitions import ShotDict
+    from type_definitions import ShotDict, ThreeDESceneDict
 
 pytestmark = [
     pytest.mark.unit,
@@ -40,6 +40,24 @@ pytestmark = [
 
 
 # Test fixtures following UNIFIED_TESTING_GUIDE patterns
+
+
+@pytest.fixture(autouse=True)
+def reset_singletons(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Reset singleton instances before each test to prevent contamination.
+
+    This fixture resets all singleton manager instances that might be used
+    by the code under test, ensuring test isolation in parallel execution.
+    """
+    from notification_manager import NotificationManager
+    from process_pool_manager import ProcessPoolManager
+    from progress_manager import ProgressManager
+
+    # Reset singleton instances
+    monkeypatch.setattr(NotificationManager, "_instance", None)
+    monkeypatch.setattr(ProgressManager, "_instance", None)
+    monkeypatch.setattr(ProcessPoolManager, "_instance", None)
+    monkeypatch.setattr(ProcessPoolManager, "_initialized", False)
 
 
 @pytest.fixture
@@ -197,7 +215,7 @@ class TestJSONCacheOperations:
         cache_file = cache_manager.shots_cache_file
         old_time = time.time() - (31 * 60)  # 31 minutes ago
         cache_file.touch()
-        import os  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import os
 
         os.utime(cache_file, (old_time, old_time))
 
@@ -351,7 +369,7 @@ class TestThumbnailCaching:
 
         # Set timestamp to 31 minutes ago (would expire data caches)
         old_time = time.time() - (31 * 60)  # 31 minutes ago
-        import os  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import os
 
         os.utime(cached, (old_time, old_time))
 
@@ -430,7 +448,7 @@ class TestThreadSafety:
         pytest-qt event loop cleanup issues. Passes consistently when run alone.
         The cache_manager itself IS thread-safe (uses QMutex properly).
         """
-        import queue  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import queue
 
         results_queue: queue.Queue[bool] = queue.Queue()
 
@@ -446,8 +464,7 @@ class TestThreadSafety:
                 for i in range(10)
             ]
             cache_manager.cache_shots(shots)
-            # Add small delay to ensure write completes
-            time.sleep(0.01)
+            # cache_shots() is synchronous - write completes before return
             cached = cache_manager.get_cached_shots()
             results_queue.put(cached is not None)
 
@@ -474,7 +491,7 @@ class TestThreadSafety:
         self, cache_manager: CacheManager, test_image_jpg: Path
     ) -> None:
         """Test thread-safe concurrent thumbnail operations."""
-        import queue  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import queue
 
         results_queue: queue.Queue[bool] = queue.Queue()
 
@@ -511,7 +528,7 @@ class TestThreadSafety:
         self, cache_manager: CacheManager, sample_shots: list[Shot]
     ) -> None:
         """Test thread-safe cache clearing with concurrent reads."""
-        import queue  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import queue
 
         # Pre-populate cache
         cache_manager.cache_shots(sample_shots)
@@ -525,14 +542,12 @@ class TestThreadSafety:
                 _ = cache_manager.get_cached_shots()
                 # Result might be None if cleared, that's OK
                 read_queue.put(True)
-                time.sleep(0.001)
 
         def clear_operation() -> None:
             """Concurrent clear operations."""
             for _ in range(5):
                 cache_manager.clear_cache()
                 clear_queue.put(True)
-                time.sleep(0.002)
 
         # Run readers and clearers concurrently
         threads = [threading.Thread(target=read_operation) for _ in range(3)]
@@ -679,7 +694,7 @@ class TestErrorHandling:
         manager = CacheManager(cache_dir=cache_dir)
 
         # Make directory read-only
-        import stat  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import stat
 
         cache_dir.chmod(stat.S_IRUSR | stat.S_IXUSR)
 
@@ -721,7 +736,7 @@ class TestPersistentPreviousShotsCache:
         # Manually expire the cache by modifying file timestamp
         cache_file = cache_manager.previous_shots_cache_file
         old_time = time.time() - (60 * 60 * 24)  # 24 hours ago (way past TTL)
-        import os  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import os
 
         os.utime(cache_file, (old_time, old_time))
 
@@ -771,7 +786,7 @@ class TestPersistentPreviousShotsCache:
         self, cache_manager: CacheManager, sample_shots: list[Shot]
     ) -> None:
         """Test thread-safe concurrent access to persistent cache."""
-        import queue  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import queue
 
         results_queue: queue.Queue[int | None] = queue.Queue()
 
@@ -783,7 +798,6 @@ class TestPersistentPreviousShotsCache:
             for _ in range(10):
                 cached = cache_manager.get_persistent_previous_shots()
                 results_queue.put(len(cached) if cached else None)
-                time.sleep(0.001)
 
         # Run multiple readers concurrently
         threads = [threading.Thread(target=read_persistent_cache) for _ in range(3)]
@@ -814,10 +828,8 @@ class TestPersistentPreviousShotsCache:
         manager1 = CacheManager(cache_dir=cache_dir)
         manager1.cache_previous_shots(sample_shots)
 
-        # Wait a bit to simulate time passing
-        time.sleep(0.1)
-
         # "Restart" by creating new manager instance
+        # (persistence is not time-dependent)
         manager2 = CacheManager(cache_dir=cache_dir)
 
         # Persistent cache should still be available
@@ -828,7 +840,7 @@ class TestPersistentPreviousShotsCache:
         # Even hours later, it should still be there
         cache_file = manager2.previous_shots_cache_file
         old_time = time.time() - (60 * 60 * 48)  # 48 hours ago
-        import os  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import os
 
         os.utime(cache_file, (old_time, old_time))
 
@@ -856,7 +868,7 @@ class TestPersistentPreviousShotsCache:
         # Expire the cache
         cache_file = cache_manager.previous_shots_cache_file
         old_time = time.time() - (60 * 60)  # 1 hour ago (past 30min TTL)
-        import os  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import os
 
         os.utime(cache_file, (old_time, old_time))
 
@@ -1090,7 +1102,7 @@ class TestIncrementalShotMerging:
 
     def test_merge_performance_linear_time(self, cache_manager: CacheManager) -> None:
         """Merge algorithm completes in O(n) time, not O(n²)."""
-        import time  # noqa: PLC0415 - lazy import to avoid circular dependency
+        import time
 
         # Generate 500 shots
         large_cached = [Shot("show1", "seq01", f"shot{i:04d}", f"/p{i}") for i in range(500)]
@@ -1481,7 +1493,6 @@ class TestIncrementalSceneMerging:
 
     def test_scene_dict_input(self, cache_manager: CacheManager) -> None:
         """Accept ThreeDESceneDict input (not just ThreeDEScene objects)."""
-        from type_definitions import ThreeDESceneDict
 
         cached: list[ThreeDESceneDict] = [
             {
@@ -1522,7 +1533,6 @@ class TestIncrementalSceneMerging:
 
     def test_mixed_scene_and_dict(self, cache_manager: CacheManager) -> None:
         """Handle mixed ThreeDEScene objects and ThreeDESceneDict."""
-        from type_definitions import ThreeDESceneDict
 
         cached = [
             ThreeDEScene(
@@ -1634,7 +1644,7 @@ class TestIncrementalSceneMerging:
 
     def test_merge_performance_linear_time(self, cache_manager: CacheManager) -> None:
         """Merge algorithm completes in O(n) time, not O(n²)."""
-        import time  # noqa: PLC0415
+        import time
 
         # Generate 500 scenes
         large_cached = [

@@ -34,6 +34,19 @@ if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
 
 
+@pytest.fixture(autouse=True)
+def reset_cache_flag(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Reset module-level cache disabled flag to prevent test contamination.
+
+    The _cache_disabled flag in utils.py is a global state that can persist
+    across tests, causing subsequent tests to see incorrect cache behavior.
+    This fixture ensures each test starts with a clean state.
+    """
+    import utils
+
+    monkeypatch.setattr(utils, "_cache_disabled", False)
+
+
 # Module-level fixture to handle lazy imports after Qt initialization
 @pytest.fixture(scope="module", autouse=True)
 def setup_qt_imports() -> None:
@@ -77,10 +90,10 @@ class TestFeatureFlagSwitching:
         yield
         self.temp_dir.cleanup()
 
-    def test_standard_model_when_flag_not_set(self, qapp: "QApplication", qtbot: "QtBot") -> None:
+    def test_standard_model_when_flag_not_set(self, monkeypatch: pytest.MonkeyPatch, qapp: "QApplication", qtbot: "QtBot") -> None:
         """Test that ShotModel is used when legacy flag is not set (default behavior)."""
-        # Clear environment variable to use default
-        os.environ.pop("SHOTBOT_USE_LEGACY_MODEL", None)
+        # Clear environment variable to use default (parallel-safe)
+        monkeypatch.delenv("SHOTBOT_USE_LEGACY_MODEL", raising=False)
 
         # Create main window with proper Qt management
         # Use real test double instead of Mock()
@@ -117,43 +130,39 @@ class TestFeatureFlagSwitching:
                     window._threede_worker.wait(1000)
                 window.close()
 
-    def test_legacy_model_when_flag_set(self, qapp: "QApplication", qtbot: "QtBot") -> None:
+    def test_legacy_model_when_flag_set(self, monkeypatch: pytest.MonkeyPatch, qapp: "QApplication", qtbot: "QtBot") -> None:
         """Test that ShotModel is used when legacy flag is set."""
-        # Set environment variable
-        os.environ["SHOTBOT_USE_LEGACY_MODEL"] = "1"
+        # Set environment variable (parallel-safe)
+        monkeypatch.setenv("SHOTBOT_USE_LEGACY_MODEL", "1")
 
-        try:
-            # Create main window with proper Qt management
-            # Use real test double instead of Mock()
-            test_cache = ExtendedTestCacheManager(self.cache_dir)
+        # Create main window with proper Qt management
+        # Use real test double instead of Mock()
+        test_cache = ExtendedTestCacheManager(self.cache_dir)
 
-            with patch("main_window.CacheManager") as mock_cache_manager:
-                mock_cache_manager.return_value = test_cache
+        with patch("main_window.CacheManager") as mock_cache_manager:
+            mock_cache_manager.return_value = test_cache
 
-                # Mock QTimer to prevent delayed operations
-                with patch("PySide6.QtCore.QTimer.singleShot"):
-                    window = MainWindow()
-                    qtbot.addWidget(window)  # CRITICAL: Register for cleanup
+            # Mock QTimer to prevent delayed operations
+            with patch("PySide6.QtCore.QTimer.singleShot"):
+                window = MainWindow()
+                qtbot.addWidget(window)  # CRITICAL: Register for cleanup
 
-                    # Verify ShotModel is used when legacy flag is set
-                    # Note: Currently both shot_model.py and shot_model_legacy.py define ShotModel class
-                    # The feature flag switching isn't implemented yet, so this just verifies we have a ShotModel
-                    assert isinstance(window.shot_model, ShotModel)
+                # Verify ShotModel is used when legacy flag is set
+                # Note: Currently both shot_model.py and shot_model_legacy.py define ShotModel class
+                # The feature flag switching isn't implemented yet, so this just verifies we have a ShotModel
+                assert isinstance(window.shot_model, ShotModel)
 
-                    # Clean up any threads if present
-                    if (
-                        hasattr(window, "_threede_worker")
-                        and window._threede_worker
-                        and window._threede_worker.isRunning()
-                    ):
-                        window._threede_worker.quit()
-                        window._threede_worker.wait(1000)
-                    window.close()
-        finally:
-            # Clean up environment
-            os.environ.pop("SHOTBOT_USE_LEGACY_MODEL", None)
+                # Clean up any threads if present
+                if (
+                    hasattr(window, "_threede_worker")
+                    and window._threede_worker
+                    and window._threede_worker.isRunning()
+                ):
+                    window._threede_worker.quit()
+                    window._threede_worker.wait(1000)
+                window.close()
 
-    def test_flag_values_recognized(self, qapp: "QApplication", qtbot: "QtBot") -> None:
+    def test_flag_values_recognized(self, monkeypatch: pytest.MonkeyPatch, qapp: "QApplication", qtbot: "QtBot") -> None:
         """Test that various flag values are recognized correctly for legacy model."""
         test_cases = [
             ("1", True),  # Use legacy ShotModel
@@ -171,53 +180,34 @@ class TestFeatureFlagSwitching:
         ]
 
         for value, expected_legacy in test_cases:
-            os.environ["SHOTBOT_USE_LEGACY_MODEL"] = value
+            # Set environment variable (parallel-safe)
+            monkeypatch.setenv("SHOTBOT_USE_LEGACY_MODEL", value)
 
-            try:
-                # Use real test double instead of Mock()
-                test_cache = ExtendedTestCacheManager(self.cache_dir)
+            # Use real test double instead of Mock()
+            test_cache = ExtendedTestCacheManager(self.cache_dir)
 
-                with patch("main_window.CacheManager") as mock_cache_manager:
-                    mock_cache_manager.return_value = test_cache
+            with patch("main_window.CacheManager") as mock_cache_manager:
+                mock_cache_manager.return_value = test_cache
 
-                    # Mock QTimer to prevent delayed operations
-                    with patch("PySide6.QtCore.QTimer.singleShot"):
-                        # Handle different model types with appropriate mocking
-                        if not expected_legacy:
-                            # Use ShotModel, need to mock ProcessPoolManager
-                            with patch(
-                                "process_pool_manager.ProcessPoolManager.get_instance"
-                            ) as mock_get_instance:
-                                # Local application imports
-                                from tests.test_doubles_library import (
-                                    TestProcessPool,
-                                )
+                # Mock QTimer to prevent delayed operations
+                with patch("PySide6.QtCore.QTimer.singleShot"):
+                    # Handle different model types with appropriate mocking
+                    if not expected_legacy:
+                        # Use ShotModel, need to mock ProcessPoolManager
+                        with patch(
+                            "process_pool_manager.ProcessPoolManager.get_instance"
+                        ) as mock_get_instance:
+                            # Local application imports
+                            from tests.test_doubles_library import (
+                                TestProcessPool,
+                            )
 
-                                mock_get_instance.return_value = TestProcessPool()
-                                window = MainWindow()
-                                qtbot.addWidget(
-                                    window
-                                )  # CRITICAL: Register for cleanup
-
-                                assert isinstance(window.shot_model, ShotModel), (
-                                    f"Expected ShotModel for value '{value}'"
-                                )
-
-                                # Clean up any threads if present
-                                if (
-                                    hasattr(window, "_threede_worker")
-                                    and window._threede_worker
-                                ) and window._threede_worker.isRunning():
-                                    window._threede_worker.quit()
-                                    window._threede_worker.wait(1000)
-                                window.close()
-                        else:
-                            # Use legacy ShotModel, no ProcessPoolManager needed
+                            mock_get_instance.return_value = TestProcessPool()
                             window = MainWindow()
-                            qtbot.addWidget(window)  # CRITICAL: Register for cleanup
+                            qtbot.addWidget(
+                                window
+                            )  # CRITICAL: Register for cleanup
 
-                            # Since both models are currently ShotModel class, just verify it exists
-                            # TODO: When legacy model is a separate class, update this assertion
                             assert isinstance(window.shot_model, ShotModel), (
                                 f"Expected ShotModel for value '{value}'"
                             )
@@ -230,8 +220,25 @@ class TestFeatureFlagSwitching:
                                 window._threede_worker.quit()
                                 window._threede_worker.wait(1000)
                             window.close()
-            finally:
-                os.environ.pop("SHOTBOT_USE_LEGACY_MODEL", None)
+                    else:
+                        # Use legacy ShotModel, no ProcessPoolManager needed
+                        window = MainWindow()
+                        qtbot.addWidget(window)  # CRITICAL: Register for cleanup
+
+                        # Since both models are currently ShotModel class, just verify it exists
+                        # TODO: When legacy model is a separate class, update this assertion
+                        assert isinstance(window.shot_model, ShotModel), (
+                            f"Expected ShotModel for value '{value}'"
+                        )
+
+                        # Clean up any threads if present
+                        if (
+                            hasattr(window, "_threede_worker")
+                            and window._threede_worker
+                        ) and window._threede_worker.isRunning():
+                            window._threede_worker.quit()
+                            window._threede_worker.wait(1000)
+                        window.close()
 
     def test_both_models_share_same_interface(self) -> None:
         """Test that both models implement the same interface."""
@@ -334,7 +341,7 @@ class TestFeatureFlagSwitching:
                 self.request_stop_called = False
                 self.safe_terminated = False
 
-            def isRunning(self):  # noqa: N802
+            def isRunning(self):
                 return self.is_running
 
             def stop(self) -> None:
@@ -345,7 +352,7 @@ class TestFeatureFlagSwitching:
                 self.waited = True
                 return True
 
-            def deleteLater(self) -> None:  # noqa: N802
+            def deleteLater(self) -> None:
                 self.deleted = True
 
             def request_stop(self) -> bool:
@@ -410,12 +417,13 @@ class TestMainWindowIntegration:
         """Set up test environment with qtbot."""
         self.qtbot = qtbot
 
-    def test_window_initialization_with_default_model(self, qapp: "QApplication", qtbot: "QtBot") -> None:
+    def test_window_initialization_with_default_model(self, monkeypatch: pytest.MonkeyPatch, qapp: "QApplication", qtbot: "QtBot", tmp_path: Path) -> None:
         """Test that MainWindow initializes correctly with default optimized model."""
-        os.environ.pop("SHOTBOT_USE_LEGACY_MODEL", None)
+        # Clear environment variable (parallel-safe)
+        monkeypatch.delenv("SHOTBOT_USE_LEGACY_MODEL", raising=False)
 
         # Use real test double instead of Mock()
-        test_cache = ExtendedTestCacheManager()
+        test_cache = ExtendedTestCacheManager(cache_dir=tmp_path / "cache")
 
         with patch("main_window.CacheManager") as mock_cache_manager:
             mock_cache_manager.return_value = test_cache
@@ -447,93 +455,88 @@ class TestMainWindowIntegration:
                     window._threede_worker.wait(1000)
                 window.close()
 
-    def test_window_initialization_with_legacy_model(self, qapp: "QApplication", qtbot: "QtBot") -> None:
+    def test_window_initialization_with_legacy_model(self, monkeypatch: pytest.MonkeyPatch, qapp: "QApplication", qtbot: "QtBot", tmp_path: Path) -> None:
         """Test that MainWindow initializes correctly with legacy model."""
-        os.environ["SHOTBOT_USE_LEGACY_MODEL"] = "1"
+        # Set environment variable (parallel-safe)
+        monkeypatch.setenv("SHOTBOT_USE_LEGACY_MODEL", "1")
 
-        try:
-            # Use real test double instead of Mock()
-            test_cache = ExtendedTestCacheManager()
+        # Use real test double instead of Mock()
+        test_cache = ExtendedTestCacheManager(cache_dir=tmp_path / "cache")
 
-            with patch("main_window.CacheManager") as mock_cache_manager:
-                mock_cache_manager.return_value = test_cache
+        with patch("main_window.CacheManager") as mock_cache_manager:
+            mock_cache_manager.return_value = test_cache
 
-                # Mock QTimer to prevent delayed operations
-                with patch("PySide6.QtCore.QTimer.singleShot"):
-                    # Should not raise any exceptions
-                    window = MainWindow()
-                    qtbot.addWidget(window)  # CRITICAL: Register for cleanup
-                    assert window is not None
-                    assert window.shot_model is not None
-                    assert isinstance(window.shot_model, ShotModel)
-                    # Note: Both regular and legacy models are named ShotModel,
-                    # so we can't distinguish them by class name alone
+            # Mock QTimer to prevent delayed operations
+            with patch("PySide6.QtCore.QTimer.singleShot"):
+                # Should not raise any exceptions
+                window = MainWindow()
+                qtbot.addWidget(window)  # CRITICAL: Register for cleanup
+                assert window is not None
+                assert window.shot_model is not None
+                assert isinstance(window.shot_model, ShotModel)
+                # Note: Both regular and legacy models are named ShotModel,
+                # so we can't distinguish them by class name alone
 
-                    # Clean up any threads if present
-                    if (
-                        hasattr(window, "_threede_worker")
-                        and window._threede_worker
-                        and window._threede_worker.isRunning()
-                    ):
-                        window._threede_worker.quit()
-                        window._threede_worker.wait(1000)
-                    window.close()
-        finally:
-            os.environ.pop("SHOTBOT_USE_LEGACY_MODEL", None)
-
-    def test_closeEvent_handles_optimized_model(self, qapp: "QApplication", qtbot: "QtBot") -> None:  # noqa: N802
-        """Test that closeEvent properly handles ShotModel cleanup (default behavior)."""
-        # Use default ShotModel (no environment variable needed)
-        os.environ.pop("SHOTBOT_USE_LEGACY_MODEL", None)
-
-        try:
-            # Use real test double instead of Mock()
-            test_cache = ExtendedTestCacheManager()
-
-            with patch("main_window.CacheManager") as mock_cache_manager:
-                mock_cache_manager.return_value = test_cache
-
-                # Mock QTimer to prevent delayed operations
-                with (
-                    patch("PySide6.QtCore.QTimer.singleShot"),
-                    patch(
-                        "process_pool_manager.ProcessPoolManager.get_instance"
-                    ) as mock_get_instance,
+                # Clean up any threads if present
+                if (
+                    hasattr(window, "_threede_worker")
+                    and window._threede_worker
+                    and window._threede_worker.isRunning()
                 ):
-                    # Local application imports
-                    from tests.test_doubles_library import (
-                        TestProcessPool,
-                    )
+                    window._threede_worker.quit()
+                    window._threede_worker.wait(1000)
+                window.close()
 
-                    mock_get_instance.return_value = TestProcessPool()
-                    window = MainWindow()
-                    qtbot.addWidget(window)  # CRITICAL: Register for cleanup
+    def test_closeEvent_handles_optimized_model(self, monkeypatch: pytest.MonkeyPatch, qapp: "QApplication", qtbot: "QtBot", tmp_path: Path) -> None:
+        """Test that closeEvent properly handles ShotModel cleanup (default behavior)."""
+        # Use default ShotModel (no environment variable needed, parallel-safe)
+        monkeypatch.delenv("SHOTBOT_USE_LEGACY_MODEL", raising=False)
 
-                    # Track cleanup behavior
-                    cleanup_called = False
-                    original_cleanup = window.shot_model.cleanup
+        # Use real test double instead of Mock()
+        test_cache = ExtendedTestCacheManager(cache_dir=tmp_path / "cache")
 
-                    def track_cleanup() -> None:
-                        nonlocal cleanup_called
-                        cleanup_called = True
-                        original_cleanup()
+        with patch("main_window.CacheManager") as mock_cache_manager:
+            mock_cache_manager.return_value = test_cache
 
-                    window.shot_model.cleanup = track_cleanup
+            # Mock QTimer to prevent delayed operations
+            with (
+                patch("PySide6.QtCore.QTimer.singleShot"),
+                patch(
+                    "process_pool_manager.ProcessPoolManager.get_instance"
+                ) as mock_get_instance,
+            ):
+                # Local application imports
+                from tests.test_doubles_library import (
+                    TestProcessPool,
+                )
 
-                    # Create test close event
-                    class TestCloseEvent:
-                        def accept(self) -> None:
-                            pass
+                mock_get_instance.return_value = TestProcessPool()
+                window = MainWindow()
+                qtbot.addWidget(window)  # CRITICAL: Register for cleanup
 
-                    test_event = TestCloseEvent()
+                # Track cleanup behavior
+                cleanup_called = False
+                original_cleanup = window.shot_model.cleanup
 
-                    # Call closeEvent
-                    window.closeEvent(test_event)
+                def track_cleanup() -> None:
+                    nonlocal cleanup_called
+                    cleanup_called = True
+                    original_cleanup()
 
-                    # Verify behavior (cleanup was called)
-                    assert cleanup_called, "Cleanup should be called on close"
-        finally:
-            pass  # No cleanup needed for default behavior
+                window.shot_model.cleanup = track_cleanup
+
+                # Create test close event
+                class TestCloseEvent:
+                    def accept(self) -> None:
+                        pass
+
+                test_event = TestCloseEvent()
+
+                # Call closeEvent
+                window.closeEvent(test_event)
+
+                # Verify behavior (cleanup was called)
+                assert cleanup_called, "Cleanup should be called on close"
 
 
 if __name__ == "__main__":
