@@ -256,6 +256,52 @@ The project uses basedpyright for type checking with strict settings:
 
 Current status: **0 errors, 0 warnings, 0 notes** ✅
 
+## Singleton Pattern & Test Isolation
+
+**All singleton classes MUST implement a `reset()` classmethod** for test isolation:
+
+```python
+class MySingleton:
+    _instance = None
+    _lock = threading.Lock()
+
+    @classmethod
+    def reset(cls) -> None:
+        """Reset singleton for testing. INTERNAL USE ONLY.
+
+        This method clears all state and resets the singleton instance.
+        It should only be used in test cleanup to ensure test isolation.
+        """
+        # Cleanup resources if instance exists
+        if cls._instance is not None:
+            # Call any cleanup methods (shutdown, cleanup, etc.)
+            pass
+
+        # Reset singleton state
+        with cls._lock:
+            cls._instance = None
+            # Reset any class-level mutable state
+```
+
+**Why this matters:**
+- Enables parallel test execution (`pytest -n auto`)
+- Prevents test contamination from singleton state
+- Centralizes cleanup logic in the singleton itself
+- Used automatically by `tests/conftest.py` cleanup fixtures
+
+**Existing singletons with `reset()`:**
+- `ProgressManager.reset()` - Clears operation stack, closes dialogs
+- `NotificationManager.reset()` - Calls cleanup(), resets instance
+- `ProcessPoolManager.reset()` - Calls shutdown(), resets instance
+- `FilesystemCoordinator.reset()` - Clears directory cache
+
+**When creating new singletons:**
+1. Always add a `reset()` classmethod
+2. Add to `tests/conftest.py` cleanup_state fixture
+3. Document what state is cleared
+
+See `docs/XDIST_REMEDIATION_ROADMAP.md` for parallelization strategy.
+
 ## Qt Widget Guidelines
 
 ### Parent Parameter Requirement
