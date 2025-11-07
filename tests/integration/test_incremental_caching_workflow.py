@@ -16,6 +16,12 @@ from cache_manager import CacheManager
 from shot_model import ShotModel
 
 
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.xdist_group("qt_state"),  # CRITICAL: Qt state must be serialized
+]
+
+
 @pytest.fixture
 def temp_cache_dir(tmp_path: Path) -> Path:
     """Create temporary cache directory."""

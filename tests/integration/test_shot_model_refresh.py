@@ -36,6 +36,12 @@ from tests.test_doubles_library import (
 )
 
 
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.xdist_group("qt_state"),  # CRITICAL: Qt state must be serialized
+]
+
+
 # Using TestProcessPool from test_doubles_library (UNIFIED_TESTING_GUIDE)
 # No need to duplicate - existing TestProcessPool has all needed functionality
 

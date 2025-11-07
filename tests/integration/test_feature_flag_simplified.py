@@ -17,6 +17,12 @@ from pathlib import Path
 import pytest
 
 
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.xdist_group("qt_state"),  # CRITICAL: Qt state must be serialized
+]
+
+
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -26,6 +32,19 @@ from PySide6.QtCore import QThread, Signal
 # Local application imports
 from cache_manager import CacheManager
 from shot_model import Shot, ShotModel
+
+
+@pytest.fixture(autouse=True)
+def reset_cache_flag(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Reset module-level cache disabled flag to prevent test contamination.
+
+    The _cache_disabled flag in utils.py is a global state that can persist
+    across tests, causing subsequent tests to see incorrect cache behavior.
+    This fixture ensures each test starts with a clean state.
+    """
+    import utils
+
+    monkeypatch.setattr(utils, "_cache_disabled", False)
 
 
 class TestFeatureFlagBehavior:
@@ -170,7 +189,7 @@ class TestFeatureFlagBehavior:
                 self.delete_later_called = False
                 self._running = True
 
-            def isRunning(self):  # noqa: N802
+            def isRunning(self):
                 return self._running
 
             def stop(self) -> None:
@@ -189,7 +208,7 @@ class TestFeatureFlagBehavior:
                 self._running = False
                 return True
 
-            def deleteLater(self) -> None:  # noqa: N802
+            def deleteLater(self) -> None:
                 self.delete_later_called = True
                 super().deleteLater()
 

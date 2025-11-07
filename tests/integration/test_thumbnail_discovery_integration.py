@@ -13,12 +13,21 @@ import tempfile
 import traceback
 from pathlib import Path
 
+# Third-party imports
+import pytest
+
 # Local application imports
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_doubles_library import (
     TestSubprocess,
 )
 from utils import PathUtils
+
+
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.xdist_group("qt_state"),  # CRITICAL: Qt state must be serialized
+]
 
 
 class TestThumbnailDiscoveryIntegration:
