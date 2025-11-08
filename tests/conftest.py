@@ -27,7 +27,8 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 # This prevents Qt6 warnings and races across xdist workers.
 run_id = os.environ.get("PYTEST_XDIST_TESTRUNUID", "solo")
 worker = os.environ.get("PYTEST_XDIST_WORKER", "master")
-xdg_path = Path(f"/tmp/xdg-{run_id}-{worker}")
+base_tmp = Path(tempfile.gettempdir())
+xdg_path = base_tmp / f"xdg-{run_id}-{worker}"
 xdg_path.mkdir(mode=0o700, parents=True, exist_ok=True)
 os.environ.setdefault("XDG_RUNTIME_DIR", str(xdg_path))
 from typing import TYPE_CHECKING
@@ -79,7 +80,12 @@ def qapp() -> Iterator[QApplication]:
         # Use offscreen platform to prevent actual widget display
         # The environment variable set at the top of this file ensures this is redundant
         # but explicit, following the principle of defense in depth
-        app = QApplication(["-platform", "offscreen"])
+        try:
+            app = QApplication(["-platform", "offscreen"])
+        except Exception:
+            # Fallback to minimal platform if offscreen is unavailable (e.g., macOS dev boxes)
+            os.environ["QT_QPA_PLATFORM"] = "minimal"
+            app = QApplication([])
     else:
         # QApplication already exists - validate it's using the correct platform
         # This should always be true now due to the environment variable
@@ -148,9 +154,9 @@ def enforce_unique_connections(request, monkeypatch, _signal_instance_type):
     original_connect = _signal_instance_type.connect
 
     def _connect_unique(self, slot, connection_type=Qt.ConnectionType.AutoConnection):
-        """Override connect() to always use UniqueConnection."""
-        # Force UniqueConnection - duplicate connects will be silently ignored
-        return original_connect(self, slot, Qt.ConnectionType.UniqueConnection)
+        """Override connect() to enforce UniqueConnection while preserving caller's semantics."""
+        # Preserve caller's choice (Queued, Blocked, etc.), just OR the UniqueConnection flag
+        return original_connect(self, slot, connection_type | Qt.ConnectionType.UniqueConnection)
 
     # Patch connect() method
     monkeypatch.setattr(_signal_instance_type, "connect", _connect_unique, raising=True)
@@ -254,9 +260,10 @@ def qt_cleanup(qapp: QApplication) -> Iterator[None]:
 
     # BEFORE TEST: Wait for background threads from previous test FIRST
     # This prevents crashes from processing events while threads are still running
-    # Always wait a short time to ensure threads complete
+    # Only wait if there are actually active threads (performance optimization)
     pool = QThreadPool.globalInstance()
-    pool.waitForDone(500)  # Always wait 500ms for threads to finish
+    if pool.activeThreadCount() > 0:
+        pool.waitForDone(500)
 
     # Wrap event processing in try-except to prevent crashes from leaked objects
     try:
@@ -280,7 +287,9 @@ def qt_cleanup(qapp: QApplication) -> Iterator[None]:
     # Only wait if there are actually active threads (performance optimization)
     pool = QThreadPool.globalInstance()
     if pool.activeThreadCount() > 0:
-        pool.clear()  # Cancel pending runnables from queue
+        # Cancel pending runnables from queue (if supported - some Qt builds may lack clear())
+        if hasattr(pool, "clear"):
+            pool.clear()
         pool.waitForDone(100)  # Reduced from 2000ms → 100ms for performance
 
     # Also wait for any Python threading.Thread instances to complete
@@ -510,11 +519,20 @@ def suppress_qmessagebox(monkeypatch: pytest.MonkeyPatch) -> None:
 
     Pattern from UNIFIED_TESTING_V2.MD section "Essential Autouse Fixtures".
     """
-    def _noop(*args, **kwargs):
+    def _ok(*args, **kwargs):
         return QMessageBox.StandardButton.Ok
 
-    for name in ("information", "warning", "critical", "question"):
-        monkeypatch.setattr(QMessageBox, name, _noop, raising=True)
+    def _yes(*args, **kwargs):
+        return QMessageBox.StandardButton.Yes
+
+    # Static method patches
+    for name in ("information", "warning", "critical"):
+        monkeypatch.setattr(QMessageBox, name, _ok, raising=True)
+    monkeypatch.setattr(QMessageBox, "question", _yes, raising=True)
+
+    # Instance-style dialog patches (catch .exec() and .open() usage)
+    monkeypatch.setattr(QMessageBox, "exec", _ok, raising=True)
+    monkeypatch.setattr(QMessageBox, "open", lambda *args, **kwargs: None, raising=True)
 
 
 @pytest.fixture(autouse=True)
@@ -598,7 +616,7 @@ def cleanup_launcher_manager_state() -> Iterator[None]:
 
 @pytest.fixture(autouse=True)
 def prevent_qapp_exit(monkeypatch: pytest.MonkeyPatch, qapp: QApplication) -> None:
-    """Prevent tests from calling QApplication.exit() which poisons event loops.
+    """Prevent tests from calling QApplication.exit() or quit() which poisons event loops.
 
     pytest-qt explicitly warns that calling QApplication.exit() in one test
     breaks subsequent tests because it corrupts the event loop state.
@@ -610,12 +628,20 @@ def prevent_qapp_exit(monkeypatch: pytest.MonkeyPatch, qapp: QApplication) -> No
     See: https://pytest-qt.readthedocs.io/en/latest/note_dialogs.html#warning-about-qapplication-exit
     """
 
-    def _noop_exit(retcode: int = 0) -> None:
-        """No-op exit - tests shouldn't exit the application."""
+    def _noop(*args, **kwargs) -> None:
+        """No-op exit/quit - tests shouldn't exit the application."""
 
-    # Monkeypatch both the instance method and class method
-    monkeypatch.setattr(qapp, "exit", _noop_exit)
-    monkeypatch.setattr(QApplication, "exit", _noop_exit)
+    from PySide6.QtCore import QCoreApplication
+
+    # Patch both exit and quit (instance + class methods)
+    # Code often calls Q(Core)Application.quit() in addition to exit()
+    monkeypatch.setattr(qapp, "exit", _noop)
+    monkeypatch.setattr(QApplication, "exit", _noop)
+    monkeypatch.setattr(qapp, "quit", _noop)
+    monkeypatch.setattr(QApplication, "quit", _noop)
+    # Also patch QCoreApplication (some code paths use this)
+    monkeypatch.setattr(QCoreApplication, "exit", _noop)
+    monkeypatch.setattr(QCoreApplication, "quit", _noop)
 
 
 @pytest.fixture
@@ -640,12 +666,11 @@ def mock_subprocess_workspace() -> Iterator[None]:
         # Extract the command being run
         cmd = args[0] if args else kwargs.get("args", [])
 
-        # Handle different command patterns
-        if (
-            isinstance(cmd, list)
-            and len(cmd) >= 2
-            and ("ws -sg" in " ".join(cmd) or "ws" in cmd[-1])
-        ):
+        # Normalize to string for matching (handle both list and string forms)
+        text = " ".join(cmd) if isinstance(cmd, list) else (cmd or "")
+
+        # Handle workspace commands (ws)
+        if " ws " in f" {text} " or text.strip().startswith("ws"):
             # Return realistic workspace command output
             mock_result = Mock()
             mock_result.returncode = 0
@@ -670,13 +695,16 @@ def mock_subprocess_workspace() -> Iterator[None]:
 
 
 @pytest.fixture
-def mock_environment() -> Iterator[dict[str, str]]:
-    """Set up mock environment variables for testing."""
-    original_env = os.environ.copy()
+def mock_environment(monkeypatch: pytest.MonkeyPatch) -> Iterator[dict[str, str]]:
+    """Set up mock environment variables for testing.
 
-    # Set test environment
-    os.environ["SHOTBOT_MODE"] = "test"
-    os.environ["USER"] = "test_user"
+    Uses monkeypatch.setenv for safer environment manipulation that
+    doesn't clear the entire environment mapping (which can surprise
+    other threads).
+    """
+    # Set test environment using monkeypatch (safer than clearing os.environ)
+    monkeypatch.setenv("SHOTBOT_MODE", "test")
+    monkeypatch.setenv("USER", "test_user")
 
     test_env = {
         "SHOTBOT_MODE": "test",
@@ -684,10 +712,7 @@ def mock_environment() -> Iterator[dict[str, str]]:
     }
 
     yield test_env
-
-    # Restore original environment
-    os.environ.clear()
-    os.environ.update(original_env)
+    # Cleanup is automatic via monkeypatch
 
 
 @pytest.fixture
@@ -713,8 +738,9 @@ def isolated_test_environment(qapp: QApplication) -> Iterator[None]:
     clear_all_caches()
 
     # Process Qt events for clean state
+    from PySide6.QtCore import QCoreApplication, QEvent
     qapp.processEvents()
-    qapp.sendPostedEvents(None, 0)  # QEvent::DeferredDelete
+    QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
 
     yield
 
@@ -723,7 +749,7 @@ def isolated_test_environment(qapp: QApplication) -> Iterator[None]:
 
     # Final Qt cleanup
     qapp.processEvents()
-    qapp.sendPostedEvents(None, 0)
+    QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
 
 
 # ==============================================================================
@@ -1076,6 +1102,22 @@ def pytest_configure(config: pytest.Config) -> None:
         "markers",
         "skip_if_parallel: skip test when running in parallel mode due to Qt state pollution",
     )
+    config.addinivalue_line(
+        "markers",
+        "enforce_unique_connections: enforce UniqueConnection for signal.connect() in this test",
+    )
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """Auto-enable fixtures based on markers.
+
+    This hook makes the @pytest.mark.enforce_unique_connections marker
+    automatically enable the enforce_unique_connections fixture, so tests
+    don't need to both mark AND request the fixture.
+    """
+    for item in items:
+        if item.get_closest_marker("enforce_unique_connections"):
+            item.add_marker(pytest.mark.usefixtures("enforce_unique_connections"))
 
 
 def pytest_runtest_setup(item: pytest.Item) -> None:

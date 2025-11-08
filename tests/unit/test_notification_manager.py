@@ -215,12 +215,15 @@ class TestNotificationManager:
         assert isinstance(manager, NotificationManager)
 
     def test_error_notification(
-        self, manager_with_ui: tuple[NotificationManager, QMainWindow, QStatusBar], qtbot: QtBot, monkeypatch: pytest.MonkeyPatch
+        self,
+        manager_with_ui: tuple[NotificationManager, QMainWindow, QStatusBar],
+        qtbot: QtBot,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Test error notification display."""
         _manager, main_window, _status_bar = manager_with_ui
 
-        # Create a mock and patch using monkeypatch (compatible with autouse fixture)
+        # Use monkeypatch.setattr to override the autouse fixture's mock
         from unittest.mock import MagicMock
         mock_critical = MagicMock(return_value=QMessageBox.StandardButton.Ok)
         monkeypatch.setattr(QMessageBox, "critical", mock_critical)
@@ -234,12 +237,14 @@ class TestNotificationManager:
         assert "Error message" in args[2]
 
     def test_warning_notification(
-        self, manager_with_ui: tuple[NotificationManager, QMainWindow, QStatusBar], monkeypatch: pytest.MonkeyPatch
+        self,
+        manager_with_ui: tuple[NotificationManager, QMainWindow, QStatusBar],
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Test warning notification display."""
         _manager, main_window, _status_bar = manager_with_ui
 
-        # Create a mock and patch using monkeypatch (compatible with autouse fixture)
+        # Use monkeypatch.setattr to override the autouse fixture's mock
         from unittest.mock import MagicMock
         mock_warning = MagicMock(return_value=QMessageBox.StandardButton.Ok)
         monkeypatch.setattr(QMessageBox, "warning", mock_warning)
@@ -372,8 +377,9 @@ class TestNotificationManager:
         # Don't initialize with UI
         NotificationManager()
 
-        # These should not crash
+        # These should not crash - use monkeypatch to override autouse fixture
         from unittest.mock import MagicMock
+
         mock_critical = MagicMock(return_value=QMessageBox.StandardButton.Ok)
         monkeypatch.setattr(QMessageBox, "critical", mock_critical)
         NotificationManager.error("Error without UI")

@@ -5,13 +5,15 @@ requires-python = ">=3.11"
 
 [tool.basedpyright]
 # Check all Python files in the project (no include list = check everything)
+# NOTE: tests/** excluded from type checking. To catch test-side API misuses (common with Qt fixtures),
+# consider removing "tests/**" from exclude and adding per-file ignores for noisiest test modules.
 exclude = [
     "**/node_modules",
     "**/__pycache__",
     ".venv/**",
     "venv/**",
     "test_venv/**",
-    "tests/**",
+    "tests/**",  # See note above about including tests in type checking
     "docs/**",
     "archive/**",
     "BB/**",
@@ -53,12 +55,17 @@ exclude = [
 pythonVersion = "3.11"
 typeCheckingMode = "strict"
 
+# Type checking strictness: Currently "strict-ish" with reportUnknown* globally disabled.
+# OPTIONAL IMPROVEMENT: For stronger signal on library calls while staying quiet for Qt stubs:
+#   Option A: Keep strict, flip reportUnknown* to "warning" instead of false
+#   Option B: Switch to typeCheckingMode="standard" and selectively upgrade reports to "warning"/"error"
+# Either approach increases signal without turning the firehose back on.
 reportMissingImports = false
 reportMissingTypeStubs = false
-reportUnknownMemberType = false
-reportUnknownParameterType = false
-reportUnknownArgumentType = false
-reportUnknownVariableType = false
+reportUnknownMemberType = false      # Consider: "warning" to catch library API misuses
+reportUnknownParameterType = false   # Consider: "warning" to catch library API misuses
+reportUnknownArgumentType = false    # Consider: "warning" to catch library API misuses
+reportUnknownVariableType = false    # Consider: "warning" to catch library API misuses
 reportUndefinedVariable = "warning"
 reportImplicitStringConcatenation = false
 reportUnsafeMultipleInheritance = false
@@ -243,7 +250,7 @@ python_functions = ["test_*"]
 addopts = [
     "--strict-markers",     # Fail on unknown markers
     "-ra",                  # Show all test summary info
-    "-q",                   # Quiet mode - focus on failures
+    "-q",                   # Quiet mode - focus on failures (omit on CLI for verbose output)
     "--durations=20",       # Show slowest 20 tests
     "--tb=short",
     "--cov=.",
@@ -255,17 +262,25 @@ addopts = [
     # Serial execution by default for Qt stability and leak detection
     # Override with `pytest tests/ -n 2` for faster development
     # Override with `pytest tests/ -n auto` for maximum parallelism
-    "-n", "0",
+    # Note: -n 0 is invalid; serial mode = omit -n entirely (xdist still loads but doesn't parallelize)
 ]
 
 # Timeout configuration (2 minutes per test to catch hanging tests)
 timeout = 120
 timeout_method = "thread"
+faulthandler_timeout = 120  # Dump all thread stacks if test hard-hangs (helpful for Qt deadlocks)
 
-# Filter warnings
+# pytest-qt configuration
+qt_api = "pyside6"  # Lock to PySide6 (prevent accidental PyQt usage in CI)
+
+# Filter warnings (targeted ignores to avoid hiding real issues)
 filterwarnings = [
-    "ignore::DeprecationWarning",
-    "ignore::PendingDeprecationWarning",
+    # Common noisy deprecations from dependencies
+    "ignore:.*pkg_resources.*:DeprecationWarning",
+    "ignore:.*distutils.*:DeprecationWarning",
+    # Qt-specific warnings that are safe to ignore
+    "ignore:.*QPixmapCache.*:DeprecationWarning",
+    # Keep other DeprecationWarning visible to catch actual issues in our code
 ]
 
 # Test markers
@@ -285,4 +300,34 @@ markers = [
     "critical: Critical/high priority tests",
     "performance: Tests for performance",
     "enforce_unique_connections: Tests with UniqueConnection enforcement for signal safety",
+    # NOTE: Consider consolidating threading/thread_safety/concurrent markers into single "concurrency" marker
+]
+
+# Coverage configuration
+[tool.coverage.run]
+branch = true           # Measure branch coverage (not just line coverage)
+source = ["."]          # Measure coverage for all project code
+parallel = true         # Enable parallel mode for xdist compatibility
+omit = [
+    "tests/*",          # Don't measure coverage of test code itself
+    "**/__main__.py",   # Entry points often have trivial coverage
+    "*/_version.py",    # Version files are auto-generated
+    ".venv/*",          # Virtual environment
+    "venv/*",
+    "dev-tools/*",      # Development utilities
+    "archive/*",        # Archived code
+    "examples/*",       # Example scripts
+]
+
+[tool.coverage.report]
+skip_covered = true     # Don't show files with 100% coverage in terminal output
+show_missing = true     # Show line numbers of missing coverage
+fail_under = 0          # Don't fail on coverage threshold (adjust when baseline is established)
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if TYPE_CHECKING:",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "@(abc\\.)?abstractmethod",
 ]
