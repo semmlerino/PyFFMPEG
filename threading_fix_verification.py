@@ -42,7 +42,7 @@ def test_threading_fix() -> bool:
     try:
         # Import the fixed model
         # Third-party imports
-        from shot_model import ShotModel  # noqa: PLC0415 - Lazy import for testing
+        from shot_model import ShotModel
 
         # Create model instance
         model: ShotModel = ShotModel()

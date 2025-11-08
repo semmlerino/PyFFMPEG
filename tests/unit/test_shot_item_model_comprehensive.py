@@ -130,7 +130,8 @@ class TestAsyncCallbackRaceConditions:
             for i, shot in enumerate(test_shots):
                 model._load_thumbnail_async(i, shot)
 
-            qtbot.wait(100)  # Allow operations to complete
+            # Minimal event processing
+            qtbot.wait(1)
 
             # Verify all cache calls were made
             assert len(cache_calls) == len(test_shots)

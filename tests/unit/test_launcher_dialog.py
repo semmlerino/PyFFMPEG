@@ -201,9 +201,9 @@ class TestLauncherPreviewPanel:
         # Use QSignalSpy to test signal emission
         spy = QSignalSpy(panel.launch_requested)
 
-        # Click button
-        QTest.mouseClick(panel.launch_button, Qt.MouseButton.LeftButton)
-        qtbot.wait(10)  # Brief wait for signal processing
+        # Click button and wait for signal
+        with qtbot.waitSignal(panel.launch_requested, timeout=1000):
+            QTest.mouseClick(panel.launch_button, Qt.MouseButton.LeftButton)
 
         # Verify signal emission
         assert spy.count() == 1
@@ -219,8 +219,8 @@ class TestLauncherPreviewPanel:
         panel.set_launcher(launcher)
 
         spy = QSignalSpy(panel.edit_requested)
-        QTest.mouseClick(panel.edit_button, Qt.MouseButton.LeftButton)
-        qtbot.wait(10)
+        with qtbot.waitSignal(panel.edit_requested, timeout=1000):
+            QTest.mouseClick(panel.edit_button, Qt.MouseButton.LeftButton)
 
         assert spy.count() == 1
         signal_args = spy.at(0)
@@ -235,8 +235,8 @@ class TestLauncherPreviewPanel:
         panel.set_launcher(launcher)
 
         spy = QSignalSpy(panel.delete_requested)
-        QTest.mouseClick(panel.delete_button, Qt.MouseButton.LeftButton)
-        qtbot.wait(10)
+        with qtbot.waitSignal(panel.delete_requested, timeout=1000):
+            QTest.mouseClick(panel.delete_button, Qt.MouseButton.LeftButton)
 
         assert spy.count() == 1
         signal_args = spy.at(0)
@@ -258,7 +258,9 @@ class TestLauncherPreviewPanel:
         QTest.mouseClick(panel.launch_button, Qt.MouseButton.LeftButton)
         QTest.mouseClick(panel.edit_button, Qt.MouseButton.LeftButton)
         QTest.mouseClick(panel.delete_button, Qt.MouseButton.LeftButton)
-        qtbot.wait(10)
+
+        # Process events to ensure no signals are queued
+        qtbot.wait(1)
 
         # No signals should be emitted
         for spy in spies:
@@ -331,7 +333,7 @@ class TestLauncherEditDialog:
 
         # Empty name should be invalid
         dialog.name_field.setText("")
-        qtbot.wait(10)  # Allow validation to process
+        # Validation is synchronous, no wait needed
 
         assert not dialog._validate_name()
         assert "border: 1px solid #f44336" in dialog.name_field.styleSheet()
@@ -345,7 +347,7 @@ class TestLauncherEditDialog:
 
         # Valid name should pass
         dialog.name_field.setText("Valid Launcher Name")
-        qtbot.wait(10)
+        # Validation is synchronous, no wait needed
 
         assert dialog._validate_name()
         assert "border: 1px solid #4caf50" in dialog.name_field.styleSheet()
@@ -364,7 +366,7 @@ class TestLauncherEditDialog:
 
         # Duplicate name should be invalid
         dialog.name_field.setText("Existing Launcher")
-        qtbot.wait(10)
+        # Validation is synchronous, no wait needed
 
         assert not dialog._validate_name()
         assert "border: 1px solid #f44336" in dialog.name_field.styleSheet()
@@ -384,7 +386,7 @@ class TestLauncherEditDialog:
 
         # Same name should be valid when editing same launcher
         dialog.name_field.setText("Test Launcher")
-        qtbot.wait(10)
+        # Validation is synchronous, no wait needed
 
         assert dialog._validate_name()
         assert "border: 1px solid #4caf50" in dialog.name_field.styleSheet()
@@ -397,7 +399,7 @@ class TestLauncherEditDialog:
         qtbot.addWidget(dialog)
 
         dialog.command_field.setPlainText("")
-        qtbot.wait(10)
+        # Validation is synchronous, no wait needed
 
         assert not dialog._validate_command()
         assert "border: 1px solid #f44336" in dialog.command_field.styleSheet()
@@ -410,7 +412,7 @@ class TestLauncherEditDialog:
         qtbot.addWidget(dialog)
 
         dialog.command_field.setPlainText("echo test")
-        qtbot.wait(10)
+        # Validation is synchronous, no wait needed
 
         assert dialog._validate_command()
         assert "border: 1px solid #4caf50" in dialog.command_field.styleSheet()
@@ -428,7 +430,7 @@ class TestLauncherEditDialog:
         qtbot.addWidget(dialog)
 
         dialog.command_field.setPlainText("invalid {bad_var")
-        qtbot.wait(10)
+        # Validation is synchronous, no wait needed
 
         assert not dialog._validate_command()
         assert "border: 1px solid #f44336" in dialog.command_field.styleSheet()
@@ -442,9 +444,9 @@ class TestLauncherEditDialog:
 
         dialog.command_field.setPlainText("echo test")
 
-        # Click test button
+        # Click test button and wait for result
         QTest.mouseClick(dialog.test_button, Qt.MouseButton.LeftButton)
-        qtbot.wait(50)  # Wait for test execution
+        qtbot.waitUntil(lambda: "✓" in dialog.test_output.text(), timeout=1000)
 
         # Check success message (test behavior, not implementation)
         assert "✓ Command validated successfully" in dialog.test_output.text()
@@ -466,7 +468,7 @@ class TestLauncherEditDialog:
         mock_launcher_manager.set_test_command("bad command")
 
         QTest.mouseClick(dialog.test_button, Qt.MouseButton.LeftButton)
-        qtbot.wait(50)
+        qtbot.waitUntil(lambda: "✗" in dialog.test_output.text(), timeout=1000)
 
         # The LauncherManagerDouble should fail commands starting with "bad"
         assert "✗" in dialog.test_output.text()
@@ -483,7 +485,7 @@ class TestLauncherEditDialog:
         dialog.command_field.setPlainText("")
 
         QTest.mouseClick(dialog.test_button, Qt.MouseButton.LeftButton)
-        qtbot.wait(10)
+        qtbot.waitUntil(lambda: dialog.test_output.text() != "", timeout=1000)
 
         assert dialog.test_output.text() == "No command to test"
         # Test behavior: no dry run should have been executed
@@ -709,15 +711,20 @@ class TestLauncherManagerDialog:
         dialog = LauncherManagerDialog(mock_launcher_manager)
         qtbot.addWidget(dialog)
 
-        # Select second launcher
+        # Select second launcher and get expected launcher
+        actual_launchers = mock_launcher_manager.list_launchers()
+        expected_launcher = actual_launchers[1]
+
         dialog.launcher_list.setCurrentRow(1)
-        qtbot.wait(10)
+        # Wait for preview panel to update
+        qtbot.waitUntil(
+            lambda: dialog.preview_panel._current_launcher_id == expected_launcher.id,
+            timeout=1000
+        )
 
         # Check preview was updated
-        actual_launchers = mock_launcher_manager.list_launchers()
-        selected_launcher = actual_launchers[1]
-        assert dialog.preview_panel.name_label.text() == selected_launcher.name
-        assert dialog.preview_panel._current_launcher_id == selected_launcher.id
+        assert dialog.preview_panel.name_label.text() == expected_launcher.name
+        assert dialog.preview_panel._current_launcher_id == expected_launcher.id
 
     def test_search_filtering(
         self,
@@ -738,9 +745,9 @@ class TestLauncherManagerDialog:
         dialog = LauncherManagerDialog(mock_launcher_manager)
         qtbot.addWidget(dialog)
 
-        # Search for "Rez"
+        # Search for "Rez" (filtering is synchronous)
         dialog.search_field.setText("Rez")
-        qtbot.wait(10)
+        qtbot.wait(1)  # Minimal event processing
 
         # Check filtering - only rez launcher should be visible
         for i in range(dialog.launcher_list.count()):
@@ -770,9 +777,9 @@ class TestLauncherManagerDialog:
         dialog = LauncherManagerDialog(mock_launcher_manager)
         qtbot.addWidget(dialog)
 
-        # Search for "nuke" (should match rez launcher command)
+        # Search for "nuke" (should match rez launcher command - filtering is synchronous)
         dialog.search_field.setText("nuke")
-        qtbot.wait(10)
+        qtbot.wait(1)  # Minimal event processing
 
         # Check that launchers with "nuke" in command are visible
         for i in range(dialog.launcher_list.count()):
@@ -810,7 +817,7 @@ class TestLauncherManagerDialog:
 
         # Trigger the double-click handler directly to test the logic
         dialog._on_double_click(item)
-        qtbot.wait(10)
+        # Execution is synchronous in test double, no wait needed
 
         # Test behavior: verify launcher was executed
         assert (
@@ -843,7 +850,7 @@ class TestLauncherManagerDialog:
             mock_instance.exec.side_effect = simulate_create
 
             QTest.mouseClick(dialog.add_button, Qt.MouseButton.LeftButton)
-            qtbot.wait(10)
+            # Mocked dialog executes synchronously, no wait needed
 
         # Test behavior: verify a new launcher would be created if dialog was accepted
         # The mock was configured to return Accepted, indicating the dialog would show
@@ -932,14 +939,14 @@ class TestLauncherManagerDialog:
 
         # Select first launcher
         dialog.launcher_list.setCurrentRow(0)
-        qtbot.wait(10)
+        qtbot.wait(1)  # Minimal event processing for selection
 
         initial_execution_count = len(mock_launcher_manager._execution_history)
         initial_launcher_count = mock_launcher_manager.get_created_launcher_count()
 
-        # Test Enter key for launch (call the shortcut method directly)
+        # Test Enter key for launch (call the shortcut method directly - synchronous)
         dialog._launch_selected()
-        qtbot.wait(10)
+        # Execution is synchronous, no wait needed
         # Test behavior: verify launcher was executed
         assert (
             len(mock_launcher_manager._execution_history) == initial_execution_count + 1
@@ -957,7 +964,7 @@ class TestLauncherManagerDialog:
             )
 
             dialog._edit_selected()
-            qtbot.wait(10)
+            # Mocked dialog executes synchronously, no wait needed
 
             # Test behavior: verify edit dialog would be shown for selected launcher
             assert mock_edit_dialog.called  # Dialog was created
@@ -974,7 +981,7 @@ class TestLauncherManagerDialog:
         with patch("launcher_dialog.QMessageBox.question") as mock_question:
             mock_question.return_value = QMessageBox.StandardButton.Yes
             dialog._delete_selected()
-            qtbot.wait(10)
+            # Delete operation is synchronous, no wait needed
 
         # Test behavior: verify launcher was deleted
         assert (
@@ -990,7 +997,7 @@ class TestLauncherManagerDialog:
             dialog.launcher_list.count()
 
             dialog._add_launcher()
-            qtbot.wait(10)
+            # Mocked dialog executes synchronously, no wait needed
 
             # Test behavior: verify dialog would be shown in create mode
             assert mock_edit_dialog.called  # Dialog was created
@@ -1011,8 +1018,7 @@ class TestLauncherManagerDialog:
         # Test Ctrl+F focuses search (call the shortcut lambda directly)
         # Note: In offscreen mode, focus doesn't work properly
         dialog.search_field.setFocus()  # The lambda does: self.search_field.setFocus()
-        qtbot.wait(10)
-        # Skip focus check in offscreen mode - not critical for functionality
+        # Skip focus check and wait in offscreen mode - not critical for functionality
         # assert dialog.search_field.hasFocus()
 
     def test_execution_signals(
@@ -1077,7 +1083,11 @@ class TestLauncherManagerDialog:
 
         # Trigger reload
         dialog._load_launchers()
-        qtbot.wait(10)
+        # Wait for launcher list to be populated
+        qtbot.waitUntil(
+            lambda: dialog.launcher_list.count() == initial_count + 1,
+            timeout=1000
+        )
 
         # Should have one more launcher
         assert dialog.launcher_list.count() == initial_count + 1

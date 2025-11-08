@@ -90,9 +90,9 @@ class TestPreviousShotsModel:
         return CacheManager(cache_dir=temp_cache_dir)
 
     @pytest.fixture
-    def test_cache_manager(self) -> TestCacheManager:
-        """Create test double CacheManager."""
-        return TestCacheManager()
+    def test_cache_manager(self, tmp_path: Path) -> TestCacheManager:
+        """Create test double CacheManager with isolated cache directory."""
+        return TestCacheManager(cache_dir=tmp_path / "cache")
 
     @pytest.fixture
     def test_shot_model(self, qtbot: QtBot) -> Generator[FakeShotModel, None, None]:
@@ -137,7 +137,8 @@ class TestPreviousShotsModel:
             shot_model=test_shot_model, cache_manager=test_cache_manager
         )
         yield model
-        # Cleanup
+        # Cleanup worker thread BEFORE deleteLater to prevent Qt crashes
+        model._cleanup_worker_safely()
         model.deleteLater()
         qtbot.wait(1)
 
@@ -153,6 +154,8 @@ class TestPreviousShotsModel:
             shot_model=test_shot_model, cache_manager=real_cache_manager
         )
         yield model
+        # Cleanup worker thread BEFORE deleteLater to prevent Qt crashes
+        model._cleanup_worker_safely()
         model.deleteLater()
         qtbot.wait(1)
 

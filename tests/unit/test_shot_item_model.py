@@ -167,7 +167,7 @@ class TestThumbnailLoading:
         shot_item_model.set_visible_range(0, 1)
 
         # Process events to allow async loading
-        qtbot.wait(20)
+        qtbot.wait(1)  # Minimal event processing
 
         # Signal emission depends on cache manager behavior
         # We verify the signal exists and can be connected
@@ -192,7 +192,7 @@ class TestThumbnailLoading:
         # Trigger loading for same range multiple times
         for _ in range(3):
             shot_item_model.set_visible_range(0, 1)
-            qtbot.wait(10)
+            qtbot.wait(1)  # Minimal event processing
 
         # Verify states are consistent (no duplicate loading)
         for shot in test_shots[:2]:
@@ -208,7 +208,7 @@ class TestThumbnailLoading:
 
         # Set visible range to only first two items
         shot_item_model.set_visible_range(0, 1)
-        qtbot.wait(20)
+        qtbot.wait(1)  # Minimal event processing
 
         # Check loading states - only visible items should be marked
         visible_states = [
@@ -244,7 +244,7 @@ class TestThumbnailLoading:
 
         # Trigger loading
         shot_item_model.set_visible_range(0, 0)
-        qtbot.wait(50)
+        qtbot.wait(1)  # Minimal event processing
 
         # After loading, thumbnail may be cached (depends on cache manager)
         # We verify the mechanism exists

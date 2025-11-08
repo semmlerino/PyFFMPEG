@@ -116,12 +116,11 @@ class TestConcurrentOperations:
         # Call cleanup while loading
         concurrent_model.cleanup()
 
-        # Should handle gracefully without hanging
-        # Wait a moment to ensure cleanup completes
-        qtbot.wait(500)  # 500ms for cleanup
-
-        # Background loader should be stopped
+        # Wait for loader to stop
         if concurrent_model._async_loader:
+            qtbot.waitUntil(
+                lambda: not concurrent_model._async_loader.isRunning(), timeout=2000
+            )
             assert not concurrent_model._async_loader.isRunning()
 
     def test_memory_pressure_simulation(self, concurrent_model) -> None:
@@ -153,13 +152,22 @@ class TestConcurrentOperations:
 
         concurrent_model.shots_loaded.connect(on_shots_loaded)
         concurrent_model.shots_changed.connect(on_shots_changed)
+        try:
+            # Trigger multiple async operations
+            concurrent_model.initialize_async()
+            concurrent_model.initialize_async()  # Should handle duplicate calls
 
-        # Trigger multiple async operations
-        concurrent_model.initialize_async()
-        concurrent_model.initialize_async()  # Should handle duplicate calls
+            # Wait for signals
+            qtbot.waitUntil(lambda: len(signals_received) > 0, timeout=3000)
 
-        # Wait for signals
-        qtbot.waitUntil(lambda: len(signals_received) > 0, timeout=3000)
-
-        # Verify signals were received safely
-        assert len(signals_received) > 0
+            # Verify signals were received safely
+            assert len(signals_received) > 0
+        finally:
+            try:
+                concurrent_model.shots_loaded.disconnect(on_shots_loaded)
+            except (TypeError, RuntimeError):
+                pass  # Already disconnected or object deleted
+            try:
+                concurrent_model.shots_changed.disconnect(on_shots_changed)
+            except (TypeError, RuntimeError):
+                pass  # Already disconnected or object deleted

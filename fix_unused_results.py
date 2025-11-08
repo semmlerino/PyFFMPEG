@@ -56,8 +56,7 @@ REVIEW_PATTERNS = [
 
 def get_warnings() -> list[WarningInfo]:
     """Get all reportUnusedCallResult warnings from basedpyright."""
-    import os  # noqa: PLC0415 - Lazy import for path expansion
-    uv_path = os.path.expanduser("~/.local/bin/uv")
+    uv_path = str(Path("~/.local/bin/uv").expanduser())
     result = subprocess.run(
         [uv_path, "run", "basedpyright"],
         check=False, capture_output=True,

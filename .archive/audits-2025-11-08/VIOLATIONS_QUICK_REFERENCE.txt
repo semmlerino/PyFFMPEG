@@ -1,0 +1,196 @@
+================================================================================
+TESTING VIOLATIONS - QUICK REFERENCE GUIDE
+================================================================================
+
+VIOLATIONS SUMMARY TABLE
+================================================================================
+
+Violation | Count | Severity | Files | Fix Time | Fix Effort
+-----------|-------|----------|-------|----------|----------
+CacheManager() without cache_dir | 7 | CRITICAL | 1 | 15 min | Low
+Config.SHOWS_ROOT without monkeypatch | 248+ | HIGH | 6+ | 2-3 hrs | Medium
+Module-level Qt app creation | 0 | HIGH | 0 | N/A | N/A (PASS)
+
+================================================================================
+
+CRITICAL VIOLATIONS (Immediate Action Required)
+================================================================================
+
+[CRITICAL] test_cache_separation.py - 7 CacheManager() instances
+
+Location: /home/gabrielh/projects/shotbot/tests/unit/test_cache_separation.py
+
+Problem Lines:
+  Line 89:  test_manager = CacheManager()
+  Line 95:  mock_manager = CacheManager()
+  Line 101: test_manager2 = CacheManager()
+  Line 139: test_manager = CacheManager()
+  Line 146: mock_manager = CacheManager()
+  Line 153: test_manager2 = CacheManager()
+  Line 164: test_manager3 = CacheManager()
+
+Why It's Critical:
+  - Uses shared ~/.shotbot/cache_test directory
+  - Accumulates data across test runs
+  - Can cause parallel test failures that don't occur in isolation
+
+Quick Fix:
+  1. Add "tmp_path: Path" parameter to test functions
+  2. Replace CacheManager() with CacheManager(cache_dir=tmp_path / "cache")
+  3. Estimated time: 15 minutes
+
+Code Example:
+  # BEFORE
+  def test_cache_manager_separation(monkeypatch: pytest.MonkeyPatch) -> None:
+      test_manager = CacheManager()
+  
+  # AFTER
+  def test_cache_manager_separation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+      test_manager = CacheManager(cache_dir=tmp_path / "cache")
+
+================================================================================
+
+HIGH PRIORITY VIOLATIONS (Within Next Week)
+================================================================================
+
+[HIGH] Config.SHOWS_ROOT Without Monkeypatch - 248+ instances
+
+Primary Files:
+  1. test_shot_item_model.py      - Fixture (1 instance, affects many tests)
+  2. test_main_window.py          - Test methods (10 instances)
+  3. test_base_item_model.py      - Test code (30+ instances)
+  4. test_base_shot_model.py      - Test code (40+ instances)
+  5. Other files                  - Mixed (125+ instances)
+
+Why It's a Problem:
+  - Tests use real production Config.SHOWS_ROOT value
+  - No test isolation between tests
+  - In parallel execution, different workers see different values
+  - Breaks test reproducibility
+
+Quick Fix (Multiple Options):
+
+Option A: Add monkeypatch to fixture
+  @pytest.fixture
+  def test_shots(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> list[Shot]:
+      monkeypatch.setattr("config.Config.SHOWS_ROOT", str(tmp_path))
+      return [Shot("show1", ..., f"{Config.SHOWS_ROOT}/...")]
+
+Option B: Use tmp_path directly
+  @pytest.fixture
+  def test_shots(tmp_path: Path) -> list[Shot]:
+      shows_root = str(tmp_path)
+      return [Shot("show1", ..., f"{shows_root}/...")]
+
+Option C: Add monkeypatch to test method
+  def test_something(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+      monkeypatch.setattr("config.Config.SHOWS_ROOT", str(tmp_path))
+      # Use Config.SHOWS_ROOT in test
+
+Estimated Time: 2-3 hours (can be done incrementally)
+
+Priority Sub-List (fix in this order):
+  1. test_shot_item_model.py (1 fixture, affects many tests) - 30 min
+  2. test_main_window.py (10 test methods) - 45 min
+  3. test_base_item_model.py (30+ violations) - 60 min
+  4. Other files (batch fixes) - 60 min
+
+================================================================================
+
+PASSED CHECKS (No Action Required)
+================================================================================
+
+[PASS] Module-Level Qt App Creation - 0 violations
+
+Verification:
+  ✓ test_cache_separation.py - No Qt imports at module level
+  ✓ test_shot_item_model.py - Lazy imports via fixture
+  ✓ test_main_window.py - Lazy imports via module-level fixture
+  ✓ conftest.py - Session-scoped qapp fixture (correct pattern)
+
+No action needed for this category.
+
+================================================================================
+
+HOW TO USE THIS GUIDE
+================================================================================
+
+Step 1: Fix Critical Violations (15 minutes)
+  - Open: /home/gabrielh/projects/shotbot/tests/unit/test_cache_separation.py
+  - Fix all 7 CacheManager() calls (add tmp_path parameter)
+  - Run: uv run pytest tests/unit/test_cache_separation.py -v
+
+Step 2: Fix High Priority Violations (2-3 hours)
+  - Follow priority list above
+  - Fix test_shot_item_model.py fixture first (affects most tests)
+  - Then test_main_window.py test methods
+  - Then other files in order
+
+Step 3: Validate All Fixes (30 minutes)
+  - Run: uv run pytest tests/ -n 2 --tb=short
+  - If tests pass individually but fail in parallel, isolation issue remains
+  - Check for "FAILED" in parallel output
+
+Full Documentation:
+  See: /home/gabrielh/projects/shotbot/TESTING_VIOLATIONS_AUDIT.md
+
+================================================================================
+
+REFERENCE: UNIFIED_TESTING_V2.MD SECTIONS
+================================================================================
+
+Section 6a: "Shared Cache Directories" (lines 214-254)
+  - Problem: CacheManager() without cache_dir parameter
+  - Solution: Always use tmp_path for cache directories
+
+Section 2 & 5: "Use monkeypatch for state isolation" (lines 72-79)
+  - Problem: Config.SHOWS_ROOT accessed without monkeypatch
+  - Solution: Use monkeypatch.setattr("config.Config.SHOWS_ROOT", str(tmp_path))
+
+Section 7: "Module-Level Qt App Creation" (lines 303-322)
+  - Problem: QApplication created at module level
+  - Solution: Use pytest-qt's qapp fixture
+  - Status: PASS - No violations
+
+================================================================================
+
+TESTING VERIFICATION COMMANDS
+================================================================================
+
+Run individual test files to verify fixes:
+
+  # Test cache fixes
+  uv run pytest tests/unit/test_cache_separation.py -v
+
+  # Test main window fixes
+  uv run pytest tests/unit/test_main_window.py -v
+
+  # Test model fixes
+  uv run pytest tests/unit/test_base_item_model.py -v
+  uv run pytest tests/unit/test_base_shot_model.py -v
+  uv run pytest tests/unit/test_shot_item_model.py -v
+
+  # Full test suite with parallelism (after all fixes)
+  uv run pytest tests/ -n 2 --tb=short
+
+  # Check for isolation-related failures
+  uv run pytest tests/ -n auto --tb=short
+
+================================================================================
+
+ESTIMATED TOTAL TIME
+================================================================================
+
+Phase 1 (Critical):        15 minutes
+Phase 2 (High Priority):   2-3 hours
+Phase 3 (Validation):      30 minutes
+                           ----------
+TOTAL:                     3-4 hours
+
+This can be done incrementally - prioritize Phase 1 (Critical) first.
+
+================================================================================
+
+Last Updated: 2025-11-07
+Report Location: /home/gabrielh/projects/shotbot/TESTING_VIOLATIONS_AUDIT.md
+

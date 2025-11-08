@@ -171,8 +171,7 @@ class LauncherController(LoggingMixin):
         """
         if scene:
             self.logger.info(
-                f"🎬 LauncherController.set_current_scene() called with scene: {scene.full_name} "
-                 f"(user: {scene.user}, path: {scene.scene_path})"
+                f"🎬 LauncherController.set_current_scene() called with scene: {scene.full_name} (user: {scene.user}, path: {scene.scene_path})"
             )
             # Clear shot context to maintain mutual exclusivity
             self._current_shot = None
@@ -503,7 +502,7 @@ class LauncherController(LoggingMixin):
             return
 
         if self._launcher_dialog is None:
-            from launcher_dialog import LauncherManagerDialog  # noqa: PLC0415
+            from launcher_dialog import LauncherManagerDialog
 
             self._launcher_dialog = LauncherManagerDialog(
                 self.window.launcher_manager, cast("QWidget", cast("object", self.window))

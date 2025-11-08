@@ -1,7 +1,6 @@
 """Minimal test to isolate the timeout issue."""
 
 # Standard library imports
-import shutil
 import sys
 from pathlib import Path
 
@@ -14,32 +13,32 @@ def test_basic_import() -> None:
     print("PathUtils imported successfully")
 
 
-def test_path_validation() -> None:
+def test_path_validation(tmp_path: Path) -> None:
     print("Testing path validation...")
     # Local application imports
     from utils import (
         PathUtils,
     )
 
-    # Create a temporary directory
-    test_path = Path("/tmp/test_path")
+    # Create a temporary directory using pytest's tmp_path fixture
+    test_path = tmp_path / "test_path"
     test_path.mkdir(exist_ok=True)
 
     result = PathUtils.validate_path_exists(test_path, "Test path")
     print(f"Path validation result: {result}")
 
-    test_path.rmdir()
+    # No cleanup needed - pytest handles tmp_path automatically
 
 
-def test_find_thumbnail() -> None:
+def test_find_thumbnail(tmp_path: Path) -> None:
     print("Testing find_turnover_plate_thumbnail...")
     # Local application imports
     from utils import (
         PathUtils,
     )
 
-    # Create a temporary structure
-    base = Path("/tmp/shotbot_test")
+    # Create a temporary structure using pytest's tmp_path fixture
+    base = tmp_path / "shotbot_test"
     shows_root = base / "shows"
     plate_path = (
         shows_root
@@ -70,8 +69,7 @@ def test_find_thumbnail() -> None:
 
     print(f"Find result: {result}")
 
-    # Cleanup
-    shutil.rmtree(base, ignore_errors=True)
+    # No cleanup needed - pytest handles tmp_path automatically
 
 
 if __name__ == "__main__":

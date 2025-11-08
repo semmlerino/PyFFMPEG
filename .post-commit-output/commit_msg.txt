@@ -1,1 +1,1 @@
-build: Optimize bundle size and add decoder script
+test: Phase 2 - Harden test suite for parallel execution

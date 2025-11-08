@@ -359,15 +359,24 @@ class TestSignalSlotTypeSafety:
             controller.set_current_scene(scene)
             controller.launch_app(app_name)
 
-        # Connect signal to handler (this should work)
-        emitter.app_launch_requested.connect(handle_launch)
+        try:
+            # Connect signal to handler (this should work)
+            emitter.app_launch_requested.connect(handle_launch)
 
-        # Emit signal
-        emitter.app_launch_requested.emit("3de", test_scene)
+            # Emit signal
+            emitter.app_launch_requested.emit("3de", test_scene)
 
-        # Verify launch succeeded with scene context
-        assert controller._current_scene == test_scene
-        assert len(target.command_launcher.executed_commands) > 0
+            # Verify launch succeeded with scene context
+            assert controller._current_scene == test_scene
+            assert len(target.command_launcher.executed_commands) > 0
+        finally:
+            # CRITICAL: Disconnect signal to prevent dangling connections
+            # Dangling connections cause segfaults in subsequent tests
+            try:
+                emitter.app_launch_requested.disconnect(handle_launch)
+            except (TypeError, RuntimeError):
+                pass  # Already disconnected or object deleted
+            emitter.deleteLater()
 
 
 class TestLauncherPanelButtonWithSceneContext:

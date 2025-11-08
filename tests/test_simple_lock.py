@@ -16,7 +16,7 @@ import time
 from pathlib import Path
 
 
-def test_basic_file_locking() -> bool:
+def test_basic_file_locking() -> None:
     """Test that fcntl file locking works as expected."""
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -82,13 +82,13 @@ def test_basic_file_locking() -> bool:
         print(f"Successful increments: {len(successful_increments)}")
         print(f"Time elapsed: {elapsed:.2f}s")
 
-        if final_value == expected:
-            print("✓ File locking works correctly!")
-            return True
-        print(f"✗ Lost {expected - final_value} increments")
-        return False
+        assert final_value == expected, f"Lost {expected - final_value} increments"
+        print("✓ File locking works correctly!")
 
 
 if __name__ == "__main__":
-    success = test_basic_file_locking()
-    sys.exit(0 if success else 1)
+    try:
+        test_basic_file_locking()
+        sys.exit(0)
+    except AssertionError:
+        sys.exit(1)

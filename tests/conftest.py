@@ -147,7 +147,7 @@ def enforce_unique_connections(request, monkeypatch, _signal_instance_type):
     # Get original connect method
     original_connect = _signal_instance_type.connect
 
-    def _connect_unique(self, slot, type=Qt.ConnectionType.AutoConnection):
+    def _connect_unique(self, slot, connection_type=Qt.ConnectionType.AutoConnection):
         """Override connect() to always use UniqueConnection."""
         # Force UniqueConnection - duplicate connects will be silently ignored
         return original_connect(self, slot, Qt.ConnectionType.UniqueConnection)
@@ -155,7 +155,6 @@ def enforce_unique_connections(request, monkeypatch, _signal_instance_type):
     # Patch connect() method
     monkeypatch.setattr(_signal_instance_type, "connect", _connect_unique, raising=True)
 
-    yield
 
     # Cleanup is automatic via monkeypatch
 
@@ -442,7 +441,7 @@ def cleanup_state() -> Iterator[None]:
     # QRunnableTracker Cleanup
     from runnable_tracker import QRunnableTracker
     try:
-        QRunnableTracker.reset_instance()
+        QRunnableTracker.reset()
     except Exception as e:
         import warnings
         warnings.warn(f"QRunnableTracker reset failed: {e}", RuntimeWarning, stacklevel=2)
@@ -478,6 +477,22 @@ def cleanup_state() -> Iterator[None]:
     # Force garbage collection to clean up any instances that cached state
     # (e.g., TargetedShotsFinder instances with cached Config.SHOWS_ROOT regex patterns)
     gc.collect()
+
+
+@pytest.fixture(autouse=True)
+def clear_parser_cache() -> Iterator[None]:
+    """Clear OptimizedShotParser pattern cache to prevent pollution.
+
+    The cache is keyed by Config.SHOWS_ROOT. When tests monkeypatch this value,
+    the cache accumulates entries that can cause parser regex mismatches.
+    """
+    yield
+    # Import here to avoid circular imports at module level
+    try:
+        from optimized_shot_parser import _PATTERN_CACHE
+        _PATTERN_CACHE.clear()
+    except (ImportError, AttributeError):
+        pass  # Parser module may not exist or cache may be renamed
 
 
 @pytest.fixture(autouse=True)
@@ -520,6 +535,42 @@ def stable_random_seed() -> None:
         np.random.seed(12345)
     except ImportError:
         pass  # numpy not installed
+
+
+@pytest.fixture(autouse=True)
+def clear_module_caches() -> Iterator[None]:
+    """Clear common in-memory caches before/after each test.
+
+    This fixture prevents module-level @lru_cache and @functools.cache
+    decorators from accumulating stale data across tests, which is especially
+    critical for parallel execution where tests run on different workers.
+
+    Pattern from UNIFIED_TESTING_V2.MD section 3 "Module-Level Caches".
+    """
+    import inspect
+
+    modules_to_clear = []
+
+    # Import modules that have cached functions
+    try:
+        import utils
+        modules_to_clear.append(utils)
+    except (ModuleNotFoundError, ImportError):
+        pass
+
+    # Clear LRU caches and other cached functions BEFORE test
+    for mod in modules_to_clear:
+        for name, obj in inspect.getmembers(mod):
+            if hasattr(obj, "cache_clear"):
+                obj.cache_clear()
+
+    yield
+
+    # Clear again after test (defense in depth)
+    for mod in modules_to_clear:
+        for name, obj in inspect.getmembers(mod):
+            if hasattr(obj, "cache_clear"):
+                obj.cache_clear()
 
 
 @pytest.fixture(autouse=True)

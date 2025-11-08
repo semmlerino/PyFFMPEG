@@ -314,7 +314,7 @@ def main() -> None:
         else:
             # Auto-generate filename with timestamp and hostname
             # Standard library imports
-            from datetime import (  # noqa: PLC0415 - Lazy import for timestamp generation
+            from datetime import (
                 datetime,
             )
 

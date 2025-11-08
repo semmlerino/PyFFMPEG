@@ -1,5 +1,5 @@
-Post-commit hook executed at Thu Nov  6 10:38:36 GMT 2025
-Commit: 92127e2e1aa50a6fd339eba0a9700358a0eb9524
+Post-commit hook executed at Sat Nov  8 11:51:07 GMT 2025
+Commit: 6cd43c73060d136f17212badd4a13e8e2453f5cd
 Branch: master
 Author: GabrielH <gabrhas@gmail.com>
-Message: build: Optimize bundle size and add decoder script
+Message: test: Phase 2 - Harden test suite for parallel execution

@@ -27,8 +27,14 @@ class TestAsyncShotLoader:
     """Test AsyncShotLoader thread behavior and signal emission."""
 
     @pytest.fixture
-    def test_process_pool(self):
-        """Create test process pool for testing."""
+    def test_process_pool(self, tmp_path, monkeypatch):
+        """Create test process pool for testing.
+
+        Args:
+            tmp_path: Temporary directory for isolated test state
+            monkeypatch: Pytest monkeypatch for config isolation
+        """
+        monkeypatch.setattr("config.Config.SHOWS_ROOT", str(tmp_path))
         pool = TestProcessPool()
         shows_root = Config.SHOWS_ROOT
         pool.set_outputs(

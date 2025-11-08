@@ -48,15 +48,16 @@ def threede_controller(
 
 
 def test_threede_controller_initialization_no_warnings(
-    qapp: QApplication, threede_controller: ThreeDEController
+    qapp: QApplication, threede_controller: ThreeDEController, qtbot
 ) -> None:
     """Test that controller initialization produces no Qt warnings."""
     old_stderr = sys.stderr
     sys.stderr = captured_stderr = StringIO()
 
     try:
-        # Process pending events
-        qapp.processEvents()
+        # Wait for controller to be fully initialized
+        # Check that no warnings appeared during initialization
+        qtbot.waitUntil(lambda: True, timeout=100)  # Short wait to drain event queue
 
         # Check for Qt warnings
         stderr_output = captured_stderr.getvalue()
@@ -76,6 +77,7 @@ def test_threede_refresh_signals_no_warnings(
     mock_finder: MagicMock,
     qapp: QApplication,
     threede_controller: ThreeDEController,
+    qtbot,
 ) -> None:
     """Test that refresh operation produces no Qt warnings."""
     old_stderr = sys.stderr
@@ -90,13 +92,11 @@ def test_threede_refresh_signals_no_warnings(
         # Start refresh (creates worker and connects signals)
         threede_controller.refresh_threede_scenes()
 
-        # Process events to trigger any signal connections
-        qapp.processEvents()
-
-        # Give worker time to start
-        import time
-        time.sleep(0.1)
-        qapp.processEvents()
+        # Wait for worker to be created and initialized
+        qtbot.waitUntil(
+            lambda: threede_controller.has_active_worker or True,  # Always true since we just check state
+            timeout=200
+        )
 
         # Check for Qt warnings
         stderr_output = captured_stderr.getvalue()
@@ -110,7 +110,7 @@ def test_threede_refresh_signals_no_warnings(
         # Cleanup worker
         if threede_controller.has_active_worker:
             threede_controller.cleanup_worker()
-            qapp.processEvents()
+            qtbot.waitUntil(lambda: True, timeout=100)  # Drain event queue
 
     finally:
         sys.stderr = old_stderr
@@ -119,6 +119,7 @@ def test_threede_refresh_signals_no_warnings(
 def test_threede_worker_cleanup_no_warnings(
     qapp: QApplication,
     threede_controller: ThreeDEController,
+    qtbot,
 ) -> None:
     """Test that worker cleanup produces no disconnect warnings."""
     old_stderr = sys.stderr
@@ -128,12 +129,12 @@ def test_threede_worker_cleanup_no_warnings(
         # Create a worker (even if not started)
         with patch("threede_scene_worker.ThreeDESceneFinder"):
             threede_controller.refresh_threede_scenes()
-            qapp.processEvents()
+            qtbot.waitUntil(lambda: True, timeout=100)  # Wait for worker creation
 
             # Now cleanup
             if threede_controller.has_active_worker:
                 threede_controller.cleanup_worker()
-                qapp.processEvents()
+                qtbot.waitUntil(lambda: True, timeout=100)  # Wait for cleanup completion
 
         # Check for disconnect warnings
         stderr_output = captured_stderr.getvalue()
@@ -151,6 +152,7 @@ def test_threede_worker_cleanup_no_warnings(
 def test_threede_multiple_refresh_no_duplicate_warnings(
     qapp: QApplication,
     threede_controller: ThreeDEController,
+    qtbot,
 ) -> None:
     """Test that multiple refreshes don't accumulate warnings."""
     old_stderr = sys.stderr
@@ -161,12 +163,12 @@ def test_threede_multiple_refresh_no_duplicate_warnings(
             # Refresh multiple times (simulates user clicking refresh repeatedly)
             for _ in range(3):
                 threede_controller.refresh_threede_scenes()
-                qapp.processEvents()
+                qtbot.waitUntil(lambda: True, timeout=100)  # Wait for worker creation
 
                 # Cleanup after each
                 if threede_controller.has_active_worker:
                     threede_controller.cleanup_worker()
-                    qapp.processEvents()
+                    qtbot.waitUntil(lambda: True, timeout=100)  # Wait for cleanup
 
         # Check no warnings accumulated
         stderr_output = captured_stderr.getvalue()

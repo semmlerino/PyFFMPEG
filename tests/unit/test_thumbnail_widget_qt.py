@@ -116,7 +116,7 @@ class TestThumbnailWidgetBase:
 
         # Set selected (using internal method)
         widget._selected = True
-        qtbot.wait(10)
+        qtbot.wait(1)  # Minimal event processing
 
         # Verify state change
         assert widget._selected is True
@@ -135,7 +135,7 @@ class TestThumbnailWidgetBase:
             # Simulate left mouse click
             QTest.mouseClick(widget, Qt.MouseButton.LeftButton)
 
-        qtbot.wait(10)  # Allow UI processing after signal
+        qtbot.wait(1)  # Minimal event processing after signal
 
     def test_mouse_double_click_signal_emission(
         self, qtbot: QtBot, thumbnail_widget_base: ThumbnailWidgetBase
@@ -153,7 +153,7 @@ class TestThumbnailWidgetBase:
             # Simulate double click
             QTest.mouseDClick(widget, Qt.MouseButton.LeftButton)
 
-        qtbot.wait(10)  # Allow UI processing after signal
+        qtbot.wait(1)  # Minimal event processing after signal
 
     def test_thumbnail_size_property(
         self, thumbnail_widget_base: ThumbnailWidgetBase
@@ -292,7 +292,7 @@ class TestThumbnailWidgetInteractions:
         widget = ThumbnailWidget(shot, Config.DEFAULT_THUMBNAIL_SIZE)
         qtbot.addWidget(widget)
         widget.show()  # Make visible for interactions
-        qtbot.wait(10)
+        qtbot.wait(1)  # Minimal event processing
         return widget
 
     def test_click_selection_workflow(
@@ -309,7 +309,7 @@ class TestThumbnailWidgetInteractions:
 
         # Click widget to select
         QTest.mouseClick(widget, Qt.MouseButton.LeftButton)
-        qtbot.wait(10)
+        qtbot.wait(1)  # Minimal event processing
 
         # Verify click signal
         assert clicked_spy.count() == 1
@@ -325,7 +325,7 @@ class TestThumbnailWidgetInteractions:
 
         # Double-click widget
         QTest.mouseDClick(widget, Qt.MouseButton.LeftButton)
-        qtbot.wait(10)
+        qtbot.wait(1)  # Minimal event processing
 
         # Verify double-click signal
         assert double_clicked_spy.count() == 1
@@ -354,11 +354,11 @@ class TestThumbnailWidgetInteractions:
 
         # Widget should support show/hide
         widget.hide()
-        qtbot.wait(10)
+        qtbot.wait(1)  # Minimal event processing
         assert not widget.isVisible()
 
         widget.show()
-        qtbot.wait(10)
+        qtbot.wait(1)  # Minimal event processing
         assert widget.isVisible()
 
 
@@ -497,7 +497,7 @@ class TestThumbnailWidgetEdgeCases:
         QTest.mouseClick(widget, Qt.MouseButton.LeftButton)
         QTest.mouseDClick(widget, Qt.MouseButton.LeftButton)
 
-        qtbot.wait(10)
+        qtbot.wait(1)  # Minimal event processing
 
         # Widget should remain functional
         assert widget is not None

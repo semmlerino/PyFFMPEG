@@ -332,10 +332,9 @@ class TestThreeDESceneWorker:
         if original_finder:
             threede_scene_worker.ThreeDESceneFinder = original_finder
 
-        # Proper cleanup for QThread
-        if worker.isRunning():
-            worker.stop()
-            worker.wait(5000)
+        # CRITICAL: Proper cleanup for QThread to prevent Qt C++ object accumulation
+        from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
+        cleanup_qthread_properly(worker, signal_handlers=None)
 
     def test_worker_initialization(self, worker, test_shots) -> None:
         """Test worker initializes with correct parameters."""
@@ -593,8 +592,8 @@ class TestThreeDESceneWorker:
             try:
                 worker.start()
 
-                # Wait for some batch emissions
-                qtbot.wait(500)
+                # Minimal event processing for batch emissions
+                qtbot.wait(1)
 
                 # Should have emitted batches (exact count depends on timing)
                 assert len(batch_ready_count) >= 0

@@ -69,8 +69,8 @@ class Shot:
     def thumbnail_dir(self) -> Path:
         """Get thumbnail directory path."""
         # Import here to avoid circular dependency at module level
-        from config import Config  # noqa: PLC0415 - Avoid circular dependency
-        from utils import PathUtils  # noqa: PLC0415 - Avoid circular dependency
+        from config import Config
+        from utils import PathUtils
 
         return PathUtils.build_thumbnail_path(
             Config.SHOWS_ROOT,
@@ -101,8 +101,8 @@ class Shot:
                 return cast("Path | None", self._cached_thumbnail_path)
 
             # Import here to avoid circular dependency at module level
-            from config import Config  # noqa: PLC0415 - Avoid circular dependency
-            from utils import PathUtils  # noqa: PLC0415 - Avoid circular dependency
+            from config import Config
+            from utils import PathUtils
 
             # Use the unified thumbnail discovery method
             thumbnail = PathUtils.find_shot_thumbnail(

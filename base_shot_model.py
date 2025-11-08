@@ -73,7 +73,7 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
         """
         super().__init__()
         # Local application imports
-        from cache_manager import (  # noqa: PLC0415 - Lazy import to avoid circular dependency
+        from cache_manager import (
             CacheManager,
         )
 
@@ -105,7 +105,7 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
             True if cache was loaded, False otherwise
         """
         # Local application imports
-        from type_definitions import (  # noqa: PLC0415 - Import here to avoid circular import
+        from type_definitions import (
             Shot,
         )
 
@@ -188,7 +188,7 @@ class BaseShotModel(ABC, LoggingMixin, QObject, metaclass=QABCMeta):
                         continue
 
                     # Local application imports
-                    from type_definitions import (  # noqa: PLC0415 - Import here to avoid circular import
+                    from type_definitions import (
                         Shot,
                     )
 

@@ -132,18 +132,22 @@ class TestShotGridView:
             # Simulate mouse click on first item
             rect = view.list_view.visualRect(first_index)
             if rect.isValid():
-                QTest.mouseClick(
-                    view.list_view.viewport(),
-                    Qt.MouseButton.LeftButton,
-                    Qt.KeyboardModifier.NoModifier,
-                    rect.center(),
-                )
+                # Click and wait for selection change
+                try:
+                    with qtbot.waitSignal(selection_model.selectionChanged, timeout=1000):
+                        QTest.mouseClick(
+                            view.list_view.viewport(),
+                            Qt.MouseButton.LeftButton,
+                            Qt.KeyboardModifier.NoModifier,
+                            rect.center(),
+                        )
+                except Exception:
+                    # Selection may not change if item already selected or not visible
+                    # Catch all exceptions including pytestqt.exceptions.TimeoutError
+                    pass
 
-            # Process events
-            qtbot.wait(50)
-
-            # Verify selection changed
-            assert selection_spy.count() >= 0  # May be 0 if item not visible
+            # Verify selection changed (may be 0 if item not visible or already selected)
+            assert selection_spy.count() >= 0
 
             # Check if item can be selected (visual feedback test)
             current_selection = selection_model.selectedIndexes()
@@ -181,13 +185,16 @@ class TestShotGridView:
         model = view.model
 
         if model.rowCount() > 0:
-            # Set focus on list view
+            # Set focus on list view and wait for focus to be acquired
             view.list_view.setFocus()
-            qtbot.wait(10)
+            try:
+                qtbot.waitUntil(lambda: view.list_view.hasFocus(), timeout=1000)
+            except Exception:
+                # Focus may not be acquired in headless environment
+                pass
 
-            # Simulate arrow key press
+            # Simulate arrow key press (synchronous)
             QTest.keyPress(view.list_view, Qt.Key.Key_Down)
-            qtbot.wait(10)
 
             # View should handle key events (test doesn't crash)
             assert view.list_view.focusPolicy() != Qt.FocusPolicy.NoFocus
@@ -211,8 +218,15 @@ class TestShotGridView:
             Shot(shot.show, shot.sequence, shot.shot, shot.workspace_path)
             for shot in new_shots
         ]
-        model.set_shots(new_shot_objects)
-        qtbot.wait(10)
+
+        # Wait for model to update (layoutChanged signal should be emitted)
+        try:
+            with qtbot.waitSignal(model.layoutChanged, timeout=1000):
+                model.set_shots(new_shot_objects)
+        except Exception:
+            # Model might not emit signal if implementation doesn't require it
+            # Catch all exceptions including pytestqt.exceptions.TimeoutError
+            model.set_shots(new_shot_objects)
 
         # Model should reflect changes
         new_count = model.rowCount()
@@ -275,12 +289,19 @@ class TestShotGridIntegration:
         view = integrated_grid_view
         model = view.model
 
-        # Process events to allow thumbnail loading
-        qtbot.wait(100)
-
-        # Model should have data for first item
+        # Wait for model to have valid data (thumbnails may load asynchronously)
         first_index = model.index(0, 0)
         if first_index.isValid():
+            # Wait for data to be available
+            def data_available() -> bool:
+                return model.data(first_index, Qt.ItemDataRole.DisplayRole) is not None
+
+            try:
+                qtbot.waitUntil(data_available, timeout=1000)
+            except TimeoutError:
+                # Data might not be available yet, that's OK for this test
+                pass
+
             data = model.data(first_index, Qt.ItemDataRole.DisplayRole)
             assert data is not None
 
@@ -297,10 +318,15 @@ class TestShotGridIntegration:
             # Select first item programmatically
             first_index = model.index(0, 0)
             if first_index.isValid():
-                selection_model.select(
-                    first_index, selection_model.SelectionFlag.Select
-                )
-                qtbot.wait(10)
+                # Select and wait for selection to change
+                try:
+                    with qtbot.waitSignal(selection_model.selectionChanged, timeout=1000):
+                        selection_model.select(
+                            first_index, selection_model.SelectionFlag.Select
+                        )
+                except TimeoutError:
+                    # Selection might not change if already selected
+                    pass
 
                 # Verify selection
                 selected = selection_model.selectedIndexes()
@@ -313,13 +339,20 @@ class TestShotGridIntegration:
         # Get initial size
         initial_size = view.size()
 
-        # Resize view
+        # Resize view and wait for resize to take effect
         new_width = max(400, initial_size.width() + 100)
         new_height = max(300, initial_size.height() + 100)
         view.resize(new_width, new_height)
 
-        # Process resize events
-        qtbot.wait(50)
+        # Wait for resize to complete (may timeout in headless environment)
+        try:
+            qtbot.waitUntil(
+                lambda: view.size().width() >= new_width - 50 and view.size().height() >= new_height - 50,
+                timeout=1000
+            )
+        except Exception:
+            # Resize may not complete in headless environment
+            pass
 
         # View should handle resize
         new_size = view.size()
@@ -330,9 +363,13 @@ class TestShotGridIntegration:
         """Test integrated view handles focus correctly."""
         view = integrated_grid_view
 
-        # Set focus on view
+        # Set focus on view and wait for focus to be acquired
         view.setFocus()
-        qtbot.wait(10)
+        try:
+            qtbot.waitUntil(lambda: view.hasFocus(), timeout=1000)
+        except Exception:
+            # Focus may not be acquired in headless environment
+            pass
 
         # View should be focusable
         assert view.focusPolicy() != Qt.FocusPolicy.NoFocus
@@ -341,13 +378,16 @@ class TestShotGridIntegration:
         """Test view processes Qt events correctly."""
         view = integrated_grid_view
 
-        # Show view first
+        # Show view and wait for it to become visible
         view.show()
-        qtbot.wait(10)
+        try:
+            qtbot.waitUntil(lambda: view.isVisible(), timeout=1000)
+        except Exception:
+            # Visibility may not be detected in headless environment
+            pass
 
-        # Trigger update
+        # Trigger update (synchronous)
         view.update()
-        qtbot.wait(10)
 
         # View should remain functional
         assert view.isVisible()

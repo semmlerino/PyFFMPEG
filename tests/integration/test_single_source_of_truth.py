@@ -15,6 +15,7 @@ from controllers.threede_controller import ThreeDEController
 from shot_model import Shot
 from threede_scene_model import ThreeDEScene
 
+
 pytestmark = [
     pytest.mark.integration,  # CRITICAL: Qt state must be serialized
 ]

@@ -147,23 +147,26 @@ class TestThreeDEGridViewAppLaunchSignals:
             app_launch_signals.append((app_name, scene))
 
         threede_grid.app_launch_requested.connect(capture_launch)
+        try:
+            # Get first scene's index
+            index = threede_grid._threede_model.index(0, 0)
+            test_scene = sample_scenes[0]
 
-        # Get first scene's index
-        index = threede_grid._threede_model.index(0, 0)
-        test_scene = sample_scenes[0]
+            # Simulate double-click and wait for app_launch_requested signal
+            with qtbot.waitSignal(threede_grid.app_launch_requested, timeout=1000):
+                threede_grid._on_item_double_clicked(index)
 
-        # Simulate double-click (which triggers double-clicked signal internally)
-        threede_grid._on_item_double_clicked(index)
-
-        # Wait for signal processing
-        qtbot.wait(100)
-
-        # Verify signal was emitted with BOTH parameters
-        assert len(app_launch_signals) == 1
-        app_name, scene = app_launch_signals[0]
-        assert app_name == "3de"
-        assert scene == test_scene
-        assert scene.scene_path == test_scene.scene_path
+            # Verify signal was emitted with BOTH parameters
+            assert len(app_launch_signals) == 1
+            app_name, scene = app_launch_signals[0]
+            assert app_name == "3de"
+            assert scene == test_scene
+            assert scene.scene_path == test_scene.scene_path
+        finally:
+            try:
+                threede_grid.app_launch_requested.disconnect(capture_launch)
+            except (TypeError, RuntimeError):
+                pass  # Already disconnected or object deleted
 
     def test_context_menu_open_emits_app_launch_with_scene(
         self, threede_grid, sample_scenes, qtbot
@@ -176,20 +179,23 @@ class TestThreeDEGridViewAppLaunchSignals:
             app_launch_signals.append((app_name, scene))
 
         threede_grid.app_launch_requested.connect(capture_launch)
+        try:
+            test_scene = sample_scenes[0]
 
-        test_scene = sample_scenes[0]
+            # Directly test the _open_scene_in_3de method and wait for signal
+            with qtbot.waitSignal(threede_grid.app_launch_requested, timeout=1000):
+                threede_grid._open_scene_in_3de(test_scene)
 
-        # Directly test the _open_scene_in_3de method (called by context menu)
-        threede_grid._open_scene_in_3de(test_scene)
-
-        # Wait for signal processing
-        qtbot.wait(100)
-
-        # Verify signal emission
-        assert len(app_launch_signals) == 1
-        app_name, scene = app_launch_signals[0]
-        assert app_name == "3de"
-        assert scene == test_scene
+            # Verify signal emission
+            assert len(app_launch_signals) == 1
+            app_name, scene = app_launch_signals[0]
+            assert app_name == "3de"
+            assert scene == test_scene
+        finally:
+            try:
+                threede_grid.app_launch_requested.disconnect(capture_launch)
+            except (TypeError, RuntimeError):
+                pass  # Already disconnected or object deleted
 
     def test_app_launch_signal_includes_scene_metadata(
         self, threede_grid, sample_scenes, qtbot
@@ -201,24 +207,29 @@ class TestThreeDEGridViewAppLaunchSignals:
             received_scenes.append(scene)
 
         threede_grid.app_launch_requested.connect(capture_scene)
+        try:
+            test_scene = sample_scenes[0]
+            index = threede_grid._threede_model.index(0, 0)
 
-        test_scene = sample_scenes[0]
-        index = threede_grid._threede_model.index(0, 0)
+            # Trigger launch and wait for signal
+            with qtbot.waitSignal(threede_grid.app_launch_requested, timeout=1000):
+                threede_grid._on_item_double_clicked(index)
 
-        # Trigger launch
-        threede_grid._on_item_double_clicked(index)
-        qtbot.wait(100)
-
-        # Verify complete scene data is passed
-        assert len(received_scenes) == 1
-        received = received_scenes[0]
-        assert received.show == test_scene.show
-        assert received.sequence == test_scene.sequence
-        assert received.shot == test_scene.shot
-        assert received.user == test_scene.user
-        assert received.plate == test_scene.plate
-        assert received.workspace_path == test_scene.workspace_path
-        assert received.scene_path == test_scene.scene_path
+            # Verify complete scene data is passed
+            assert len(received_scenes) == 1
+            received = received_scenes[0]
+            assert received.show == test_scene.show
+            assert received.sequence == test_scene.sequence
+            assert received.shot == test_scene.shot
+            assert received.user == test_scene.user
+            assert received.plate == test_scene.plate
+            assert received.workspace_path == test_scene.workspace_path
+            assert received.scene_path == test_scene.scene_path
+        finally:
+            try:
+                threede_grid.app_launch_requested.disconnect(capture_scene)
+            except (TypeError, RuntimeError):
+                pass  # Already disconnected or object deleted
 
     def test_enter_key_press_emits_app_launch_with_scene(
         self, threede_grid, sample_scenes, qtbot
@@ -230,29 +241,35 @@ class TestThreeDEGridViewAppLaunchSignals:
             app_launch_signals.append((app_name, scene))
 
         threede_grid.app_launch_requested.connect(capture_launch)
+        try:
+            # Select first scene
+            index = threede_grid._threede_model.index(0, 0)
+            threede_grid.list_view.setCurrentIndex(index)
 
-        # Select first scene
-        index = threede_grid._threede_model.index(0, 0)
-        threede_grid.list_view.setCurrentIndex(index)
+            # Simulate Enter key press
+            from PySide6.QtGui import (
+                QKeyEvent,
+            )
 
-        # Simulate Enter key press
-        from PySide6.QtGui import (
-            QKeyEvent,
-        )
+            # Simulate Enter key press and wait for signal
+            with qtbot.waitSignal(threede_grid.app_launch_requested, timeout=1000):
+                key_event = QKeyEvent(
+                    QKeyEvent.Type.KeyPress,
+                    Qt.Key.Key_Return,
+                    Qt.KeyboardModifier.NoModifier,
+                )
+                threede_grid.keyPressEvent(key_event)
 
-        key_event = QKeyEvent(
-            QKeyEvent.Type.KeyPress,
-            Qt.Key.Key_Return,
-            Qt.KeyboardModifier.NoModifier,
-        )
-        threede_grid.keyPressEvent(key_event)
-        qtbot.wait(100)
-
-        # Verify signal was emitted
-        assert len(app_launch_signals) == 1
-        app_name, scene = app_launch_signals[0]
-        assert app_name == "3de"
-        assert scene == sample_scenes[0]
+            # Verify signal was emitted
+            assert len(app_launch_signals) == 1
+            app_name, scene = app_launch_signals[0]
+            assert app_name == "3de"
+            assert scene == sample_scenes[0]
+        finally:
+            try:
+                threede_grid.app_launch_requested.disconnect(capture_launch)
+            except (TypeError, RuntimeError):
+                pass  # Already disconnected or object deleted
 
     def test_scene_double_clicked_signal_also_emitted(
         self, threede_grid, sample_scenes, qtbot
@@ -269,14 +286,23 @@ class TestThreeDEGridViewAppLaunchSignals:
 
         threede_grid.scene_double_clicked.connect(capture_double_click)
         threede_grid.app_launch_requested.connect(capture_launch)
+        try:
+            # Double-click first scene and wait for signals
+            index = threede_grid._threede_model.index(0, 0)
+            with qtbot.waitSignal(threede_grid.app_launch_requested, timeout=1000):
+                threede_grid._on_item_double_clicked(index)
 
-        # Double-click first scene
-        index = threede_grid._threede_model.index(0, 0)
-        threede_grid._on_item_double_clicked(index)
-        qtbot.wait(100)
-
-        # Verify both signals were emitted
-        assert len(double_clicked_scenes) == 1
-        assert len(app_launch_signals) == 1
-        assert double_clicked_scenes[0] == sample_scenes[0]
-        assert app_launch_signals[0][1] == sample_scenes[0]
+            # Verify both signals were emitted
+            assert len(double_clicked_scenes) == 1
+            assert len(app_launch_signals) == 1
+            assert double_clicked_scenes[0] == sample_scenes[0]
+            assert app_launch_signals[0][1] == sample_scenes[0]
+        finally:
+            try:
+                threede_grid.scene_double_clicked.disconnect(capture_double_click)
+            except (TypeError, RuntimeError):
+                pass  # Already disconnected or object deleted
+            try:
+                threede_grid.app_launch_requested.disconnect(capture_launch)
+            except (TypeError, RuntimeError):
+                pass  # Already disconnected or object deleted

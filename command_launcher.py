@@ -10,7 +10,7 @@ import subprocess
 from datetime import UTC, datetime
 from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING, final
+from typing import TYPE_CHECKING, cast, final
 
 # Third-party imports
 from PySide6.QtCore import QObject, QTimer, Signal
@@ -35,6 +35,19 @@ else:
     # Import at runtime to avoid circular imports
     # Local application imports
     pass
+
+
+def _safe_filename_str(filename: str | bytes | int | None) -> str:
+    """Safely convert exception filename attribute to string.
+
+    Exception.filename can be None, str, bytes, or int.
+    This helper ensures type-safe conversion to str for error messages.
+    """
+    if filename is None:
+        return "unknown"
+    if isinstance(filename, bytes):
+        return filename.decode("utf-8", errors="replace")
+    return str(filename)
 
 
 @final
@@ -82,7 +95,7 @@ class CommandLauncher(LoggingMixin, QObject):
         # They're kept for backward compatibility with other methods
         if raw_plate_finder is None:
             # Local application imports
-            from raw_plate_finder import (  # noqa: PLC0415 - Lazy import for optional dependency
+            from raw_plate_finder import (
                 RawPlateFinder,
             )
 
@@ -197,7 +210,7 @@ class CommandLauncher(LoggingMixin, QObject):
             ValueError: If path contains dangerous characters that cannot be escaped
         """
         # Standard library imports
-        import shlex  # noqa: PLC0415 - Lazy import for command escaping
+        import shlex
 
         # Check for command injection attempts
         dangerous_chars = [
@@ -418,12 +431,10 @@ class CommandLauncher(LoggingMixin, QObject):
         self.command_executed.emit(timestamp, full_command)
 
         # Enhanced debug logging for command integrity verification
+        workspace = self.current_shot.workspace_path if self.current_shot else "None"
+        shot_name = self.current_shot.full_name if self.current_shot else "None"
         self.logger.debug(
-            f"Constructed command for {app_name}:\n"
-             f"  Command: {full_command!r}\n"
-             f"  Length: {len(full_command)} chars\n"
-             f"  Workspace: {self.current_shot.workspace_path if self.current_shot else 'None'}\n"
-             f"  Shot: {self.current_shot.full_name if self.current_shot else 'None'}"
+            f"Constructed command for {app_name}:\n  Command: {full_command!r}\n  Length: {len(full_command)} chars\n  Workspace: {workspace}\n  Shot: {shot_name}"
         )
 
         # Use persistent terminal if available and enabled
@@ -449,12 +460,9 @@ class CommandLauncher(LoggingMixin, QObject):
             self.logger.info(
                 f"Sending command to persistent terminal: {command_to_send}"
             )
+            is_gui = self._is_gui_app(app_name)
             self.logger.debug(
-                "Command details:\n"
-                 f"  Original: {full_command!r}\n"
-                 f"  To send: {command_to_send!r}\n"
-                 f"  Is GUI app: {self._is_gui_app(app_name)}\n"
-                 f"  Auto-background: {Config.AUTO_BACKGROUND_GUI_APPS}"
+                f"Command details:\n  Original: {full_command!r}\n  To send: {command_to_send!r}\n  Is GUI app: {is_gui}\n  Auto-background: {Config.AUTO_BACKGROUND_GUI_APPS}"
             )
 
             success = self.persistent_terminal.send_command(command_to_send)
@@ -503,12 +511,9 @@ class CommandLauncher(LoggingMixin, QObject):
 
         except FileNotFoundError as e:
             # Type-safe: e.filename can be None, str, bytes, or int - Task 6.3
-            filename_not_found: str = (
-                str(e.filename) if e.filename is not None else "unknown"  # type: ignore[assignment, arg-type, return-value]
-            )
+            filename_not_found: str = _safe_filename_str(cast("str | bytes | int | None", e.filename))
             self._emit_error(
-                f"Cannot launch {app_name}: Application or terminal not found. "
-                 f"Details: {filename_not_found}"
+                f"Cannot launch {app_name}: Application or terminal not found. Details: {filename_not_found}"
             )
             NotificationManager.error(
                 "Launch Failed", f"{app_name} executable not found"
@@ -519,12 +524,9 @@ class CommandLauncher(LoggingMixin, QObject):
 
         except PermissionError as e:
             # Type-safe: e.filename can be None, str, bytes, or int - Task 6.3
-            filename_perm: str = (
-                str(e.filename) if e.filename is not None else "unknown"  # type: ignore[assignment, arg-type, return-value]
-            )
+            filename_perm: str = _safe_filename_str(cast("str | bytes | int | None", e.filename))
             self._emit_error(
-                f"Cannot launch {app_name}: Permission denied. "
-                 f"Check file permissions for: {filename_perm}"
+                f"Cannot launch {app_name}: Permission denied. Check file permissions for: {filename_perm}"
             )
             return False
 
@@ -713,10 +715,9 @@ class CommandLauncher(LoggingMixin, QObject):
 
         except FileNotFoundError as e:
             # Type-safe: e.filename can be None - Task 6.3
-            filename_not_found_scene: str = str(e.filename) if e.filename is not None else "unknown"  # type: ignore[assignment, arg-type, return-value]
+            filename_not_found_scene: str = _safe_filename_str(cast("str | bytes | int | None", e.filename))
             self._emit_error(
-                f"Cannot launch {app_name} with scene: Application or terminal not found. "
-                 f"Details: {filename_not_found_scene}"
+                f"Cannot launch {app_name} with scene: Application or terminal not found. Details: {filename_not_found_scene}"
             )
             NotificationManager.error(
                 "Launch Failed", f"{app_name} executable not found"
@@ -727,10 +728,9 @@ class CommandLauncher(LoggingMixin, QObject):
 
         except PermissionError as e:
             # Type-safe: e.filename can be None - Task 6.3
-            filename_perm_scene: str = str(e.filename) if e.filename is not None else "unknown"  # type: ignore[assignment, arg-type, return-value]
+            filename_perm_scene: str = _safe_filename_str(cast("str | bytes | int | None", e.filename))
             self._emit_error(
-                f"Cannot launch {app_name} with scene: Permission denied. "
-                 f"Check file permissions for: {filename_perm_scene}"
+                f"Cannot launch {app_name} with scene: Permission denied. Check file permissions for: {filename_perm_scene}"
             )
             return False
 
@@ -882,10 +882,9 @@ class CommandLauncher(LoggingMixin, QObject):
 
         except FileNotFoundError as e:
             # Type-safe: e.filename can be None - Task 6.3
-            filename_not_found_ctx: str = str(e.filename) if e.filename is not None else "unknown"  # type: ignore[assignment, arg-type, return-value]
+            filename_not_found_ctx: str = _safe_filename_str(cast("str | bytes | int | None", e.filename))
             self._emit_error(
-                f"Cannot launch {app_name} in scene context: Application or terminal not found. "
-                 f"Details: {filename_not_found_ctx}"
+                f"Cannot launch {app_name} in scene context: Application or terminal not found. Details: {filename_not_found_ctx}"
             )
             NotificationManager.error(
                 "Launch Failed", f"{app_name} executable not found"
@@ -896,10 +895,9 @@ class CommandLauncher(LoggingMixin, QObject):
 
         except PermissionError as e:
             # Type-safe: e.filename can be None - Task 6.3
-            filename_perm_ctx: str = str(e.filename) if e.filename is not None else "unknown"  # type: ignore[assignment, arg-type, return-value]
+            filename_perm_ctx: str = _safe_filename_str(cast("str | bytes | int | None", e.filename))
             self._emit_error(
-                f"Cannot launch {app_name} in scene context: Permission denied. "
-                 f"Check file permissions for: {filename_perm_ctx}"
+                f"Cannot launch {app_name} in scene context: Permission denied. Check file permissions for: {filename_perm_ctx}"
             )
             return False
 

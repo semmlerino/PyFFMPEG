@@ -83,7 +83,7 @@ class TestFolderOpenerWorker:
             "thumbnail_widget_base.QDesktopServices.openUrl", return_value=True
         ):
             worker.run()
-            qtbot.wait(50)  # Allow signal processing
+            qtbot.waitUntil(lambda: success_spy.count() == 1, timeout=1000)
 
         # Should emit success
         assert success_spy.count() == 1
@@ -97,7 +97,7 @@ class TestFolderOpenerWorker:
         error_spy = QSignalSpy(worker.signals.error)
 
         worker.run()
-        qtbot.wait(50)
+        qtbot.waitUntil(lambda: error_spy.count() == 1, timeout=1000)
 
         # Should emit error
         assert error_spy.count() == 1
@@ -119,7 +119,7 @@ class TestFolderOpenerWorker:
             "thumbnail_widget_base.QDesktopServices.openUrl", return_value=True
         ) as mock_open:
             worker.run()
-            qtbot.wait(50)
+            qtbot.wait(1)  # Minimal event processing
 
             # Should have been called with absolute path
             assert mock_open.called
@@ -143,7 +143,7 @@ class TestFolderOpenerWorker:
             patch("subprocess.run") as mock_run,
         ):
             worker.run()
-            qtbot.wait(50)
+            qtbot.wait(1)  # Minimal event processing
 
             # Should have tried xdg-open
             assert mock_run.called
@@ -169,7 +169,7 @@ class TestFolderOpenerWorker:
             ),
         ):
             worker.run()
-            qtbot.wait(50)
+            qtbot.waitUntil(lambda: error_spy.count() == 1, timeout=1000)
 
             # Should emit error
             assert error_spy.count() == 1
@@ -210,7 +210,7 @@ class TestBaseThumbnailLoaderErrorHandling:
             failed_spy = QSignalSpy(loader.signals.failed)
 
             loader.run()
-            qtbot.wait(100)
+            qtbot.waitUntil(lambda: failed_spy.count() == 1, timeout=1000)
 
             # Should emit failed signal
             assert failed_spy.count() == 1
@@ -230,7 +230,7 @@ class TestBaseThumbnailLoaderErrorHandling:
             failed_spy = QSignalSpy(loader.signals.failed)
 
             loader.run()
-            qtbot.wait(100)
+            qtbot.waitUntil(lambda: failed_spy.count() == 1, timeout=1000)
 
             # Should emit failed signal
             assert failed_spy.count() == 1
@@ -250,7 +250,7 @@ class TestBaseThumbnailLoaderErrorHandling:
             failed_spy = QSignalSpy(loader.signals.failed)
 
             loader.run()
-            qtbot.wait(100)
+            qtbot.waitUntil(lambda: failed_spy.count() == 1, timeout=1000)
 
             # Should emit failed signal
             assert failed_spy.count() == 1
@@ -305,7 +305,7 @@ class TestBaseThumbnailLoader:
         failed_spy = QSignalSpy(loader.signals.failed)
 
         loader.run()
-        qtbot.wait(100)  # Allow time for loading
+        qtbot.waitUntil(lambda: loaded_spy.count() == 1, timeout=1000)
 
         # Should emit loaded signal
         assert loaded_spy.count() == 1
@@ -330,7 +330,7 @@ class TestBaseThumbnailLoader:
         failed_spy = QSignalSpy(loader.signals.failed)
 
         loader.run()
-        qtbot.wait(100)
+        qtbot.waitUntil(lambda: failed_spy.count() == 1, timeout=1000)
 
         # Should emit failed signal
         assert loaded_spy.count() == 0
@@ -347,7 +347,7 @@ class TestBaseThumbnailLoader:
         failed_spy = QSignalSpy(loader.signals.failed)
 
         loader.run()
-        qtbot.wait(100)
+        qtbot.waitUntil(lambda: failed_spy.count() == 1, timeout=1000)
 
         # Should emit failed signal
         assert failed_spy.count() == 1
@@ -366,7 +366,7 @@ class TestBaseThumbnailLoader:
         failed_spy = QSignalSpy(loader.signals.failed)
 
         loader.run()
-        qtbot.wait(100)
+        qtbot.waitUntil(lambda: failed_spy.count() == 1, timeout=1000)
 
         # Should emit failed signal because QImage.isNull() will be True
         assert loaded_spy.count() == 0
@@ -389,7 +389,7 @@ class TestBaseThumbnailLoader:
             failed_spy = QSignalSpy(loader.signals.failed)
 
             loader.run()
-            qtbot.wait(100)
+            qtbot.waitUntil(lambda: failed_spy.count() == 1, timeout=1000)
 
             # Should emit failed signal due to validation failure
             assert failed_spy.count() == 1
@@ -449,7 +449,10 @@ class TestThumbnailWidgetBaseLoadingOperations:
 
         widget = ThumbnailWidget(test_shot, Config.DEFAULT_THUMBNAIL_SIZE)
         qtbot.addWidget(widget)
-        qtbot.wait(150)  # Wait for background loading
+        qtbot.waitUntil(
+            lambda: mock_cache.get_cached_thumbnail.called,
+            timeout=1000
+        )
 
         # Cache should have been queried
         mock_cache.get_cached_thumbnail.assert_called_once_with(
@@ -480,9 +483,8 @@ class TestThumbnailWidgetBaseLoadingOperations:
         qtbot.addWidget(widget)
 
         # Wait for auto-started loader to complete/fail and process events
-        qtbot.wait(100)
         QThreadPool.globalInstance().waitForDone(1000)
-        qtbot.wait(50)
+        qtbot.wait(1)  # Minimal event processing
 
         # Reset to clean state for testing
         widget._loading_state = LoadingState.LOADING
@@ -494,7 +496,7 @@ class TestThumbnailWidgetBaseLoadingOperations:
 
         # Simulate thumbnail loaded
         widget._on_thumbnail_loaded(widget, test_pixmap)
-        qtbot.wait(50)
+        qtbot.wait(1)  # Minimal event processing
 
         # State should be LOADED
         assert widget._loading_state == LoadingState.LOADED
@@ -510,9 +512,8 @@ class TestThumbnailWidgetBaseLoadingOperations:
         qtbot.addWidget(widget)
 
         # Wait for auto-started loader to complete/fail and process events
-        qtbot.wait(100)
         QThreadPool.globalInstance().waitForDone(1000)
-        qtbot.wait(50)
+        qtbot.wait(1)  # Minimal event processing
 
         # Reset to clean state for testing
         widget._loading_state = LoadingState.LOADING
@@ -520,7 +521,7 @@ class TestThumbnailWidgetBaseLoadingOperations:
 
         # Simulate thumbnail loading failure
         widget._on_thumbnail_failed(widget)
-        qtbot.wait(50)
+        qtbot.wait(1)  # Minimal event processing
 
         # State should be FAILED
         assert widget._loading_state == LoadingState.FAILED
@@ -574,7 +575,7 @@ class TestThumbnailWidgetBaseSizeOperations:
         new_size = 200
 
         sized_widget.set_size(new_size)
-        qtbot.wait(50)
+        qtbot.wait(1)  # Minimal event processing
 
         # Thumbnail size should be updated
         assert sized_widget._thumbnail_size == new_size
@@ -590,7 +591,7 @@ class TestThumbnailWidgetBaseSizeOperations:
         new_size = 250
 
         sized_widget.set_size(new_size)
-        qtbot.wait(50)
+        qtbot.wait(1)  # Minimal event processing
 
         # Loading indicator should be centered
         expected_x = (new_size - 40) // 2
@@ -605,7 +606,7 @@ class TestThumbnailWidgetBaseSizeOperations:
         new_size = 180
 
         sized_widget.set_size(new_size)
-        qtbot.wait(50)
+        qtbot.wait(1)  # Minimal event processing
 
         # Widget height should be recalculated
         expected_height = sized_widget._calculate_widget_height()
@@ -623,7 +624,7 @@ class TestThumbnailWidgetBaseSizeOperations:
         new_size = 120
 
         sized_widget.set_size(new_size)
-        qtbot.wait(50)
+        qtbot.wait(1)  # Minimal event processing
 
         # Thumbnail should be updated with new size
         current_pixmap = sized_widget.thumbnail_label.pixmap()
@@ -646,7 +647,7 @@ class TestThumbnailWidgetBaseSizeOperations:
         new_size = 160
 
         sized_widget.set_size(new_size)
-        qtbot.wait(50)
+        qtbot.wait(1)  # Minimal event processing
 
         # Should have a pixmap (the placeholder)
         placeholder = sized_widget.thumbnail_label.pixmap()
@@ -675,7 +676,7 @@ class TestThumbnailWidgetBaseSelectionOperations:
     ) -> None:
         """Test set_selected(True) updates state and style."""
         selectable_widget.set_selected(True)
-        qtbot.wait(50)
+        qtbot.wait(1)  # Minimal event processing
 
         assert selectable_widget._selected is True
         # Style should contain selected style elements
@@ -688,11 +689,11 @@ class TestThumbnailWidgetBaseSelectionOperations:
         """Test set_selected(False) updates state and style."""
         # First select
         selectable_widget.set_selected(True)
-        qtbot.wait(50)
+        qtbot.wait(1)  # Minimal event processing
 
         # Then deselect
         selectable_widget.set_selected(False)
-        qtbot.wait(50)
+        qtbot.wait(1)  # Minimal event processing
 
         assert selectable_widget._selected is False
         # Style should contain unselected style elements
@@ -716,7 +717,7 @@ class TestThumbnailWidgetBaseSelectionOperations:
 
         # Change selection
         selectable_widget.set_selected(True)
-        qtbot.wait(50)
+        qtbot.wait(1)  # Minimal event processing
 
         # _update_style should have been called
         assert call_count >= 1
@@ -779,7 +780,7 @@ class TestThumbnailWidgetBaseContextMenu:
 
             # Call _open_shot_folder
             menu_widget._open_shot_folder()
-            qtbot.wait(50)
+            qtbot.wait(1)  # Minimal event processing
 
             # Should have started a FolderOpenerWorker
             assert len(started_workers) == 1
@@ -848,7 +849,7 @@ class TestThumbnailWidgetBaseEdgeCases:
 
         # Call _set_placeholder explicitly
         widget._set_placeholder()
-        qtbot.wait(50)
+        qtbot.wait(1)  # Minimal event processing
 
         # Should have a valid pixmap
         pixmap = widget.thumbnail_label.pixmap()
@@ -866,7 +867,7 @@ class TestThumbnailWidgetBaseEdgeCases:
         # Rapidly change size
         for size in [120, 140, 160, 180, 200, 150, 100]:
             widget.set_size(size)
-            qtbot.wait(5)
+            qtbot.wait(1)  # Minimal event processing
 
         # Widget should still be functional
         assert widget._thumbnail_size == 100
@@ -882,7 +883,7 @@ class TestThumbnailWidgetBaseEdgeCases:
         # Rapidly toggle selection
         for i in range(20):
             widget.set_selected(i % 2 == 0)
-            qtbot.wait(5)
+            qtbot.wait(1)  # Minimal event processing
 
         # Widget should still be functional
         assert isinstance(widget._selected, bool)

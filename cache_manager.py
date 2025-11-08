@@ -213,7 +213,7 @@ class CacheManager(LoggingMixin, QObject):
         # Setup cache directory
         if cache_dir is None:
             # Standard library imports
-            import sys  # noqa: PLC0415 - Lazy import to detect pytest environment
+            import sys
 
             # Use default cache location based on mode
             # Detect pytest automatically (takes highest priority)
@@ -431,7 +431,7 @@ class CacheManager(LoggingMixin, QObject):
             # Try MOV fallback if PIL can't read the image (e.g., EXR files)
             self.logger.debug(f"Attempting MOV fallback for {source.name}")
 
-            from utils import (  # noqa: PLC0415 - Lazy import for fallback handling
+            from utils import (
                 ImageUtils,
                 PathUtils,
             )
@@ -964,12 +964,12 @@ class CacheManager(LoggingMixin, QObject):
     # ========================================================================
 
     @property
-    def CACHE_THUMBNAIL_SIZE(self) -> int:  # noqa: N802
+    def CACHE_THUMBNAIL_SIZE(self) -> int:
         """Get the cached thumbnail size."""
         return THUMBNAIL_SIZE
 
     @property
-    def CACHE_EXPIRY_MINUTES(self) -> int:  # noqa: N802
+    def CACHE_EXPIRY_MINUTES(self) -> int:
         """Get cache expiry time in minutes."""
         return DEFAULT_TTL_MINUTES
 

@@ -438,7 +438,7 @@ class FileSystemScanner(LoggingMixin):
         self.logger.debug("Quick check found no .3de files")
         return False
 
-    def verify_scene_exists(self, scene_path: Path) -> bool:
+    def verify_scene_exists(self, scene_path: Path | None) -> bool:
         """Optimized scene existence verification."""
         if not scene_path:
             return False

@@ -129,7 +129,7 @@ def reset_all_mainwindow_singletons():
 
     # Reset QRunnableTracker
     try:
-        QRunnableTracker.reset_instance()
+        QRunnableTracker.reset()
     except Exception:
         pass  # Ignore reset errors
 
@@ -140,6 +140,7 @@ def reset_all_mainwindow_singletons():
     from PySide6.QtWidgets import QApplication
     app = QApplication.instance()
     if app:
+        # Drain event queue to ensure clean test state (fixture cleanup context)
         app.processEvents()
 
     yield  # Run the test
@@ -183,7 +184,7 @@ def reset_all_mainwindow_singletons():
 
     # Reset QRunnableTracker
     try:
-        QRunnableTracker.reset_instance()
+        QRunnableTracker.reset()
     except Exception:
         pass
 
@@ -192,6 +193,7 @@ def reset_all_mainwindow_singletons():
 
     # Process pending Qt events after test
     if app:
+        # Drain event queue to ensure deferred deletes complete (fixture cleanup context)
         app.processEvents()
 
 
@@ -305,13 +307,9 @@ class TestMainWindowCompleteWorkflows:
             workspace_path="/shows/show1/shots/seq1/seq1_0010",
         )
 
-        # Simulate shot selection
+        # Simulate shot selection and wait for signal
         with qtbot.waitSignal(window.shot_model.shot_selected, timeout=1000):
             window.shot_model.select_shot(shot)
-
-        # Use waitUntil for deterministic waiting instead of arbitrary delay
-        # This ensures the operation completed rather than hoping 50ms is enough
-        qtbot.wait(10)  # Brief delay for immediate event processing
 
         # Verify shot selection was successful (signal was emitted)
         # Note: Integration between TestShotModel and MainWindow's info panel
@@ -455,20 +453,29 @@ class TestMainWindowCompleteWorkflows:
         # Test F5 refresh shortcut
         refresh_spy = QSignalSpy(window.shot_model.refresh_started)
 
-        # Simulate F5 key press
-        QTest.keyPress(window, Qt.Key.Key_F5)
-        # Wait for refresh to start (signal should be emitted immediately)
-        qtbot.wait(50)
+        # Simulate F5 key press and wait for refresh signal
+        with qtbot.waitSignal(window.shot_model.refresh_started, timeout=1000):
+            QTest.keyPress(window, Qt.Key.Key_F5)
 
-        # Verify refresh was triggered (may be 0 if already refreshing)
-        assert refresh_spy.count() >= 0
+        # Verify refresh was triggered
+        assert refresh_spy.count() > 0
 
         # Test Ctrl+Plus for thumbnail size increase
         initial_thumb_size = getattr(window, "_current_thumbnail_size", 200)
 
-        # Simulate Ctrl+Plus
+        # Simulate Ctrl+Plus and wait for size change
         QTest.keySequence(window, QKeySequence("Ctrl++"))
-        qtbot.wait(50)
+
+        # Wait for thumbnail size to potentially change (with timeout for safety)
+        def size_changed_or_timeout() -> bool:
+            return getattr(window, "_current_thumbnail_size", initial_thumb_size) != initial_thumb_size
+
+        try:
+            qtbot.waitUntil(size_changed_or_timeout, timeout=500)
+        except Exception:
+            # Size didn't change - may be at max limit, which is valid
+            # Catch all exceptions including pytestqt.exceptions.TimeoutError
+            pass
 
         # Verify size potentially changed (implementation dependent)
         current_thumb_size = getattr(
@@ -482,17 +489,21 @@ class TestMainWindowCompleteWorkflows:
         window = main_window
 
         # Step 1: Simulate shot loading error
-        QSignalSpy(window.shot_model.error_occurred)
+        error_spy = QSignalSpy(window.shot_model.error_occurred)
 
-        # Trigger error in shot model
+        # Trigger error in shot model and wait for error signal
         with patch.object(window.shot_model, "refresh_shots") as mock_refresh:
             mock_refresh.side_effect = RuntimeError("Test error")
 
-            # Attempt refresh
-            with contextlib.suppress(RuntimeError):
-                window._refresh_shots()
-
-            qtbot.wait(100)
+            # Attempt refresh - should emit error signal
+            try:
+                with qtbot.waitSignal(window.shot_model.error_occurred, timeout=1000):
+                    with contextlib.suppress(RuntimeError):
+                        window._refresh_shots()
+            except Exception:
+                # Error signal may not be emitted if error handling prevents it
+                # Catch all exceptions including pytestqt.exceptions.TimeoutError
+                pass
 
         # Step 2: Test launch error handling
         shot = Shot("test", "seq", "001", "/test/path")
@@ -554,12 +565,12 @@ class TestMainWindowCompleteWorkflows:
                 if "refresh" in action.text().lower():
                     refresh_spy = QSignalSpy(window.shot_model.refresh_started)
 
-                    # Trigger refresh action
-                    action.trigger()
-                    qtbot.wait(100)
+                    # Trigger refresh action and wait for signal
+                    with qtbot.waitSignal(window.shot_model.refresh_started, timeout=1000):
+                        action.trigger()
 
                     # Verify refresh was triggered
-                    assert refresh_spy.count() >= 0
+                    assert refresh_spy.count() > 0
                     break
 
     def test_settings_dialog_workflow(self, qtbot: QtBot, main_window: MainWindow) -> None:
@@ -586,9 +597,8 @@ class TestMainWindowCompleteWorkflows:
             ) as mock_file_dialog:
                 mock_file_dialog.return_value = ("", "")  # No file selected
 
-                # Trigger settings
+                # Trigger settings (synchronous action)
                 settings_action.trigger()
-                qtbot.wait(50)
 
                 # Verify behavior: dialog was presented (not implementation detail)
                 # Following UNIFIED_TESTING_GUIDE: Test behavior, not mock calls
@@ -605,7 +615,16 @@ class TestMainWindowCompleteWorkflows:
         new_width = initial_size.width() + 200
         new_height = initial_size.height() + 100
         window.resize(new_width, new_height)
-        qtbot.wait(100)
+
+        # Wait for resize to take effect (may timeout in headless environment)
+        try:
+            qtbot.waitUntil(
+                lambda: window.size().width() >= new_width - 10 and window.size().height() >= new_height - 10,
+                timeout=1000
+            )
+        except Exception:
+            # Resize may not complete in headless environment
+            pass
 
         # Verify resize
         current_size = window.size()
@@ -616,7 +635,16 @@ class TestMainWindowCompleteWorkflows:
         small_width = max(800, initial_size.width() - 100)
         small_height = max(600, initial_size.height() - 50)
         window.resize(small_width, small_height)
-        qtbot.wait(100)
+
+        # Wait for resize to take effect (may timeout in headless environment)
+        try:
+            qtbot.waitUntil(
+                lambda: window.size().width() <= small_width + 10 and window.size().height() <= small_height + 10,
+                timeout=1000
+            )
+        except Exception:
+            # Resize may not complete in headless environment
+            pass
 
         # Verify minimum size constraints
         final_size = window.size()
@@ -637,12 +665,22 @@ class TestMainWindowCompleteWorkflows:
 
         # Step 2: Status updates during shot selection
         shot = Shot("test", "seq", "001", "/test/path")
-        window.shot_model.select_shot(shot)
-        qtbot.wait(50)
+        try:
+            with qtbot.waitSignal(window.shot_model.shot_selected, timeout=1000):
+                window.shot_model.select_shot(shot)
+        except Exception:
+            # Shot selection may not emit signal in test environment
+            # Catch all exceptions including pytestqt.exceptions.TimeoutError
+            pass
 
         # Step 3: Status updates during refresh
-        window._refresh_shots()
-        qtbot.wait(100)
+        try:
+            with qtbot.waitSignal(window.shot_model.refresh_started, timeout=1000):
+                window._refresh_shots()
+        except Exception:
+            # Refresh may not emit signal in test environment
+            # Catch all exceptions including pytestqt.exceptions.TimeoutError
+            pass
 
         # Verify status bar shows some message
         current_message = status_bar.currentMessage()

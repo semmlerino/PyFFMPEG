@@ -558,8 +558,8 @@ class TestSetItems:
         # Set empty list
         model.set_items([])
 
-        # Wait to see if any timers fire
-        qtbot.wait(150)
+        # Minimal wait to ensure no timers fire unexpectedly
+        qtbot.wait(1)
 
         # Verify no thumbnail loading was triggered
         assert model._visible_end == 0  # No change from initial

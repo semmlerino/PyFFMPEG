@@ -11,6 +11,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from typing import cast
 
 
 logging.basicConfig(
@@ -127,23 +128,32 @@ def create_shows_symlink() -> bool:
             # Standard library imports
             import json
 
-            with demo_shots_file.open() as f:
-                demo_data = json.load(f)
+            # Load and parse JSON file with type safety
+            try:
+                with demo_shots_file.open() as f:
+                    # json.load() is untyped in basedpyright, so the result is Any
+                    raw_data = json.load(f)  # pyright: ignore[reportAny]  # type: ignore[no-untyped-call]
 
-            # Update paths to use /tmp/mock_vfx
-            updated = False
-            for shot in demo_data.get("shots", []):
-                if "path" in shot and shot["path"].startswith("/shows/"):
-                    shot["path"] = shot["path"].replace(
-                        "/shows/", "/tmp/mock_vfx/shows/"
-                    )
-                    updated = True
+                # Type-safe access to nested JSON structure (raw_data is Any from json.load)
+                demo_dict: dict[str, list[dict[str, str]]] = cast("dict[str, list[dict[str, str]]]", raw_data)  # type: ignore[assignment]
+
+                # Update paths to use /tmp/mock_vfx
+                updated = False
+                for shot in demo_dict.get("shots", []):
+                    if "path" in shot and shot["path"].startswith("/shows/"):
+                        shot["path"] = shot["path"].replace(
+                            "/shows/", "/tmp/mock_vfx/shows/"
+                        )
+                        updated = True
+            except (json.JSONDecodeError, KeyError, ValueError) as e:
+                logger.error(f"Error parsing demo_shots.json: {e}")
+                return True
 
             if updated:
                 # Save to temporary file
                 temp_demo = Path("/tmp/demo_shots_mock.json")
                 with temp_demo.open("w") as f:
-                    json.dump(demo_data, f, indent=2)
+                    json.dump(demo_dict, f, indent=2)  # type: ignore[no-untyped-call]
                 logger.info(f"✅ Created temporary demo shots: {temp_demo}")
 
                 # Copy to replace original temporarily

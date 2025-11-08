@@ -248,6 +248,7 @@ class SecureCommandExecutor(LoggingMixin):
                 raise
             except subprocess.CalledProcessError as e:
                 # CalledProcessError.cmd and .stderr have dynamic types (str | list | bytes | None)
+                # type: ignore[reportAny]
                 cmd_str = str(e.cmd) if e.cmd else "unknown"
                 stderr_str = str(e.stderr) if e.stderr else "no stderr"
                 self.logger.error(f"Command failed: {cmd_str}, stderr: {stderr_str}")
@@ -295,6 +296,7 @@ class SecureCommandExecutor(LoggingMixin):
                 self.logger.error(f"Workspace command timed out after {timeout}s")
                 raise
             except subprocess.CalledProcessError as e:
+                # type: ignore[reportAny]
                 stderr_str = str(e.stderr) if e.stderr else "no stderr"
                 self.logger.error(f"Workspace command failed: {stderr_str}")
                 raise

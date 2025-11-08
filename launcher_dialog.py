@@ -48,8 +48,8 @@ if TYPE_CHECKING:
 class LauncherListWidget(LoggingMixin, QListWidget):
     """Custom list widget with drag-and-drop reordering support."""
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
         self.setDragDropMode(QListWidget.DragDropMode.InternalMove)
         self.setDefaultDropAction(Qt.DropAction.MoveAction)
         self.setAlternatingRowColors(True)
@@ -433,13 +433,13 @@ class LauncherEditDialog(QDialog, QtWidgetMixin, LoggingMixin):
 
     # Override mixin event handlers with proper keyword parameter signatures
     @override
-    def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802
+    def closeEvent(self, event: QCloseEvent) -> None:
         """Handle close event with cleanup."""
         # Call parent implementation from QtWidgetMixin
         super().closeEvent(event)
 
     @override
-    def keyPressEvent(self, event: QKeyEvent) -> None:  # noqa: N802
+    def keyPressEvent(self, event: QKeyEvent) -> None:
         """Handle key press events with standard shortcuts."""
         # Call parent implementation from QtWidgetMixin
         super().keyPressEvent(event)
@@ -801,13 +801,13 @@ class LauncherManagerDialog(QDialog, QtWidgetMixin, LoggingMixin):
 
     # Override mixin event handlers with proper keyword parameter signatures
     @override
-    def keyPressEvent(self, event: QKeyEvent) -> None:  # noqa: N802
+    def keyPressEvent(self, event: QKeyEvent) -> None:
         """Handle key press events with standard shortcuts."""
         # Call parent implementation from QtWidgetMixin
         super().keyPressEvent(event)
 
     @override
-    def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802
+    def closeEvent(self, event: QCloseEvent) -> None:
         """Clean up signal connections and save window state on close.
 
         Note: We check receivers() before disconnecting to avoid RuntimeWarnings

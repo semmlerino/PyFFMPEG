@@ -850,26 +850,6 @@ class PersistentBashSession(LoggingMixin):
                 self._process = None
                 raise
 
-    def _execute_internal(self, command: str) -> None:
-        """Execute internal setup command without markers.
-
-        Args:
-            command: Setup command to execute
-
-        Raises:
-            RuntimeError: If process is not available
-        """
-        if not self._process or not self._process.stdin:
-            raise RuntimeError("Process not available for internal command")
-
-        try:
-            _ = self._process.stdin.write(f"{command}\n")
-            self._process.stdin.flush()
-            time.sleep(0.1)  # Brief pause for command to complete
-        except (BrokenPipeError, OSError) as e:
-            self.logger.error(f"Failed to execute internal command: {e}")
-            raise RuntimeError(f"Internal command failed: {e}") from e
-
     def _is_alive(self) -> bool:
         """Check if session is still alive.
 

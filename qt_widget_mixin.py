@@ -304,7 +304,7 @@ class QtWidgetMixin(LoggingMixin):
 
     # Common event handlers that can be overridden
 
-    def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802
+    def closeEvent(self, event: QCloseEvent) -> None:
         """Handle close event with cleanup."""
         if self.safe_close():
             self.save_window_geometry()
@@ -318,7 +318,7 @@ class QtWidgetMixin(LoggingMixin):
         else:
             event.ignore()
 
-    def keyPressEvent(self, event: QKeyEvent) -> None:  # noqa: N802
+    def keyPressEvent(self, event: QKeyEvent) -> None:
         """Handle key press events with standard shortcuts."""
         # Handle Escape key
         if event.key() == Qt.Key.Key_Escape:
@@ -361,7 +361,7 @@ class QtDragDropMixin:
             'application/x-qt-windows-mime;value="FileName"',
         ]
 
-    def dragEnterEvent(self, event: QDragEnterEvent) -> None:  # noqa: N802
+    def dragEnterEvent(self, event: QDragEnterEvent) -> None:
         """Handle drag enter event."""
         if event.mimeData().hasUrls() or any(
             event.mimeData().hasFormat(mime_type)
@@ -371,7 +371,7 @@ class QtDragDropMixin:
         else:
             event.ignore()
 
-    def dropEvent(self, event: QDropEvent) -> None:  # noqa: N802
+    def dropEvent(self, event: QDropEvent) -> None:
         """Handle drop event."""
         mime_data = event.mimeData()
 

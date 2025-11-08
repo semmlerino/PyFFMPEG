@@ -469,22 +469,19 @@ def typed_mock_assert_called_with(
 
 
 @pytest.fixture
-def real_test_environment() -> Iterator[dict[str, Any]]:
+def real_test_environment(qapp) -> Iterator[dict[str, Any]]:
     """Pytest fixture providing real test environment.
+
+    Args:
+        qapp: QApplication instance from pytest-qt fixture
 
     Yields:
         Dictionary with real components for integration testing
     """
     with isolated_test_env() as env:
-        # Add QApplication if needed
-        app = QApplication.instance()
-        if app is None:
-            app = QApplication([])
-            env["app"] = app
-            env["created_app"] = True
-        else:
-            env["app"] = app
-            env["created_app"] = False
+        # Use pytest-qt's qapp fixture instead of creating our own
+        env["app"] = qapp
+        env["created_app"] = False  # qapp is managed by pytest-qt
 
         yield env
 

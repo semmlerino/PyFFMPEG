@@ -166,7 +166,8 @@ def test_shot_item_model(qapp, actual_output: str) -> None:
     finally:
         # Explicit cleanup for QAbstractItemModel
         model.deleteLater()
-        # Force event processing to ensure cleanup happens
+        # NOTE: processEvents() in cleanup context is acceptable (Pattern D)
+        # Required to process deleteLater() and sendPostedEvents() for Qt cleanup
         if qapp:
             qapp.processEvents()
             qapp.sendPostedEvents()

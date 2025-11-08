@@ -203,7 +203,7 @@ class TestCommonViewBehavior:
         )
 
         view.wheelEvent(wheel_event)
-        qtbot.wait(50)  # Process events from wheel event
+        qtbot.wait(1)  # Minimal event processing
 
         # Test behavior, not implementation
         assert view._thumbnail_size > initial_size
@@ -224,7 +224,7 @@ class TestCommonViewBehavior:
         )
 
         view.wheelEvent(wheel_event)
-        qtbot.wait(50)  # Process events from wheel event
+        qtbot.wait(1)  # Minimal event processing
 
         # Should decrease but not below initial
         assert view._thumbnail_size < view.size_slider.value() + 10
@@ -245,7 +245,7 @@ class TestCommonViewBehavior:
         )
 
         view.wheelEvent(wheel_event)
-        qtbot.wait(50)  # Process events from wheel event
+        qtbot.wait(1)  # Minimal event processing
         assert view._thumbnail_size == current_size  # Should not change
 
     def test_context_menu_exists(
@@ -291,7 +291,7 @@ class TestCommonViewBehavior:
         qtbot.addWidget(view)
 
         # Ensure clean state before testing
-        qtbot.wait(50)
+        qtbot.wait(1)  # Minimal event processing
 
         # Test initial setup
         assert view.size_slider.minimum() == Config.MIN_THUMBNAIL_SIZE
@@ -304,23 +304,23 @@ class TestCommonViewBehavior:
         new_size = 300  # Between MIN (250) and MAX (600)
         view.size_slider.setValue(new_size)
 
-        # Use qtbot.wait to ensure signal processing
-        qtbot.wait(100)
+        # Wait for signal processing to complete
+        qtbot.waitUntil(lambda: view._thumbnail_size == new_size, timeout=1000)
 
         assert view._thumbnail_size == new_size
         assert view.size_label.text() == f"{new_size}px"
 
         # Test boundary values
         view.size_slider.setValue(Config.MIN_THUMBNAIL_SIZE)
-        qtbot.wait(100)
+        qtbot.waitUntil(lambda: view._thumbnail_size == Config.MIN_THUMBNAIL_SIZE, timeout=1000)
         assert view._thumbnail_size == Config.MIN_THUMBNAIL_SIZE
 
         view.size_slider.setValue(Config.MAX_THUMBNAIL_SIZE)
-        qtbot.wait(100)
+        qtbot.waitUntil(lambda: view._thumbnail_size == Config.MAX_THUMBNAIL_SIZE, timeout=1000)
         assert view._thumbnail_size == Config.MAX_THUMBNAIL_SIZE
 
         # Ensure all events are processed before cleanup
-        qtbot.wait(50)
+        qtbot.wait(1)  # Minimal event processing
 
     def test_visibility_timer_updates(
         self,
@@ -357,9 +357,11 @@ class TestCommonViewBehavior:
         if hasattr(view, "list_view"):
             scrollbar = view.list_view.verticalScrollBar()
             if scrollbar.maximum() > 0:  # Only if scrolling is possible
-                scrollbar.value()
+                initial_value = scrollbar.value()
                 scrollbar.setValue(10)
-                qtbot.wait(150)  # Wait for timer to fire
+
+                # Wait for scroll position to update
+                qtbot.waitUntil(lambda: scrollbar.value() != initial_value, timeout=500)
 
                 # The timer should have triggered an update
                 # We can't easily test the actual update without mocking

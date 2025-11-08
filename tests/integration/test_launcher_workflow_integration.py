@@ -43,22 +43,6 @@ pytestmark = [
 # =============================================================================
 
 
-@pytest.fixture(autouse=True)
-def reset_launcher_singletons() -> Generator[None, None, None]:
-    """Reset launcher-related singletons between tests for isolation.
-
-    Prevents singleton contamination when tests run in parallel with xdist.
-    Resets ProcessPoolManager singleton state before and after each test.
-    """
-    # Reset before test
-    ProcessPoolManager._instance = None
-    ProcessPoolManager._initialized = False
-    yield
-    # Reset after test
-    ProcessPoolManager._instance = None
-    ProcessPoolManager._initialized = False
-
-
 class TestLauncherWorkflowIntegration:
     """Integration tests for launcher execution and process tracking following UNIFIED_TESTING_GUIDE."""
 
@@ -147,30 +131,41 @@ class TestLauncherWorkflowIntegration:
         launcher_manager.execution_started.connect(on_execution_started)
         launcher_manager.execution_finished.connect(on_execution_finished)
 
-        # Mock subprocess.Popen at system boundary
-        with (
-            patch("subprocess.Popen") as mock_popen,
-            patch.dict("os.environ", {"SHOTBOT_USE_PROCESS_POOL": "false"}),
-        ):
-            mock_popen.return_value = self.mock_process
+        try:
+            # Mock subprocess.Popen at system boundary
+            with (
+                patch("subprocess.Popen") as mock_popen,
+                patch.dict("os.environ", {"SHOTBOT_USE_PROCESS_POOL": "false"}),
+            ):
+                mock_popen.return_value = self.mock_process
 
-            # Execute launcher with custom variables
-            success = launcher_manager.execute_launcher(
-                launcher_id, custom_vars={"shot_name": self.test_shot["name"]}
-            )
+                # Execute launcher with custom variables
+                success = launcher_manager.execute_launcher(
+                    launcher_id, custom_vars={"shot_name": self.test_shot["name"]}
+                )
 
-            # Verify execution started successfully
-            assert success is True
+                # Verify execution started successfully
+                assert success is True
 
-            # Wait for execution_started signal to be emitted
-            qtbot.waitUntil(
-                lambda: len(execution_started_signals) > 0,
-                timeout=1000
-            )
+                # Wait for execution_started signal to be emitted
+                qtbot.waitUntil(
+                    lambda: len(execution_started_signals) > 0,
+                    timeout=1000
+                )
 
-            # Verify signals were emitted
-            assert len(execution_started_signals) == 1
-            assert execution_started_signals[0] == launcher_id
+                # Verify signals were emitted
+                assert len(execution_started_signals) == 1
+                assert execution_started_signals[0] == launcher_id
+        finally:
+            # CRITICAL: Disconnect signals to prevent dangling connections
+            try:
+                launcher_manager.execution_started.disconnect(on_execution_started)
+            except (TypeError, RuntimeError):
+                pass
+            try:
+                launcher_manager.execution_finished.disconnect(on_execution_finished)
+            except (TypeError, RuntimeError):
+                pass
 
     def test_launcher_manager_process_tracking_integration(self, qtbot: Any) -> None:
         """Test launcher manager process tracking and cleanup."""
@@ -258,62 +253,81 @@ class TestLauncherWorkflowIntegration:
 
             return handler
 
+        # Create handler references for proper disconnection
+        execution_started_handler = track_signal("execution_started")
+        execution_finished_handler = track_signal("execution_finished")
+        launcher_added_handler = track_signal("launcher_added")
+        validation_error_handler = track_signal("validation_error")
+
         # Connect to the real signals BEFORE creating launcher
-        launcher_manager.execution_started.connect(track_signal("execution_started"))
-        launcher_manager.execution_finished.connect(track_signal("execution_finished"))
-        launcher_manager.launcher_added.connect(track_signal("launcher_added"))
-        launcher_manager.validation_error.connect(track_signal("validation_error"))
+        launcher_manager.execution_started.connect(execution_started_handler)
+        launcher_manager.execution_finished.connect(execution_finished_handler)
+        launcher_manager.launcher_added.connect(launcher_added_handler)
+        launcher_manager.validation_error.connect(validation_error_handler)
 
-        # Create test launcher using the real API
-        launcher_id = launcher_manager.create_launcher(
-            name="Signal Test",
-            description="Test launcher for signal emission",
-            command="test_command {shot_name}",
-        )
-
-        with (
-            patch("subprocess.Popen") as mock_popen,
-            patch.dict("os.environ", {"SHOTBOT_USE_PROCESS_POOL": "false"}),
-        ):
-            mock_popen.return_value = self.mock_process
-
-            # Execute launcher
-            success = launcher_manager.execute_launcher(
-                launcher_id, custom_vars={"shot_name": self.test_shot["name"]}
+        try:
+            # Create test launcher using the real API
+            launcher_id = launcher_manager.create_launcher(
+                name="Signal Test",
+                description="Test launcher for signal emission",
+                command="test_command {shot_name}",
             )
 
-            # Verify execution started successfully
-            assert success is True
+            with (
+                patch("subprocess.Popen") as mock_popen,
+                patch.dict("os.environ", {"SHOTBOT_USE_PROCESS_POOL": "false"}),
+            ):
+                mock_popen.return_value = self.mock_process
 
-            # Wait for signals to be emitted (both launcher_added and execution_started)
-            qtbot.waitUntil(
-                lambda: len(signal_events) >= 2,
-                timeout=1000
-            )
+                # Execute launcher
+                success = launcher_manager.execute_launcher(
+                    launcher_id, custom_vars={"shot_name": self.test_shot["name"]}
+                )
 
-            # Verify signal emission sequence
-            signal_names = [event[0] for event in signal_events]
+                # Verify execution started successfully
+                assert success is True
 
-            # Should have launcher_added signal from create_launcher
-            assert "launcher_added" in signal_names
+                # Wait for signals to be emitted (both launcher_added and execution_started)
+                qtbot.waitUntil(
+                    lambda: len(signal_events) >= 2,
+                    timeout=1000
+                )
 
-            # Should have execution_started signal
-            assert "execution_started" in signal_names
+                # Verify signal emission sequence
+                signal_names = [event[0] for event in signal_events]
 
-            # Find execution_started event
-            started_events = [
-                event for event in signal_events if event[0] == "execution_started"
-            ]
-            assert len(started_events) >= 1
-            started_event = started_events[0]
-            assert started_event[1][0] == launcher_id  # launcher_id
+                # Should have launcher_added signal from create_launcher
+                assert "launcher_added" in signal_names
 
-            # Verify the launcher_added event
-            added_events = [
-                event for event in signal_events if event[0] == "launcher_added"
-            ]
-            assert len(added_events) == 1
-            assert added_events[0][1][0] == launcher_id  # launcher_id
+                # Should have execution_started signal
+                assert "execution_started" in signal_names
+
+                # Find execution_started event
+                started_events = [
+                    event for event in signal_events if event[0] == "execution_started"
+                ]
+                assert len(started_events) >= 1
+                started_event = started_events[0]
+                assert started_event[1][0] == launcher_id  # launcher_id
+
+                # Verify the launcher_added event
+                added_events = [
+                    event for event in signal_events if event[0] == "launcher_added"
+                ]
+                assert len(added_events) == 1
+                assert added_events[0][1][0] == launcher_id  # launcher_id
+        finally:
+            # CRITICAL: Disconnect signals to prevent dangling connections
+            for signal, handler in [
+                (launcher_manager.execution_started, execution_started_handler),
+                (launcher_manager.execution_finished, execution_finished_handler),
+                (launcher_manager.launcher_added, launcher_added_handler),
+                (launcher_manager.validation_error, validation_error_handler),
+            ]:
+                try:
+                    signal.disconnect(handler)
+                except (TypeError, RuntimeError):
+                    pass
 
     @pytest.mark.slow
     def test_launcher_manager_concurrent_execution_integration(self, qtbot: Any) -> None:

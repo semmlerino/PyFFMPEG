@@ -72,14 +72,6 @@ class NukeScriptGenerator:
         cls._temp_files.add(filepath)
         return filepath
 
-    @staticmethod
-    def _escape_path(path: str) -> str:
-        """Escape file path for Nuke script.
-
-        Nuke uses forward slashes even on Windows.
-        """
-        return NukeScriptTemplates.escape_path(path)
-
     def _create_script(
         self,
         plate_path: str = "",

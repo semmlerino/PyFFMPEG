@@ -142,21 +142,6 @@ class MockLauncherTarget(QObject):
 # Fixtures
 
 
-@pytest.fixture(autouse=True)
-def reset_launcher_singletons() -> Generator[None, None, None]:
-    """Reset launcher-related singletons between tests for isolation.
-
-    Prevents singleton contamination when tests run in parallel with xdist.
-    Resets ProcessPoolManager singleton state before and after each test.
-    """
-    # Reset before test
-    ProcessPoolManager._instance = None
-    ProcessPoolManager._initialized = False
-    yield
-    # Reset after test
-    ProcessPoolManager._instance = None
-    ProcessPoolManager._initialized = False
-
 
 @pytest.fixture
 def make_launcher_controller() -> Generator[
@@ -184,27 +169,31 @@ def make_launcher_controller() -> Generator[
 
 
 @pytest.fixture
-def test_shot() -> Shot:
-    """Create a test shot."""
+def test_shot(tmp_path: Path) -> Shot:
+    """Create a test shot with isolated filesystem paths."""
+    workspace = tmp_path / "TEST" / "shots" / "seq01" / "seq01_0010"
     return Shot(
         show="TEST",
         sequence="seq01",
         shot="0010",
-        workspace_path=f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
+        workspace_path=str(workspace),
     )
 
 
 @pytest.fixture
-def test_scene() -> ThreeDEScene:
-    """Create a test 3DE scene."""
-    from pathlib import Path
+def test_scene(tmp_path: Path) -> ThreeDEScene:
+    """Create a test 3DE scene with isolated filesystem paths."""
+    from pathlib import Path as PathLib
+
+    workspace = tmp_path / "TEST" / "shots" / "seq01" / "seq01_0010"
+    scene_path = workspace / "3de" / "v001" / "scene.3de"
 
     return ThreeDEScene(
-        scene_path=Path(f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010/3de/v001/scene.3de"),
+        scene_path=scene_path,
         show="TEST",
         sequence="seq01",
         shot="0010",
-        workspace_path=f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010",
+        workspace_path=str(workspace),
         user="testuser",
         plate="plate_v001",
     )

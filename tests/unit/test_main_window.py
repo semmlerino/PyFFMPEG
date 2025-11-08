@@ -111,7 +111,7 @@ def reset_all_mainwindow_singletons(qtbot: QtBot):
 
     # Reset QRunnableTracker
     try:
-        QRunnableTracker.reset_instance()
+        QRunnableTracker.reset()
     except Exception:
         pass  # Ignore reset errors
 
@@ -165,7 +165,7 @@ def reset_all_mainwindow_singletons(qtbot: QtBot):
 
     # Reset QRunnableTracker
     try:
-        QRunnableTracker.reset_instance()
+        QRunnableTracker.reset()
     except Exception:
         pass
 
@@ -665,7 +665,12 @@ class TestCrashRecovery:
             plate="FG01",
             scene_path=Path(f"{shows_root}/test/seq01/0010/test.3de"),
         )
-        main_window._on_scene_selected(scene)
+        # Use the controller (correct architecture) instead of calling orphaned method
+        if main_window.threede_controller:
+            main_window.threede_controller.on_scene_selected(scene)
+        else:
+            # Fallback for tests where controller isn't initialized
+            main_window.launcher_controller.set_current_scene(scene)
 
         # Verify scene is set and shot is None (cleared by scene selection)
         assert main_window.launcher_controller.current_scene == scene

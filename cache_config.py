@@ -83,7 +83,7 @@ class CacheConfig(LoggingMixin):
 
         # Check if running from tests directory
         # Standard library imports
-        import inspect  # noqa: PLC0415 - Lazy import used only in test detection
+        import inspect
 
         frame = inspect.currentframe()
         while frame:
@@ -125,7 +125,7 @@ class CacheConfig(LoggingMixin):
         Useful for ensuring clean state in tests.
         """
         # Standard library imports
-        import shutil  # noqa: PLC0415 - Lazy import used only in cache cleanup
+        import shutil
 
         if CacheConfig.TEST_CACHE_DIR.exists():
             shutil.rmtree(CacheConfig.TEST_CACHE_DIR)
@@ -138,7 +138,7 @@ class CacheConfig(LoggingMixin):
         Useful for ensuring clean state in mock mode.
         """
         # Standard library imports
-        import shutil  # noqa: PLC0415 - Lazy import used only in cache cleanup
+        import shutil
 
         if CacheConfig.MOCK_CACHE_DIR.exists():
             shutil.rmtree(CacheConfig.MOCK_CACHE_DIR)
@@ -187,7 +187,7 @@ class CacheConfig(LoggingMixin):
             True if successful
         """
         # Standard library imports
-        import shutil  # noqa: PLC0415 - Lazy import used only in cache migration
+        import shutil
 
         if not from_dir.exists():
             logger.warning(f"Source cache directory does not exist: {from_dir}")

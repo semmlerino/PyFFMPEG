@@ -1227,7 +1227,7 @@ class VersionUtils:
         # Convert pattern to regex, replacing * with appropriate patterns
         # Handle patterns like "shot_*_v*.nk" -> "shot_.*_v(\d{3})\.nk"
         # Standard library imports
-        import re  # noqa: PLC0415 - Lazy import used only in this method
+        import re
 
         regex_pattern = pattern.replace(".", r"\.")  # Escape dots
         regex_pattern = regex_pattern.replace("*", ".*")  # Replace wildcards
@@ -1528,8 +1528,8 @@ class ImageUtils:
         Returns:
             Path to the extracted JPEG frame, or None if extraction failed
         """
-        import subprocess  # noqa: PLC0415 - Lazy import for frame extraction
-        import tempfile  # noqa: PLC0415 - Lazy import for temp file creation
+        import subprocess
+        import tempfile
 
         if not mov_path.exists() or not mov_path.is_file():
             logger.debug(f"MOV file does not exist: {mov_path}")
@@ -1539,7 +1539,7 @@ class ImageUtils:
         if output_path is None:
             # Create temp file with .jpg extension
             temp_fd, temp_path = tempfile.mkstemp(suffix=".jpg", prefix="shotbot_thumb_")
-            import os  # noqa: PLC0415 - Lazy import for file descriptor closure
+            import os
             os.close(temp_fd)  # Close the file descriptor
             output_path = Path(temp_path)
 

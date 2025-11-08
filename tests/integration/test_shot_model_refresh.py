@@ -312,19 +312,31 @@ class TestShotModelSignalIntegration:
         signal_order = []
 
         # Connect to all signals with recording callbacks
-        model.refresh_started.connect(lambda: signal_order.append("started"))
-        model.shots_changed.connect(lambda _: signal_order.append("changed"))
-        model.cache_updated.connect(lambda: signal_order.append("cache"))
-        model.refresh_finished.connect(lambda *_: signal_order.append("finished"))
+        started_handler = lambda: signal_order.append("started")
+        changed_handler = lambda _: signal_order.append("changed")
+        cache_handler = lambda: signal_order.append("cache")
+        finished_handler = lambda *_: signal_order.append("finished")
 
-        # Perform refresh
-        model.refresh_shots()
+        model.refresh_started.connect(started_handler)
+        model.shots_changed.connect(changed_handler)
+        model.cache_updated.connect(cache_handler)
+        model.refresh_finished.connect(finished_handler)
 
-        # Verify signal order
-        assert signal_order[0] == "started"
-        assert signal_order[-1] == "finished"
-        assert "changed" in signal_order
-        assert "cache" in signal_order
+        try:
+            # Perform refresh
+            model.refresh_shots()
+
+            # Verify signal order
+            assert signal_order[0] == "started"
+            assert signal_order[-1] == "finished"
+            assert "changed" in signal_order
+            assert "cache" in signal_order
+        finally:
+            # Disconnect signals to prevent dangling connections
+            model.refresh_started.disconnect(started_handler)
+            model.shots_changed.disconnect(changed_handler)
+            model.cache_updated.disconnect(cache_handler)
+            model.refresh_finished.disconnect(finished_handler)
 
     def test_error_signal_on_failure(self, shot_model_with_test_pool, qtbot) -> None:
         """Test that error_occurred signal is emitted on failures."""

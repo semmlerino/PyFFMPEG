@@ -565,7 +565,7 @@ def merge_structures(json_files: list[str]) -> StructureDataDict:
     return merged
 
 
-def count_nodes(structure: NodeDict) -> int:
+def count_nodes(structure: NodeDict | None) -> int:
     """Count total nodes in a structure tree."""
     # NodeDict is already dict type, but check for empty/invalid structure
     if not structure:

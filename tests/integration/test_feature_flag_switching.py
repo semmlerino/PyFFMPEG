@@ -1,7 +1,6 @@
 """Integration tests for feature flag switching between ShotModel implementations."""
 
 # Standard library imports
-import os
 import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING

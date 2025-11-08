@@ -41,24 +41,6 @@ pytestmark = [
 # Test fixtures following UNIFIED_TESTING_GUIDE patterns
 
 
-@pytest.fixture(autouse=True)
-def reset_singletons(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Reset singleton instances before each test to prevent contamination.
-
-    This fixture resets all singleton manager instances that might be used
-    by the code under test, ensuring test isolation in parallel execution.
-    """
-    from notification_manager import NotificationManager
-    from process_pool_manager import ProcessPoolManager
-    from progress_manager import ProgressManager
-
-    # Reset singleton instances
-    monkeypatch.setattr(NotificationManager, "_instance", None)
-    monkeypatch.setattr(ProgressManager, "_instance", None)
-    monkeypatch.setattr(ProcessPoolManager, "_instance", None)
-    monkeypatch.setattr(ProcessPoolManager, "_initialized", False)
-
-
 @pytest.fixture
 def cache_manager(tmp_path: Path) -> CacheManager:
     """Create CacheManager with temporary directory.

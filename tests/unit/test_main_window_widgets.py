@@ -139,7 +139,7 @@ class TestMainWindowUIComponents:
         window = MainWindow(cache_manager=real_cache_manager)
         qtbot.addWidget(window)
         # Allow UI to initialize
-        qtbot.wait(100)
+        qtbot.wait(1)  # Minimal event processing
         return window
 
     def test_tab_widget_exists(self, main_window_ui: MainWindow) -> None:
@@ -210,7 +210,7 @@ class TestMainWindowTabFunctionality:
 
         window = MainWindow(cache_manager=real_cache_manager)
         qtbot.addWidget(window)
-        qtbot.wait(100)  # Allow tabs to initialize
+        qtbot.wait(1)  # Minimal event processing
         return window
 
     def test_tab_navigation(self, qtbot: QtBot, tabbed_window: MainWindow) -> None:
@@ -225,7 +225,8 @@ class TestMainWindowTabFunctionality:
             # Switch to next tab
             next_tab = (initial_tab + 1) % tab_widget.count()
             tab_widget.setCurrentIndex(next_tab)
-            qtbot.wait(10)
+            # Wait for tab change to complete
+            qtbot.waitUntil(lambda: tab_widget.currentIndex() == next_tab, timeout=1000)
 
             # Verify tab changed
             current_tab = tab_widget.currentIndex()
@@ -277,7 +278,7 @@ class TestMainWindowTabFunctionality:
             ):
                 tab_widget.setCurrentIndex(new_index)
 
-            qtbot.wait(10)  # Allow UI processing after signal
+            qtbot.wait(1)  # Minimal event processing
 
 
 class TestMainWindowSignalConnections:
@@ -295,7 +296,7 @@ class TestMainWindowSignalConnections:
 
         window = MainWindow(cache_manager=real_cache_manager)
         qtbot.addWidget(window)
-        qtbot.wait(100)  # Allow connections to establish
+        qtbot.wait(1)  # Minimal event processing
         return window
 
     def test_shot_model_connections(self, connected_window: MainWindow) -> None:
@@ -365,12 +366,17 @@ class TestMainWindowKeyboardShortcuts:
         window.activateWindow()
         window.raise_()
         window.setFocus()
-        qtbot.wait(50)
+        # Wait for window to become active
+        try:
+            qtbot.waitUntil(lambda: window.isActiveWindow(), timeout=1000)
+        except Exception:
+            # Window activation may fail in headless environment
+            pass
 
         # Test that window can handle key events without triggering refresh
         # Use a safe key that won't trigger complex operations
         QTest.keyPress(window, Qt.Key.Key_Space)
-        qtbot.wait(10)
+        qtbot.wait(1)  # Minimal event processing
 
         # The key press should be processed without crashing the window
         assert window.isVisible()
@@ -390,11 +396,16 @@ class TestMainWindowKeyboardShortcuts:
             window.activateWindow()
             window.raise_()
             window.setFocus()
-            qtbot.wait(50)
+            # Wait for window to become active
+            try:
+                qtbot.waitUntil(lambda: window.isActiveWindow(), timeout=1000)
+            except Exception:
+                # Window activation may fail in headless environment
+                pass
 
             # Ctrl+Tab should navigate tabs (if implemented)
             QTest.keyPress(window, Qt.Key.Key_Tab, Qt.KeyboardModifier.ControlModifier)
-            qtbot.wait(10)
+            qtbot.wait(1)  # Minimal event processing
 
             # Window should still be responsive
             assert window.isVisible()
@@ -408,11 +419,16 @@ class TestMainWindowKeyboardShortcuts:
 
         window.activateWindow()
         window.setFocus()
-        qtbot.wait(50)
+        # Wait for window to become active
+        try:
+            qtbot.waitUntil(lambda: window.isActiveWindow(), timeout=1000)
+        except Exception:
+            # Window activation may fail in headless environment
+            pass
 
         # Press escape
         QTest.keyPress(window, Qt.Key.Key_Escape)
-        qtbot.wait(10)
+        qtbot.wait(1)  # Minimal event processing
 
         # Window should handle escape gracefully
         # Current behavior: window closes on escape (could be changed if undesired)
@@ -453,7 +469,15 @@ class TestMainWindowStateManagement:
         new_width = initial_geometry.width() + 100
         new_height = initial_geometry.height() + 100
         window.resize(new_width, new_height)
-        qtbot.wait(10)
+        # Wait for resize to complete
+        try:
+            qtbot.waitUntil(
+                lambda: window.geometry().width() >= new_width - 50,
+                timeout=1000
+            )
+        except Exception:
+            # Resize may not complete in headless environment
+            pass
 
         # Verify resize
         new_geometry = window.geometry()
@@ -469,12 +493,14 @@ class TestMainWindowStateManagement:
 
         # Hide window
         window.hide()
-        qtbot.wait(10)
+        # Wait for window to become hidden
+        qtbot.waitUntil(lambda: not window.isVisible(), timeout=1000)
         assert not window.isVisible()
 
         # Show window
         window.show()
-        qtbot.wait(10)
+        # Wait for window to become visible
+        qtbot.waitUntil(lambda: window.isVisible(), timeout=1000)
         assert window.isVisible()
 
     def test_window_minimize_restore(
@@ -485,7 +511,15 @@ class TestMainWindowStateManagement:
 
         # Test minimize
         window.showMinimized()
-        qtbot.wait(10)
+        # Wait for window to become minimized
+        try:
+            qtbot.waitUntil(
+                lambda: window.isMinimized() or window.windowState() & Qt.WindowState.WindowMinimized,
+                timeout=1000
+            )
+        except Exception:
+            # Minimize may not work in headless environment
+            pass
 
         # Window state should change
         assert (
@@ -495,7 +529,12 @@ class TestMainWindowStateManagement:
 
         # Restore window
         window.showNormal()
-        qtbot.wait(10)
+        # Wait for window to be restored
+        try:
+            qtbot.waitUntil(lambda: not window.isMinimized(), timeout=1000)
+        except Exception:
+            # Restore may not work in headless environment
+            pass
 
 
 class TestMainWindowErrorHandling:
@@ -571,7 +610,7 @@ class TestMainWindowIntegration:
         qtbot.addWidget(window)
         window.show()
         qtbot.waitExposed(window)
-        qtbot.wait(200)  # Allow full initialization
+        qtbot.wait(1)  # Minimal event processing
         return window
 
     def test_component_communication(
@@ -585,7 +624,7 @@ class TestMainWindowIntegration:
         assert window is not None
 
         # Process any pending events
-        qtbot.wait(50)
+        qtbot.wait(1)  # Minimal event processing
 
         # Window should remain responsive (fixture shows it)
         assert window.isVisible()
@@ -614,7 +653,8 @@ class TestMainWindowIntegration:
 
         # Status bar should be functional
         status_bar.showMessage("Test message")
-        qtbot.wait(10)
+        # Wait for message to be displayed
+        qtbot.waitUntil(lambda: status_bar.currentMessage() == "Test message", timeout=1000)
 
         # Message should be displayed
         current_message = status_bar.currentMessage()
@@ -629,7 +669,7 @@ class TestMainWindowIntegration:
         # Simulate multiple UI updates
         for i in range(5):
             window.statusBar().showMessage(f"Update {i}")
-            qtbot.wait(5)
+            qtbot.wait(1)  # Minimal event processing
 
         # Window should remain responsive (fixture shows it)
         assert window.isVisible()

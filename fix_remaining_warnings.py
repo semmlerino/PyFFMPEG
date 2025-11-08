@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Fix remaining reportUnusedCallResult warnings by analyzing context."""
 
-import os
 import re
 import subprocess
 from pathlib import Path
@@ -9,7 +8,7 @@ from pathlib import Path
 
 def get_warnings():
     """Get all remaining reportUnusedCallResult warnings."""
-    uv_path = os.path.expanduser("~/.local/bin/uv")
+    uv_path = str(Path("~/.local/bin/uv").expanduser())
     result = subprocess.run(
         [uv_path, "run", "basedpyright"],
         check=False,

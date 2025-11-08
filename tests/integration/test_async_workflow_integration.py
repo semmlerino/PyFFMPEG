@@ -170,7 +170,7 @@ class TestAsyncWorkflowIntegration:
 
         # Trigger async loading in both
         item_model.set_visible_range(0, 1)
-        qtbot.wait(100)  # Let loading start
+        qtbot.wait(1)  # Minimal event processing for async loading start
 
         # Now update model with different shots while loading
         item_model.set_items(test_shots[1:])
@@ -214,10 +214,10 @@ class TestAsyncWorkflowIntegration:
             info_panel.set_shot(current_shot)
 
             # Brief wait to simulate realistic timing
-            qtbot.wait(20)
+            qtbot.wait(1)  # Minimal event processing
 
-        # Final stabilization wait
-        qtbot.wait(500)
+        # Wait for components to stabilize after rapid changes
+        qtbot.waitUntil(lambda: item_model.rowCount() >= 0, timeout=2000)
 
         # Components should be stable without crashes
         assert item_model.rowCount() == 1
@@ -248,10 +248,13 @@ class TestAsyncWorkflowIntegration:
         with patch.object(cache_manager, "cache_thumbnail", track_cache_calls):
             # Trigger loading in both components
             item_model.set_visible_range(0, 1)
-            qtbot.wait(100)
+            qtbot.wait(1)  # Minimal event processing for loading trigger
 
-            # Both should use same cache
-            qtbot.wait(500)
+            # Wait for cache operations to complete
+            qtbot.waitUntil(
+                lambda: item_model._loading_states.get(target_shot.full_name) is not None,
+                timeout=2000
+            )
 
             # Verify cache was accessed appropriately
             # (Exact behavior depends on cache implementation)
@@ -273,13 +276,17 @@ class TestAsyncWorkflowIntegration:
         # Cycle through shots in info panel
         for shot in test_shots:
             info_panel.set_shot(shot)
-            qtbot.wait(100)
+            qtbot.wait(1)  # Minimal event processing
 
         # Clear everything
         item_model.clear_thumbnail_cache()
         info_panel.set_shot(None)
 
-        qtbot.wait(200)
+        # Wait for cleanup to complete
+        qtbot.waitUntil(
+            lambda: len(item_model._thumbnail_cache) == 0 and info_panel._current_shot is None,
+            timeout=2000
+        )
 
         # Verify cleanup
         assert len(item_model._thumbnail_cache) == 0
@@ -370,7 +377,7 @@ class TestAsyncWorkflowIntegration:
         assert error_raised.is_set(), "set_shots() should raise QtThreadError from background thread"
 
         # Allow Qt to process any pending events
-        qtbot.wait(500)
+        qtbot.wait(1)  # Minimal event processing
 
         # Model should remain stable
         assert item_model.rowCount() >= 0
@@ -417,7 +424,7 @@ class TestAsyncCallbackIntegration:
 
             # Start async loading
             model.set_visible_range(0, 2)
-            qtbot.wait(100)  # Let async operations start
+            qtbot.wait(1)  # Minimal event processing for async loading start
 
             # Reset model with completely different shots
             new_shots = [Shot("new_show", "new_seq", "new_shot", str(tmp_path))]
@@ -470,10 +477,13 @@ class TestAsyncCallbackIntegration:
             # Rapidly cycle through shots
             for shot in shots:
                 panel.set_shot(shot)
-                qtbot.wait(50)  # Brief delay to let loading start
+                qtbot.wait(1)  # Minimal event processing
 
-            # Wait for final stabilization
-            qtbot.wait(500)
+            # Wait for panel to stabilize on final shot
+            qtbot.waitUntil(
+                lambda: panel._current_shot == shots[-1],
+                timeout=2000
+            )
 
             # Panel should show the last shot
             assert panel._current_shot == shots[-1]

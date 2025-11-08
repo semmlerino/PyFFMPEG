@@ -179,13 +179,8 @@ workspace /shows/jack_ryan/shots/999_xx/999_xx_999"""
         assert shot.shot == expected["shot"]
         assert shot.full_name == expected["full_name"]
 
-    @pytest.mark.flaky(reruns=2)
     def test_workspace_path_format(self, make_test_shot) -> None:
-        """Test that workspace paths follow the expected format.
-
-        Marked as flaky: Passes individually but occasionally fails in parallel
-        suite runs due to Qt singleton state contamination.
-        """
+        """Test that workspace paths follow the expected format."""
         # Create shots with actual VFX naming
         shot = make_test_shot(show="jack_ryan", sequence="DB_256", shot="1200")
 

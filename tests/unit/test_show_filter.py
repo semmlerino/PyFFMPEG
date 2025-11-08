@@ -313,15 +313,10 @@ class TestShotGridViewShowFilter:
         assert shot_grid_view.show_combo.count() == 1  # "All Shows" initially
         assert shot_grid_view.show_combo.itemText(0) == "All Shows"
 
-    @pytest.mark.flaky(reruns=2)
     def test_populate_show_filter(
         self, shot_grid_view: ShotGridView, shot_model: ShotModel
     ) -> None:
-        """Test populating show filter combo box.
-
-        Marked as flaky: Passes individually but occasionally fails in parallel
-        suite runs due to Qt singleton state contamination.
-        """
+        """Test populating show filter combo box."""
         # Set up test shots
         test_shots = [
             Shot("show1", "seq1", "shot1", "/workspace/show1/seq1/shot1"),
@@ -570,13 +565,8 @@ class TestMainWindowFilterHandlers:
         ]
         assert len(filtered_shots) == 2
 
-    @pytest.mark.flaky(reruns=2)
     def test_refresh_populates_show_filter(self, mock_main_window: Any) -> None:
-        """Test that refreshing shots populates the show filter combo.
-
-        Marked as flaky: Passes individually but occasionally fails in parallel
-        suite runs due to Qt singleton state contamination.
-        """
+        """Test that refreshing shots populates the show filter combo."""
         # Local application imports
         from main_window import (
             MainWindow,

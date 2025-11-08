@@ -6,16 +6,16 @@ This script decodes the base64-encoded compressed application bundle
 and extracts it to a specified directory.
 """
 
-import sys
-import os
-import base64
-import tarfile
-import io
 import argparse
+import base64
+import io
+import sys
+import tarfile
 from pathlib import Path
+from typing import cast
 
 
-def decode_bundle(encoded_file: str, output_dir: str = None, list_only: bool = False) -> bool:
+def decode_bundle(encoded_file: str, output_dir: str | None = None, list_only: bool = False) -> bool:
     """
     Decode a base64-encoded tar.gz bundle and extract it.
 
@@ -30,17 +30,17 @@ def decode_bundle(encoded_file: str, output_dir: str = None, list_only: bool = F
     try:
         # Default output directory
         if output_dir is None:
-            output_dir = os.getcwd()
+            output_dir = str(Path.cwd())
 
         # Read the encoded file
         print(f"Reading encoded file: {encoded_file}")
-        with open(encoded_file, 'r', encoding='utf-8') as f:
+        with Path(encoded_file).open(encoding="utf-8") as f:
             content = f.read()
 
         # Check if this is a FOLDER_TRANSFER_V1 format (with header)
         if content.startswith("FOLDER_TRANSFER_V1"):
             # Parse header
-            header_end = content.find('\n')
+            header_end = content.find("\n")
             if header_end == -1:
                 print("ERROR: Invalid bundle format - no data after header")
                 return False
@@ -49,7 +49,7 @@ def decode_bundle(encoded_file: str, output_dir: str = None, list_only: bool = F
             encoded_data = content[header_end + 1:]  # Everything after first newline
 
             # Parse header: FOLDER_TRANSFER_V1|chunk_num|total_chunks|folder_name
-            header_parts = header_line.split('|')
+            header_parts = header_line.split("|")
             if len(header_parts) >= 4:
                 chunk_num = header_parts[1]
                 total_chunks = header_parts[2]
@@ -65,7 +65,7 @@ def decode_bundle(encoded_file: str, output_dir: str = None, list_only: bool = F
         # Add proper padding for base64
         padding = len(encoded_data) % 4
         if padding:
-            encoded_data += '=' * (4 - padding)
+            encoded_data += "=" * (4 - padding)
             print(f"Added {4 - padding} bytes of padding")
 
         # Decode from base64
@@ -79,11 +79,11 @@ def decode_bundle(encoded_file: str, output_dir: str = None, list_only: bool = F
             return False
 
         # Extract tar archive
-        print(f"Extracting archive...")
+        print("Extracting archive...")
         tar_buffer = io.BytesIO(tar_data)
 
         try:
-            with tarfile.open(fileobj=tar_buffer, mode='r:gz') as tar:
+            with tarfile.open(fileobj=tar_buffer, mode="r:gz") as tar:
                 # List contents
                 members = tar.getmembers()
                 print(f"Found {len(members)} items in archive")
@@ -103,9 +103,9 @@ def decode_bundle(encoded_file: str, output_dir: str = None, list_only: bool = F
         except tarfile.TarError as e:
             # Try without gzip compression
             print("Trying uncompressed tar...")
-            tar_buffer.seek(0)
+            _ = tar_buffer.seek(0)
             try:
-                with tarfile.open(fileobj=tar_buffer, mode='r:') as tar:
+                with tarfile.open(fileobj=tar_buffer, mode="r:") as tar:
                     members = tar.getmembers()
                     print(f"Found {len(members)} items in archive")
 
@@ -134,7 +134,7 @@ def decode_bundle(encoded_file: str, output_dir: str = None, list_only: bool = F
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Decode base64-encoded tar.gz application bundle',
+        description="Decode base64-encoded tar.gz application bundle",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -149,30 +149,30 @@ Examples:
         """
     )
 
-    parser.add_argument(
-        'encoded_file',
-        help='Path to the base64-encoded bundle file'
+    _ = parser.add_argument(
+        "encoded_file",
+        help="Path to the base64-encoded bundle file"
     )
 
-    parser.add_argument(
-        '-o', '--output-dir',
-        help='Output directory (default: current directory)',
+    _ = parser.add_argument(
+        "-o", "--output-dir",
+        help="Output directory (default: current directory)",
         default=None
     )
 
-    parser.add_argument(
-        '--list-only',
-        action='store_true',
-        help='Only list archive contents without extracting'
+    _ = parser.add_argument(
+        "--list-only",
+        action="store_true",
+        help="Only list archive contents without extracting"
     )
 
     args = parser.parse_args()
 
-    # Decode the bundle
+    # Decode the bundle with explicit casting for argparse attributes
     success = decode_bundle(
-        args.encoded_file,
-        args.output_dir,
-        args.list_only
+        cast("str", args.encoded_file),
+        cast("str | None", args.output_dir),
+        cast("bool", args.list_only)
     )
 
     sys.exit(0 if success else 1)

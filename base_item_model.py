@@ -171,7 +171,7 @@ class BaseItemModel(
         )
 
     @override
-    def rowCount(  # noqa: N802
+    def rowCount(
         self,
         parent: QModelIndex | QPersistentModelIndex | None = None,
     ) -> int:
@@ -274,7 +274,7 @@ class BaseItemModel(
         return Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable
 
     @override
-    def setData(  # noqa: N802
+    def setData(
         self,
         index: QModelIndex | QPersistentModelIndex,
         value: object,

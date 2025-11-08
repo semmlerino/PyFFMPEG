@@ -525,7 +525,7 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
         return loading_rows
 
     @override
-    def sizeHint(  # noqa: N802
+    def sizeHint(
         self, option: QStyleOptionViewItem, index: QModelIndex | QPersistentModelIndex
     ) -> QSize:
         """Return the size hint for an item.
@@ -553,8 +553,13 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
         self._metrics_cache.clear()
 
         # Trigger layout update
-        if (parent := self.parent()) and isinstance(parent, QWidget):
-            parent.update()
+        if parent := self.parent():
+            # For QAbstractItemView (QListView, QTreeView, etc.), update viewport
+            # QAbstractItemView.update() requires a QModelIndex argument, so we use viewport()
+            if isinstance(parent, QAbstractItemView):
+                parent.viewport().update()
+            elif isinstance(parent, QWidget):
+                parent.update()
 
     def cleanup(self) -> None:
         """Clean up resources."""

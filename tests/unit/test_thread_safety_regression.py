@@ -171,6 +171,8 @@ class TestDoubleCheckedLockingFix:
         # Standard library imports
         import time
 
+        # Allow async background operations to settle after thread completion
+        # Note: time.sleep() acceptable here to ensure race condition test validity
         time.sleep(0.1)
 
         # The lock should prevent multiple simultaneous background refreshes
@@ -366,6 +368,8 @@ class TestStressConditions:
             try:
                 for _ in range(10):
                     model.refresh_shots()
+                    # Yield CPU between operations to increase race condition likelihood
+                    # Note: time.sleep() acceptable in stress test to simulate real-world timing
                     time.sleep(0.001)  # Small delay
             except Exception as e:
                 errors.append(e)

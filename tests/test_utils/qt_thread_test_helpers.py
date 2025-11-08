@@ -75,8 +75,8 @@ class ThreadSignalTester:
         with self.qtbot.waitSignal(worker.finished, timeout=timeout_ms):
             pass
 
-        # Give time for _on_finished slot to execute
-        self.qtbot.wait(100)
+        # Minimal event processing for _on_finished slot
+        self.qtbot.wait(1)
 
         return True
 
@@ -118,7 +118,7 @@ def wait_for_thread_state(
     start_time = time.time()
 
     while time.time() - start_time < (timeout_ms / 1000.0):
-        qtbot.wait(10)  # Small delay between checks
+        qtbot.wait(1)  # Minimal event processing between checks
         if worker.get_state() == expected_state:
             return True
 
@@ -136,7 +136,7 @@ def ensure_qt_events_processed(qtbot: QtBot, cycles: int = 3) -> None:
         cycles: Number of event processing cycles
     """
     for _ in range(cycles):
-        qtbot.wait(10)
+        qtbot.wait(1)  # Minimal event processing per cycle
         app = QCoreApplication.instance()
         if app:
             process_qt_events(app, 10)
@@ -195,8 +195,8 @@ class WorkerTestFramework:
             with self.qtbot.waitSignal(worker.finished, timeout=timeout_ms):
                 pass
 
-            # Allow time for final state transitions
-            self.qtbot.wait(200)
+            # Minimal event processing for final state transitions
+            self.qtbot.wait(1)
 
             # Capture final state
             if hasattr(worker, "get_state"):

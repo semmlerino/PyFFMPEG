@@ -47,20 +47,6 @@ pytestmark = [
 # ============================================================================
 
 
-@pytest.fixture(autouse=True)
-def reset_launcher_singletons() -> Generator[None, None, None]:
-    """Reset launcher-related singletons between tests for isolation.
-
-    Prevents singleton contamination when tests run in parallel with xdist.
-    Resets ProcessPoolManager singleton state before and after each test.
-    """
-    # Reset before test using the new reset() method
-    ProcessPoolManager.reset()
-    yield
-    # Reset after test
-    ProcessPoolManager.reset()
-
-
 @pytest.fixture
 def worker_id() -> str:
     """Standard worker ID for testing."""

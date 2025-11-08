@@ -171,7 +171,7 @@ class TestLogViewer:
         # Add multiple entries to trigger scrolling
         for i in range(5):
             log_viewer.add_command(f"12:{i:02d}:00", f"Command {i}")
-            qtbot.wait(10)  # Brief wait for UI update
+            qtbot.wait(1)  # Minimal event processing
 
         # Test scroll is at maximum (bottom)
         scroll_bar = log_viewer.log_text.verticalScrollBar()

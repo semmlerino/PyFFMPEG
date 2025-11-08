@@ -20,7 +20,6 @@ from unittest.mock import patch
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
-from pytestqt.qtbot import QtBot
 
 
 # Add parent directory to path for imports
@@ -316,7 +315,7 @@ class TestProcessPoolManagerSingleton:
 class TestDeadlockDetection:
     """Test for potential deadlocks."""
 
-    def test_no_deadlock_in_cleanup(self) -> None:
+    def test_no_deadlock_in_cleanup(self, qapp: QApplication) -> None:
         """Test that cleanup doesn't deadlock with running operations."""
         temp_dir = tempfile.TemporaryDirectory()
         cache_manager = CacheManager(cache_dir=Path(temp_dir.name))
@@ -332,11 +331,24 @@ class TestDeadlockDetection:
         def cleanup_model(model: ShotModel) -> None:
             model.cleanup()
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-            futures = [executor.submit(cleanup_model, m) for m in models]
-            # Should complete without deadlock (timeout would indicate deadlock)
-            for future in concurrent.futures.as_completed(futures, timeout=5):
-                future.result()  # Will raise TimeoutError if deadlocked
+        try:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+                futures = [executor.submit(cleanup_model, m) for m in models]
+                # Should complete without deadlock (timeout would indicate deadlock)
+                for future in concurrent.futures.as_completed(futures, timeout=5):
+                    future.result()  # Will raise TimeoutError if deadlocked
+        finally:
+            # Ensure all models are cleaned up even if test fails
+            for model in models:
+                try:
+                    model.cleanup()
+                except Exception:
+                    pass
+                # Delete Qt C++ objects to prevent lingering threads
+                model.deleteLater()
+
+            # Process events to complete deletions
+            qapp.processEvents()
 
         temp_dir.cleanup()
 

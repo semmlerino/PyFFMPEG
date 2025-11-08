@@ -226,7 +226,7 @@ class ShotItemModel(BaseItemModel["Shot"]):
         self.logger.info("ShotItemModel cleanup complete")
 
     @override
-    def deleteLater(self) -> None:  # noqa: N802
+    def deleteLater(self) -> None:
         """Override deleteLater to ensure cleanup."""
         self.cleanup()
         super().deleteLater()

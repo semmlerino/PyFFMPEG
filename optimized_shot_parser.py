@@ -141,26 +141,6 @@ def benchmark_parser_performance(iterations: int = 100000) -> dict[str, float]:
         f"workspace {Config.SHOWS_ROOT}/show_abc/shots/seq05/seq05_0230",
     ]
 
-    # Original implementation with same logic as before optimization
-    def parse_original(line: str) -> ParseResult | None:  # pyright: ignore[reportUnusedFunction]
-        """Original parser implementation for fair comparison."""
-        pattern = re.compile(
-            rf"workspace\s+({re.escape(Config.SHOWS_ROOT)}/([^/]+)/shots/([^/]+)/([^/]+))"
-        )
-        match = pattern.search(line)
-        if not match:
-            return None
-        workspace_path, show, sequence, shot_dir = match.groups()
-
-        # Original logic
-        if shot_dir.startswith(sequence) and len(shot_dir) > len(sequence) and shot_dir[len(sequence)] == "_":
-            shot = shot_dir[len(sequence) + 1 :]
-            return ParseResult(show, sequence, shot, workspace_path)
-        if "_" in shot_dir:
-            shot = shot_dir.rsplit("_", 1)[-1]
-            return ParseResult(show, sequence, shot, workspace_path)
-        return ParseResult(show, sequence, shot_dir, workspace_path)
-
     # Create single compiled pattern for original
     original_pattern = re.compile(
         rf"workspace\s+({re.escape(Config.SHOWS_ROOT)}/([^/]+)/shots/([^/]+)/([^/]+))"

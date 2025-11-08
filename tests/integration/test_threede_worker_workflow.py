@@ -75,7 +75,7 @@ def ensure_qt_cleanup(qtbot):
     """
     yield
     # Process all pending Qt events after test completes
-    qtbot.wait(100)
+    qtbot.wait(1)  # Minimal event processing
 
 
 @pytest.fixture(autouse=True)
@@ -355,7 +355,7 @@ class TestThreeDEWorkerWorkflow:
             qtbot.waitUntil(lambda: len(started_signals) >= 1, timeout=5000)
 
             # Give it a moment to make some progress
-            qtbot.wait(100)
+            qtbot.wait(1)  # Minimal event processing
 
             # Cancel the operation
             worker.requestInterruption()
@@ -368,7 +368,7 @@ class TestThreeDEWorkerWorkflow:
             finished_within_timeout = worker.wait(10000)
 
             # Process any pending Qt events to ensure signal delivery
-            qtbot.wait(100)
+            qtbot.wait(1)  # Minimal event processing
 
             # Verify worker stopped
             assert not worker.isRunning(), "Worker should not be running after cancellation"
@@ -552,14 +552,14 @@ class TestThreeDEWorkerWorkflow:
                 # Proper cleanup for worker2 (no signal handlers to disconnect)
                 cleanup_qthread_properly(worker2, signal_handlers=None)
                 # Process Qt events to ensure worker2 cleanup completes
-                qtbot.wait(100)
+                qtbot.wait(1)  # Minimal event processing
 
         finally:
             # Proper cleanup for worker (no signal handlers to disconnect)
             cleanup_qthread_properly(worker, signal_handlers=None)
             # CRITICAL: Process Qt events to ensure worker cleanup completes
             # This prevents Qt state pollution affecting subsequent tests
-            qtbot.wait(100)
+            qtbot.wait(1)  # Minimal event processing
 
     def test_worker_concurrent_signal_handling(self, qtbot) -> None:
         """Test worker signal handling when multiple signals are emitted rapidly.
@@ -634,7 +634,7 @@ class TestThreeDEWorkerWorkflow:
             worker.wait(5000)
 
             # CRITICAL: Process Qt events to ensure signal delivery completes
-            qtbot.wait(100)
+            qtbot.wait(1)  # Minimal event processing
 
             # Verify all signals were captured without race conditions
             with signal_lock:

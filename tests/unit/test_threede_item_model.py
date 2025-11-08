@@ -216,8 +216,8 @@ class TestThreadSafety:
         for idx, scene in enumerate(test_scenes):
             model._load_thumbnail_async(idx, scene)
 
-        # Process Qt events to ensure signals are delivered
-        qtbot.wait(10)
+        # Minimal event processing for signal delivery
+        qtbot.wait(1)
 
         # All thumbnails should have loaded (TestCacheManager calls callback synchronously)
         # Note: The actual behavior depends on whether _load_thumbnail_async

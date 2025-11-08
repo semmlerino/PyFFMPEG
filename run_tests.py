@@ -8,6 +8,7 @@ import argparse
 import subprocess
 import sys
 from pathlib import Path
+from typing import cast
 
 
 def run_command(cmd: list[str], check: bool = True) -> int:
@@ -56,13 +57,13 @@ def main():
 
     args = parser.parse_args()
 
-    # Extract args with type hints for type checker
-    verbose: bool = args.verbose
-    failed_first: bool = args.failed_first
-    pdb: bool = args.pdb
-    no_cov: bool = args.no_cov
-    suite: str = args.suite
-    module: str | None = args.module
+    # Extract args with explicit casting for type safety
+    verbose: bool = cast("bool", args.verbose)
+    failed_first: bool = cast("bool", args.failed_first)
+    pdb: bool = cast("bool", args.pdb)
+    no_cov: bool = cast("bool", args.no_cov)
+    suite: str = cast("str", args.suite)
+    module: str | None = cast("str | None", args.module)
 
     # Base pytest command
     cmd = [sys.executable, "-m", "pytest"]

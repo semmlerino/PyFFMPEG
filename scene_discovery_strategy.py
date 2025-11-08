@@ -54,7 +54,7 @@ class SceneDiscoveryStrategy(ABC, LoggingMixin):
         from filesystem_scanner import (
             FileSystemScanner,
         )
-        from scene_cache import SceneCache  # noqa: PLC0415 - Avoid circular dependency
+        from scene_cache import SceneCache
         from scene_parser import (
             SceneParser,
         )

@@ -419,35 +419,6 @@ class SimplifiedLauncher(LoggingMixin, QObject):
         # Return most recent file
         return max(files, key=lambda f: f.stat().st_mtime)
 
-    def _find_raw_plate(
-        self, workspace_path: Path | str, shot_name: str
-    ) -> Path | None:
-        """Find raw plate for a shot."""
-        workspace = Path(workspace_path)
-
-        # Common plate locations
-        plate_dirs = [
-            workspace / "plate",
-            workspace / "plates",
-            workspace / "raw",
-        ]
-
-        for plate_dir in plate_dirs:
-            if not plate_dir.exists():
-                continue
-
-            # Look for shot-specific plates
-            for pattern in [
-                f"{shot_name}*.exr",
-                f"{shot_name}*.dpx",
-                f"{shot_name}*.jpg",
-            ]:
-                files = list(plate_dir.glob(pattern))
-                if files:
-                    return files[0]  # Return first match
-
-        return None
-
     def _find_latest_nuke_workspace_script(self, workspace_path: Path) -> Path | None:
         """Find the latest Nuke script in VFX workspace structure.
 

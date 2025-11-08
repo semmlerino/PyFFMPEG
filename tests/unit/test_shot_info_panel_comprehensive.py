@@ -82,11 +82,13 @@ class TestInfoPanelPixmapLoader:
         loader.signals.loaded.connect(on_loaded)
         loader.signals.failed.connect(on_failed)
 
-        # Start loading in thread pool
-        QThreadPool.globalInstance().start(loader)
-
-        # Wait for completion
-        qtbot.wait(500)
+        # Start loading in thread pool and wait for signal
+        try:
+            with qtbot.waitSignal(loader.signals.loaded, timeout=5000):
+                QThreadPool.globalInstance().start(loader)
+        finally:
+            # Ensure thread pool cleanup
+            QThreadPool.globalInstance().waitForDone(1000)
 
         # Verify successful loading
         assert len(loaded_signals) == 1
@@ -115,11 +117,13 @@ class TestInfoPanelPixmapLoader:
         loader.signals.loaded.connect(on_loaded)
         loader.signals.failed.connect(on_failed)
 
-        # Start loading
-        QThreadPool.globalInstance().start(loader)
-
-        # Wait for completion
-        qtbot.wait(500)
+        # Start loading and wait for failure signal
+        try:
+            with qtbot.waitSignal(loader.signals.failed, timeout=5000):
+                QThreadPool.globalInstance().start(loader)
+        finally:
+            # Ensure thread pool cleanup
+            QThreadPool.globalInstance().waitForDone(1000)
 
         # Verify failure handling
         assert len(loaded_signals) == 0
@@ -155,7 +159,7 @@ class TestInfoPanelPixmapLoader:
         # Wait for thread to complete
         QThreadPool.globalInstance().waitForDone(2000)
         # Process any pending signals
-        qtbot.wait(100)
+        qtbot.wait(1)  # Minimal event processing
 
         # Should fail due to dimension validation
         # (Actual behavior depends on Config.MAX_INFO_PANEL_DIMENSION_PX)
@@ -210,14 +214,13 @@ class TestInfoPanelPixmapLoader:
         loader_str.signals.loaded.connect(on_loaded)
         QThreadPool.globalInstance().start(loader_str)
 
-        qtbot.wait(300)
-
         # Test with Path object
         loader_path = InfoPanelPixmapLoader(test_panel, temp_image_file)
         loader_path.signals.loaded.connect(on_loaded)
         QThreadPool.globalInstance().start(loader_path)
 
-        qtbot.wait(300)
+        # Wait for both loaders to complete
+        qtbot.waitUntil(lambda: len(loaded_signals) == 2, timeout=2000)
 
         # Both should succeed
         assert len(loaded_signals) == 2
@@ -271,7 +274,10 @@ class TestShotInfoPanelAsyncLoading:
         assert test_shot.show in info_panel.show_sequence_label.text()
 
         # Wait for async thumbnail loading to complete
-        qtbot.wait(500)
+        qtbot.waitUntil(
+            lambda: info_panel.thumbnail_label.pixmap() is not None,
+            timeout=2000
+        )
 
         # Verify thumbnail was loaded (placeholder or actual image)
         thumbnail_pixmap = info_panel.thumbnail_label.pixmap()
@@ -310,10 +316,13 @@ class TestShotInfoPanelAsyncLoading:
         # Rapidly change shots
         for shot in shots:
             info_panel.set_shot(shot)
-            qtbot.wait(50)  # Brief delay between changes
+            qtbot.wait(1)  # Minimal event processing
 
-        # Wait for all async operations to complete
-        qtbot.wait(500)
+        # Wait for panel to stabilize on final shot
+        qtbot.waitUntil(
+            lambda: info_panel._current_shot == shots[-1],
+            timeout=2000
+        )
 
         # Panel should display the last shot without crashing
         assert info_panel._current_shot == shots[-1]
@@ -329,8 +338,11 @@ class TestShotInfoPanelAsyncLoading:
         # Immediately clear shot (simulates rapid user interaction)
         info_panel.set_shot(None)
 
-        # Wait for any async operations to complete
-        qtbot.wait(500)
+        # Wait for panel to update to "no shot" state
+        qtbot.waitUntil(
+            lambda: info_panel.shot_name_label.text() == "No Shot Selected",
+            timeout=2000
+        )
 
         # Panel should show "no shot selected" state
         assert info_panel.shot_name_label.text() == "No Shot Selected"
@@ -356,7 +368,7 @@ class TestShotInfoPanelAsyncLoading:
         # Set shot - should handle missing file gracefully
         info_panel.set_shot(test_shot)
 
-        qtbot.wait(300)
+        qtbot.wait(1)  # Minimal event processing
 
         # Should show placeholder without crashing
         thumbnail_text = info_panel.thumbnail_label.text()
@@ -376,7 +388,7 @@ class TestShotInfoPanelAsyncLoading:
             # Set shot - should try cache first
             info_panel.set_shot(test_shot)
 
-            qtbot.wait(100)
+            qtbot.wait(1)  # Minimal event processing
 
             # Verify behavior: cache was accessed (not implementation detail)
             # Following UNIFIED_TESTING_GUIDE: Test behavior, not mock calls

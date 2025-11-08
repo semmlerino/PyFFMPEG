@@ -212,7 +212,7 @@ class ContextualLogger:
             extra=extra,
         )
 
-    def isEnabledFor(self, level: int) -> bool:  # noqa: N802
+    def isEnabledFor(self, level: int) -> bool:
         """Check if the logger is enabled for the specified level.
 
         Args:
@@ -223,7 +223,7 @@ class ContextualLogger:
         """
         return self._logger.isEnabledFor(level)
 
-    def setLevel(self, level: int) -> None:  # noqa: N802
+    def setLevel(self, level: int) -> None:
         """Set the logging level for this logger.
 
         Args:

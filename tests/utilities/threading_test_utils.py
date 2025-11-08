@@ -108,11 +108,11 @@ class ThreadingTestError(Exception):
     """Base exception for threading test utilities."""
 
 
-class DeadlockDetected(ThreadingTestError):
+class DeadlockDetectedError(ThreadingTestError):
     """Raised when a deadlock is detected during testing."""
 
 
-class RaceConditionTimeout(ThreadingTestError):
+class RaceConditionTimeoutError(ThreadingTestError):
     """Raised when race condition setup times out."""
 
 
@@ -122,7 +122,7 @@ class WorkerProtocol(Protocol):
 
     def get_state(self) -> WorkerState: ...
     def request_stop(self) -> bool: ...
-    def isRunning(self) -> bool: ...  # noqa: N802
+    def isRunning(self) -> bool: ...
     def wait(self, timeout_ms: int = 5000) -> bool: ...
 
 
@@ -1047,17 +1047,20 @@ class PerformanceMetrics:
 
 # Pytest fixtures for threading tests
 @pytest.fixture
-def isolated_launcher_manager() -> Iterator[LauncherManager]:
+def isolated_launcher_manager(tmp_path: Path) -> Iterator[LauncherManager]:
     """Provide isolated LauncherManager for testing.
 
     Creates a temporary manager with separate configuration
     to avoid interference between tests.
 
+    Args:
+        tmp_path: Pytest tmp_path fixture for isolated filesystem
+
     Yields:
         LauncherManager: Isolated manager instance
     """
-    # Create temporary config directory
-    temp_config_dir = Path.home() / ".shotbot_test" / str(uuid.uuid4())
+    # Create temporary config directory using pytest tmp_path for isolation
+    temp_config_dir = tmp_path / ".shotbot_test"
     temp_config_dir.mkdir(parents=True, exist_ok=True)
 
     # Create manager with temporary config

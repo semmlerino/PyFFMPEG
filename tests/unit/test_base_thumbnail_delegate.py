@@ -393,17 +393,19 @@ class TestThumbnailSizeManagement:
 
         assert delegate._thumbnail_size == 256
 
-    @pytest.mark.skip(
-        reason="Bug in base_thumbnail_delegate.py:555 - parent.update() requires QRect arg"
-    )
     def test_set_thumbnail_size_with_parent(self, qtbot) -> None:
-        """Test setting thumbnail size with parent view (currently broken)."""
+        """Test setting thumbnail size with parent view.
+
+        Fixed: Now properly calls viewport().update() for QAbstractItemView parents.
+        """
         view = QListView()
         qtbot.addWidget(view)
         delegate = ConcreteThumbnailDelegate(parent=view)
 
-        # This will fail due to bug: TypeError: QListView.update() takes exactly one argument (0 given)
+        # Should not raise TypeError anymore
         delegate.set_thumbnail_size(256)
+
+        assert delegate._thumbnail_size == 256
 
 
 class TestGetThumbnailRect:
@@ -846,17 +848,23 @@ class TestResourceCleanup:
         )
 
         delegate._loading_timer = QTimer()
-        delegate._loading_timer.start(50)
+        try:
+            delegate._loading_timer.start(50)
 
-        assert delegate._loading_timer is not None
-        assert delegate._loading_timer.isActive()
+            assert delegate._loading_timer is not None
+            assert delegate._loading_timer.isActive()
 
-        # Cleanup
-        delegate.cleanup()
+            # Cleanup
+            delegate.cleanup()
 
-        # Timer should be stopped and deleted
-        # Note: We can't test deleteLater() directly, but can verify it was called
-        assert delegate._loading_timer is None
+            # Timer should be stopped and deleted
+            # Note: We can't test deleteLater() directly, but can verify it was called
+            assert delegate._loading_timer is None
+        finally:
+            # Always ensure timer is cleaned up (Qt resource leak protection)
+            if delegate._loading_timer is not None:
+                delegate._loading_timer.stop()
+                delegate._loading_timer.deleteLater()
 
     def test_cleanup_clears_cache(self, qtbot) -> None:
         """Test cleanup clears metrics cache."""

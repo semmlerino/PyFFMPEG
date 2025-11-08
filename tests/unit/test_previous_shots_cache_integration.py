@@ -100,7 +100,7 @@ class TestPreviousShootsCacheIntegration:
         if model._worker is not None:
             model._worker.request_stop()
             model._worker.wait(2000)  # Wait up to 2 seconds for thread to finish
-        qtbot.wait(10)  # Allow Qt to process cleanup events
+        qtbot.wait(1)  # Minimal event processing
 
     def test_cache_storage_and_retrieval(self, cache_manager, temp_cache_dir) -> None:
         """Test basic cache storage and retrieval for previous shots."""
@@ -261,7 +261,7 @@ class TestPreviousShootsCacheIntegration:
             if model._worker is not None:
                 model._worker.request_stop()
                 model._worker.wait(2000)
-            qtbot.wait(10)
+            qtbot.wait(1)  # Minimal event processing
 
     @pytest.mark.skip_if_parallel
     def test_model_cache_integration_on_refresh(
@@ -316,7 +316,7 @@ class TestPreviousShootsCacheIntegration:
                 if previous_shots_model._worker is not None:
                     previous_shots_model._worker.request_stop()
                     previous_shots_model._worker.wait(2000)
-                qtbot.wait(10)
+                qtbot.wait(1)  # Minimal event processing
 
     # Performance test removed to prevent test suite timeout
 
@@ -345,7 +345,7 @@ class TestPreviousShootsCacheIntegration:
             if model._worker is not None:
                 model._worker.request_stop()
                 model._worker.wait(2000)
-            qtbot.wait(10)
+            qtbot.wait(1)  # Minimal event processing
 
     def test_cache_partial_write_recovery(self, temp_cache_dir, cache_manager) -> None:
         """Test recovery from partial cache writes."""

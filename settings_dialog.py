@@ -586,12 +586,20 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         _ = self.button_box.clicked.connect(self.handle_button_click)
 
         # Setting change signals for live preview
-        _ = self.thumbnail_size_slider.valueChanged.connect(self.update_thumbnail_preview)
-        _ = self.dark_theme_check.toggled.connect(self.preview_theme_change)
+        _ = self.thumbnail_size_slider.valueChanged.connect(
+            self.update_thumbnail_preview  # type: ignore[reportAny, return-value]
+        )
+        _ = self.dark_theme_check.toggled.connect(
+            self.preview_theme_change  # type: ignore[reportAny, return-value]
+        )
 
         # Validation signals
-        _ = self.validate_launchers_btn.clicked.connect(self.validate_custom_launchers)
-        _ = self.edit_launchers_btn.clicked.connect(self.edit_custom_launchers)
+        _ = self.validate_launchers_btn.clicked.connect(
+            self.validate_custom_launchers  # type: ignore[reportAny, return-value]
+        )
+        _ = self.edit_launchers_btn.clicked.connect(
+            self.edit_custom_launchers  # type: ignore[reportAny, return-value]
+        )
 
     def set_initial_tab(self, tab_name: str) -> None:
         """Set the initial tab to display."""
@@ -604,7 +612,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         """Load current settings into the dialog controls."""
         # General tab
         self.thumbnail_size_slider.setValue(self.settings_manager.get_thumbnail_size())
-        self.update_thumbnail_preview()
+        self.update_thumbnail_preview()  # type: ignore[reportAny, return-value]
 
         self.grid_columns_spin.setValue(self.settings_manager.get_grid_columns())
         self.dark_theme_check.setChecked(self.settings_manager.get_dark_theme())
@@ -652,7 +660,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         self.log_level_combo.setCurrentText(self.settings_manager.get_log_level())
 
     @Slot()
-    def update_thumbnail_preview(self) -> None:
+    def update_thumbnail_preview(self) -> None:  # type: ignore[reportAny]
         """Update thumbnail size preview label."""
         size = self.thumbnail_size_slider.value()
         self.thumbnail_size_label.setText(f"{size}px")
@@ -661,13 +669,13 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         self.settings_changed.emit("thumbnail_size_preview", size)
 
     @Slot()
-    def preview_theme_change(self) -> None:
+    def preview_theme_change(self) -> None:  # type: ignore[reportAny]
         """Preview theme change."""
         dark_enabled = self.dark_theme_check.isChecked()
         self.settings_changed.emit("dark_theme_preview", dark_enabled)
 
     @Slot()
-    def validate_custom_launchers(self) -> None:
+    def validate_custom_launchers(self) -> None:  # type: ignore[reportAny]
         """Validate custom launchers JSON."""
         try:
             text = self.launchers_edit.toPlainText().strip()
@@ -681,7 +689,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
             _ = QMessageBox.warning(self, "Validation Error", f"Invalid JSON format:\n{e}")
 
     @Slot()
-    def edit_custom_launchers(self) -> None:
+    def edit_custom_launchers(self) -> None:  # type: ignore[reportAny]
         """Open custom launchers editor."""
         # TODO: Implement launcher editor dialog
         _ = QMessageBox.information(
@@ -848,7 +856,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
             text = self.launchers_edit.toPlainText().strip()
             if text:
                 # Parse JSON - returns object but we validate types below
-                parsed_data: object = json.loads(text)
+                parsed_data: object = json.loads(text)  # type: ignore[reportAny, assignment]
                 # Handle both dict and list formats
                 launchers: list[dict[str, object]] = []
                 if isinstance(parsed_data, list):

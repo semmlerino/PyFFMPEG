@@ -66,8 +66,8 @@ def signal_waiter(qtbot):
 def cleanup_qt_objects(qtbot):
     """Automatically cleanup Qt objects after each test."""
     yield
-    # Process events to handle deleteLater
-    qtbot.wait(10)
+    # Minimal event processing for deleteLater
+    qtbot.wait(1)
 
 
 @pytest.fixture

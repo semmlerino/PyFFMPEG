@@ -19,7 +19,7 @@ def capture_screenshot() -> Path | None:
     # Get the primary screen - QGuiApplication has primaryScreen()
     # QApplication inherits from QGuiApplication, so this is safe
     screen: QScreen | None = QGuiApplication.primaryScreen()
-    if not screen:
+    if not screen:  # type: ignore[unreachable]  # Defensive check for edge cases
         print("Error: No screen found")
         return None
 

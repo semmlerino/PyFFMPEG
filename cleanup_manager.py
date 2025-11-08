@@ -107,7 +107,7 @@ class CleanupManager(QObject, LoggingMixin):
             warmer.request_stop()
 
             # Determine timeout based on environment
-            import sys  # noqa: PLC0415 - Lazy import to detect pytest environment
+            import sys
 
             is_test_environment = "pytest" in sys.modules
             session_timeout_ms = 200 if is_test_environment else 2000
@@ -224,7 +224,7 @@ class CleanupManager(QObject, LoggingMixin):
             app.processEvents()
 
         # Clean up any remaining QRunnables in the thread pool
-        from runnable_tracker import (  # noqa: PLC0415 - Lazy import for cleanup
+        from runnable_tracker import (
             cleanup_all_runnables,
         )
 
@@ -232,7 +232,7 @@ class CleanupManager(QObject, LoggingMixin):
         cleanup_all_runnables()
 
         # Force garbage collection to clean up any circular references
-        import gc  # noqa: PLC0415 - Lazy import for garbage collection
+        import gc
 
         _ = gc.collect()
 

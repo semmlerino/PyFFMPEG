@@ -1153,44 +1153,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         """Handle shot double click - launch default app."""
         self.launcher_controller.launch_app(Config.DEFAULT_APP)
 
-    def _on_scene_selected(self, scene: ThreeDEScene) -> None:
-        """Handle 3DE scene selection."""
-        # Set scene context (automatically clears shot context)
-        self.launcher_controller.set_current_scene(scene)
-
-        # Create a Shot object from the scene for compatibility
-        shot = Shot(
-            show=scene.show,
-            sequence=scene.sequence,
-            shot=scene.shot,
-            workspace_path=scene.workspace_path,
-        )
-
-        # Update shot info panel
-        self.shot_info_panel.set_shot(shot)
-
-        # Update launcher panel to enable buttons (showing scene context)
-        self.launcher_panel.set_shot(shot)
-
-        # Update custom launcher menu availability
-        self.launcher_controller.update_launcher_menu_availability(True)
-
-        # Update window title with scene info
-        self.setWindowTitle(
-            f"{Config.APP_NAME} - {scene.full_name} ({scene.user} - {scene.plate})",
-        )
-
-        # Update status
-        self._update_status(
-            f"Selected: {scene.full_name} - {scene.user} ({scene.plate})",
-        )
-
-    def _on_scene_double_clicked(self, scene: ThreeDEScene) -> None:
-        """Handle 3DE scene double click - launch 3de with the scene."""
-        # Set the current scene first, then launch
-        self.launcher_controller.set_current_scene(scene)
-        self.launcher_controller.launch_app("3de")
-
     def _launch_app_with_scene_context(
         self, app_name: str, scene: ThreeDEScene
     ) -> None:
@@ -1232,12 +1194,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         self.logger.info(
             f"Applied {tab_name} show filter: {show if show else 'All Shows'}"
-        )
-
-    def _on_show_filter_requested(self, show: str) -> None:
-        """Handle show filter request from 3DE grid view."""
-        self._apply_show_filter(
-            self.threede_item_model, self.threede_scene_model, show, "3DE scenes"
         )
 
     def _on_shot_show_filter_requested(self, show: str) -> None:
@@ -1576,7 +1532,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self.logger.debug("Completed explicit MainWindow cleanup")
 
     @override
-    def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802
+    def closeEvent(self, event: QCloseEvent) -> None:
         """Thread-safe close event handler.
 
         Implements proper shutdown sequence using CleanupManager.

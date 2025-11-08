@@ -99,7 +99,7 @@ def test_shot_extraction():
             failed += 1
 
     print(f"\nResults: {passed} passed, {failed} failed")
-    return failed == 0
+    assert failed == 0, f"{failed} test(s) failed"
 
 
 def test_path_parsing():
@@ -161,7 +161,7 @@ def test_path_parsing():
             failed += 1
 
     print(f"\nResults: {passed} passed, {failed} failed")
-    return failed == 0
+    assert failed == 0, f"{failed} test(s) failed"
 
 
 def test_3de_file_paths():
@@ -205,7 +205,7 @@ def test_3de_file_paths():
             failed += 1
 
     print(f"\nResults: {passed} passed, {failed} failed")
-    return failed == 0
+    assert failed == 0, f"{failed} test(s) failed"
 
 
 def main() -> int:

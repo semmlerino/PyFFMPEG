@@ -7,6 +7,9 @@ import os
 import subprocess
 import sys
 
+# Third-party imports
+import pytest
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -16,7 +19,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def test_headless_detection() -> None:
+def test_headless_detection(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test headless environment detection."""
     logger.info("=" * 50)
     logger.info("Testing headless detection")
@@ -27,47 +30,35 @@ def test_headless_detection() -> None:
         HeadlessMode,
     )
 
-    # Save original env
-    original_env = dict(os.environ)
+    # Test explicit headless flag (monkeypatch auto-restores after test)
+    monkeypatch.setenv("SHOTBOT_HEADLESS", "1")
+    assert HeadlessMode.is_headless_environment(), (
+        "Should detect SHOTBOT_HEADLESS=1"
+    )
+    logger.info("✅ Detects SHOTBOT_HEADLESS=1")
 
-    try:
-        # Test explicit headless flag
-        os.environ["SHOTBOT_HEADLESS"] = "1"
-        assert HeadlessMode.is_headless_environment(), (
-            "Should detect SHOTBOT_HEADLESS=1"
-        )
-        logger.info("✅ Detects SHOTBOT_HEADLESS=1")
+    # Clear and test CI environment
+    monkeypatch.delenv("SHOTBOT_HEADLESS", raising=False)
+    monkeypatch.setenv("CI", "true")
+    assert HeadlessMode.is_headless_environment(), "Should detect CI=true"
+    logger.info("✅ Detects CI environment")
 
-        # Clear and test CI environment
-        os.environ.clear()
-        os.environ.update(original_env)
-        os.environ["CI"] = "true"
-        assert HeadlessMode.is_headless_environment(), "Should detect CI=true"
-        logger.info("✅ Detects CI environment")
+    # Test GitHub Actions
+    monkeypatch.delenv("CI", raising=False)
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    assert HeadlessMode.is_headless_environment(), "Should detect GitHub Actions"
+    logger.info("✅ Detects GitHub Actions")
 
-        # Test GitHub Actions
-        os.environ.clear()
-        os.environ.update(original_env)
-        os.environ["GITHUB_ACTIONS"] = "true"
-        assert HeadlessMode.is_headless_environment(), "Should detect GitHub Actions"
-        logger.info("✅ Detects GitHub Actions")
-
-        # Test offscreen platform
-        os.environ.clear()
-        os.environ.update(original_env)
-        os.environ["QT_QPA_PLATFORM"] = "offscreen"
-        assert HeadlessMode.is_headless_environment(), (
-            "Should detect offscreen platform"
-        )
-        logger.info("✅ Detects offscreen platform")
-
-    finally:
-        # Restore original environment
-        os.environ.clear()
-        os.environ.update(original_env)
+    # Test offscreen platform
+    monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    assert HeadlessMode.is_headless_environment(), (
+        "Should detect offscreen platform"
+    )
+    logger.info("✅ Detects offscreen platform")
 
 
-def test_headless_qt_config() -> None:
+def test_headless_qt_config(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test Qt configuration for headless."""
     logger.info("=" * 50)
     logger.info("Testing Qt headless configuration")
@@ -78,31 +69,22 @@ def test_headless_qt_config() -> None:
         HeadlessMode,
     )
 
-    # Save original env
-    original_env = dict(os.environ)
+    # Configure for headless (monkeypatch auto-restores after test)
+    HeadlessMode.configure_qt_for_headless()
 
-    try:
-        # Configure for headless
-        HeadlessMode.configure_qt_for_headless()
+    # Check environment variables
+    assert os.environ["QT_QPA_PLATFORM"] == "offscreen", (
+        "Should set offscreen platform"
+    )
+    logger.info("✅ Sets QT_QPA_PLATFORM=offscreen")
 
-        # Check environment variables
-        assert os.environ["QT_QPA_PLATFORM"] == "offscreen", (
-            "Should set offscreen platform"
-        )
-        logger.info("✅ Sets QT_QPA_PLATFORM=offscreen")
+    assert os.environ["QT_QUICK_BACKEND"] == "software", (
+        "Should set software backend"
+    )
+    logger.info("✅ Sets software rendering backend")
 
-        assert os.environ["QT_QUICK_BACKEND"] == "software", (
-            "Should set software backend"
-        )
-        logger.info("✅ Sets software rendering backend")
-
-        assert "QT_XCB_GL_INTEGRATION" in os.environ, "Should disable GL integration"
-        logger.info("✅ Disables OpenGL integration")
-
-    finally:
-        # Restore original environment
-        os.environ.clear()
-        os.environ.update(original_env)
+    assert "QT_XCB_GL_INTEGRATION" in os.environ, "Should disable GL integration"
+    logger.info("✅ Disables OpenGL integration")
 
 
 def test_headless_app_creation() -> None:
@@ -213,7 +195,7 @@ def test_headless_shotbot_command() -> None:
         logger.error(f"❌ Error running headless: {e}")
 
 
-def test_decorators() -> None:
+def test_decorators(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test headless decorators."""
     logger.info("=" * 50)
     logger.info("Testing headless decorators")
@@ -224,38 +206,26 @@ def test_decorators() -> None:
         HeadlessMode,
     )
 
-    # Save original env
-    original_env = dict(os.environ)
+    # Test skip_if_headless decorator
+    @HeadlessMode.skip_if_headless
+    def ui_operation() -> str:
+        return "UI operation executed"
 
-    try:
-        # Test skip_if_headless decorator
-        @HeadlessMode.skip_if_headless
-        def ui_operation() -> str:
-            return "UI operation executed"
+    # In normal mode - explicitly ensure we're not in headless mode
+    monkeypatch.delenv("SHOTBOT_HEADLESS", raising=False)
+    monkeypatch.delenv("CI", raising=False)
+    monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
+    monkeypatch.delenv("QT_QPA_PLATFORM", raising=False)
 
-        # In normal mode - make sure to remove headless indicators
-        os.environ.clear()
-        os.environ.update(original_env)
-        # Explicitly ensure we're not in headless mode
-        os.environ.pop("SHOTBOT_HEADLESS", None)
-        os.environ.pop("CI", None)
-        os.environ.pop("GITHUB_ACTIONS", None)
-        os.environ.pop("QT_QPA_PLATFORM", None)
+    result = ui_operation()
+    assert result == "UI operation executed", "Should execute normally"
+    logger.info("✅ skip_if_headless executes in normal mode")
 
-        result = ui_operation()
-        assert result == "UI operation executed", "Should execute normally"
-        logger.info("✅ skip_if_headless executes in normal mode")
-
-        # In headless mode
-        os.environ["SHOTBOT_HEADLESS"] = "1"
-        result = ui_operation()
-        assert result is None, "Should skip in headless mode"
-        logger.info("✅ skip_if_headless skips in headless mode")
-
-    finally:
-        # Restore original environment
-        os.environ.clear()
-        os.environ.update(original_env)
+    # In headless mode
+    monkeypatch.setenv("SHOTBOT_HEADLESS", "1")
+    result = ui_operation()
+    assert result is None, "Should skip in headless mode"
+    logger.info("✅ skip_if_headless skips in headless mode")
 
 
 def main() -> None:

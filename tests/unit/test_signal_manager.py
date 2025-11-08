@@ -163,7 +163,7 @@ class TestSignalManager:
 
         # Verify signal no longer connected
         widget.test_signal.emit()
-        qtbot.wait(10)
+        qtbot.wait(1)  # Minimal event processing
         assert len(received) == 0
 
     def test_disconnect_all(
@@ -206,7 +206,7 @@ class TestSignalManager:
 
         # Emit source and verify target receives it
         source.test_signal.emit()
-        qtbot.wait(50)
+        qtbot.waitUntil(lambda: len(received) == 1, timeout=1000)
 
         assert len(received) == 1
 
@@ -233,7 +233,7 @@ class TestSignalManager:
 
         # Emit source and verify target receives it
         source.data_signal.emit("test")
-        qtbot.wait(100)  # Wait longer for queued connection
+        qtbot.waitUntil(lambda: "test" in received, timeout=1000)
 
         assert "test" in received
 
@@ -344,7 +344,7 @@ class TestSignalManager:
         widget.test_signal.emit()
 
         # Should not be received immediately
-        qtbot.wait(20)
+        qtbot.wait(1)  # Minimal event processing
         assert len(received) == 0
 
         # Use waitUntil for more reliable Qt timer testing
@@ -456,11 +456,10 @@ class TestSignalThrottler:
         # Emit rapidly
         for _ in range(5):
             source.test_signal.emit()
-            qtbot.wait(10)
+            qtbot.wait(1)  # Minimal event processing between emissions
 
-        # Wait for throttle interval
-        qtbot.wait(150)
-        QApplication.processEvents()
+        # Wait for throttle interval and check condition
+        qtbot.waitUntil(lambda: len(received) >= 1, timeout=200)
 
         # Should only have emitted once
         assert len(received) == 1
@@ -499,7 +498,7 @@ class TestSignalThrottler:
 
         # Emissions should no longer be throttled
         source.test_signal.emit()
-        qtbot.wait(100)
+        qtbot.wait(1)  # Minimal event processing
 
         assert len(received) == 0
 
@@ -650,6 +649,6 @@ class TestSignalManagerIntegration:
         worker.process()
 
         # Wait for queued connection
-        qtbot.wait(50)
+        qtbot.waitUntil(lambda: "processed" in results, timeout=1000)
 
         assert "processed" in results

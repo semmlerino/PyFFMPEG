@@ -39,7 +39,7 @@ def run_test(description: str, cmd: list[str], timeout: int = 60) -> bool:
             # Show test count from output
             if "passed" in result.stdout:
                 # Standard library imports
-                import re  # noqa: PLC0415 - Lazy import for pattern matching
+                import re
 
                 match = re.search(r"(\d+) passed", result.stdout)
                 if match:

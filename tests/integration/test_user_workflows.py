@@ -319,8 +319,12 @@ class TestUserWorkflows:
             # Verify launch was initiated successfully
             assert success is True
 
-            # Process Qt events to allow signals to propagate
-            qtbot.wait(100)
+            # Wait for launcher_started signal if expected
+            try:
+                qtbot.waitUntil(lambda: launcher_started_spy.count() > 0, timeout=1000)
+            except Exception:
+                # Signal may not be emitted in test environment
+                pass
 
             # Verify launcher execution was tracked
             if launcher_started_spy.count() > 0:
@@ -416,7 +420,7 @@ class TestUserWorkflows:
             assert success is True
 
             # Process events
-            qtbot.wait(100)
+            qtbot.wait(1)  # Minimal event processing
 
             # Verify Maya was called with scene file
             if mock_popen.called:
@@ -461,46 +465,58 @@ class TestUserWorkflows:
         if hasattr(main_window, "refresh_completed"):
             main_window.refresh_completed.connect(on_refresh_completed)
 
-        # Configure test subprocess to return test shot data
-        workspace_output = "\n".join(
-            [f"workspace {shot['workspace_path']}" for shot in self.test_shots]
-        )
-
-        # Create test result with real behavior
-        test_result = TestCompletedProcess(
-            args=["bash", "-i", "-c", "ws -sg"],
-            returncode=0,
-            stdout=workspace_output,
-            stderr="",
-        )
-
-        with patch("subprocess.run", return_value=test_result) as mock_run:
-            # Initial shot count from model
-            initial_shot_count = len(main_window.shot_model.shots)
-
-            # Trigger manual refresh through the shot model directly
-            # This avoids UI dependencies that cause issues in test teardown
-            refresh_result = main_window.shot_model.refresh_shots()
-
-            # Verify refresh completed successfully
-            assert refresh_result is not None
-            assert refresh_result.success
-
-            # Verify workspace command was called or data was updated
-            # Note: call_args might be None if cached data is used
-            call_args = mock_run.call_args
-            command_called = call_args is not None and (
-                "ws -sg" in str(call_args) or "workspace" in str(call_args)
+        try:
+            # Configure test subprocess to return test shot data
+            workspace_output = "\n".join(
+                [f"workspace {shot['workspace_path']}" for shot in self.test_shots]
             )
-            # Either command was called OR we got a successful refresh result
-            assert command_called or refresh_result.success
 
-            # Verify UI reflects updated shot data
-            final_shot_count = len(main_window.shot_model.shots)
+            # Create test result with real behavior
+            test_result = TestCompletedProcess(
+                args=["bash", "-i", "-c", "ws -sg"],
+                returncode=0,
+                stdout=workspace_output,
+                stderr="",
+            )
 
-            if refresh_result.has_changes:
-                # Shot count should change if there were actual changes
-                assert final_shot_count != initial_shot_count or final_shot_count > 0
+            with patch("subprocess.run", return_value=test_result) as mock_run:
+                # Initial shot count from model
+                initial_shot_count = len(main_window.shot_model.shots)
+
+                # Trigger manual refresh through the shot model directly
+                # This avoids UI dependencies that cause issues in test teardown
+                refresh_result = main_window.shot_model.refresh_shots()
+
+                # Verify refresh completed successfully
+                assert refresh_result is not None
+                assert refresh_result.success
+
+                # Verify workspace command was called or data was updated
+                # Note: call_args might be None if cached data is used
+                call_args = mock_run.call_args
+                command_called = call_args is not None and (
+                    "ws -sg" in str(call_args) or "workspace" in str(call_args)
+                )
+                # Either command was called OR we got a successful refresh result
+                assert command_called or refresh_result.success
+
+                # Verify UI reflects updated shot data
+                final_shot_count = len(main_window.shot_model.shots)
+
+                if refresh_result.has_changes:
+                    # Shot count should change if there were actual changes
+                    assert final_shot_count != initial_shot_count or final_shot_count > 0
+        finally:
+            if hasattr(main_window, "refresh_started"):
+                try:
+                    main_window.refresh_started.disconnect(on_refresh_started)
+                except (TypeError, RuntimeError):
+                    pass  # Already disconnected or object deleted
+            if hasattr(main_window, "refresh_completed"):
+                try:
+                    main_window.refresh_completed.disconnect(on_refresh_completed)
+                except (TypeError, RuntimeError):
+                    pass  # Already disconnected or object deleted
 
     @pytest.mark.slow
     @pytest.mark.integration
@@ -557,12 +573,8 @@ class TestUserWorkflows:
             # Verify launcher was created
             assert launcher_id is not None, "Launcher creation failed - no ID returned"
 
-            # Process Qt events to ensure signal propagation
-            qtbot.wait(50)
-
-            # Wait for launcher_added signal if not already received
-            if len(launcher_added_events) == 0:
-                qtbot.waitUntil(lambda: len(launcher_added_events) > 0, timeout=2000)
+            # Wait for launcher_added signal
+            qtbot.waitUntil(lambda: len(launcher_added_events) > 0, timeout=2000)
 
             # Verify launcher_added signal was received
             assert len(launcher_added_events) > 0, (
@@ -592,7 +604,11 @@ class TestUserWorkflows:
                 assert success is True, "Launcher execution failed"
 
                 # Wait for execution tracking
-                qtbot.wait(100)
+                try:
+                    qtbot.waitUntil(lambda: len(execution_started_events) > 0, timeout=1000)
+                except Exception:
+                    # Execution tracking may not emit signal in test environment
+                    pass
 
                 # Verify execution was tracked
                 if len(execution_started_events) > 0:
@@ -667,8 +683,11 @@ class TestUserWorkflows:
         # This tests the end result of the UI selection process
         main_window.command_launcher.set_current_shot(test_shot)
 
-        # Process any UI updates
-        qtbot.wait(100)
+        # Wait for current shot to be set
+        qtbot.waitUntil(
+            lambda: main_window.command_launcher.current_shot is not None,
+            timeout=1000
+        )
 
         # Verify current shot was set
         current_shot = main_window.command_launcher.current_shot
@@ -688,7 +707,7 @@ class TestUserWorkflows:
 
     @pytest.mark.integration
     @pytest.mark.qt
-    def test_thumbnail_loading_workflow(self, qtbot: Any) -> None:
+    def test_thumbnail_loading_workflow(self, qtbot: Any, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test thumbnail loading and display workflow.
 
         Verifies that:
@@ -702,10 +721,8 @@ class TestUserWorkflows:
         sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
         # Use legacy model to avoid async loading interference in tests
-        # Standard library imports
-        import os
-
-        os.environ["SHOTBOT_USE_LEGACY_MODEL"] = "1"
+        # (monkeypatch auto-restores after test)
+        monkeypatch.setenv("SHOTBOT_USE_LEGACY_MODEL", "1")
 
         # Create real cache manager
         cache_manager = CacheManager(cache_dir=self.cache_dir)
@@ -725,7 +742,8 @@ class TestUserWorkflows:
         test_pool.set_outputs("")  # Empty output, no shots
 
         # Disable initial load to prevent cache interference
-        os.environ["SHOTBOT_NO_INITIAL_LOAD"] = "1"
+        # (monkeypatch auto-restores after test)
+        monkeypatch.setenv("SHOTBOT_NO_INITIAL_LOAD", "1")
 
         # Patch ProcessPoolManager to return our test pool
         # Only needs to be active during MainWindow.__init__
@@ -734,9 +752,6 @@ class TestUserWorkflows:
             return_value=test_pool,
         ):
             main_window = MainWindow(cache_manager=cache_manager)
-
-        # Clear the flag
-        del os.environ["SHOTBOT_NO_INITIAL_LOAD"]
 
         qtbot.addWidget(main_window)
 
@@ -839,7 +854,10 @@ class TestUserWorkflows:
         )
 
         # Wait for UI updates and thumbnail processing
-        qtbot.wait(100)
+        qtbot.waitUntil(
+            lambda: main_window.shot_item_model.rowCount() > 0,
+            timeout=1000
+        )
 
         # Check shot model state after wait
         print(
@@ -905,75 +923,87 @@ class TestUserWorkflows:
         if hasattr(main_window, "recovery_attempted"):
             main_window.recovery_attempted.connect(on_recovery_attempted)
 
-        # Test 1: Workspace command failure
-        with patch("subprocess.run") as mock_run:
-            # Configure mock to simulate command failure
-            mock_run.side_effect = subprocess.CalledProcessError(
-                1, ["bash", "-i", "-c", "ws -sg"], stderr="workspace command not found"
+        try:
+            # Test 1: Workspace command failure
+            with patch("subprocess.run") as mock_run:
+                # Configure mock to simulate command failure
+                mock_run.side_effect = subprocess.CalledProcessError(
+                    1, ["bash", "-i", "-c", "ws -sg"], stderr="workspace command not found"
+                )
+
+                # Attempt refresh that should fail through model
+                result = main_window.shot_model.refresh_shots()
+
+                # Should handle error gracefully
+                assert result is not None  # Method should return rather than crash
+                # Note: The shot model may return success if it uses cached data even when command fails
+
+                # Process events
+                qtbot.wait(1)  # Minimal event processing
+
+                # Verify error handling worked (model should handle the exception gracefully)
+                # Note: Error events may not be captured since we're mocking subprocess calls
+                # The important thing is that the method returned without crashing
+
+            # Test 2: Recovery after error
+            # Create successful test result
+            recovery_result = TestCompletedProcess(
+                args=["bash", "-i", "-c", "ws -sg"],
+                returncode=0,
+                stdout=f"workspace {self.test_shots[0]['workspace_path']}",
+                stderr="",
             )
 
-            # Attempt refresh that should fail through model
-            result = main_window.shot_model.refresh_shots()
+            with patch("subprocess.run", return_value=recovery_result) as mock_run:
+                # Clear previous error events
+                error_events.clear()
 
-            # Should handle error gracefully
-            assert result is not None  # Method should return rather than crash
-            # Note: The shot model may return success if it uses cached data even when command fails
+                # Retry refresh through model
+                result = main_window.shot_model.refresh_shots()
 
-            # Wait for error processing
-            qtbot.wait(100)
+                # Wait for refresh to complete
+                qtbot.wait(1)  # Minimal event processing
 
-            # Verify error handling worked (model should handle the exception gracefully)
-            # Note: Error events may not be captured since we're mocking subprocess calls
-            # The important thing is that the method returned without crashing
+                # Verify refresh succeeded
+                assert result is not None
+                assert result.success  # Refresh should succeed
 
-        # Test 2: Recovery after error
-        # Create successful test result
-        recovery_result = TestCompletedProcess(
-            args=["bash", "-i", "-c", "ws -sg"],
-            returncode=0,
-            stdout=f"workspace {self.test_shots[0]['workspace_path']}",
-            stderr="",
-        )
+                # Verify no new errors
+                assert len(error_events) == 0 or all(
+                    "success" in str(event).lower() for event in error_events
+                )
 
-        with patch("subprocess.run", return_value=recovery_result) as mock_run:
-            # Clear previous error events
-            error_events.clear()
+            # Test 3: Launcher execution error
 
-            # Retry refresh through model
-            result = main_window.shot_model.refresh_shots()
+            launcher_manager = LauncherManager(config_dir=self.config_dir)
 
-            # Should succeed this time
-            qtbot.wait(100)
-
-            # Verify refresh succeeded
-            assert result is not None
-            assert result.success  # Refresh should succeed
-
-            # Verify no new errors
-            assert len(error_events) == 0 or all(
-                "success" in str(event).lower() for event in error_events
+            launcher_id = launcher_manager.create_launcher(
+                name="Failing Launcher", command="nonexistent_command {shot_name}"
             )
 
-        # Test 3: Launcher execution error
+            with patch("subprocess.Popen") as mock_popen:
+                # Simulate command not found
+                mock_popen.side_effect = FileNotFoundError("Command not found")
 
-        launcher_manager = LauncherManager(config_dir=self.config_dir)
+                # Attempt to execute failing launcher
+                success = launcher_manager.execute_launcher(
+                    launcher_id, custom_vars={"shot_name": "test_shot"}
+                )
 
-        launcher_id = launcher_manager.create_launcher(
-            name="Failing Launcher", command="nonexistent_command {shot_name}"
-        )
-
-        with patch("subprocess.Popen") as mock_popen:
-            # Simulate command not found
-            mock_popen.side_effect = FileNotFoundError("Command not found")
-
-            # Attempt to execute failing launcher
-            success = launcher_manager.execute_launcher(
-                launcher_id, custom_vars={"shot_name": "test_shot"}
-            )
-
-            # Should handle the error gracefully (may return True if error handling is robust)
-            # The important thing is that it doesn't crash
-            assert success is not None
+                # Should handle the error gracefully (may return True if error handling is robust)
+                # The important thing is that it doesn't crash
+                assert success is not None
+        finally:
+            if hasattr(main_window, "error_occurred"):
+                try:
+                    main_window.error_occurred.disconnect(on_error_occurred)
+                except (TypeError, RuntimeError):
+                    pass  # Already disconnected or object deleted
+            if hasattr(main_window, "recovery_attempted"):
+                try:
+                    main_window.recovery_attempted.disconnect(on_recovery_attempted)
+                except (TypeError, RuntimeError):
+                    pass  # Already disconnected or object deleted
 
     @pytest.mark.integration
     @pytest.mark.qt
@@ -1214,10 +1244,13 @@ class TestUserWorkflows:
 
             # Verify UI remains responsive by testing a UI operation
             # during concurrent execution
-            # Wait a bit longer to let any background processes complete first
-            qtbot.wait(200)
+            qtbot.wait(1)  # Minimal event processing
             main_window.status_bar.showMessage("Testing concurrent operations")
-            qtbot.wait(100)  # Give the message time to be displayed
+            # Wait for status message to be displayed
+            qtbot.waitUntil(
+                lambda: main_window.status_bar.currentMessage() != "",
+                timeout=1000
+            )
 
             current_message = main_window.status_bar.currentMessage()
             # Check if our message is there or if it was overwritten by a background process
@@ -1259,13 +1292,13 @@ class TestUserWorkflows:
             assert refresh_result.success
 
             # Process events to ensure both operations complete
-            qtbot.wait(200)
+            qtbot.wait(1)  # Minimal event processing
 
         # CRITICAL: Clean up worker threads before test teardown
         # Without this, QThread objects are destroyed while threads are still running,
         # causing "QThread: Destroyed while thread is still running" and Qt C++ crashes
         launcher_manager.shutdown()
-        qtbot.wait(100)  # Allow shutdown to complete
+        qtbot.wait(1)  # Minimal event processing for shutdown
 
 
 # Helper functions for standalone testing

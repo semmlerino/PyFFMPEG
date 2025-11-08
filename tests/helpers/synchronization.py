@@ -145,10 +145,19 @@ class SynchronizationHelpers:
         """Context manager to ensure threads have started.
 
         Example:
-            # Instead of: thread.start(); time.sleep(0.1)
-            # Use:
+            # ❌ WRONG - no cleanup guarantee
+            thread.start()
+            time.sleep(0.1)  # Anti-pattern
+
+            # ✅ RIGHT - proper wait with cleanup
+            thread = QThread()
             with wait_for_threads_to_start():
                 thread.start()
+            try:
+                # ... test code ...
+            finally:
+                thread.quit()
+                thread.wait(1000)
         """
         initial_count = threading.active_count()
 

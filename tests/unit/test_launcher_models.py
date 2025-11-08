@@ -46,21 +46,6 @@ pytestmark = [
 # ============================================================================
 
 
-@pytest.fixture(autouse=True)
-def reset_launcher_singletons() -> Generator[None, None, None]:
-    """Reset launcher-related singletons between tests for isolation.
-
-    Prevents singleton contamination when tests run in parallel with xdist.
-    Resets ProcessPoolManager singleton state before and after each test.
-    """
-    # Reset before test
-    ProcessPoolManager._instance = None
-    ProcessPoolManager._initialized = False
-    yield
-    # Reset after test
-    ProcessPoolManager._instance = None
-    ProcessPoolManager._initialized = False
-
 
 # ============================================================================
 # Test ParameterType Enum

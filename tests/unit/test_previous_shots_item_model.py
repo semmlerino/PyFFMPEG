@@ -22,24 +22,6 @@ from tests.test_doubles_library import SignalDouble, TestCacheManager
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
 
-@pytest.fixture(autouse=True)
-def reset_singletons(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Reset singleton instances before each test to prevent contamination.
-
-    This fixture resets all singleton manager instances that might be used
-    by the code under test, ensuring test isolation in parallel execution.
-    """
-    from notification_manager import NotificationManager
-    from process_pool_manager import ProcessPoolManager
-    from progress_manager import ProgressManager
-
-    # Reset singleton instances
-    monkeypatch.setattr(NotificationManager, "_instance", None)
-    monkeypatch.setattr(ProgressManager, "_instance", None)
-    monkeypatch.setattr(ProcessPoolManager, "_instance", None)
-    monkeypatch.setattr(ProcessPoolManager, "_initialized", False)
-
-
 class MockPreviousShotsModel:
     """Test double for PreviousShotsModel following UNIFIED_TESTING_GUIDE."""
 
@@ -75,8 +57,11 @@ def model(qtbot, tmp_path):
 
 
 @pytest.fixture
-def test_shots():
+def test_shots(tmp_path, monkeypatch):
     """Create test Shot objects for previous/approved shots."""
+    # Isolate Config.SHOWS_ROOT to tmp_path per UNIFIED_TESTING_V2.MD section 2
+    monkeypatch.setattr("config.Config.SHOWS_ROOT", str(tmp_path))
+
     return [
         Shot(
             show="proj1",

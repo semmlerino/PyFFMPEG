@@ -158,10 +158,10 @@ def test_ws_sg_parsing():
             print(f"  ❌ Shot {idx} not found in parsed shots")
             all_passed = False
 
-    return all_passed
+    assert all_passed, "Some validation checks failed"
 
 
-def test_show_extraction() -> bool:
+def test_show_extraction() -> None:
     """Test extraction of unique shows from shots."""
     print("\n=== Testing Show Extraction ===")
 
@@ -174,9 +174,10 @@ def test_show_extraction() -> bool:
 
     if shows == expected_shows:
         print(f"  ✓ Extracted shows: {', '.join(sorted(shows))}")
-        return True
-    print(f"  ❌ Expected {expected_shows}, got {shows}")
-    return False
+    else:
+        print(f"  ❌ Expected {expected_shows}, got {shows}")
+
+    assert shows == expected_shows, f"Expected {expected_shows}, got {shows}"
 
 
 def test_edge_cases():
@@ -202,7 +203,7 @@ def test_edge_cases():
             print(f"  ❌ {description}: expected {expected}, got {result}")
             all_passed = False
 
-    return all_passed
+    assert all_passed, "Some edge case tests failed"
 
 
 def test_3de_path_parsing():
@@ -242,10 +243,10 @@ def test_3de_path_parsing():
             print(f"     Got: {result}")
             all_passed = False
 
-    return all_passed
+    assert all_passed, "Some 3DE path parsing tests failed"
 
 
-def test_complete_pipeline() -> bool:
+def test_complete_pipeline() -> None:
     """Test the complete pipeline integration."""
     print("\n=== Testing Complete Pipeline ===")
 
@@ -278,25 +279,20 @@ def test_complete_pipeline() -> bool:
                 found = True
                 break
 
-        if found:
-            print(f"  ✓ Found {show}/{sequence}/{expected_shot} in parsed shots")
-        else:
+        if not found:
             print(f"  ❌ Missing {show}/{sequence}/{expected_shot} in parsed shots")
-            return False
+            assert False, f"Missing {show}/{sequence}/{expected_shot} in parsed shots"
+        print(f"  ✓ Found {show}/{sequence}/{expected_shot} in parsed shots")
 
     # Step 4: Validate 3DE path parsing would work
     print("  ✓ 3DE path parsing validated")
 
     # Step 5: Validate empty shot rejection
     empty_test = extract_shot_from_directory("BB_", "BB")
-    if empty_test is None:
-        print("  ✓ Empty shot rejection working")
-    else:
-        print(f"  ❌ Empty shot not rejected: got {empty_test}")
-        return False
+    assert empty_test is None, f"Empty shot not rejected: got {empty_test}"
+    print("  ✓ Empty shot rejection working")
 
     print("\n  Pipeline validation complete!")
-    return True
 
 
 def main() -> int:

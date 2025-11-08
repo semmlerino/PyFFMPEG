@@ -165,7 +165,7 @@ class TestQtWidget:
             assert widget.state["enabled"] is True
 
             # Use with qtbot for timing
-            qtbot.wait(10)  # Wait for Qt event processing
+            qtbot.wait(1)  # Minimal event processing
     """
 
     __test__ = False  # Prevent pytest from collecting this as a test class

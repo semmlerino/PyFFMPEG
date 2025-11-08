@@ -189,6 +189,7 @@ class TestThreeDEDiscoveryIntegration:
         Following Worker Thread Pattern (GUIDE line 91).
         """
         # Local application imports
+        from tests.helpers.qt_thread_cleanup import cleanup_qthread_properly
         from threede_scene_worker import (
             ThreeDESceneWorker,
         )
@@ -219,19 +220,24 @@ class TestThreeDEDiscoveryIntegration:
 
             worker.finished.connect(on_finished)
 
-            # Start worker and wait for completion
-            worker.start()
-            qtbot.waitUntil(lambda: not worker.isRunning(), timeout=5000)
+            # Track signal handlers for proper cleanup
+            signal_handlers = [
+                (worker.finished, on_finished),
+            ]
 
-            # Cleanup (GUIDE line 104)
-            if worker.isRunning():
-                worker.quit()
-                worker.wait(1000)
+            try:
+                # Start worker and wait for completion
+                worker.start()
+                qtbot.waitUntil(lambda: not worker.isRunning(), timeout=5000)
 
-            # Should find multiple scenes from other users
-            assert len(results) >= 6, (
-                f"Should find at least 6 scenes, found {len(results)}"
-            )
+                # Should find multiple scenes from other users
+                assert len(results) >= 6, (
+                    f"Should find at least 6 scenes, found {len(results)}"
+                )
+            finally:
+                # CRITICAL: Proper cleanup to prevent Qt C++ object accumulation
+                # This prevents segfaults in subsequent tests during parallel execution
+                cleanup_qthread_properly(worker, signal_handlers)
 
     def test_scene_filtering_with_real_parser(self, temp_vfx_structure) -> None:
         """Test scene filtering using the real SceneParser component."""

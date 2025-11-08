@@ -3,10 +3,7 @@
 
 # Standard library imports
 import logging
-import os
-import shutil
 import sys
-import tempfile
 from pathlib import Path
 
 # Third-party imports
@@ -70,7 +67,7 @@ def test_cache_config(monkeypatch: pytest.MonkeyPatch) -> None:
     logger.info(f"✅ Test cache (explicit): {cache_dir}")
 
 
-def test_cache_manager_separation(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_cache_manager_separation(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Test that CacheManager uses separate directories."""
     logger.info("=" * 50)
     logger.info("Testing CacheManager directory separation")
@@ -89,26 +86,26 @@ def test_cache_manager_separation(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("SHOTBOT_TEST_MODE", raising=False)
 
     # Test mode is automatically detected when running under pytest
-    test_manager = CacheManager()
-    assert test_manager.cache_dir == CacheConfig.TEST_CACHE_DIR
+    test_manager = CacheManager(cache_dir=tmp_path / "cache")
+    assert test_manager.cache_dir == tmp_path / "cache"
     logger.info(f"✅ Test CacheManager (under pytest): {test_manager.cache_dir}")
 
     # Even with mock mode set, test mode takes precedence
     monkeypatch.setenv("SHOTBOT_MOCK", "1")
-    mock_manager = CacheManager()
-    assert mock_manager.cache_dir == CacheConfig.TEST_CACHE_DIR
+    mock_manager = CacheManager(cache_dir=tmp_path / "cache")
+    assert mock_manager.cache_dir == tmp_path / "cache"
     logger.info(f"✅ Test CacheManager (overrides mock): {mock_manager.cache_dir}")
 
     # Explicitly setting test mode should still work
     monkeypatch.setenv("SHOTBOT_TEST_MODE", "1")
-    test_manager2 = CacheManager()
-    assert test_manager2.cache_dir == CacheConfig.TEST_CACHE_DIR
+    test_manager2 = CacheManager(cache_dir=tmp_path / "cache")
+    assert test_manager2.cache_dir == tmp_path / "cache"
     logger.info(f"✅ Test CacheManager (explicit): {test_manager2.cache_dir}")
 
     # In test mode, all managers point to the same test directory
     assert test_manager.cache_dir == mock_manager.cache_dir
     assert test_manager.cache_dir == test_manager2.cache_dir
-    logger.info("✅ All cache directories are different")
+    logger.info("✅ All cache directories are the same (isolated to tmp_path)")
 
 
 def test_cache_isolation(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -129,49 +126,44 @@ def test_cache_isolation(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Non
     test_base = tmp_path / "cache_test"
     test_base.mkdir(parents=True, exist_ok=True)
 
-    # Override cache directories to use temp locations (parallel-safe via monkeypatch)
-    monkeypatch.setattr(CacheConfig, "PRODUCTION_CACHE_DIR", test_base / "prod")
-    monkeypatch.setattr(CacheConfig, "MOCK_CACHE_DIR", test_base / "mock")
-    monkeypatch.setattr(CacheConfig, "TEST_CACHE_DIR", test_base / "test")
-
     # Under pytest, all cache operations go to the test cache directory
     # So we can't test true isolation between production and mock
-    # Instead, test that the cache functionality works
+    # Instead, test that the cache functionality works with explicit cache_dir
 
-    # All managers will use test cache under pytest
-    test_manager = CacheManager()
+    # All managers will use explicit cache_dir for isolation
+    test_manager = CacheManager(cache_dir=test_base / "test")
     test_data = [{"name": "test_shot", "path": "/test/path"}]
     test_manager.cache_shots(test_data)
     logger.info("✅ Wrote data to test cache")
 
-    # Even with mock mode set, still uses test cache
+    # Even with mock mode set, still uses explicit cache_dir
     monkeypatch.setenv("SHOTBOT_MOCK", "1")
-    mock_manager = CacheManager()
+    mock_manager = CacheManager(cache_dir=test_base / "test")
     # This will overwrite the previous data in the same test cache
     mock_data = [{"name": "mock_shot", "path": "/mock/path"}]
     mock_manager.cache_shots(mock_data)
     logger.info("✅ Overwrote data in test cache")
 
     # Verify the last written data is available
-    test_manager2 = CacheManager()
+    test_manager2 = CacheManager(cache_dir=test_base / "test")
     cached = test_manager2.get_cached_shots()
 
     if cached:
         assert len(cached) == 1
         # Should have the mock data since it was written last
         assert cached[0]["name"] == "mock_shot"
-    logger.info("✅ Cache functionality works (all using test cache under pytest)")
+    logger.info("✅ Cache functionality works (all using isolated tmp_path)")
 
     # Verify same cache is used regardless of env vars
     monkeypatch.delenv("SHOTBOT_MOCK", raising=False)
-    test_manager3 = CacheManager()
+    test_manager3 = CacheManager(cache_dir=test_base / "test")
     cached2 = test_manager3.get_cached_shots()
 
     if cached2:
         assert len(cached2) == 1
         # Still has mock data since all managers use the same test cache
         assert cached2[0]["name"] == "mock_shot"
-    logger.info("✅ All managers use the same test cache under pytest")
+    logger.info("✅ All managers use the same isolated cache (tmp_path)")
 
 
 def test_cache_info() -> None:

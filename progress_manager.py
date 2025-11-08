@@ -312,6 +312,22 @@ class ProgressManager:
         logger.debug("ProgressManager initialized")
 
     @classmethod
+    def get_instance(cls) -> ProgressManager:
+        """Get the singleton instance.
+
+        This method provides a consistent API with other singleton managers
+        like ProcessPoolManager and FilesystemCoordinator.
+
+        Returns:
+            ProgressManager: The singleton instance
+
+        Examples:
+            >>> manager = ProgressManager.get_instance()
+            >>> # Equivalent to: manager = ProgressManager()
+        """
+        return cls()  # Calls __new__() which returns the singleton
+
+    @classmethod
     def initialize(cls, status_bar: QStatusBar) -> ProgressManager:
         """Initialize the progress manager with UI references.
 

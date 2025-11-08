@@ -2,69 +2,84 @@
 """Test that mock injection works correctly without GUI."""
 
 # Standard library imports
+import logging
 import os
-import sys
+
+import pytest
 
 
-# Enable mock mode
-os.environ["SHOTBOT_MOCK"] = "1"
-
-print("Testing mock injection...")
-print("=" * 50)
-
-# Local application imports
-# Import test doubles first
-from tests.test_doubles_library import TestProcessPool
-
-
-# Create mock pool
-mock_pool = TestProcessPool()
-mock_pool.set_outputs(
-    "workspace /shows/demo/shots/seq01/seq01_0010",
-    "workspace /shows/demo/shots/seq01/seq01_0020",
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    datefmt="%H:%M:%S",
 )
-
-# Local application imports
-# Now inject it BEFORE importing ProcessPoolManager
-import process_pool_manager
+logger = logging.getLogger(__name__)
 
 
-process_pool_manager.ProcessPoolManager._instance = mock_pool
-print("✅ Mock pool injected")
+def test_mock_pool_injection(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test that mock process pool can be injected and used."""
+    logger.info("=" * 50)
+    logger.info("Testing mock pool injection...")
+    logger.info("=" * 50)
 
-# Local application imports
-# Now test that it works
-from process_pool_manager import ProcessPoolManager
+    # Enable mock mode (monkeypatch auto-restores after test)
+    monkeypatch.setenv("SHOTBOT_MOCK", "1")
 
+    # Local application imports
+    # Import test doubles first
+    from tests.test_doubles_library import TestProcessPool
 
-pool = ProcessPoolManager.get_instance()
+    # Create mock pool
+    mock_pool = TestProcessPool()
+    mock_pool.set_outputs(
+        "workspace /shows/demo/shots/seq01/seq01_0010",
+        "workspace /shows/demo/shots/seq01/seq01_0020",
+    )
 
-# This should use the mock, not try to run real ws command
-try:
+    # Now inject it BEFORE importing ProcessPoolManager
+    import process_pool_manager
+
+    process_pool_manager.ProcessPoolManager._instance = mock_pool
+    logger.info("✅ Mock pool injected")
+
+    # Now test that it works
+    from process_pool_manager import ProcessPoolManager
+
+    pool = ProcessPoolManager.get_instance()
+
+    # This should use the mock, not try to run real ws command
     result = pool.execute_workspace_command("ws -sg")
-    print("✅ Mock ws -sg executed successfully")
-    print(f"   Result: {result[:100]}...")
-except Exception as e:
-    print(f"❌ Failed: {e}")
-    sys.exit(1)
+    logger.info("✅ Mock ws -sg executed successfully")
+    logger.info(f"   Result: {result[:100]}...")
 
-# Local application imports
-# Now test with ShotModel
-from shot_model import ShotModel
+    # Verify we got mock data
+    assert "seq01_0010" in result, "Should contain mock workspace output"
+    logger.info("✅ Mock data verified in output")
 
 
-model = ShotModel(load_cache=False)
+def test_mock_injection_isolation(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test that environment variable pollution doesn't affect other tests."""
+    logger.info("=" * 50)
+    logger.info("Testing environment isolation...")
+    logger.info("=" * 50)
 
-try:
-    success, has_changes = model.refresh_shots()
-    if success:
-        print(f"✅ ShotModel refreshed with {len(model.shots)} mock shots")
-        for shot in model.shots[:3]:
-            print(f"   - {shot.full_name}")
-    else:
-        print("❌ ShotModel refresh failed")
-except Exception as e:
-    print(f"❌ ShotModel error: {e}")
+    # First verify no mock is set
+    assert "SHOTBOT_MOCK" not in os.environ, (
+        "SHOTBOT_MOCK should not be set initially"
+    )
+    logger.info("✅ Initial state: SHOTBOT_MOCK not set")
 
-print("=" * 50)
-print("Mock injection test completed successfully!")
+    # Set mock mode (monkeypatch auto-restores after test)
+    monkeypatch.setenv("SHOTBOT_MOCK", "1")
+    assert os.environ.get("SHOTBOT_MOCK") == "1", "Should be set to 1"
+    logger.info("✅ SHOTBOT_MOCK set to '1'")
+
+    # Clear and verify it's gone
+    monkeypatch.delenv("SHOTBOT_MOCK", raising=False)
+    assert "SHOTBOT_MOCK" not in os.environ, (
+        "SHOTBOT_MOCK should be removed"
+    )
+    logger.info("✅ SHOTBOT_MOCK successfully removed")
+
+    # monkeypatch automatically restores environment after test
+    logger.info("✅ Environment cleanup handled by monkeypatch")

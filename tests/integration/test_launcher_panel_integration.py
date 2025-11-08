@@ -69,22 +69,6 @@ pytestmark = [
 # =============================================================================
 
 
-@pytest.fixture(autouse=True)
-def reset_launcher_singletons() -> Generator[None, None, None]:
-    """Reset launcher-related singletons between tests for isolation.
-
-    Prevents singleton contamination when tests run in parallel with xdist.
-    Resets ProcessPoolManager singleton state before and after each test.
-    """
-    # Reset before test
-    ProcessPoolManager._instance = None
-    ProcessPoolManager._initialized = False
-    yield
-    # Reset after test
-    ProcessPoolManager._instance = None
-    ProcessPoolManager._initialized = False
-
-
 @pytest.fixture
 def make_shot() -> Callable[..., Shot]:
     """Factory fixture for creating Shot objects."""
@@ -520,9 +504,8 @@ class TestEndToEndLauncherWorkflow:
 
             launch_context: dict[str, Any] = {}
 
-            def mock_command_launcher_launch_3de(*args: Any, **kwargs: Any) -> bool:
-                # Extract app name from args (first argument)
-                app_name = args[0] if args else kwargs.get("app_name", "unknown")
+            def mock_launch_3de(app_name: str) -> None:
+                """Mock handler for app launch signal."""
                 launch_context["app"] = app_name
                 launch_context["shot"] = window.launcher_panel._current_shot
                 launch_context["open_latest"] = (
@@ -530,13 +513,13 @@ class TestEndToEndLauncherWorkflow:
                         "3de", "open_latest_threede"
                     )
                 )
-                return True  # Return success
 
-            with patch.object(
-                window.command_launcher,
-                "launch_app",
-                side_effect=mock_command_launcher_launch_3de,
-            ):
+            # Disconnect existing signal and connect to mock to avoid validation errors
+            original_slot = window.launcher_controller.launch_app
+            window.launcher_panel.app_launch_requested.disconnect(original_slot)
+            window.launcher_panel.app_launch_requested.connect(mock_launch_3de)
+
+            try:
                 qtbot.mouseClick(
                     threede_section.launch_button, Qt.MouseButton.LeftButton
                 )
@@ -550,6 +533,10 @@ class TestEndToEndLauncherWorkflow:
                 assert launch_context["app"] == "3de"
                 assert launch_context["shot"] == shot
                 assert launch_context["open_latest"] is True
+            finally:
+                # Reconnect original signal to avoid bleed-over
+                window.launcher_panel.app_launch_requested.disconnect(mock_launch_3de)
+                window.launcher_panel.app_launch_requested.connect(original_slot)
 
     @pytest.mark.integration
     def test_launcher_panel_state_persistence(
@@ -613,8 +600,8 @@ class TestEndToEndLauncherWorkflow:
                 shot = shots[i % len(shots)]
                 window.launcher_panel.set_shot(shot)
 
-                # Allow event loop to process UI updates
-                qtbot.wait(10)  # Brief wait for UI updates
+                # Minimal event processing for UI updates
+                qtbot.wait(1)
 
                 # Quick verification that state is consistent
                 for section in window.launcher_panel.app_sections.values():
@@ -719,6 +706,6 @@ class TestLauncherIntegrationErrorHandling:
             nuke_section = window.launcher_panel.app_sections["nuke"]
             qtbot.mouseClick(nuke_section.launch_button, Qt.MouseButton.LeftButton)
 
-            # Should not crash even with disconnected signals
-            qtbot.wait(10)  # Brief wait to ensure no crash
+            # Minimal event processing to verify no crash
+            qtbot.wait(1)
             assert True  # If we reach here, no crash occurred

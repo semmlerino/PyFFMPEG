@@ -61,12 +61,12 @@ class SettingsTarget(Protocol):
     """
 
     # Window geometry and state methods
-    def restoreGeometry(self, geometry: QByteArray) -> bool: ...  # noqa: N802
-    def saveGeometry(self) -> QByteArray: ...  # noqa: N802
-    def restoreState(self, state: QByteArray) -> bool: ...  # noqa: N802
-    def saveState(self) -> QByteArray: ...  # noqa: N802
-    def isMaximized(self) -> bool: ...  # noqa: N802
-    def showMaximized(self) -> None: ...  # noqa: N802
+    def restoreGeometry(self, geometry: QByteArray) -> bool: ...
+    def saveGeometry(self) -> QByteArray: ...
+    def restoreState(self, state: QByteArray) -> bool: ...
+    def saveState(self) -> QByteArray: ...
+    def isMaximized(self) -> bool: ...
+    def showMaximized(self) -> None: ...
 
     # Overloaded resize signatures from QMainWindow
     def resize(self, w: int, h: int) -> None: ...
@@ -257,7 +257,7 @@ class SettingsController(LoggingMixin):
     def show_preferences(self) -> None:
         """Show the preferences dialog."""
         # Lazy import to avoid circular dependencies - only needed when showing dialog
-        from settings_dialog import SettingsDialog  # noqa: PLC0415
+        from settings_dialog import SettingsDialog
 
         if self.window._settings_dialog is None:  # pyright: ignore[reportPrivateUsage]
             # MainWindow implements both SettingsTarget and QWidget protocols

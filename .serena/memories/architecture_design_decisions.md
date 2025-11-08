@@ -260,19 +260,107 @@ def merge_scenes_incremental(cached_scenes: List[Scene],
 
 ---
 
-### Decision 5: Qt Signal/Slot Coordination
+### Decision 5: Qt Signal/Slot Coordination with Ownership Pattern
 
 **Problem**: Multi-threaded application needs safe inter-thread communication:
 - Models run on worker threads
 - UI runs on main thread
 - Can't directly modify Qt objects from worker threads
+- Signals can be connected multiple times, causing double-emission
 
 **Solution Evaluated**:
 1. Polling/busy-waiting (bad: blocks, inefficient)
 2. Manual thread synchronization (error-prone)
 3. Qt signal/slot system (current approach)
 
-**Choice**: SIGNAL/SLOT WITH MOVED-TO-THREAD PATTERN
+**Choice**: SIGNAL/SLOT WITH CLEAR OWNERSHIP PATTERN
+
+**Signal Ownership Pattern** (CRITICAL):
+
+Each signal should have exactly ONE owner component responsible for connecting it.
+
+**Rules**:
+1. **Owner Responsibility**: The component that "owns" a signal is responsible for ALL connections to that signal
+2. **Single Connection Point**: Signals should only be connected in ONE place in the codebase
+3. **Controller Preference**: Controllers typically own signals from their managed components
+4. **Documentation**: Signal ownership should be documented in code comments
+
+**Example - Correct Ownership**:
+```python
+# LauncherController owns launcher_panel signals
+class LauncherController:
+    def _setup_signals(self):
+        """Setup signal connections for launcher functionality."""
+        # ✅ CORRECT: LauncherController owns these signals
+        self.window.launcher_panel.app_launch_requested.connect(self.launch_app)
+        self.window.launcher_panel.custom_launcher_requested.connect(
+            self.execute_custom_launcher
+        )
+
+# MainWindow does NOT connect launcher_panel signals
+class MainWindow:
+    def _connect_signals(self):
+        """Connect signals."""
+        # ✅ CORRECT: Comment documents controller ownership
+        # Launcher panel app launch - handled by LauncherController._setup_signals()
+        # (Connection removed to prevent double-emission - controller owns launcher signals)
+        
+        # ✅ CORRECT: MainWindow owns shot_grid signals
+        self.shot_grid.shot_selected.connect(self._on_shot_selected)
+```
+
+**Common Ownership Patterns**:
+```
+Signal Ownership Map:
+├─ MainWindow owns:
+│  ├─ shot_grid.shot_selected
+│  ├─ shot_grid.shot_double_clicked
+│  ├─ tab_widget.currentChanged
+│  └─ shot_model.shots_loaded/changed/error
+│
+├─ LauncherController owns:
+│  ├─ launcher_panel.app_launch_requested  ✅
+│  ├─ launcher_panel.custom_launcher_requested  ✅
+│  ├─ command_launcher.command_executed
+│  ├─ command_launcher.command_error
+│  └─ launcher_manager.launchers_changed
+│
+└─ ThreeDEController owns:
+   ├─ threede_shot_grid.scene_selected
+   └─ threede_scene_model.scenes_loaded
+```
+
+**Anti-Pattern - Double Connection** (AVOID):
+```python
+# ❌ WRONG: Signal connected in BOTH places
+class MainWindow:
+    def _connect_signals(self):
+        # ❌ Connected here...
+        self.launcher_panel.app_launch_requested.connect(
+            self.launcher_controller.launch_app
+        )
+
+class LauncherController:
+    def _setup_signals(self):
+        # ❌ ...and connected again here!
+        # Result: Signal fires TWICE when button clicked
+        self.window.launcher_panel.app_launch_requested.connect(self.launch_app)
+```
+
+**Testing Signal Ownership**:
+```python
+# Use signal_helpers to verify ownership in tests
+from tests.helpers.signal_helpers import verify_signal_ownership
+
+def test_launcher_signals_owned_by_controller(window):
+    """Verify LauncherController owns launcher_panel signals."""
+    verify_signal_ownership(
+        window.launcher_panel.app_launch_requested,
+        owner_name="LauncherController",
+        signal_name="launcher_panel.app_launch_requested",
+        expected_count=1  # Exactly one connection
+    )
+```
 
 **Implementation Pattern**:
 ```python
@@ -307,6 +395,7 @@ loader.do_load_shots.emit()  # Trigger on worker thread
 - **Asynchronous**: Doesn't block either thread
 - **Decoupled**: Loader doesn't know about UI
 - **Qt Native**: Uses framework's built-in mechanisms
+- **Ownership Clear**: One component connects each signal
 
 **Signal Queue Depth**:
 - Signals are queued, not dropped
@@ -442,10 +531,15 @@ class MyWidget(QWidget):
 ```
 
 **Why This Matters**:
-- Qt uses parent pointers for object lifecycle
-- Without proper parent, Qt C++ internals crash
-- Memory not released → C++ segfault in some cases
-- Affects even serial test execution
+- Qt uses parent pointers for object lifecycle (Qt Object Trees & Ownership)
+- Without proper parent parameter, Qt C++ initialization fails
+- Missing parent + missing `deleteLater()` → Qt C++ object accumulation → segfaults
+- Affects even serial test execution (not just parallel)
+
+**For QThread Workers**:
+- Use `cleanup_qthread_properly()` from `tests/helpers/qt_thread_cleanup.py`
+- Implements: disconnect signals → stop thread → `deleteLater()` → `processEvents()`
+- See `QT_TEST_HYGIENE_AUDIT.md` for complete explanation
 
 **Real Impact**: 36+ test failures resolved by adding parent parameter
 
@@ -584,6 +678,7 @@ class SettingsManager:
 | Subprocess management | Session pool + round-robin | Parallelism, reusability, performance |
 | 3DE scene caching | Persistent incremental merge | History preservation, scalability, deduplication |
 | Threading | Qt signal/slot + QThread | Thread safety, Qt-native, asynchronous |
+| **Signal ownership** | **One owner per signal** | **Prevent double-emission, clear responsibility** |
 | Dependencies | Constructor injection | Testability, flexibility, clarity |
 | Process cleanup | Periodic with retry | Graceful failures, resource cleanup |
 | Widget ownership | Parent parameters everywhere | Qt C++ safety, automatic cleanup |
@@ -596,3 +691,4 @@ class SettingsManager:
 - **Composable over monolithic**
 - **Testable over fragile**
 - **Performant without premature optimization**
+- **One owner per signal** (prevents double-emission bugs)

@@ -142,32 +142,15 @@ class TestPreviousShotsFinder:
         with pytest.raises(ValueError, match="Invalid username after sanitization"):
             PreviousShotsFinder(username="../../")
 
-    def test_finder_initialization_default_user(self) -> None:
+    def test_finder_initialization_default_user(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test finder initialization with default user from environment."""
-        # Save original env vars
-        original_user = os.environ.get("USER")
-        original_mock = os.environ.get("SHOTBOT_MOCK")
+        # Disable mock mode to test actual USER env var behavior
+        monkeypatch.delenv("SHOTBOT_MOCK", raising=False)
 
-        try:
-            # Disable mock mode to test actual USER env var behavior
-            if "SHOTBOT_MOCK" in os.environ:
-                del os.environ["SHOTBOT_MOCK"]
-
-            # Set test user in environment
-            os.environ["USER"] = "envuser"
-            finder = PreviousShotsFinder()
-            assert finder.username == "envuser"
-        finally:
-            # Restore original environment
-            if original_user is not None:
-                os.environ["USER"] = original_user
-            elif "USER" in os.environ:
-                del os.environ["USER"]
-
-            if original_mock is not None:
-                os.environ["SHOTBOT_MOCK"] = original_mock
-            elif "SHOTBOT_MOCK" in os.environ:
-                del os.environ["SHOTBOT_MOCK"]
+        # Set test user in environment (monkeypatch auto-restores after test)
+        monkeypatch.setenv("USER", "envuser")
+        finder = PreviousShotsFinder()
+        assert finder.username == "envuser"
 
     @pytest.mark.parametrize(
         ("path", "expected_shot"),

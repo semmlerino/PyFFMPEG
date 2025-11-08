@@ -198,7 +198,7 @@ class TestPreviousShotsView:
         ):
             # Test button click
             QTest.mouseClick(grid_widget._refresh_button, Qt.MouseButton.LeftButton)
-            qtbot.wait(10)  # Brief wait for signal processing
+            qtbot.wait(1)  # Minimal event processing
 
         # Verify refresh was attempted (the important behavior)
         assert len(test_model.refresh_calls) >= 1
@@ -223,11 +223,11 @@ class TestPreviousShotsView:
         ):
             # Test scan started signal
             test_model.scan_started.emit()
-            qtbot.wait(10)
+            qtbot.wait(1)  # Minimal event processing
 
             # Test scan finished signal
             test_model.scan_finished.emit()
-            qtbot.wait(10)
+            qtbot.wait(1)  # Minimal event processing
 
         # The key test is that signals don't crash the widget
         assert grid_widget is not None
@@ -242,7 +242,7 @@ class TestPreviousShotsView:
         test_model.scan_progress.emit(50, 100)
 
         # Wait for queued signal to be processed
-        qtbot.wait(10)
+        qtbot.wait(1)  # Minimal event processing
 
         status_text = grid_widget._status_label.text()
         # The scan progress might be quickly replaced by status update

@@ -173,8 +173,12 @@ class QRunnableTracker:
         )
 
     @classmethod
-    def reset_instance(cls) -> None:
-        """Reset the singleton instance (mainly for testing)."""
+    def reset(cls) -> None:
+        """Reset singleton for testing. INTERNAL USE ONLY.
+
+        This method clears all state and resets the singleton instance.
+        It should only be used in test cleanup to ensure test isolation.
+        """
         with cls._lock:
             if cls._instance:
                 cls._instance.cleanup_all()

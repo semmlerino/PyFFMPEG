@@ -575,19 +575,19 @@ class ThumbnailWidgetBase(ABC, QFrame, metaclass=QABCMeta):
 
     # Mouse events
     @override
-    def mousePressEvent(self, event: QMouseEvent) -> None:  # noqa: N802
+    def mousePressEvent(self, event: QMouseEvent) -> None:
         """Handle mouse press."""
         if event.button() == Qt.MouseButton.LeftButton:
             self.clicked.emit(self.data)
 
     @override
-    def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:  # noqa: N802
+    def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:
         """Handle double click - can be overridden by derived classes."""
         if event.button() == Qt.MouseButton.LeftButton:
             self.double_clicked.emit(self.data)
 
     @override
-    def contextMenuEvent(self, event: QContextMenuEvent) -> None:  # noqa: N802
+    def contextMenuEvent(self, event: QContextMenuEvent) -> None:
         """Handle right-click context menu."""
         menu = self._create_context_menu()
         _ = menu.exec(event.globalPos())

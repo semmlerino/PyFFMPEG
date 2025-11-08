@@ -71,11 +71,11 @@ def test_mock_pool() -> int:
 def test_shot_model() -> int:
     """Test that ShotModel properly loads all shots."""
     # Local application imports
-    from cache_manager import CacheManager  # noqa: PLC0415 - Lazy import for function
+    from cache_manager import CacheManager
     from mock_workspace_pool import (
         create_mock_pool_from_filesystem,
     )
-    from shot_model import ShotModel  # noqa: PLC0415 - Lazy import for function
+    from shot_model import ShotModel
 
     logger.info("\n" + "=" * 70)
     logger.info("TESTING SHOT MODEL")

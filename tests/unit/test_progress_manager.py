@@ -7,7 +7,7 @@ functions following UNIFIED_TESTING_GUIDE patterns.
 from __future__ import annotations
 
 import contextlib
-import time
+import threading
 from collections.abc import Generator
 from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
@@ -157,8 +157,13 @@ class TestProgressOperation:
         operation = ProgressOperation(config)
         operation.set_total(100)
 
+        # First update should work
         operation.update(10, "Step 1")
-        time.sleep(0.02)  # Wait 20ms (> 10ms throttle)
+
+        # Wait for throttle interval to expire (20ms > 10ms throttle)
+        threading.Event().wait(timeout=0.020)  # 20ms
+
+        # Second update should now work
         operation.update(20, "Step 2")
 
         assert operation.current_value == 20
@@ -293,34 +298,46 @@ class TestProgressOperation:
 
         assert eta == ""
 
-    def test_processing_rate_tracking(self, progress_config: ProgressConfig) -> None:
+    def test_processing_rate_tracking(
+        self, progress_config: ProgressConfig
+    ) -> None:
         """Test processing rate is tracked for ETA calculation."""
-        config = ProgressConfig(title="Test", update_interval=1)
+        config = ProgressConfig(title="Test", update_interval=1)  # 1ms throttle
         operation = ProgressOperation(config)
         operation.set_total(100)
 
-        # Simulate multiple updates
+        # First update
         operation.update(10, "Step 1")
-        time.sleep(0.01)
+
+        # Wait for throttle to expire
+        threading.Event().wait(timeout=0.005)  # 5ms > 1ms throttle
+
+        # Second update
         operation.update(20, "Step 2")
-        time.sleep(0.01)
+
+        # Wait again
+        threading.Event().wait(timeout=0.005)  # 5ms
+
+        # Third update
         operation.update(30, "Step 3")
 
         # Processing times should be tracked
         assert len(operation.processing_times) > 0
 
-    def test_processing_rate_max_samples(self, progress_config: ProgressConfig) -> None:
+    def test_processing_rate_max_samples(
+        self, progress_config: ProgressConfig
+    ) -> None:
         """Test processing rate maintains maximum sample window."""
-        config = ProgressConfig(title="Test", update_interval=1)
+        config = ProgressConfig(title="Test", update_interval=1)  # 1ms throttle
         operation = ProgressOperation(config)
         operation.set_total(100)
         operation.max_eta_samples = 5
 
         # Trigger updates to add processing time samples
-        # Need to advance time between updates to avoid throttling
+        # Wait between updates to avoid throttling
         for i in range(15):  # More than max_eta_samples
-            time.sleep(0.002)  # 2ms between updates (> 1ms throttle)
             operation.update(i, f"Step {i}")
+            threading.Event().wait(timeout=0.005)  # 5ms > 1ms throttle
 
         # Should keep only most recent samples (max 5)
         assert len(operation.processing_times) <= 5

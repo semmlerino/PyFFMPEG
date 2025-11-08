@@ -221,36 +221,53 @@ class TestLauncherRefactoringSafety:
 
             return handler
 
+        # Create handler references for proper disconnection
+        created_handler = track_signal("created")
+        updated_handler = track_signal("updated")
+        deleted_handler = track_signal("deleted")
+
         # Connect signal trackers
-        launcher_manager.launcher_added.connect(track_signal("created"))
-        launcher_manager.launcher_updated.connect(track_signal("updated"))
-        launcher_manager.launcher_deleted.connect(track_signal("deleted"))
+        launcher_manager.launcher_added.connect(created_handler)
+        launcher_manager.launcher_updated.connect(updated_handler)
+        launcher_manager.launcher_deleted.connect(deleted_handler)
 
-        # Create new launcher
-        new_launcher = CustomLauncher(
-            id="signal_test",
-            name="Signal Test",
-            command="echo test",
-            description="Testing signals",
-            category="Test",
-        )
+        try:
+            # Create new launcher
+            new_launcher = CustomLauncher(
+                id="signal_test",
+                name="Signal Test",
+                command="echo test",
+                description="Testing signals",
+                category="Test",
+            )
 
-        created_id = launcher_manager.create_launcher(
-            name=new_launcher.name,
-            command=new_launcher.command,
-            description=new_launcher.description,
-            category=new_launcher.category,
-        )
-        assert created_id is not None
-        assert ("created", (created_id,)) in signal_emissions
+            created_id = launcher_manager.create_launcher(
+                name=new_launcher.name,
+                command=new_launcher.command,
+                description=new_launcher.description,
+                category=new_launcher.category,
+            )
+            assert created_id is not None
+            assert ("created", (created_id,)) in signal_emissions
 
-        # Update launcher
-        launcher_manager.update_launcher(created_id, name="Updated Signal Test")
-        assert ("updated", (created_id,)) in signal_emissions
+            # Update launcher
+            launcher_manager.update_launcher(created_id, name="Updated Signal Test")
+            assert ("updated", (created_id,)) in signal_emissions
 
-        # Delete launcher
-        launcher_manager.delete_launcher(created_id)
-        assert ("deleted", (created_id,)) in signal_emissions
+            # Delete launcher
+            launcher_manager.delete_launcher(created_id)
+            assert ("deleted", (created_id,)) in signal_emissions
+        finally:
+            # CRITICAL: Disconnect signals to prevent dangling connections
+            for signal, handler in [
+                (launcher_manager.launcher_added, created_handler),
+                (launcher_manager.launcher_updated, updated_handler),
+                (launcher_manager.launcher_deleted, deleted_handler),
+            ]:
+                try:
+                    signal.disconnect(handler)
+                except (TypeError, RuntimeError):
+                    pass
 
 
 @pytest.mark.slow

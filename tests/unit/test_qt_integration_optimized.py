@@ -63,7 +63,8 @@ class TestQtIntegration:
 
         # Schedule immediate callback
         QTimer.singleShot(1, check_responsiveness)
-        qtbot.wait(50)  # Give time for callback
+        # Wait for callback to execute
+        qtbot.waitUntil(lambda: loop_responsive, timeout=1000)
 
         assert loop_responsive, "Event loop was blocked"
 
@@ -121,20 +122,38 @@ class TestQtIntegration:
         qt_model.background_load_started.connect(count_signals)
         qt_model.background_load_finished.connect(count_signals)
 
-        # Trigger operations
-        mock_pool = Mock()
-        mock_pool.execute_workspace_command.return_value = "workspace /signal/test/0010"
-        qt_model._process_pool = mock_pool
+        try:
+            # Trigger operations
+            mock_pool = Mock()
+            mock_pool.execute_workspace_command.return_value = "workspace /signal/test/0010"
+            qt_model._process_pool = mock_pool
 
-        qt_model.initialize_async()
+            qt_model.initialize_async()
 
-        # Wait for signals
-        qtbot.waitUntil(lambda: signal_count >= 2, timeout=3000)
+            # Wait for signals
+            qtbot.waitUntil(lambda: signal_count >= 2, timeout=3000)
 
-        # Verify signals were emitted quickly
-        if len(signal_times) >= 2:
-            signal_duration = signal_times[-1] - signal_times[0]
-            assert signal_duration < 1.0, f"Signals took {signal_duration:.3f}s"
+            # Verify signals were emitted quickly
+            if len(signal_times) >= 2:
+                signal_duration = signal_times[-1] - signal_times[0]
+                assert signal_duration < 1.0, f"Signals took {signal_duration:.3f}s"
+        finally:
+            try:
+                qt_model.shots_loaded.disconnect(count_signals)
+            except (TypeError, RuntimeError):
+                pass  # Already disconnected or object deleted
+            try:
+                qt_model.shots_changed.disconnect(count_signals)
+            except (TypeError, RuntimeError):
+                pass  # Already disconnected or object deleted
+            try:
+                qt_model.background_load_started.disconnect(count_signals)
+            except (TypeError, RuntimeError):
+                pass  # Already disconnected or object deleted
+            try:
+                qt_model.background_load_finished.disconnect(count_signals)
+            except (TypeError, RuntimeError):
+                pass  # Already disconnected or object deleted
 
     def test_memory_cleanup_in_qt_context(self, qt_model, qtbot) -> None:
         """Test memory cleanup works properly in Qt context."""
@@ -143,10 +162,10 @@ class TestQtIntegration:
         # Create several async loaders
         for _ in range(5):
             qt_model.initialize_async()
-            qtbot.wait(10)  # Small delay between calls
+            qtbot.wait(1)  # Minimal event processing
 
         # Allow background processing
-        qtbot.wait(100)
+        qtbot.wait(1)  # Minimal event processing
 
         # Cleanup should handle all loaders
         qt_model.cleanup()
@@ -280,7 +299,7 @@ class TestPerformanceValidation:
 
         for _ in range(3):
             model.initialize_async()
-            qtbot.wait(5)
+            qtbot.wait(1)  # Minimal event processing
 
         immediate_time = time.perf_counter() - start_time
 

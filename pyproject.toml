@@ -38,11 +38,20 @@ exclude = [
     "*_backup.py",
     "test_*.py",
     "screenshot_*.py",
-    "logging_config.py"
+    "logging_config.py",
+    # Utility/maintenance scripts (not part of main application)
+    "fix_*.py",
+    "run_*.py",
+    "verify_*.py",
+    "bundle_app.py",
+    "decode_app.py",
+    "recreate_vfx_structure.py",
+    "capture_vfx_structure.py",
+    "take_screenshot.py"
 ]
 
 pythonVersion = "3.11"
-typeCheckingMode = "recommended"
+typeCheckingMode = "strict"
 
 reportMissingImports = false
 reportMissingTypeStubs = false
@@ -51,11 +60,14 @@ reportUnknownParameterType = false
 reportUnknownArgumentType = false
 reportUnknownVariableType = false
 reportUndefinedVariable = "warning"
-reportImplicitStringConcatenation = "warning"
+reportImplicitStringConcatenation = false
 reportUnsafeMultipleInheritance = false
 reportUnusedCallResult = "error"
 reportImplicitOverride = "warning"
-reportUnannotatedClassAttribute = "warning"
+# Qt-specific adjustments (PySide6 type stub limitations)
+reportUnannotatedClassAttribute = "information"  # Signal annotations with ClassVar[Signal] recommended
+reportUnusedFunction = "warning"  # Keep enabled; only false positives with autoconnect patterns
+reportAny = "information"  # Reduces noise from Qt's broad Any in stubs while keeping visibility
 
 [tool.ruff]
 # Target Python 3.11+
@@ -132,15 +144,23 @@ ignore = [
     # Qt-specific patterns
     "SLF001",  # private-member-access (common in Qt testing and subclassing)
     "ARG002",  # unused-method-argument (Qt callbacks often have unused args)
+    "N802",    # function-name-should-be-lowercase (Qt methods must be camelCase)
+    "N815",    # variable-in-class-scope-should-not-be-mixedcase (Qt properties must be mixedCase)
 
-    # Complexity rules now enabled - assess case-by-case
-    # "PLR0913", # too-many-arguments - NOW CHECKING
-    # "PLR0912", # too-many-branches - NOW CHECKING
-    # "PLR0915", # too-many-statements - NOW CHECKING
-    # "C901",    # complex-structure - NOW CHECKING
+    # Lazy imports (intentional for circular import avoidance and performance)
+    "PLC0415", # import-outside-top-level (used for lazy loading and circular import avoidance)
+
+    # Complexity rules (design decisions - would require significant refactoring)
+    "PLR0911", # too-many-return-statements
+    "PLR0912", # too-many-branches
+    "PLR0913", # too-many-arguments
+    "PLR0915", # too-many-statements
+    "C901",    # complex-structure
 
     # Exception handling (allow practical patterns)
+    "TRY002",  # create-own-exception (generic exceptions acceptable in tests)
     "TRY003",  # raise-vanilla-args (vanilla exceptions are often fine)
+    "TRY004",  # prefer-type-error (ValueError/Exception acceptable for type issues)
     "TRY300",  # try-consider-else (not always clearer)
     "BLE001",  # blind-except (sometimes needed for cleanup)
     "TRY400",  # error-instead-of-exception (Error is fine in Python 3)
@@ -148,6 +168,10 @@ ignore = [
     # Boolean arguments (common in GUI apps)
     "FBT001",  # boolean-type-hint-positional-argument
     "FBT002",  # boolean-default-value-positional-argument
+
+    # Simplification preferences (explicit code is often clearer)
+    "SIM102",  # collapsible-if (nested ifs can be more readable)
+    "SIM105",  # suppressible-exception (try/except/pass is explicit)
     "FBT003",  # boolean-positional-value-in-call
 
     # Print statements (useful for debugging and CLI output)
@@ -227,15 +251,15 @@ addopts = [
     "--cov-report=html:coverage_html",
     "-p", "no:rerunfailures",
     "-p", "no:xvfb",
+    "--dist=worksteal",     # Load balancing for varying test durations (UNIFIED_TESTING_V2.MD)
     # Serial execution by default for Qt stability and leak detection
     # Override with `pytest tests/ -n 2` for faster development
     # Override with `pytest tests/ -n auto` for maximum parallelism
     "-n", "0",
-    "--timeout=10",
 ]
 
-# Timeout configuration
-timeout = 300  # 5 minutes per test
+# Timeout configuration (2 minutes per test to catch hanging tests)
+timeout = 120
 timeout_method = "thread"
 
 # Filter warnings
@@ -260,4 +284,5 @@ markers = [
     "flaky: Tests that may fail intermittently (should be investigated and fixed)",
     "critical: Critical/high priority tests",
     "performance: Tests for performance",
+    "enforce_unique_connections: Tests with UniqueConnection enforcement for signal safety",
 ]

@@ -255,8 +255,8 @@ workspace {shows_root}/test/shots/seq03/seq03_0030"""
         # Attempt operations that will fail
         error_prone_model.initialize_async()
 
-        # Wait a moment for background processing
-        qtbot.wait(100)  # 100ms for async processing
+        # Minimal event processing
+        qtbot.wait(1)
 
         # Metrics should be available even after errors
         metrics = error_prone_model.get_performance_metrics()

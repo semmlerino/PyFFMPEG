@@ -307,8 +307,8 @@ class TestPreviousShotsWorkerWorkflow:
             # Start worker with proper signal handling
             worker.start()
 
-            # Allow worker to start processing
-            qtbot.wait(100)  # Small delay to ensure worker is running
+            # Wait for worker to be running
+            qtbot.waitUntil(lambda: worker.isRunning(), timeout=1000)
 
             # Request stop
             worker.stop()

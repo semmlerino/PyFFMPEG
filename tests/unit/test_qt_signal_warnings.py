@@ -25,7 +25,7 @@ class DummyWorker(ThreadSafeWorker):
         self.test_signal.emit("test")
 
 
-def test_safe_connect_produces_no_qt_warnings(qapp: QApplication) -> None:
+def test_safe_connect_produces_no_qt_warnings(qapp: QApplication, qtbot) -> None:
     """Test that safe_connect doesn't produce Qt unique connection warnings.
 
     Qt warnings like "unique connections require a pointer to member function"
@@ -49,9 +49,9 @@ def test_safe_connect_produces_no_qt_warnings(qapp: QApplication) -> None:
             Qt.ConnectionType.QueuedConnection,
         )
 
-        # Emit signal to trigger connection
+        # Emit signal and wait for queued connection to be processed
         worker.test_signal.emit("hello")
-        qapp.processEvents()
+        qtbot.waitUntil(lambda: len(slot_called) > 0, timeout=100)
 
         # Check no Qt warnings were produced
         stderr_output = captured_stderr.getvalue()
@@ -67,13 +67,13 @@ def test_safe_connect_produces_no_qt_warnings(qapp: QApplication) -> None:
 
         # Test cleanup
         worker.disconnect_all()
-        qapp.processEvents()
+        qtbot.waitUntil(lambda: True, timeout=50)  # Drain event queue
 
     finally:
         sys.stderr = old_stderr
 
 
-def test_safe_connect_deduplication(qapp: QApplication) -> None:
+def test_safe_connect_deduplication(qapp: QApplication, qtbot) -> None:
     """Test that duplicate connections are prevented at application level."""
     worker = DummyWorker()
     call_count = []
@@ -85,8 +85,9 @@ def test_safe_connect_deduplication(qapp: QApplication) -> None:
     worker.safe_connect(worker.test_signal, counting_slot)
     worker.safe_connect(worker.test_signal, counting_slot)  # Should be ignored
 
+    # Emit and wait for slot to be called
     worker.test_signal.emit("test")
-    qapp.processEvents()
+    qtbot.waitUntil(lambda: len(call_count) > 0, timeout=100)
 
     # Should only be called once due to deduplication
     assert len(call_count) == 1, "Duplicate connection should be prevented"
@@ -94,7 +95,7 @@ def test_safe_connect_deduplication(qapp: QApplication) -> None:
     worker.disconnect_all()
 
 
-def test_disconnect_produces_no_warnings(qapp: QApplication) -> None:
+def test_disconnect_produces_no_warnings(qapp: QApplication, qtbot) -> None:
     """Test that disconnect_all doesn't produce RuntimeWarnings."""
     old_stderr = sys.stderr
     sys.stderr = captured_stderr = StringIO()
@@ -109,7 +110,7 @@ def test_disconnect_produces_no_warnings(qapp: QApplication) -> None:
 
         # Disconnect should be silent
         worker.disconnect_all()
-        qapp.processEvents()
+        qtbot.waitUntil(lambda: True, timeout=50)  # Drain event queue
 
         stderr_output = captured_stderr.getvalue()
         assert "Failed to disconnect" not in stderr_output, (

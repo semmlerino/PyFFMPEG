@@ -110,7 +110,7 @@ def reset_all_mainwindow_singletons():
 
     # Reset QRunnableTracker
     try:
-        QRunnableTracker.reset_instance()
+        QRunnableTracker.reset()
     except Exception:
         pass  # Ignore reset errors
 
@@ -164,7 +164,7 @@ def reset_all_mainwindow_singletons():
 
     # Reset QRunnableTracker
     try:
-        QRunnableTracker.reset_instance()
+        QRunnableTracker.reset()
     except Exception:
         pass
 
@@ -525,7 +525,7 @@ class TestMainWindowUICoordination:
         window._on_shot_selected(test_shot)
 
         # Process events
-        qtbot.wait(10)
+        qtbot.wait(1)  # Minimal event processing
 
         # Buttons should now be enabled
         for section in window.launcher_panel.app_sections.values():
@@ -539,18 +539,18 @@ class TestMainWindowUICoordination:
 
         # Start on first tab (My Shots)
         window.tab_widget.setCurrentIndex(0)
-        qtbot.wait(10)
+        qtbot.wait(1)  # Minimal event processing
 
         # Switch to 3DE scenes tab
         window.tab_widget.setCurrentIndex(1)
-        qtbot.wait(10)
+        qtbot.wait(1)  # Minimal event processing
 
         # Verify tab change was processed
         assert window.tab_widget.currentIndex() == 1
 
         # Switch to Previous Shots tab
         window.tab_widget.setCurrentIndex(2)
-        qtbot.wait(10)
+        qtbot.wait(1)  # Minimal event processing
 
         assert window.tab_widget.currentIndex() == 2
 
@@ -618,7 +618,7 @@ workspace /shows/test/shots/seq01/shot02""")
         )  # This enables buttons and sets current shot
 
         # Process events
-        qtbot.wait(10)
+        qtbot.wait(1)  # Minimal event processing
 
         # Click 3de button
         section_3de = window.launcher_panel.app_sections.get("3de")
@@ -628,7 +628,7 @@ workspace /shows/test/shots/seq01/shot02""")
 
         # Simulate button click
         button_3de.click()
-        qtbot.wait(50)
+        qtbot.wait(1)  # Minimal event processing
 
         # Verify launcher was called by checking subprocess execution
         # The test subprocess should have recorded the command
@@ -653,7 +653,7 @@ workspace /shows/test/shots/seq01/shot02""")
         window.command_launcher.command_error.emit(timestamp, "Test error message")
 
         # Process events
-        qtbot.wait(10)
+        qtbot.wait(1)  # Minimal event processing
 
         # Verify error was handled - check both status bar and notification manager
         status_message = window.status_bar.currentMessage()
@@ -729,7 +729,7 @@ workspace /shows/test/shots/seq01/shot02""")
         assert test_launcher.command == "echo test"
 
         # Verify UI updated (signal should trigger menu update)
-        qtbot.wait(50)
+        qtbot.wait(1)  # Minimal event processing
 
         # Clean up
         window.launcher_manager.delete_launcher(launcher_id)
@@ -767,7 +767,7 @@ workspace /shows/test/shots/seq01/shot02""")
         window = main_window_with_real_components
 
         # Wait for any initial loading to complete to avoid race conditions
-        qtbot.wait(100)
+        qtbot.wait(1)  # Minimal event processing
 
         # Start a refresh (which should show progress)
         window.shot_model.refresh_started.emit()
@@ -824,7 +824,7 @@ class TestMainWindowKeyboardShortcuts:
 
         # Trigger the refresh action directly (this is what the shortcut would do)
         window.refresh_action.trigger()
-        qtbot.wait(50)
+        qtbot.wait(1)  # Minimal event processing
 
         # Verify refresh was triggered
         commands = test_pool.get_executed_commands()
@@ -845,7 +845,7 @@ class TestMainWindowKeyboardShortcuts:
         qtbot.keyClick(
             window.tab_widget, Qt.Key.Key_Tab, Qt.KeyboardModifier.ControlModifier
         )
-        qtbot.wait(10)
+        qtbot.wait(1)  # Minimal event processing
 
         # Should move to next tab
         assert window.tab_widget.currentIndex() == 1
@@ -875,7 +875,7 @@ class TestMainWindowErrorScenarios:
 
         # Attempt refresh
         window.refresh_action.trigger()
-        qtbot.wait(50)
+        qtbot.wait(1)  # Minimal event processing
 
         # Should show error to user - verify notification or message box was called
         # Check if a warning message was displayed

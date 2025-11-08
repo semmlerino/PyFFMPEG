@@ -55,7 +55,8 @@ class SimpleTestWorker(ThreadSafeWorker):
             # This causes deadlocks and undefined behavior
             # Qt events should only be processed in the main thread
 
-            # Small sleep to simulate work without blocking
+            # Simulate work without blocking (non-Qt worker thread context)
+            # Note: time.sleep() acceptable here as this is a test double simulating external work
             time.sleep(0.001)  # 1ms per step
 
         if self.fail_on_purpose:
@@ -140,6 +141,8 @@ class TestQTimerCascadePrevention:
                 test_timers.append(timer)
                 timer.start(1)
 
+            # Wait for all timers to fire and coalescing to occur
+            # TIMING CRITICAL: Testing coalescing behavior of rapid timer events
             qtbot.wait(100)
 
             assert len(timer_activations) <= 3, (
@@ -196,7 +199,7 @@ class TestWorkerStateTransitions:
         worker.start()
 
         if not worker.isRunning():
-            qtbot.wait(10)
+            qtbot.wait(1)  # Minimal event processing
 
         completed = worker.wait(2000)
 
@@ -274,7 +277,7 @@ class TestPerformanceImprovements:
                 test_timers.append(timer)
                 timer.start(1)
 
-            qtbot.wait(50)
+            qtbot.wait(1)  # Minimal event processing for timers to fire
 
             elapsed = time.time() - start_time
             assert elapsed < 1.0, f"Timer operations took too long: {elapsed}s"
@@ -301,7 +304,8 @@ class TestSimpleThreadingIntegration:
         try:
             worker.start()
 
-            qtbot.wait(50)
+            # Wait for worker to start work
+            qtbot.waitUntil(lambda: worker.work_started, timeout=1000)
 
             if worker.isRunning():
                 worker.request_stop()

@@ -100,7 +100,9 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         self._zombie: bool = False  # Track abandoned threads
 
         # Set up cleanup on thread finished
-        _ = self.finished.connect(self._on_finished)
+        _ = self.finished.connect(
+            self._on_finished  # type: ignore[reportAny]
+        )
 
     def get_state(self) -> WorkerState:
         """Thread-safe state getter.
@@ -275,7 +277,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
             f"Worker {id(self)}: Connected signal to {slot.__name__} with {connection_type}"
         )
 
-    @Slot()
+    @Slot()  # type: ignore[reportAny]
     def disconnect_all(self) -> None:
         """Safely disconnect all tracked signals.
 
@@ -307,7 +309,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         with QMutexLocker(self._state_mutex):
             self._connections.clear()
 
-    @Slot()
+    @Slot()  # type: ignore[reportAny]
     def run(self) -> None:
         """Main thread execution with proper state management.
 
@@ -383,7 +385,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         """
         raise NotImplementedError("Subclasses must implement do_work()")
 
-    @Slot()
+    @Slot()  # type: ignore[reportAny]
     def _on_finished(self) -> None:
         """Handle thread finished signal for cleanup.
 
@@ -391,7 +393,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         Properly decorated with @Slot for Qt efficiency.
         """
         # Disconnect all signals when thread finishes
-        self.disconnect_all()
+        self.disconnect_all()  # type: ignore[reportAny, no-untyped-call]
 
         # Respect state machine transitions - must go through STOPPED first
         with QMutexLocker(self._state_mutex):
@@ -521,7 +523,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         )
 
         # Disconnect signals before any termination attempt
-        self.disconnect_all()
+        self.disconnect_all()  # type: ignore[reportAny, no-untyped-call]
 
         # Force state transition
         with QMutexLocker(self._state_mutex):
@@ -548,8 +550,10 @@ class ThreadSafeWorker(LoggingMixin, QThread):
                     ThreadingConfig.WORKER_TERMINATE_TIMEOUT_MS * 3,
                 ):  # Extended timeout
                     self.logger.error(
-                        f"Worker {id(self)}: Failed to stop gracefully after 5s total. "
-                         "Thread will be abandoned (NOT terminated) to prevent crashes."
+
+                            f"Worker {id(self)}: Failed to stop gracefully after 5s total. "
+                            "Thread will be abandoned (NOT terminated) to prevent crashes."
+
                     )
                     # DO NOT call terminate() - it's unsafe!
                     # Instead, mark as zombie and add to class collection to prevent GC
@@ -570,8 +574,10 @@ class ThreadSafeWorker(LoggingMixin, QThread):
                                 self.logger.info(f"Cleaned up {cleaned} old zombie threads")
 
                     self.logger.warning(
-                        f"Worker {id(self)}: Added to zombie collection "
-                         f"({zombie_count} total zombies)"
+
+                            f"Worker {id(self)}: Added to zombie collection "
+                            f"({zombie_count} total zombies)"
+
                     )
                 else:
                     self.logger.info(f"Worker {id(self)}: Stopped after extended wait")

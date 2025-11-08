@@ -67,6 +67,8 @@ def test_file_creation(tmp_path):
     assert test_file.exists()
 ```
 
+**Note on pytest-qt API**: `qtbot.assertNotEmitted()` uses the `wait=` parameter (added years ago as the official API). Use `wait=` in all code (shown in examples below).
+
 ### 5. Use monkeypatch for state isolation
 **Core pytest pattern for independent tests.** Essential for parallel execution safety.
 ```python
@@ -143,18 +145,23 @@ import pytest
 @pytest.fixture(autouse=True)
 def clear_module_caches(monkeypatch):
     """Clear common in-memory caches before/after each test."""
-    from src import cache_manager, version_utils  # adjust import paths for your project
+    try:
+        from src import cache_manager, version_utils  # adjust import paths for your project
+        modules_to_clear = (cache_manager, version_utils)
+    except (ModuleNotFoundError, ImportError):
+        # Module not found or moved - skip clearing for this test
+        modules_to_clear = ()
 
     # Clear LRU caches and other cached functions
-    for mod in (cache_manager, version_utils):
+    for mod in modules_to_clear:
         for name, obj in inspect.getmembers(mod):
             if hasattr(obj, "cache_clear"):
                 obj.cache_clear()
 
     yield
 
-    # Clear again after test
-    for mod in (cache_manager, version_utils):
+    # Clear again after test (defense in depth - only needed if tests mutate caches)
+    for mod in modules_to_clear:
         for name, obj in inspect.getmembers(mod):
             if hasattr(obj, "cache_clear"):
                 obj.cache_clear()
@@ -175,6 +182,7 @@ run_id = os.environ.get("PYTEST_XDIST_TESTRUNUID", "solo")
 worker = os.environ.get("PYTEST_XDIST_WORKER", "master")
 xdg = f"/tmp/xdg-{run_id}-{worker}"
 os.makedirs(xdg, mode=0o700, exist_ok=True)
+os.chmod(xdg, 0o700)  # Enforce permissions if dir already existed
 os.environ.setdefault("XDG_RUNTIME_DIR", xdg)
 ```
 **Why**: Prevents windowing platform from being used in headless/WSL environments. Unique XDG directory per worker prevents Qt6 warnings and races across xdist workers.
@@ -189,7 +197,9 @@ uv run pytest tests/unit/ -n 2  # ✅ Faster execution (30s vs 60s)
 # CI/pre-merge: serial for determinism
 pytest tests/unit/ -n 0 --maxfail=1  # ✅ Nightly job for deterministic behavior
 ```
-**Why**: Parallelism speeds up tests but can mask isolation issues through non-deterministic timing. Serial execution makes problems more obvious (they compound deterministically), provides more deterministic behavior (timing-independent), and is easier to debug (no worker interleaving). NOTE: This is NOT because "Qt accumulates leaks" (see "Large Qt Test Suite Stability" section) — Qt's object model handles cleanup properly. Use `-n` for development speed, serial for catching isolation issues.
+**Why**: Parallelism surfaces test hygiene bugs more aggressively (dangling signals, lingering threads, shared state). **If tests crash in parallel but pass serially, this is ALWAYS a test hygiene bug, NOT a Qt limitation.** Serial execution makes problems more obvious (they compound deterministically) and is easier to debug (no worker interleaving). NOTE: This is NOT because "Qt accumulates leaks" (see "Large Qt Test Suite Stability" section) — Qt's object model handles cleanup properly. Use `-n` for development speed, serial for catching isolation issues.
+
+**On WSL**: Higher parallelism (`-n 4`, `-n 16`) surfaces isolation bugs more aggressively. It's not Qt's event loop "running out of capacity" — fix the test hygiene issues (dangling signals, lingering threads, shared caches), and use serial runs in CI to make bugs deterministic.
 
 #### 6. Persistent Cache Files
 **Problem**: Disk cache persists between tests; memory cleared but not disk
@@ -200,6 +210,95 @@ main_window.shot_model.shots = []  # Memory
 cache_manager.clear_cache()         # Disk - only when testing cache behavior
 ```
 **Better**: Use `defer_background_loads=True` in MainWindow to prevent background interference (see section 8 below). This is preferred over manual cache clearing in tests.
+
+#### 6a. Shared Cache Directories 🔴
+**Problem**: Tests using `CacheManager()` without `cache_dir` parameter share `~/.shotbot/cache_test` directory, which accumulates data across test runs
+**Symptom**: Tests pass in isolation, fail only in full suite with parallel execution
+**Discovery**: Bisection shows failure only with full suite, cached data found in shared directory with recent timestamps
+**Fix**: Clean shared cache directory in autouse fixture with race condition handling:
+```python
+# In tests/conftest.py
+@pytest.fixture(autouse=True)
+def clear_module_caches():
+    import shutil
+    from pathlib import Path
+
+    # Clear shared cache directory before test
+    shared_cache_dir = Path.home() / ".shotbot" / "cache_test"
+    if shared_cache_dir.exists():
+        try:
+            shutil.rmtree(shared_cache_dir)
+        except FileNotFoundError:
+            # Race condition in pytest-xdist: another worker may have deleted it
+            pass
+
+    yield
+
+    # Clear again after test (defense in depth)
+    if shared_cache_dir.exists():
+        try:
+            shutil.rmtree(shared_cache_dir)
+        except FileNotFoundError:
+            pass
+```
+**Best Practice**: Always use `tmp_path` for cache directories in tests:
+```python
+# ✅ RIGHT - isolated cache per test
+def test_cache_behavior(tmp_path):
+    cache_manager = CacheManager(cache_dir=tmp_path / "cache")
+
+# ❌ WRONG - shares ~/.shotbot/cache_test across all tests
+def test_cache_behavior():
+    cache_manager = CacheManager()  # Uses default shared directory
+```
+**Find Violators**: `grep -r "CacheManager()" tests/ | grep -v "cache_dir"`
+
+#### 6b. Debugging Parallel Test Failures 🔴
+**Symptom**: Tests crash during parallel execution (`-n 2` or higher) but pass in serial
+
+**Root Cause Identification**:
+1. ✅ **This is ALWAYS a test hygiene issue** (dangling signals, lingering threads, shared caches, singleton state)
+2. ❌ **This is NEVER "Qt can't handle parallelism" or "event loop exhaustion"**
+
+**Diagnostic Steps**:
+1. **Run the failing test file in isolation**:
+   ```bash
+   pytest path/to/test_file.py -v
+   ```
+   - If it passes → contamination from another test (dangling signals, shared state)
+   - If it fails → internal test hygiene issue within the file
+
+2. **For contamination from another test**:
+   - Note which tests run before the failing test in parallel execution
+   - Search those tests for signal connections without corresponding disconnections
+   - Search for threads that aren't properly stopped
+   - Check for singleton state that isn't reset
+
+3. **Common causes**:
+   - **Dangling signal connections**: Lambda/function handlers connected but never disconnected
+     ```python
+     # ❌ WRONG - handlers leak across tests
+     model.signal.connect(lambda: do_something())
+
+     # ✅ RIGHT - stored and disconnected
+     handler = lambda: do_something()
+     model.signal.connect(handler)
+     try:
+         # test code
+     finally:
+         model.signal.disconnect(handler)
+     ```
+   - **Threads not properly stopped**: Background threads still running after test completes
+   - **Singleton state not reset**: Singletons holding references to deleted objects
+   - **QObjects not properly deleted**: Missing `deleteLater()` + event loop drain
+
+4. **Verify the fix**:
+   ```bash
+   # Run the sequence of tests that were crashing
+   pytest tests/path1.py tests/path2.py tests/failing.py -v
+   ```
+
+**Key Insight**: Parallel execution is a diagnostic tool that reveals test hygiene bugs by making timing non-deterministic. The solution is always to fix the hygiene issue, never to avoid parallelism.
 
 #### 7. Module-Level Qt App Creation 🔴
 **Problem**: Creating `QCoreApplication` at module import → conflicts with `QApplication`
@@ -289,8 +388,12 @@ def suppress_qmessagebox(monkeypatch):
     def _noop(*args, **kwargs):
         return QtWidgets.QMessageBox.StandardButton.Ok
 
+    # Mock static convenience methods
     for name in ("information", "warning", "critical", "question"):
         monkeypatch.setattr(QtWidgets.QMessageBox, name, _noop, raising=True)
+
+    # Also mock instance-style exec() to catch stray dialogs
+    monkeypatch.setattr(QtWidgets.QMessageBox, "exec", _noop, raising=False)
 ```
 
 **Stabilize random seeds** (`tests/conftest.py`):
@@ -316,8 +419,8 @@ def stable_random_seed():
 ### Distribution Modes
 
 **Use `--dist=worksteal`** (already in Quick Start and pytest.ini examples above)
-- Idle workers steal from busy ones → best for varying test durations
-- Other modes (`load`, `loadscope`, `loadfile`) rarely needed unless you have specific fixture-reuse patterns
+- Idle workers steal from busy ones → recommended for varying test durations
+- Other modes (`load`, `loadscope`, `loadfile`) may be better for specific fixture-reuse patterns
 
 ---
 
@@ -404,7 +507,25 @@ def populate_show_filter(self, shows: list[str] | HasAvailableShows) -> None:
         show_list = shows.get_available_shows()
 ```
 
-### 4. Real Filesystem Operations
+### 4. Time Control Without Sleeps
+
+**Use time-machine or freezegun for time-based logic**:
+```python
+# Install: pip install time-machine
+def test_expiration_logic(tmp_path):
+    """Test cache expiration without waiting."""
+    import time_machine
+
+    cache.store("key", "value", ttl=60)
+    assert cache.get("key") == "value"
+
+    # Jump forward in time (no sleep!)
+    with time_machine.travel(time.time() + 61):
+        assert cache.get("key") is None  # Expired
+```
+**Why**: Fast, deterministic time-based tests. Aligns with "minimal mocking" (real logic, controlled time).
+
+### 5. Real Filesystem Operations
 
 **Use tmp_path for File Tests**:
 ```python
@@ -418,7 +539,22 @@ def test_script_discovery(tmp_path):
     result = find_existing_scripts(tmp_path, "shot01", "FG01")
 ```
 
-### 5. Configuration Validation
+### 6. Parametrization for Coverage
+
+**Use `@pytest.mark.parametrize` for combinatorics** (cheapest way to improve coverage):
+```python
+@pytest.mark.parametrize("plate_type,priority", [
+    ("FG", 10),
+    ("PL", 20),
+    ("BG", 30),
+])
+def test_plate_priority_ordering(plate_type, priority):
+    """Test priority ordering for different plate types."""
+    assert Config.TURNOVER_PLATE_PRIORITY[plate_type] == priority
+```
+**Why**: Test multiple scenarios without duplicating test logic. Aligns with "test behavior, not implementation."
+
+### 7. Configuration Validation
 
 **Validate constraints, not implementation**:
 ```python
@@ -428,11 +564,19 @@ def test_plate_priority_ordering():
     assert priorities["FG"] < priorities["PL"] < priorities["BG"]
 ```
 
-### 6. Run Tests Frequently
+### 8. Run Tests Frequently
 
 - Run tests before committing: `uv run pytest tests/unit/ -n auto`
 - Run specific tests during development
 - Use `--lf` flag to run only last failed: `pytest --lf`
+
+### 9. Pin PySide6 Minor Version
+
+**One-liner tip**: Pin a PySide6 minor version (e.g., `PySide6~=6.7.0`) in dev dependencies to reduce UI test churn from Qt patch updates.
+```toml
+# pyproject.toml or requirements.txt
+PySide6 = "~=6.7.0"  # Allow patches (6.7.1, 6.7.2), block minors (6.8.0)
+```
 
 
 ## Advanced Session Fixtures
@@ -472,7 +616,7 @@ pip install pytest-timeout
 ```ini
 # In pytest.ini:
 [pytest]
-timeout = 300  # 5 minutes per test
+timeout = 120  # 2 minutes per test (use 60-120s for snappier feedback)
 timeout_method = thread
 ```
 
@@ -483,12 +627,12 @@ timeout_method = thread
 [pytest]
 addopts =
     --strict-markers
-    -ra  # Show all test summary info
-    -q   # Quiet mode
+    -ra  # Show all test summary info (includes short summary, warnings, errors)
     --durations=20  # Show slowest 20 tests
     -n auto  # Parallel by default locally
-    --dist=worksteal  # Optimal load balancing for varying test durations
+    --dist=worksteal  # Recommended load balancing for varying test durations
     # In CI: override with -n 0 for serial leak detection
+    # Note: -q (quiet mode) omitted for personal apps - context is valuable
 
 markers =
     perf: Performance comparison tests (may be skipped in CI/WSL)
@@ -502,8 +646,9 @@ markers =
 ### Coverage & Type Gates
 **Recommended CI checks**:
 ```bash
-# Branch coverage
-pytest --cov=src --cov-branch --cov-report=term-missing --cov-fail-under=85
+# Branch coverage (optional gate - use locally or for critical modules only)
+pytest --cov=src --cov-branch --cov-report=term-missing
+# For personal apps: --cov-fail-under=85 can create churn; use as optional local target
 
 # Type checking (close the loop with Protocols)
 mypy src/ --strict
@@ -539,12 +684,13 @@ Qt doesn't "accumulate C++ memory leaks" simply from creating/deleting lots of w
 1. **Lingering Objects Between Tests**
    - Objects left alive between tests (timers, threads, network ops)
    - `deleteLater()` without draining the event loop → dangling signals/slots and use-after-free
-   - **Tip**: After `deleteLater()`, run:
+   - **Tip**: At test cleanup boundaries, flush deferred deletes:
      ```python
      from PySide6.QtCore import QCoreApplication, QEvent
      QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
      QCoreApplication.processEvents()
      ```
+   - **Caution**: Use only at cleanup boundaries (teardown, autouse fixture cleanup), not mid-test or in production code. Forced event processing can introduce re-entrancy issues. Qt's event loop normally processes `DeferredDelete` events automatically; this manual flush is for ensuring deletion when you need certainty (e.g., end of test).
 
 2. **Multiple QApplication Instances**
    - Repeated construction/destruction of Q(Core|Gui|)Application in one process
@@ -645,6 +791,48 @@ Qt doesn't "accumulate C++ memory leaks" simply from creating/deleting lots of w
        timer.deleteLater()
    ```
 
+**Thread cleanup pattern** (canonical QThread teardown):
+```python
+# In fixture or inline in tests that start threads
+thread = QThread()
+worker = MyWorker()
+worker.moveToThread(thread)
+try:
+    thread.start()
+    with qtbot.waitSignal(worker.finished, timeout=5000):
+        worker.do_work()
+finally:
+    thread.quit()
+    thread.wait(3000)  # Wait up to 3s for clean shutdown
+```
+
+### Smoke Check for Module Import Side-Effects
+
+**Add one-test smoke check** that importing top-level package has no side-effects:
+```python
+# tests/test_import_safety.py
+def test_import_has_no_side_effects():
+    """Importing shotbot module should not start QApplication or spawn threads."""
+    import threading
+    from PySide6.QtWidgets import QApplication
+
+    thread_count_before = threading.active_count()
+    app_before = QApplication.instance()
+
+    # Import top-level package
+    import shotbot  # noqa: F401
+
+    # Should not create QApplication
+    assert QApplication.instance() == app_before, "Import created QApplication!"
+
+    # Should not spawn threads
+    thread_count_after = threading.active_count()
+    assert thread_count_after == thread_count_before, (
+        f"Import spawned threads! Before: {thread_count_before}, After: {thread_count_after}"
+    )
+```
+**Why**: Reinforces "never create apps at module scope" principle. Catches accidental side-effects early.
+
 ### Cross-Platform Matrix Testing
 **Recommended CI matrix**:
 ```yaml
@@ -712,12 +900,6 @@ def wait_for_condition(cond, timeout_ms=1000, step_ms=10):
         time.sleep(step_ms / 1000)
     raise TimeoutError(f"Condition not met within {timeout_ms}ms")
 
-def process_qt_events(app, ms):
-    """Process Qt events for specified milliseconds."""
-    end = time.time() + ms / 1000
-    while time.time() < end:
-        app.processEvents()
-
 def simulate_work_without_sleep(duration_ms):
     """Simulate work without blocking parallel execution."""
     # Use busy-wait or yield pattern instead of sleep
@@ -728,12 +910,9 @@ def simulate_work_without_sleep(duration_ms):
 
 **Usage**:
 ```python
-from tests.helpers.synchronization import wait_for_condition, process_qt_events
+from tests.helpers.synchronization import wait_for_condition
 
-# Instead of time.sleep(0.1)
-process_qt_events(app, 100)
-
-# Instead of polling with sleep
+# Always use condition-based waiting (never bare processEvents() or time.sleep())
 wait_for_condition(lambda: widget.is_ready, timeout_ms=2000)
 ```
 
@@ -776,6 +955,14 @@ pytest tests/unit/test_*model.py -v
 **Symptom**: "Fatal Python error: Aborted" in Qt widget `__init__`
 **Fix**: Set `os.environ["QT_QPA_PLATFORM"] = "offscreen"` at TOP of conftest.py BEFORE Qt imports
 **Verify**: `head -20 tests/conftest.py | grep QT_QPA_PLATFORM`
+
+**Enable crash forensics**: Get C-level backtraces on hard crashes:
+```python
+# At top of conftest.py (session start)
+import faulthandler
+faulthandler.enable()
+```
+Or set environment variable: `export PYTHONFAULTHANDLER=1` in CI/shell.
 
 ### Common Commands
 
@@ -859,16 +1046,23 @@ finally:
 with qtbot.waitSignal(worker.finished, timeout=5000):
     worker.start()
 
-# Assert signal NOT emitted (kwarg may be 'timeout' or 'wait' depending on pytest-qt version)
-with qtbot.assertNotEmitted(app.error_signal, wait=500):  # or timeout=500
+# Assert signal NOT emitted
+with qtbot.assertNotEmitted(app.error_signal, wait=500):
     app.do_safe_operation()
 
 # Capture Qt exceptions (from virtual methods)
 with qtbot.captureExceptions():
     widget.some_qt_method()
 
-# Capture Qt logging (requires pytest-qt ≥ 4.0)
+# Capture Qt logging (requires pytest-qt ≥ 1.4)
 assert any("WARNING" in r.message for r in qtlog.records)
+
+# Log assertions for your own logger (keeps tests behavioral)
+def test_logging_behavior(caplog):
+    """Test that operation logs expected message."""
+    with caplog.at_level(logging.WARNING):
+        perform_risky_operation()
+    assert "deprecated API" in caplog.text
 ```
 
 ---
@@ -942,9 +1136,9 @@ assert any("WARNING" in r.message for r in qtlog.records)
 12. **Run tests frequently** - During development to catch issues early
 13. **Use Protocols** - For type-safe duck typing
 14. **Use qtbot.waitSignal()** - For async Qt testing (not time.sleep)
-15. **Use qtbot.assertNotEmitted()** - To verify signals don't fire (use kwarg your pytest-qt version expects: `timeout` or `wait`)
+15. **Use qtbot.assertNotEmitted()** - To verify signals don't fire (use `wait=` parameter)
 16. **Use testrun_uid for session fixtures** - Prevents resource collisions across workers
-17. **Use --dist=worksteal** - Optimal load balancing for varying test durations
+17. **Use --dist=worksteal** - Recommended load balancing for varying test durations
 18. **Disconnect/reconnect Qt signals for mocking** - Don't use patch side_effect for signals (NEW 2025-11-05)
 19. **Prefer defer_background_loads=True in tests** - Prevent background loaders from interfering; fall back to cache clearing if needed (NEW 2025-11-05)
 20. **Never create Qt apps at module level** - Only in fixtures/functions (NEW 2025-11-05)

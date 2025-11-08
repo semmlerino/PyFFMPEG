@@ -61,6 +61,9 @@ class TestWorkerStopResponsiveness:
         with patch(
             "threede_scene_finder_optimized.OptimizedThreeDESceneFinder.find_all_scenes_in_shows_truly_efficient_parallel"
         ) as mock_find:
+            # Event for coordinating test timing
+            scan_started_event = threading.Event()
+
             # Simulate a long-running scan that checks cancel_flag
             def long_scan(
                 shots: list[Shot],
@@ -69,11 +72,14 @@ class TestWorkerStopResponsiveness:
                 cancel_flag: Callable[[], bool] | None = None,
             ) -> list:
                 """Simulate long scan that checks cancel_flag."""
+                # Signal that scan has started
+                scan_started_event.set()
                 # Simulate scanning for up to 10 seconds, checking cancel_flag
                 for _i in range(100):  # 100 iterations = 10 seconds if not cancelled
                     if cancel_flag and cancel_flag():
                         return []  # Exit quickly on cancellation
-                    time.sleep(0.1)  # 100ms per iteration
+                    # Use Event.wait() instead of time.sleep()
+                    threading.Event().wait(timeout=0.1)  # 100ms per iteration
                 return []
 
             mock_find.side_effect = long_scan
@@ -82,8 +88,8 @@ class TestWorkerStopResponsiveness:
             thread = threading.Thread(target=worker.run, daemon=True)
             thread.start()
 
-            # Give worker time to start and begin scanning
-            time.sleep(0.3)
+            # Wait for worker to start scanning (with 2s timeout)
+            scan_started_event.wait(timeout=2.0)
 
             # Stop worker and measure response time
             stop_start_time = time.time()
@@ -233,8 +239,8 @@ class TestWorkerStopResponsiveness:
                 thread = threading.Thread(target=worker.run, daemon=True)
                 thread.start()
 
-                # Very brief delay before stopping
-                time.sleep(0.1)
+                # Very brief delay before stopping using Event.wait()
+                threading.Event().wait(timeout=0.1)
 
                 # Stop immediately
                 worker.stop()
@@ -245,8 +251,8 @@ class TestWorkerStopResponsiveness:
                 # Thread should be dead
                 assert not thread.is_alive(), f"Cycle {cycle}: Thread should be stopped"
 
-            # Give threads time to fully clean up
-            time.sleep(0.5)
+            # Give threads time to fully clean up using Event.wait()
+            threading.Event().wait(timeout=0.5)
 
             # Check that we didn't accumulate zombie threads
             active_threads_after = threading.active_count()
@@ -405,7 +411,8 @@ class TestThreadSafeWorkerStopMechanism:
             thread = threading.Thread(target=worker.run, daemon=True)
             thread.start()
 
-            time.sleep(0.1)
+            # Wait for worker to start before stopping
+            threading.Event().wait(timeout=0.1)
             worker.stop()
             thread.join(timeout=1.0)
 

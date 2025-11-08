@@ -102,7 +102,7 @@ def reset_all_mainwindow_singletons():
 
     # Reset QRunnableTracker
     try:
-        QRunnableTracker.reset_instance()
+        QRunnableTracker.reset()
     except Exception:
         pass  # Ignore reset errors
 
@@ -146,7 +146,7 @@ def reset_all_mainwindow_singletons():
 
     # Reset QRunnableTracker
     try:
-        QRunnableTracker.reset_instance()
+        QRunnableTracker.reset()
     except Exception:
         pass
 
@@ -420,5 +420,5 @@ class TestApplicationLaunchingNoHang:
 def cleanup_workers(qtbot) -> None:
     """Ensure all workers are cleaned up after each test."""
     yield
-    # Process Qt events to ensure proper cleanup
-    qtbot.wait(10)  # Process pending events and signals
+    # Minimal event processing for cleanup
+    qtbot.wait(1)
