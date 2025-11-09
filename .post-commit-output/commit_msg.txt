@@ -1,1 +1,1 @@
-chore: Post-commit hook outputs from documentation update
+debug: Add event loop startup logging
