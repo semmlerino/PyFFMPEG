@@ -1,1 +1,1 @@
-docs: Archive 28 obsolete documents to reduce clutter
+docs: Update test execution documentation and fix minor test issues
