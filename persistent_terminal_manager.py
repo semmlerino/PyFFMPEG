@@ -129,24 +129,19 @@ class PersistentTerminalManager(LoggingMixin, QObject):
     def _is_dispatcher_running(self) -> bool:
         """Check if the terminal dispatcher is running and ready to read from FIFO.
 
+        Uses heartbeat mechanism instead of open/close to avoid EOF race condition.
+        This sends actual data (__HEARTBEAT__) which bash reads and responds to,
+        eliminating the race where open/close could send EOF to blocked reads.
+
         Returns:
-            True if dispatcher appears to be running, False otherwise
+            True if dispatcher appears to be running and responsive, False otherwise
         """
         if not Path(self.fifo_path).exists():
             return False
 
-        try:
-            # Try to open FIFO for writing in non-blocking mode
-            # If no reader is available, this will fail with ENXIO
-            fd = os.open(self.fifo_path, os.O_WRONLY | os.O_NONBLOCK)
-            os.close(fd)
-            return True
-        except OSError as e:
-            if e.errno == errno.ENXIO:
-                # No reader available - dispatcher not running
-                return False
-            # Other errors might indicate different issues
-            return False
+        # Use heartbeat ping with shorter timeout for startup checks
+        # This tests the full round-trip: write → bash reads → bash responds
+        return self._send_heartbeat_ping(timeout=1.0)
 
     def _is_terminal_alive(self) -> bool:
         """Check if the terminal process is still running."""
