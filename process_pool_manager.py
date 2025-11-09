@@ -11,6 +11,7 @@ import concurrent.futures
 import hashlib
 import logging
 import os
+import subprocess
 import sys
 import threading
 import time
@@ -24,7 +25,6 @@ from PySide6.QtWidgets import QApplication
 # Local application imports
 from config import ThreadingConfig
 from logging_mixin import LoggingMixin, get_module_logger
-from secure_command_executor import get_secure_executor
 
 
 # Module-level logger
@@ -256,8 +256,6 @@ class ProcessPoolManager(LoggingMixin, QObject):
                 max_workers=max_workers,
             )
             # Session pools: type -> list of sessions
-            # Replace session pools with secure executor
-            self._secure_executor = get_secure_executor()
             self._session_pools: dict[str, list[PersistentBashSession]] = {}
             self._session_round_robin: dict[str, int] = {}  # Track next session to use
             self._session_creation_in_progress: dict[
@@ -328,16 +326,18 @@ class ProcessPoolManager(LoggingMixin, QObject):
         self._metrics.cache_misses += 1
         self._metrics.subprocess_calls += 1
 
-        # Use secure executor instead of bash session
+        # Execute command using subprocess
         start_time = time.time()
         try:
-            # Execute with secure validation
-            result = self._secure_executor.execute(
-                command,
+            # Execute using bash -i -c for workspace functions (like 'ws')
+            proc_result = subprocess.run(
+                ["/bin/bash", "-i", "-c", command],
+                capture_output=True,
+                text=True,
                 timeout=timeout,
-                cache_ttl=0,  # Handle caching separately
-                allow_workspace_function=True,  # Allow 'ws' commands
+                check=True,
             )
+            result = proc_result.stdout
 
             # Cache result
             self._cache.set(command, result, ttl=cache_ttl)
@@ -434,16 +434,19 @@ class ProcessPoolManager(LoggingMixin, QObject):
         Returns:
             Command output
         """
-        # Use secure executor for shell commands
+        # Execute shell command using subprocess
         start_time = time.time()
         try:
-            # Execute with secure validation
-            result = self._secure_executor.execute(
+            # Execute using shell for standard commands
+            proc_result = subprocess.run(
                 command,
-                timeout=30,  # Default timeout for shell commands
-                cache_ttl=0,  # No caching for general shell commands
-                allow_workspace_function=False,  # Standard commands only
+                shell=True,
+                capture_output=True,
+                text=True,
+                timeout=30,
+                check=True,
             )
+            result = proc_result.stdout
 
             # Update metrics
             elapsed = (time.time() - start_time) * 1000

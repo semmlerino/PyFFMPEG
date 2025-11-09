@@ -21,6 +21,7 @@ from PySide6.QtCore import (
     QThreadPool,
     QUrl,
     Signal,
+    Slot,
 )
 from PySide6.QtGui import (
     QColor,
@@ -179,13 +180,16 @@ class BaseThumbnailLoader(QRunnable):
     """Base runnable for loading thumbnails in background."""
 
     class Signals(QObject):
-        loaded: Signal = Signal(object, QPixmap)  # widget, pixmap
+        loaded: Signal = Signal(object, QImage)  # widget, QImage payload
         failed: Signal = Signal(object)  # widget
 
-    def __init__(self, widget: ThumbnailWidgetBase, path: Path) -> None:
+    def __init__(self, widget: ThumbnailWidgetBase, path: Path | None) -> None:
         super().__init__()
         self.widget: ThumbnailWidgetBase = widget
-        self.path: Path = path
+        self.path: Path | None = path
+        size = max(1, widget._thumbnail_size)
+        self._target_size: QSize = QSize(size, size)
+        self._device_pixel_ratio: float = max(1.0, widget.devicePixelRatioF())
         self.signals: BaseThumbnailLoader.Signals = self.Signals()
 
     @override
@@ -209,8 +213,7 @@ class BaseThumbnailLoader(QRunnable):
                     self.signals.failed.emit(self.widget)
             return
 
-        image = None
-        pixmap = None
+        image: QImage | None = None
         try:
             # Load the image using QImage (thread-safe)
             image = QImage(str(self.path))
@@ -258,15 +261,27 @@ class BaseThumbnailLoader(QRunnable):
                         self.signals.failed.emit(self.widget)
                 return
 
-            # Convert to QPixmap for GUI display
-            # This conversion is safe because the signal will be processed in the main thread
-            pixmap = QPixmap.fromImage(image)
+            # Normalize image for GUI thread conversion
+            if image.format() != QImage.Format.Format_ARGB32_Premultiplied:
+                image = image.convertToFormat(QImage.Format.Format_ARGB32_Premultiplied)
 
-            # Success - emit the loaded signal
+            target_width = self._target_size.width()
+            target_height = self._target_size.height()
+            if target_width > 0 and target_height > 0:
+                image = image.scaled(
+                    self._target_size,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+
+            image.setDevicePixelRatio(self._device_pixel_ratio)
+            image = image.copy()
+
+            # Success - emit the loaded signal with QImage payload (converted on main thread)
             # Safe signal emission
             if hasattr(self, "signals") and self.signals:
                 with contextlib.suppress(RuntimeError):
-                    self.signals.loaded.emit(self.widget, pixmap)
+                    self.signals.loaded.emit(self.widget, image)
             logger.debug(f"Successfully loaded thumbnail: {self.path}")
 
         except FileNotFoundError:
@@ -303,8 +318,6 @@ class BaseThumbnailLoader(QRunnable):
             # Clean up Qt objects
             if image is not None:
                 del image
-            if pixmap is not None:
-                del pixmap
             # Always unregister from tracker when done
             tracker.unregister(self)
 
@@ -442,8 +455,14 @@ class ThumbnailWidgetBase(ABC, QFrame, metaclass=QABCMeta):
         if cache_path and cache_path.exists():
             # Load from cache
             loader = BaseThumbnailLoader(self, cache_path)
-            _ = loader.signals.loaded.connect(self._on_thumbnail_loaded)
-            _ = loader.signals.failed.connect(self._on_thumbnail_failed)
+            _ = loader.signals.loaded.connect(
+                self._on_thumbnail_loaded,
+                type=Qt.ConnectionType.QueuedConnection,
+            )
+            _ = loader.signals.failed.connect(
+                self._on_thumbnail_failed,
+                type=Qt.ConnectionType.QueuedConnection,
+            )
             QThreadPool.globalInstance().start(loader)
         else:
             # Try to load from source
@@ -451,8 +470,14 @@ class ThumbnailWidgetBase(ABC, QFrame, metaclass=QABCMeta):
             if thumb_path and thumb_path.exists():
                 # Load in background thread
                 loader = BaseThumbnailLoader(self, thumb_path)
-                _ = loader.signals.loaded.connect(self._on_thumbnail_loaded)
-                _ = loader.signals.failed.connect(self._on_thumbnail_failed)
+                _ = loader.signals.loaded.connect(
+                    self._on_thumbnail_loaded,
+                    type=Qt.ConnectionType.QueuedConnection,
+                )
+                _ = loader.signals.failed.connect(
+                    self._on_thumbnail_failed,
+                    type=Qt.ConnectionType.QueuedConnection,
+                )
                 QThreadPool.globalInstance().start(loader)
 
                 # Also cache it for next time
@@ -468,16 +493,23 @@ class ThumbnailWidgetBase(ABC, QFrame, metaclass=QABCMeta):
                 # No thumbnail available
                 self._on_thumbnail_failed(self)
 
+    @Slot(object, QImage)
     def _on_thumbnail_loaded(
-        self, widget: ThumbnailWidgetBase, pixmap: QPixmap
+        self, widget: ThumbnailWidgetBase, image: QImage
     ) -> None:
         """Handle loaded thumbnail."""
         if widget == self:
+            if image.isNull():
+                self._on_thumbnail_failed(widget)
+                return
+            pixmap = QPixmap.fromImage(image)
+            pixmap.setDevicePixelRatio(self.devicePixelRatioF())
             self._loading_state = LoadingState.LOADED
             self.loading_indicator.stop()
             self._pixmap = pixmap
             self._update_thumbnail()
 
+    @Slot(object)
     def _on_thumbnail_failed(self, widget: ThumbnailWidgetBase) -> None:
         """Handle failed thumbnail loading."""
         if widget == self:

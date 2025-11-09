@@ -213,19 +213,8 @@ class SettingsController(LoggingMixin):
     def apply_ui_settings(self) -> None:
         """Apply UI settings from settings manager."""
         try:
-            # Apply grid settings
-            # grid_columns = self.window.settings_manager.get_grid_columns()
-            # TODO: Apply grid columns to grids when they support it
-
-            # Apply tooltip settings
-            # show_tooltips = self.window.settings_manager.get_show_tooltips()
-            # TODO: Apply tooltip settings
-
-            # Apply theme settings
-            dark_theme = self.window.settings_manager.get_dark_theme()
-            if dark_theme:
-                self.apply_dark_theme()
-
+            # Dead settings removed: grid_columns, show_tooltips, dark_theme
+            # These were never implemented and just confused users
             self.logger.debug("UI settings applied")
 
         except Exception as e:
@@ -248,11 +237,6 @@ class SettingsController(LoggingMixin):
 
         except Exception as e:
             self.logger.error(f"Error applying cache settings: {e}")
-
-    def apply_dark_theme(self) -> None:
-        """Apply dark theme to the application."""
-        # TODO: Implement dark theme application
-        # This would involve setting stylesheets or using a dark palette
 
     def show_preferences(self) -> None:
         """Show the preferences dialog."""

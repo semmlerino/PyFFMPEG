@@ -8,7 +8,15 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 # Third-party imports
-from PySide6.QtCore import QCoreApplication, QObject, QRunnable, Qt, QThreadPool, Signal
+from PySide6.QtCore import (
+    QCoreApplication,
+    QObject,
+    QRunnable,
+    Qt,
+    QThreadPool,
+    Signal,
+    Slot,
+)
 from PySide6.QtGui import QFont, QImage, QPixmap
 from PySide6.QtWidgets import (
     QHBoxLayout,
@@ -313,15 +321,24 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
         """Load pixmap asynchronously to avoid blocking UI."""
         # Create and start async loader
         loader = InfoPanelPixmapLoader(self, path)
-        _ = loader.signals.loaded.connect(self._on_pixmap_loaded)
-        _ = loader.signals.failed.connect(self._on_pixmap_failed)
+        _ = loader.signals.loaded.connect(
+            self._on_pixmap_loaded,
+            type=Qt.ConnectionType.QueuedConnection,
+        )
+        _ = loader.signals.failed.connect(
+            self._on_pixmap_failed,
+            type=Qt.ConnectionType.QueuedConnection,
+        )
         QThreadPool.globalInstance().start(loader)
 
+    @Slot(QImage)
     def _on_pixmap_loaded(self, image: QImage) -> None:
         """Handle successful image loading - convert to pixmap in main thread."""
         pixmap = QPixmap.fromImage(image)
+        pixmap.setDevicePixelRatio(self.devicePixelRatioF())
         self.thumbnail_label.setPixmap(pixmap)
 
+    @Slot()
     def _on_pixmap_failed(self) -> None:
         """Handle failed pixmap loading."""
         self._set_placeholder_thumbnail()
@@ -339,6 +356,7 @@ class InfoPanelPixmapLoader(QRunnable):
         self.panel: ShotInfoPanel = panel  # Keep reference to prevent GC
         self.path: str | Path = path
         self.signals: InfoPanelPixmapLoader.Signals = self.Signals()
+        self._target_dpr: float = max(1.0, panel.devicePixelRatioF())
 
     @override
     def run(self) -> None:
@@ -393,6 +411,12 @@ class InfoPanelPixmapLoader(QRunnable):
                     self.signals.failed.emit()
                     return
                 image = scaled
+
+            if image.format() != QImage.Format.Format_ARGB32_Premultiplied:
+                image = image.convertToFormat(QImage.Format.Format_ARGB32_Premultiplied)
+
+            image.setDevicePixelRatio(self._target_dpr)
+            image = image.copy()
 
             self.signals.loaded.emit(image)
             logger.debug(f"Successfully loaded info panel thumbnail: {self.path}")

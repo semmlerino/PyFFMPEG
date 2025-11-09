@@ -162,26 +162,33 @@ python -m basedpyright
 
 ### Testing
 
-**IMPORTANT**: Always run tests through the `run_tests.py` script to avoid Qt initialization issues and timeouts:
+Run tests using `uv run pytest`:
 
 ```bash
-# Run all tests
-python run_tests.py
+# Run all tests (recommended: parallel execution for speed)
+~/.local/bin/uv run pytest tests/ -n 2
+
+# Run all tests (serial execution for maximum stability)
+~/.local/bin/uv run pytest tests/
 
 # Run specific test file
-python run_tests.py tests/unit/test_shot_model.py
+~/.local/bin/uv run pytest tests/unit/test_shot_model.py -v
 
 # Run specific test
-python run_tests.py tests/unit/test_shot_model.py::TestShot::test_shot_creation
+~/.local/bin/uv run pytest tests/unit/test_shot_model.py::TestShot::test_shot_creation -v
 
 # Run with coverage
-python run_tests.py --cov
+~/.local/bin/uv run pytest tests/ -n 2 --cov=. --cov-report=html
 
 # Run tests matching a pattern
-python run_tests.py -k "test_cache"
+~/.local/bin/uv run pytest tests/ -k "test_cache" -v
 ```
 
-**Do NOT run pytest directly** as it will cause timeouts and Qt platform errors. The `run_tests.py` script properly configures the environment and disables xvfb plugin for WSL compatibility.
+**For comprehensive testing guidance**, see [UNIFIED_TESTING_V2.MD](./UNIFIED_TESTING_V2.MD) which covers:
+- Qt testing best practices
+- Parallel vs serial execution
+- Debugging workflows
+- Common pitfalls and solutions
 
 ## Customization
 

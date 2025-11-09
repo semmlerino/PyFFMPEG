@@ -38,8 +38,8 @@ test_venv/
 logs/
 *.log
 
-# Archive directory
-archive/
+# Archive directory (root-level only)
+/archive/
 
 # Temporary files
 *.tmp

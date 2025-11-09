@@ -26,10 +26,10 @@ from typing import TYPE_CHECKING
 
 # Third-party imports
 import pytest
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QEventLoop, Qt
 from PySide6.QtGui import QPixmap
 from PySide6.QtTest import QSignalSpy, QTest
-from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QApplication, QLabel, QVBoxLayout, QWidget
 
 # Local application imports
 from config import Config
@@ -50,6 +50,15 @@ pytestmark = [pytest.mark.unit, pytest.mark.qt]
 # - Use test doubles instead of mocks
 # - Real components where possible
 # - Thread-safe testing patterns
+
+
+def _process_events(duration_ms: int = 5, iterations: int = 1) -> None:
+    """Drain Qt events without relying on qtbot.wait(), keeping teardown stable."""
+    app = QApplication.instance()
+    if app is None:
+        return
+    for _ in range(iterations):
+        app.processEvents(QEventLoop.ProcessEventsFlag.AllEvents, duration_ms)
 
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
@@ -116,7 +125,7 @@ class TestThumbnailWidgetBase:
 
         # Set selected (using internal method)
         widget._selected = True
-        qtbot.wait(1)  # Minimal event processing
+        _process_events()
 
         # Verify state change
         assert widget._selected is True
@@ -135,7 +144,7 @@ class TestThumbnailWidgetBase:
             # Simulate left mouse click
             QTest.mouseClick(widget, Qt.MouseButton.LeftButton)
 
-        qtbot.wait(1)  # Minimal event processing after signal
+        _process_events()
 
     def test_mouse_double_click_signal_emission(
         self, qtbot: QtBot, thumbnail_widget_base: ThumbnailWidgetBase
@@ -153,7 +162,7 @@ class TestThumbnailWidgetBase:
             # Simulate double click
             QTest.mouseDClick(widget, Qt.MouseButton.LeftButton)
 
-        qtbot.wait(1)  # Minimal event processing after signal
+        _process_events()
 
     def test_thumbnail_size_property(
         self, thumbnail_widget_base: ThumbnailWidgetBase
@@ -292,7 +301,7 @@ class TestThumbnailWidgetInteractions:
         widget = ThumbnailWidget(shot, Config.DEFAULT_THUMBNAIL_SIZE)
         qtbot.addWidget(widget)
         widget.show()  # Make visible for interactions
-        qtbot.wait(1)  # Minimal event processing
+        _process_events()
         return widget
 
     def test_click_selection_workflow(
@@ -309,7 +318,7 @@ class TestThumbnailWidgetInteractions:
 
         # Click widget to select
         QTest.mouseClick(widget, Qt.MouseButton.LeftButton)
-        qtbot.wait(1)  # Minimal event processing
+        _process_events()
 
         # Verify click signal
         assert clicked_spy.count() == 1
@@ -325,7 +334,7 @@ class TestThumbnailWidgetInteractions:
 
         # Double-click widget
         QTest.mouseDClick(widget, Qt.MouseButton.LeftButton)
-        qtbot.wait(1)  # Minimal event processing
+        _process_events()
 
         # Verify double-click signal
         assert double_clicked_spy.count() == 1
@@ -354,11 +363,11 @@ class TestThumbnailWidgetInteractions:
 
         # Widget should support show/hide
         widget.hide()
-        qtbot.wait(1)  # Minimal event processing
+        _process_events()
         assert not widget.isVisible()
 
         widget.show()
-        qtbot.wait(1)  # Minimal event processing
+        _process_events()
         assert widget.isVisible()
 
 
@@ -481,7 +490,7 @@ class TestThumbnailWidgetEdgeCases:
         # Rapid selection state changes
         for i in range(10):
             widget._selected = i % 2 == 0
-            qtbot.wait(1)  # Minimal wait
+            _process_events()
 
         # Widget should still be functional
         assert widget is not None
@@ -497,7 +506,7 @@ class TestThumbnailWidgetEdgeCases:
         QTest.mouseClick(widget, Qt.MouseButton.LeftButton)
         QTest.mouseDClick(widget, Qt.MouseButton.LeftButton)
 
-        qtbot.wait(1)  # Minimal event processing
+        _process_events()
 
         # Widget should remain functional
         assert widget is not None

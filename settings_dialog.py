@@ -249,23 +249,9 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         thumbnail_layout.addWidget(self.thumbnail_size_label)
         ui_layout.addRow("Thumbnail Size:", thumbnail_layout)
 
-        # Grid columns
-        self.grid_columns_spin = QSpinBox()
-        self.grid_columns_spin.setMinimum(1)
-        self.grid_columns_spin.setMaximum(20)
-        ui_layout.addRow("Grid Columns:", self.grid_columns_spin)
-
-        # Theme selection
-        self.dark_theme_check = QCheckBox("Enable Dark Theme")
-        ui_layout.addRow(self.dark_theme_check)
-
         # Animations
         self.animations_check = QCheckBox("Enable Animations")
         ui_layout.addRow(self.animations_check)
-
-        # Tooltips
-        self.tooltips_check = QCheckBox("Show Tooltips")
-        ui_layout.addRow(self.tooltips_check)
 
         scroll_layout.addWidget(ui_group)
 
@@ -614,10 +600,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         self.thumbnail_size_slider.setValue(self.settings_manager.get_thumbnail_size())
         self.update_thumbnail_preview()  # type: ignore[reportAny, return-value]
 
-        self.grid_columns_spin.setValue(self.settings_manager.get_grid_columns())
-        self.dark_theme_check.setChecked(self.settings_manager.get_dark_theme())
         self.animations_check.setChecked(self.settings_manager.get_enable_animations())
-        self.tooltips_check.setChecked(self.settings_manager.get_show_tooltips())
 
         self.refresh_interval_spin.setValue(
             self.settings_manager.get_refresh_interval()
@@ -818,10 +801,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         """Save all settings from dialog controls."""
         # General settings
         self.settings_manager.set_thumbnail_size(self.thumbnail_size_slider.value())
-        self.settings_manager.set_grid_columns(self.grid_columns_spin.value())
-        self.settings_manager.set_dark_theme(self.dark_theme_check.isChecked())
         self.settings_manager.set_enable_animations(self.animations_check.isChecked())
-        self.settings_manager.set_show_tooltips(self.tooltips_check.isChecked())
 
         self.settings_manager.set_refresh_interval(self.refresh_interval_spin.value())
         self.settings_manager.set_background_refresh(

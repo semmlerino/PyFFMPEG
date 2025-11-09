@@ -21,6 +21,7 @@ from config import Config
 # Local application imports
 # Following UNIFIED_TESTING_GUIDE: Use test doubles instead of Mock(spec=)
 from tests.test_doubles_library import TestCacheManager
+from tests.test_helpers import process_qt_events
 from threede_item_model import ThreeDEItemModel
 from threede_scene_model import ThreeDEScene
 
@@ -217,7 +218,7 @@ class TestThreadSafety:
             model._load_thumbnail_async(idx, scene)
 
         # Minimal event processing for signal delivery
-        qtbot.wait(1)
+        process_qt_events()
 
         # All thumbnails should have loaded (TestCacheManager calls callback synchronously)
         # Note: The actual behavior depends on whether _load_thumbnail_async

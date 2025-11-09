@@ -12,6 +12,7 @@ from PySide6.QtCore import QTimer
 
 # Local application imports
 from shot_model import ShotModel
+from tests.test_helpers import process_qt_events
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.qt]
@@ -29,7 +30,7 @@ class TestQtIntegration:
         yield model
         model.cleanup()
         model.deleteLater()
-        qtbot.wait(1)
+        process_qt_events()
 
     def test_event_loop_responsiveness(self, qt_model, qtbot) -> None:
         """Test that UI remains responsive during background loading."""
@@ -104,7 +105,7 @@ class TestQtIntegration:
             # Ensure timer is always stopped and cleaned up
             timer.stop()
             timer.deleteLater()
-            qtbot.wait(1)
+            process_qt_events()
 
     def test_signal_slot_performance(self, qt_model, qtbot) -> None:
         """Test performance of signal-slot connections."""
@@ -162,10 +163,10 @@ class TestQtIntegration:
         # Create several async loaders
         for _ in range(5):
             qt_model.initialize_async()
-            qtbot.wait(1)  # Minimal event processing
+            process_qt_events()  # Minimal event processing
 
         # Allow background processing
-        qtbot.wait(1)  # Minimal event processing
+        process_qt_events()  # Minimal event processing
 
         # Cleanup should handle all loaders
         qt_model.cleanup()
@@ -193,7 +194,7 @@ class TestQtIntegration:
         # Manual cleanup for QObjects
         model.cleanup()
         model.deleteLater()
-        qtbot.wait(1)
+        process_qt_events()
 
         # This test mainly verifies no crashes occur during cleanup
 
@@ -299,7 +300,7 @@ class TestPerformanceValidation:
 
         for _ in range(3):
             model.initialize_async()
-            qtbot.wait(1)  # Minimal event processing
+            process_qt_events()  # Minimal event processing
 
         immediate_time = time.perf_counter() - start_time
 

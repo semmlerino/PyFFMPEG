@@ -14,7 +14,7 @@ uv run pytest -n 0 --maxfail=1
 uv run pytest --lf
 
 # Skip performance tests on WSL/CI
-uv run pytest -m "not perf"
+uv run pytest -m "not performance"
 ```
 
 ---
@@ -55,6 +55,12 @@ with qtbot.waitSignal(worker.finished, timeout=5000):
 # Or use helper
 from tests.helpers.synchronization import wait_for_condition
 wait_for_condition(lambda: widget.is_ready, timeout_ms=2000)
+
+> 🔁 **Need to flush deleteLater()/timers?**  
+> Use `process_qt_events()` from `tests.test_helpers` (or rely on the session
+> autouse patch that rewrites tiny `qtbot.wait(ms)` calls). Avoid scattering
+> `qtbot.wait(1)` manually—under xdist it can crash workers by spinning the event
+> loop during teardown.
 ```
 
 ### 4. Always use tmp_path for filesystem tests
@@ -593,7 +599,7 @@ PySide6 = "~=6.7.0"  # Allow patches (6.7.1, 6.7.2), block minors (6.8.0)
 
 ### WSL-Specific Notes
 - **pytest-xvfb**: Disabled via `-p no:xvfb` in pytest.ini (causes timeouts)
-- **Performance tests**: 4 tests marked `@pytest.mark.perf` are skipped in WSL/CI (use `pytest -m "not perf"`)
+- **Performance tests**: 4 tests marked `@pytest.mark.performance` are skipped in WSL/CI (use `pytest -m "not performance"`)
 - **Expected results**: 2,276-2,281 passed, 5 skipped
 
 ---
@@ -635,9 +641,10 @@ addopts =
     # Note: -q (quiet mode) omitted for personal apps - context is valuable
 
 markers =
-    perf: Performance comparison tests (may be skipped in CI/WSL)
+    performance: Performance benchmarks and comparisons (may be skipped in CI/WSL)
     slow: Tests taking >1 second
     fast: Tests under 100ms
+    concurrency: Tests for thread safety and concurrent/threading behavior
     integration: Integration tests requiring full setup
 ```
 
@@ -931,7 +938,7 @@ pytest tests/unit/test_config.py -v
 pytest tests/unit/test_config.py::TestClassName -v
 
 # By marker
-pytest -m fast  # or -m "not perf"
+pytest -m fast  # or -m "not performance"
 
 # Pattern matching
 pytest tests/unit/test_*model.py -v
@@ -1145,7 +1152,7 @@ def test_logging_behavior(caplog):
 21. **Use pytest-randomly for order randomization** - Surface hidden test coupling with `--randomly-seed=auto`
 22. **Add pytest-timeout for hung tests** - Kill async/Qt tests that hang deterministically
 23. **Prefer call site behavior tests over hasattr** - Test actual behavior, not just interface presence
-24. **Use @pytest.mark.perf for performance tests** - Skip in CI/WSL with `-m "not perf"`
+24. **Use @pytest.mark.performance for performance tests** - Skip in CI/WSL with `-m "not performance"`
 25. **Run --setup-plan for fixture debugging** - Diagnose fixture order issues quickly
 
 ### DON'T: ❌
@@ -1164,7 +1171,7 @@ def test_logging_behavior(caplog):
 13. **Create Qt apps at module level** - Crashes full suite with QCoreApplication/QApplication conflict (NEW 2025-11-05)
 14. **Ignore background async operations** - MainWindow initialization triggers loaders that clear data (NEW 2025-11-05)
 15. **Use bare processEvents() without conditions** - Causes race conditions; wrap in condition-based wait
-16. **Use platform-wide skips for performance tests** - Use @pytest.mark.perf instead
+16. **Use platform-wide skips for performance tests** - Use @pytest.mark.performance instead
 17. **Test hasattr without testing behavior** - Tests can pass while actual behavior breaks
 18. **Use @pytest.mark.flaky to mask problems** - Fix root cause (isolation issues) instead
 

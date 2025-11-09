@@ -8,6 +8,7 @@ from __future__ import annotations
 
 # Standard library imports
 import json
+import os
 from pathlib import Path
 from typing import TypedDict, cast
 
@@ -26,15 +27,22 @@ class ConfigData(TypedDict):
     terminal_preferences: list[str]
 
 
+CONFIG_DIR_ENV_VAR = "SHOTBOT_CONFIG_DIR"
+
+
 class LauncherConfigManager(LoggingMixin):
     """Manages persistence of custom launcher configurations."""
 
     def __init__(self, config_dir: str | Path | None = None) -> None:
         super().__init__()
         if config_dir is not None:
-            self.config_dir: Path = Path(config_dir)
+            self.config_dir: Path = Path(config_dir).expanduser()
         else:
-            self.config_dir = Path.home() / ".shotbot"
+            env_override = os.environ.get(CONFIG_DIR_ENV_VAR)
+            if env_override:
+                self.config_dir = Path(env_override).expanduser()
+            else:
+                self.config_dir = Path.home() / ".shotbot"
         self.config_file: Path = self.config_dir / "custom_launchers.json"
         self._ensure_config_dir()
 

@@ -30,6 +30,7 @@ from shot_model import Shot
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_doubles_library import TestShot, TestShotModel
+from tests.test_helpers import process_qt_events
 
 
 if TYPE_CHECKING:
@@ -100,7 +101,7 @@ class TestPreviousShootsCacheIntegration:
         if model._worker is not None:
             model._worker.request_stop()
             model._worker.wait(2000)  # Wait up to 2 seconds for thread to finish
-        qtbot.wait(1)  # Minimal event processing
+        process_qt_events()
 
     def test_cache_storage_and_retrieval(self, cache_manager, temp_cache_dir) -> None:
         """Test basic cache storage and retrieval for previous shots."""
@@ -204,6 +205,46 @@ class TestPreviousShootsCacheIntegration:
         cached_data = cache_manager.get_cached_previous_shots()
         assert cached_data is None
 
+    def test_persistent_cache_survives_ttl(self, cache_manager, temp_cache_dir) -> None:
+        """Test that previous shots cache persists beyond TTL expiration.
+
+        Previous shots use persistent caching (no TTL) for incremental accumulation.
+        This test verifies that data saved once is still loaded after the TTL elapses.
+        """
+        # Standard library imports
+        import os
+
+        # Cache some data
+        test_data = [
+            {
+                "show": "persistent_test",
+                "sequence": "seq",
+                "shot": "shot",
+                "workspace_path": "/path",
+            }
+        ]
+        cache_manager.cache_previous_shots(test_data)
+
+        # Verify data is cached with TTL-enforcing method
+        assert cache_manager.get_cached_previous_shots() is not None
+
+        # Manually modify file modification time to simulate expiration
+        cache_file = temp_cache_dir / "previous_shots.json"
+
+        # Set file modification time to 2 hours ago (beyond 30 minute TTL)
+        old_timestamp = time.time() - (2 * 60 * 60)  # 2 hours ago
+        os.utime(cache_file, (old_timestamp, old_timestamp))
+
+        # TTL-enforcing method should return None for expired cache
+        cached_data_with_ttl = cache_manager.get_cached_previous_shots()
+        assert cached_data_with_ttl is None, "TTL-enforcing method should respect expiration"
+
+        # BUT persistent method should still return the data (no TTL check)
+        persistent_data = cache_manager.get_persistent_previous_shots()
+        assert persistent_data is not None, "Persistent method should ignore TTL"
+        assert len(persistent_data) == 1
+        assert persistent_data[0]["show"] == "persistent_test"
+
     def test_cache_invalidation(self, cache_manager, temp_cache_dir) -> None:
         """Test cache invalidation and clearing."""
         # Cache some data
@@ -261,7 +302,7 @@ class TestPreviousShootsCacheIntegration:
             if model._worker is not None:
                 model._worker.request_stop()
                 model._worker.wait(2000)
-            qtbot.wait(1)  # Minimal event processing
+            process_qt_events()
 
     @pytest.mark.skip_if_parallel
     def test_model_cache_integration_on_refresh(
@@ -316,7 +357,7 @@ class TestPreviousShootsCacheIntegration:
                 if previous_shots_model._worker is not None:
                     previous_shots_model._worker.request_stop()
                     previous_shots_model._worker.wait(2000)
-                qtbot.wait(1)  # Minimal event processing
+                process_qt_events()
 
     # Performance test removed to prevent test suite timeout
 
@@ -345,7 +386,7 @@ class TestPreviousShootsCacheIntegration:
             if model._worker is not None:
                 model._worker.request_stop()
                 model._worker.wait(2000)
-            qtbot.wait(1)  # Minimal event processing
+            process_qt_events()
 
     def test_cache_partial_write_recovery(self, temp_cache_dir, cache_manager) -> None:
         """Test recovery from partial cache writes."""

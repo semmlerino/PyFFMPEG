@@ -36,6 +36,7 @@ from tests.test_doubles_library import TestCacheManager, TestProcessPool
 from threede_grid_view import ThreeDEGridView
 from threede_item_model import ThreeDEItemModel
 from threede_scene_model import ThreeDEScene, ThreeDESceneModel
+from tests.test_helpers import process_qt_events
 
 
 if TYPE_CHECKING:
@@ -277,7 +278,7 @@ class TestPreviousShotsModelTextFiltering:
         yield model
         # Note: Auto-refresh removed from PreviousShotsModel (persistent incremental caching)
         model.deleteLater()
-        qtbot.wait(1)
+        process_qt_events()
 
     @pytest.fixture
     def test_previous_shots(self) -> list[Shot]:
@@ -331,7 +332,7 @@ class TestBaseGridViewTextFilterUI:
         yield model
         model.clear_thumbnail_cache()
         model.deleteLater()
-        qtbot.wait(1)
+        process_qt_events()
 
     @pytest.fixture
     def shot_grid_view(self, shot_item_model: ShotItemModel, qtbot: QtBot) -> ShotGridView:
@@ -382,7 +383,7 @@ class TestBaseGridViewTextFilterUI:
         # Cleanup
         threede_item_model.clear_thumbnail_cache()
         threede_item_model.deleteLater()
-        qtbot.wait(1)
+        process_qt_events()
 
     def test_text_filter_in_previous_shots_view(self, tmp_path: Path, qtbot: QtBot) -> None:
         """Test that text filter also exists in PreviousShotsView."""
@@ -402,9 +403,9 @@ class TestBaseGridViewTextFilterUI:
         # Cleanup
         # Note: Auto-refresh removed from PreviousShotsModel (persistent incremental caching)
         previous_model.deleteLater()
-        qtbot.wait(1)
+        process_qt_events()
         previous_item_model.deleteLater()
-        qtbot.wait(1)
+        process_qt_events()
 
 
 class TestMainWindowTextFilterHandlers:

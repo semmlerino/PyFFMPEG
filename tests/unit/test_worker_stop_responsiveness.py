@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 
-@pytest.mark.threading
+@pytest.mark.concurrency
 @pytest.mark.regression
 class TestWorkerStopResponsiveness:
     """Tests for worker thread stop responsiveness."""
@@ -264,7 +264,7 @@ class TestWorkerStopResponsiveness:
             ), f"Leaked {thread_leak} threads after rapid stop/start cycles"
 
 
-@pytest.mark.threading
+@pytest.mark.concurrency
 @pytest.mark.regression
 class TestFileSystemScannerInterruptibility:
     """Tests for FileSystemScanner cancel_flag support."""
@@ -355,7 +355,7 @@ class TestFileSystemScannerInterruptibility:
             assert isinstance(result, list)
 
 
-@pytest.mark.threading
+@pytest.mark.concurrency
 @pytest.mark.regression
 class TestThreadSafeWorkerStopMechanism:
     """Tests for ThreadSafeWorker base class stop mechanism."""

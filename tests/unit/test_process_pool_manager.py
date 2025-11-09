@@ -142,16 +142,9 @@ class InjectableProcessPoolManager(ProcessPoolManager):
             QObject,
         )
 
-        # Local application imports
-        from secure_command_executor import (
-            get_secure_executor,
-        )
-
         QObject.__init__(self)  # Initialize QObject directly
 
         self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
-        # Initialize secure executor (required by parent class methods)
-        self._secure_executor = get_secure_executor()
         self._session_pools: dict[str, list[BashSessionDouble]] = {}
         self._session_round_robin: dict[str, int] = {}
         self._sessions_per_type = 3

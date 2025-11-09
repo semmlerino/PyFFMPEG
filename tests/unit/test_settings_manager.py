@@ -418,19 +418,7 @@ class TestSettingsManager:
         cache_expiry = settings_manager.get_cache_expiry_minutes()
         assert cache_expiry == Config.CACHE_EXPIRY_MINUTES
 
-    def test_ui_settings(self, settings_manager: SettingsManager) -> None:
-        """Test UI-related settings."""
-        # Grid columns
-        grid_cols = settings_manager.get_grid_columns()
-        assert grid_cols == Config.GRID_COLUMNS
-
-        settings_manager.set_grid_columns(6)
-        assert settings_manager.get_grid_columns() == 6
-
-        # Dark theme
-        assert settings_manager.get_dark_theme() is False
-        settings_manager.set_dark_theme(True)
-        assert settings_manager.get_dark_theme() is True
+    # test_ui_settings removed - dead UI settings (grid_columns, dark_theme, show_tooltips) were removed
 
     def test_advanced_settings(self, settings_manager: SettingsManager) -> None:
         """Test advanced/debug settings."""

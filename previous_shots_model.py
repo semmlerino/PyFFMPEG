@@ -424,8 +424,8 @@ class PreviousShotsModel(LoggingMixin, QObject):
             List of Shot objects (empty list if no cache)
         """
         try:
-            # Load both sources
-            scanned_data = self._cache_manager.get_cached_previous_shots() or []
+            # Load both sources (persistent - no TTL expiration)
+            scanned_data = self._cache_manager.get_persistent_previous_shots() or []
             migrated_data = self._cache_manager.get_migrated_shots() or []
 
             # Merge with deduplication using composite key

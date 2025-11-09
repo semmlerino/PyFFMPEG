@@ -9,7 +9,8 @@ from pathlib import Path
 
 # Third-party imports
 import pytest
-from PySide6.QtCore import QThread, QTimer
+from PySide6.QtCore import QEventLoop, QThread, QTimer
+from PySide6.QtWidgets import QApplication
 
 
 @pytest.fixture
@@ -62,12 +63,21 @@ def signal_waiter(qtbot):
     return wait_for_signal
 
 
+def _process_events(duration_ms: int = 5, iterations: int = 2) -> None:
+    """Process pending Qt events without relying on qtbot.wait()."""
+    app = QApplication.instance()
+    if app is None:
+        return
+    for _ in range(iterations):
+        app.processEvents(QEventLoop.ProcessEventsFlag.AllEvents, duration_ms)
+
+
 @pytest.fixture(autouse=True)
-def cleanup_qt_objects(qtbot):
+def cleanup_qt_objects():
     """Automatically cleanup Qt objects after each test."""
     yield
-    # Minimal event processing for deleteLater
-    qtbot.wait(1)
+    # Minimal event processing for deleteLater using deterministic pump
+    _process_events()
 
 
 @pytest.fixture

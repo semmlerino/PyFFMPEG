@@ -1,3 +1,14 @@
+# ⚠️ ARCHIVED - PyFFMPEG Test Suite Documentation
+
+**This document is archived and refers to an obsolete project (PyFFMPEG).**
+
+**For current ShotBot testing documentation, see:**
+- [UNIFIED_TESTING_V2.MD](../../UNIFIED_TESTING_V2.MD) - Comprehensive testing guide
+- [pyproject.toml](../../pyproject.toml) - Test configuration
+- [tests/README.md](../../tests/README.md) - Current test documentation
+
+---
+
 # PyFFMPEG Test Suite
 
 This directory contains comprehensive tests for the PyFFMPEG video converter application.

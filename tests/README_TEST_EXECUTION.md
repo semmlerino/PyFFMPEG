@@ -2,9 +2,14 @@
 
 ## Overview
 
-The ShotBot test suite contains 2580 tests (2318 unit + 195 integration + 67 performance). Due to Qt's initialization requirements and mass import overhead, tests should be run separately by category for optimal reliability and performance.
+The ShotBot test suite contains 2,500+ tests spanning unit, integration, and performance coverage. As of November 2025 the suite can run end-to-end with a single `pytest tests/` invocation thanks to the eager Qt bootstrap (`_GLOBAL_QAPP`) and sandboxed config directories in `tests/conftest.py`. Running tests by category is still useful for focus and speed, but the historical “Fatal Python error: Aborted” crash during mass import is resolved for serial runs.
 
 ## Quick Start
+
+### Run Full Suite (serial, most reliable)
+```bash
+.venv/bin/python -m pytest tests
+```
 
 ### Run All Tests (Separately by Category)
 ```bash
@@ -30,31 +35,24 @@ The ShotBot test suite contains 2580 tests (2318 unit + 195 integration + 67 per
 - `-v`: Verbose output showing individual test results
 - `-x`: Stop on first failure (useful for debugging)
 
-## Why Not Run All Tests Together?
-
-Running all 2580 tests in a single pytest command causes:
+## Running All Tests Together
 
 ```bash
-# ❌ THIS WILL CRASH
-~/.local/bin/uv run pytest tests/ --no-cov
-
-# Output: Fatal Python error: Aborted
-# Location: logging_mixin.py line 269 in __init__ (during Qt widget initialization)
+.venv/bin/python -m pytest tests         # ✅ Works after global QApplication bootstrap
+.venv/bin/python -m pytest -p no:cov tests  # Faster (skip coverage)
 ```
 
-### Root Cause
+### Parallel Execution Caveats
 
-**Mass Import Overhead**: When pytest collects 2580 test modules simultaneously:
-1. Python imports 2580+ test files with Qt dependencies at once
-2. Qt initialization happens inconsistently across massive import scope
-3. First integration test tries to create `ShotInfoPanel` → Qt initialization conflicts cause crash
+Parallel runs (`pytest -n auto tests`) uncover remaining Qt teardown flakiness (e.g., `cleanup_qt_state` in `test_threede_shot_grid`). Until those fixtures are hardened, prefer serial runs or mix-and-match:
 
-**What's Actually Happening**:
-- This is NOT "Qt corruption" - it's mass import causing Qt initialization race conditions
-- Qt's event loop and object system expect orderly initialization
-- Importing 2580 files simultaneously creates conflicting Qt initialization states
+```bash
+.venv/bin/python -m pytest -n 4 tests/unit           # Good for non-Qt-heavy areas
+.venv/bin/python -m pytest -n 0 tests --maxfail=1    # Deterministic pre-merge gate
+.venv/bin/python -m pytest -n auto -m "not qt_heavy" # Parallelize safe subsets
+```
 
-**Individual Test Files Work**: When tests run in smaller batches (by category), Qt initializes cleanly for each batch.
+If you see a segmentation fault while running with xdist, re-run serially to confirm the failure is isolation-related and file an issue against the offending fixture.
 
 ## Test Categories
 
@@ -100,9 +98,9 @@ Real widgets are NOT the problem - the problem is mass import overhead during te
 **Status**: Fixed in `pytest.ini`
 
 ### 2. Mass Test Collection Crash
-**Problem**: Collecting 2580 tests simultaneously causes Qt initialization conflicts
-**Solution**: Run test categories separately (unit/integration/performance)
-**Status**: Documented workaround (no code fix needed)
+**Problem (Historical)**: Collecting 2,500+ tests simultaneously used to blow up with “Fatal Python error: Aborted”
+**Solution**: `_GLOBAL_QAPP` now starts a QApplication during `tests/conftest.py` import and forces sandboxed config directories. Serial `pytest tests/` runs are safe; parallel runs still expose flaky teardown code.
+**Status**: ✅ Fixed for serial execution, monitor xdist-only crashes separately
 
 ### 3. Qt Thread Cleanup (RESOLVED)
 **Problem**: Missing `deleteLater()` + event processing caused Qt C++ object accumulation

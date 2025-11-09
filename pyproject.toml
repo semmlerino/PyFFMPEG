@@ -258,7 +258,7 @@ addopts = [
     "--cov-report=html:coverage_html",
     "-p", "no:rerunfailures",
     "-p", "no:xvfb",
-    "--dist=worksteal",     # Load balancing for varying test durations (UNIFIED_TESTING_V2.MD)
+    "--dist=loadgroup",     # Keeps xdist groups on a single worker for Qt safety
     # Serial execution by default for Qt stability and leak detection
     # Override with `pytest tests/ -n 2` for faster development
     # Override with `pytest tests/ -n auto` for maximum parallelism
@@ -288,19 +288,17 @@ markers = [
     "unit: Unit tests",
     "integration: Integration tests",
     "qt: Tests requiring Qt GUI",
+    "xdist_group(name): Group tests onto the same xdist worker",
     "hardware: Tests requiring specific hardware",
     "slow: Tests that take a long time to run (>1 second)",
     "fast: Tests under 100ms",
-    "perf: Performance comparison tests (may be skipped in CI/WSL)",
-    "threading: Tests for thread safety and concurrency",
-    "thread_safety: Tests for thread safety",
-    "concurrent: Tests for concurrent/threading behavior",
+    "stress: Stress tests that exercise system under heavy load",
+    "concurrency: Tests for thread safety and concurrent/threading behavior",
     "regression: Regression tests for specific bugs",
     "flaky: Tests that may fail intermittently (should be investigated and fixed)",
     "critical: Critical/high priority tests",
-    "performance: Tests for performance",
+    "performance: Performance benchmarks and comparisons (may be skipped in CI/WSL)",
     "enforce_unique_connections: Tests with UniqueConnection enforcement for signal safety",
-    # NOTE: Consider consolidating threading/thread_safety/concurrent markers into single "concurrency" marker
 ]
 
 # Coverage configuration
@@ -317,6 +315,15 @@ omit = [
     "dev-tools/*",      # Development utilities
     "archive/*",        # Archived code
     "examples/*",       # Example scripts
+    # VFX-specific integrations (require external software, tested manually)
+    "nuke_*.py",
+    "maya_*.py",
+    "threede_*.py",
+    "controllers/threede_controller.py",
+    # GUI components (primarily visual, tested via integration tests)
+    "ui_components.py",
+    "accessibility_manager.py",
+    "thumbnail_widget*.py",
 ]
 
 [tool.coverage.report]
@@ -327,6 +334,7 @@ exclude_lines = [
     "pragma: no cover",
     "def __repr__",
     "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
     "raise AssertionError",
     "raise NotImplementedError",
     "@(abc\\.)?abstractmethod",

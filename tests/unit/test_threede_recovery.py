@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -39,10 +40,14 @@ class TestThreeDERecoveryManager:
         crash2 = scene_dir / "scene_v002_crashsave789012.3de"
         crash2.write_text("crash save 2")
 
-        # Make crash2 newer
+        # Make crash2 newer with explicit mtime skew (filesystems can coalesce sub-ms writes)
+        import os
         import time
-        time.sleep(0.01)
+
+        timestamp = time.time()
+        os.utime(crash1, (timestamp, timestamp))
         crash2.write_text("crash save 2 newer")
+        os.utime(crash2, (timestamp + 1, timestamp + 1))
 
         return workspace
 

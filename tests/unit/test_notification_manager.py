@@ -17,7 +17,9 @@ if TYPE_CHECKING:
 from unittest.mock import MagicMock
 
 import pytest
+from PySide6.QtCore import QEventLoop
 from PySide6.QtWidgets import (
+    QApplication,
     QMainWindow,
     QMessageBox,
     QProgressDialog,
@@ -36,6 +38,15 @@ pytestmark = [
     pytest.mark.unit,
     pytest.mark.qt,  # Singleton requires serial execution
 ]
+
+
+def _process_events(duration_ms: int = 5, iterations: int = 2) -> None:
+    """Drain Qt events without relying on qtbot.wait(), keeping teardown stable."""
+    app = QApplication.instance()
+    if app is None:
+        return
+    for _ in range(iterations):
+        app.processEvents(QEventLoop.ProcessEventsFlag.AllEvents, duration_ms)
 
 
 # Factory fixtures for test data creation
@@ -176,7 +187,7 @@ class TestToastNotification:
         assert "background-color" in style.lower()
 
         toast.close()
-        qtbot.wait(1)  # Flush deleteLater() calls
+        _process_events()
 
 
 class TestNotificationManager:

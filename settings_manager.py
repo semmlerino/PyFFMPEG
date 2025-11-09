@@ -488,36 +488,8 @@ class SettingsManager(LoggingMixin, QObject):
         self.settings_changed.emit("applications/custom_launchers", launchers)
 
     # UI Settings
-    def get_grid_columns(self) -> int:
-        """Get grid column count."""
-        value = self.settings.value("ui/grid_columns", Config.GRID_COLUMNS, type=int)
-        return value if isinstance(value, int) else Config.GRID_COLUMNS
-
-    def set_grid_columns(self, columns: int) -> None:
-        """Set grid column count."""
-        validated_columns = max(1, min(columns, 20))  # 1-20 columns
-        self.settings.setValue("ui/grid_columns", validated_columns)
-        self.settings_changed.emit("ui/grid_columns", validated_columns)
-
-    def get_show_tooltips(self) -> bool:
-        """Get tooltip visibility."""
-        value = self.settings.value("ui/show_tooltips", True, type=bool)
-        return value if isinstance(value, bool) else True
-
-    def set_show_tooltips(self, show: bool) -> None:
-        """Set tooltip visibility."""
-        self.settings.setValue("ui/show_tooltips", show)
-        self.settings_changed.emit("ui/show_tooltips", show)
-
-    def get_dark_theme(self) -> bool:
-        """Get dark theme enabled state."""
-        value = self.settings.value("ui/dark_theme", False, type=bool)
-        return value if isinstance(value, bool) else False
-
-    def set_dark_theme(self, enabled: bool) -> None:
-        """Set dark theme enabled state."""
-        self.settings.setValue("ui/dark_theme", enabled)
-        self.settings_changed.emit("ui/dark_theme", enabled)
+    # Dead settings removed: grid_columns, show_tooltips, dark_theme
+    # These were never applied by settings_controller.py
 
     # Advanced Settings
     def get_debug_mode(self) -> bool:

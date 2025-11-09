@@ -15,6 +15,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from PySide6.QtCore import QObject, Signal
 
+from tests.test_helpers import process_qt_events
+
 from command_launcher import CommandLauncher
 from config import Config
 from shot_model import Shot
@@ -45,7 +47,7 @@ def ensure_qt_cleanup(qtbot: QtBot):
     """
     yield
     # Wait for any pending timers (CommandLauncher uses 100ms timers)
-    qtbot.wait(1)  # Minimal event processing for timer callbacks
+    process_qt_events()
 
 
 class TestRawPlateFinder:
@@ -217,7 +219,7 @@ class TestCommandLauncher:
         assert result is True
 
         # Wait for QTimer.singleShot(100ms) callback to complete
-        qtbot.wait(1)  # Minimal event processing for timer callback
+        process_qt_events()
 
         # Verify subprocess was called
         assert mock_popen.called
@@ -258,7 +260,7 @@ class TestCommandLauncher:
         assert result is True
 
         # Wait for QTimer.singleShot(100ms) callback to complete
-        qtbot.wait(1)  # Minimal event processing for timer callback
+        process_qt_events()
 
         # Verify subprocess was called
         assert mock_popen.called
@@ -292,7 +294,7 @@ class TestCommandLauncher:
         assert result is True
 
         # Wait for QTimer.singleShot(100ms) callback to complete
-        qtbot.wait(1)  # Minimal event processing for timer callback
+        process_qt_events()
 
         # Verify subprocess was called
         assert mock_popen.called
@@ -320,7 +322,7 @@ class TestCommandLauncher:
         assert result is True
 
         # Wait for QTimer.singleShot(100ms) callback to complete
-        qtbot.wait(1)  # Minimal event processing for timer callback
+        process_qt_events()
 
         # Verify subprocess was called
         assert mock_popen.called
@@ -355,7 +357,7 @@ class TestCommandLauncher:
         assert result is True
 
         # Wait for QTimer.singleShot(100ms) callback to complete
-        qtbot.wait(1)  # Minimal event processing for timer callback
+        process_qt_events()
 
         # Verify subprocess was called
         assert mock_popen.called
@@ -389,7 +391,7 @@ class TestCommandLauncher:
         assert result is True
 
         # Wait for QTimer.singleShot(100ms) callback to complete
-        qtbot.wait(1)  # Minimal event processing for timer callback
+        process_qt_events()
 
         # Verify subprocess was called
         assert mock_popen.called
@@ -433,7 +435,7 @@ class TestCommandLauncher:
         assert result is False
 
         # Wait for any pending Qt events (QTimer won't fire due to failure, but process events)
-        qtbot.wait(1)  # Minimal event processing
+        process_qt_events()
 
         # Verify subprocess was attempted
         assert mock_popen.called
@@ -467,7 +469,7 @@ class TestCommandLauncher:
         assert result is True
 
         # Wait for any Qt events to process
-        qtbot.wait(1)  # Minimal event processing
+        process_qt_events()
 
         # Verify terminal was used
         assert len(terminal.executed_commands) == 1
@@ -511,7 +513,7 @@ class TestCommandLauncher:
             assert result is True
 
             # Wait for QTimer.singleShot(100ms) callback to complete
-            qtbot.wait(1)  # Minimal event processing for timer callback
+            process_qt_events()
 
             # Verify subprocess was used as fallback
             assert mock_popen.called
@@ -550,7 +552,7 @@ class TestCommandLauncherSignals:
             assert result is True
 
             # Wait for QTimer.singleShot(100ms) callback to complete
-            qtbot.wait(1)  # Minimal event processing for timer callback
+            process_qt_events()
 
             # Should have called Popen
             assert mock_popen.called

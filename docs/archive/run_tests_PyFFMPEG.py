@@ -1,5 +1,18 @@
 #!/usr/bin/env python3
 """
+⚠️ ARCHIVED - PyFFMPEG Test Runner
+
+This script is archived and was designed for an obsolete project (PyFFMPEG).
+
+For current ShotBot testing, use:
+  - pytest tests/           # Run all tests
+  - pytest tests/ -n 2      # Parallel execution (faster)
+  - pytest tests/ --cov=.   # With coverage
+
+See UNIFIED_TESTING_V2.MD for comprehensive testing documentation.
+
+---
+
 Test runner script for PyFFMPEG
 Provides easy commands to run different test suites with coverage
 """

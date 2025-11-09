@@ -93,21 +93,24 @@ cd ~/projects/shotbot  # Or cd /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot (
 # Run linting
 ~/.local/bin/uv run ruff check .
 
-# Run tests (serial execution by default for Qt stability)
+# Run tests (serial execution – easiest when iterating on a single module)
 ~/.local/bin/uv run pytest tests/
 
-# Run tests with parallelism for faster execution (optional)
-~/.local/bin/uv run pytest tests/ -n 2
-~/.local/bin/uv run pytest tests/ -n auto
+# Run the full suite with parallelism (recommended before deployment)
+~/.local/bin/uv run pytest tests/ -n auto --dist=loadgroup
+# or pin worker count if you prefer
+~/.local/bin/uv run pytest tests/ -n 2 --dist=loadgroup
 ```
 
 **Test Execution Notes**:
-- Tests run serially by default for maximum Qt stability (configured in pyproject.toml)
-- Use `-n 2` to override and run with 2 workers for faster execution (~50% faster)
-- Use `-n auto` to use all available CPU cores (fastest, but may have Qt state issues)
-- Higher parallelism (`-n 4`, `-n 16`) may cause Qt C++ initialization crashes in WSL
-- Individual test files run reliably with any parallelism level
-- Qt state cleanup between tests is critical - see Qt Widget Guidelines below
+- Default `pytest tests/` still runs serially (good for quick local loops)
+- Full regression now passes with `-n auto --dist=loadgroup` thanks to the early
+  QApplication bootstrap, qtbot wait patch, and automatic grouping of Qt-heavy suites
+- If you need deterministic timing, cap workers (e.g., `-n 4 --dist=loadgroup`)
+- Individual files generally don’t need `--dist=loadgroup`, but keep it for
+  whole-suite runs so Qt fixtures share the serialized worker
+- Qt state cleanup between tests relies on `process_qt_events()` (see Qt Widget
+  Guidelines below); avoid adding raw `qtbot.wait(1)` calls
 
 ### Creating Deployment Bundle
 The bundle is automatically created on commit, but can be manually triggered:
@@ -354,8 +357,12 @@ Tests using Qt widgets should include cleanup fixtures:
 def cleanup_qt_state(qtbot: QtBot):
     """Autouse fixture to ensure Qt state is cleaned up after each test."""
     yield
-    qtbot.wait(1)  # Process pending Qt events
+    process_qt_events()  # Provided by tests.test_helpers
 ```
+
+> ℹ️ `process_qt_events` lives in `tests.test_helpers` and is also used by the
+> session autouse patch that reroutes tiny `qtbot.wait()` calls, so keep using it
+> (or `qtbot.waitUntil`) instead of raw `qtbot.wait(1)`.
 
 ## Testing
 
@@ -391,11 +398,45 @@ def cleanup_qt_state(qtbot: QtBot):
 ```
 
 ### Test Coverage
+
 ```bash
 # Generate and view coverage report
 ~/.local/bin/uv run pytest tests/ --cov=. --cov-report=html
 open coverage_html/index.html
 ```
+
+#### Coverage Exclusions
+
+Coverage reports may show lower percentages due to **intentional exclusions** of code that:
+1. **Requires external VFX software** (Nuke, Maya, 3DEqualizer)
+2. **Is primarily visual/interactive** (GUI widgets tested manually)
+3. **Is legacy/deprecated** (archived code paths)
+
+**Excluded from coverage** (see `pyproject.toml` `[tool.coverage.run]` → `omit`):
+- **VFX integrations**: `nuke_*.py`, `maya_*.py`, `threede_*.py`
+  - Require external software (Nuke, Maya, 3DEqualizer)
+  - Tested manually in production environment
+  - Low ROI for automated testing
+- **GUI components**: `ui_components.py`, `accessibility_manager.py`, `thumbnail_widget*.py`
+  - Primarily visual presentation
+  - Tested via integration tests and manual QA
+  - Hard to test comprehensively with automated tests
+
+**Well-covered modules** (comprehensive test suites):
+- ✅ **Core models**: `shot_model.py`, `type_definitions.py` (86%+)
+- ✅ **Managers**: `cache_manager.py`, `settings_manager.py` (comprehensive)
+- ✅ **Controllers**: `launcher_controller.py`, `threede_controller.py`
+- ✅ **Business logic**: Shot validation, cache management, settings persistence
+
+**Why exclude instead of test?**
+- **VFX tools**: Would require mocking entire VFX applications (Nuke, Maya, etc.)
+- **GUI widgets**: Visual testing requires manual QA or screenshot comparison
+- **ROI trade-off**: Core business logic coverage is more valuable than GUI cosmetics
+
+**Interpreting coverage numbers:**
+- Overall coverage (~18-30%) includes excluded GUI/VFX code
+- Core business logic coverage is **much higher** (70-90%+)
+- Focus on **critical path coverage** (data integrity, cache, state management)
 
 ## Caching System
 

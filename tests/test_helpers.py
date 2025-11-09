@@ -18,8 +18,9 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 # Third-party imports
-from PySide6.QtCore import QObject, QSize, Signal
+from PySide6.QtCore import QObject, QSize, Signal, QEventLoop
 from PySide6.QtGui import QColor, QImage
+from PySide6.QtWidgets import QApplication
 
 
 if TYPE_CHECKING:
@@ -75,6 +76,15 @@ class ThreadSafeTestImage:
     def to_qimage(self) -> QImage:
         """Get the underlying QImage for conversion to QPixmap in main thread."""
         return self._image
+
+
+def process_qt_events(duration_ms: int = 5, iterations: int = 2) -> None:
+    """Process pending Qt events without relying on qtbot.wait()."""
+    app = QApplication.instance()
+    if app is None:
+        return
+    for _ in range(iterations):
+        app.processEvents(QEventLoop.ProcessEventsFlag.AllEvents, duration_ms)
 
 
 class SignalDouble:

@@ -6,7 +6,7 @@ designed for a local VFX tool on a secure network.
 Caching Strategies:
 - Thumbnails: Persistent (no expiration, manual clear only)
 - Shot data (shots.json): 30-minute TTL
-- Previous shots (previous_shots.json): 30-minute TTL
+- Previous shots (previous_shots.json): Persistent (no expiration, incremental accumulation)
 - 3DE scenes (threede_scenes.json): 30-minute TTL
 
 Rationale: Thumbnails are derived from static source images, so they should

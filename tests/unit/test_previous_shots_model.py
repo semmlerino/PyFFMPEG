@@ -31,6 +31,7 @@ from tests.test_doubles_previous_shots import (
     FakeShotModel,
     create_test_shot,
 )
+from tests.test_helpers import process_qt_events
 
 
 if TYPE_CHECKING:
@@ -108,7 +109,7 @@ class TestPreviousShotsModel:
         # Manual cleanup for QObject
         if hasattr(model, "deleteLater"):
             model.deleteLater()
-            qtbot.wait(1)
+            process_qt_events()
 
     @pytest.fixture
     def test_finder(self) -> FakePreviousShotsFinder:
@@ -140,7 +141,7 @@ class TestPreviousShotsModel:
         # Cleanup worker thread BEFORE deleteLater to prevent Qt crashes
         model._cleanup_worker_safely()
         model.deleteLater()
-        qtbot.wait(1)
+        process_qt_events()
 
     @pytest.fixture
     def model_with_real_cache(
@@ -157,7 +158,7 @@ class TestPreviousShotsModel:
         # Cleanup worker thread BEFORE deleteLater to prevent Qt crashes
         model._cleanup_worker_safely()
         model.deleteLater()
-        qtbot.wait(1)
+        process_qt_events()
 
     def test_model_initialization(
         self,
@@ -492,7 +493,7 @@ class TestPreviousShotsModel:
         model = PreviousShotsModel(test_shot_model, cache_manager)
         assert len(model.get_shots()) == 0
         model.deleteLater()
-        qtbot.wait(1)
+        process_qt_events()
 
     def test_clear_cache_functionality(
         self, model_with_real_cache: PreviousShotsModel, temp_cache_dir: Path
@@ -592,7 +593,7 @@ class TestPreviousShotsModel:
         assert shots_updated_spy.count() == 1
 
         model.deleteLater()
-        qtbot.wait(1)
+        process_qt_events()
 
 
 class TestPreviousShotsModelIntegration:
@@ -616,7 +617,7 @@ class TestPreviousShotsModelIntegration:
         yield model, shot_model, cache_manager
 
         model.deleteLater()
-        qtbot.wait(1)
+        process_qt_events()
 
     def test_full_workflow(
         self,

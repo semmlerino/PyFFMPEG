@@ -31,6 +31,11 @@ base_tmp = Path(tempfile.gettempdir())
 xdg_path = base_tmp / f"xdg-{run_id}-{worker}"
 xdg_path.mkdir(mode=0o700, parents=True, exist_ok=True)
 os.environ.setdefault("XDG_RUNTIME_DIR", str(xdg_path))
+
+# Direct custom launcher persistence into a writable, per-test directory
+config_dir = Path(tempfile.mkdtemp(prefix=f"shotbot-config-{run_id}-{worker}-"))
+os.environ.setdefault("SHOTBOT_CONFIG_DIR", str(config_dir))
+os.environ.setdefault("SHOTBOT_SECURE_EXECUTOR_MODE", "mock")
 from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
 
@@ -38,6 +43,7 @@ import pytest
 from PySide6.QtCore import QSettings
 from PySide6.QtWidgets import QApplication, QMessageBox
 
+from process_pool_manager import ProcessPoolManager
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -47,61 +53,117 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
 # ==============================================================================
+# Early Qt bootstrap (prevents mass-import crashes)
+# ==============================================================================
+
+
+def _bootstrap_qapplication() -> QApplication:
+    """Create QApplication immediately so imports can safely instantiate widgets.
+
+    Running the entire suite (unit + integration + performance) in a single
+    pytest process imports roughly 2,500 modules. Several integration helpers
+    lazily instantiate Qt widgets during import-time setup. Without a running
+    QApplication, Qt attempts to use the host display plugin which crashes in
+    headless/WSL environments ("Fatal Python error: Aborted").
+
+    Creating the offscreen QApplication here ensures all later imports see a
+    fully initialized Qt stack, enabling `pytest tests/` to run reliably.
+    """
+    # Import locally to avoid forcing PySide dependency when tests are not run
+    from PySide6.QtCore import QStandardPaths
+
+    # Ensure Qt writes to temporary locations before QApplication is created
+    QStandardPaths.setTestModeEnabled(True)
+
+    app = QApplication.instance()
+    if app is None:
+        try:
+            # Force offscreen platform so no real windows are touched
+            app = QApplication(["-platform", "offscreen"])
+        except Exception:
+            # Fallback when the offscreen plugin is unavailable (e.g., macOS dev boxes)
+            os.environ["QT_QPA_PLATFORM"] = "minimal"
+            app = QApplication([])
+    else:
+        platform = os.environ.get("QT_QPA_PLATFORM", "")
+        if platform != "offscreen":
+            warnings.warn(
+                f"Existing QApplication is using platform '{platform}', expected 'offscreen'. "
+                "This can surface real-window crashes under WSL/CI.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+
+    return app
+
+
+_GLOBAL_QAPP = _bootstrap_qapplication()
+
+
+# ==============================================================================
+# Secure command executor configuration helpers
+# ==============================================================================
+
+
+# Secure executor removed - no longer needed for this personal project
+
+
+# ==============================================================================
+# Pytest Hooks
+# ==============================================================================
+
+
+def pytest_collection_modifyitems(config, items):
+    """Group Qt-using tests onto a single xdist worker for stable teardown."""
+    for item in items:
+        fixtures = set(getattr(item, "fixturenames", ()) or ())
+        if item.get_closest_marker("qt") or fixtures.intersection(
+            {"qtbot", "cleanup_qt_state", "qt_cleanup"}
+        ):
+            item.add_marker(pytest.mark.xdist_group(name="qt"))
+
+
+# allow_real_secure_executor fixture removed - secure executor no longer exists
+
+
+# ==============================================================================
 # Qt Application Fixtures
 # ==============================================================================
 
 
 @pytest.fixture(scope="session")
 def qapp() -> Iterator[QApplication]:
-    """Create QApplication instance for Qt widget testing.
+    """Return the eagerly-created QApplication instance for widget testing.
 
-    This fixture is session-scoped to avoid creating multiple QApplications
-    which causes issues in PySide6.
-
-    Uses offscreen platform to prevent widgets from actually displaying
-    during test execution, which speeds up tests and prevents UI popups.
-
-    Enables test mode via QStandardPaths.setTestModeEnabled(True) to ensure
-    all file writes go to temp locations instead of user directories.
-
-    CRITICAL: The QT_QPA_PLATFORM environment variable is set to "offscreen"
-    at the top of this file to ensure ALL QApplication instances use the
-    correct platform, even if created before this fixture runs.
+    The QApplication is created at import time (see `_bootstrap_qapplication`)
+    so any module imported during collection sees a valid Qt stack. This also
+    preserves the historical session scope semantics for tests.
     """
-    # Third-party imports
-    from PySide6.QtCore import QStandardPaths
-
-    # Enable test mode BEFORE creating QApplication
-    # This ensures file writes go to temp locations
-    QStandardPaths.setTestModeEnabled(True)
-
-    app = QApplication.instance()
-    if app is None:
-        # Use offscreen platform to prevent actual widget display
-        # The environment variable set at the top of this file ensures this is redundant
-        # but explicit, following the principle of defense in depth
-        try:
-            app = QApplication(["-platform", "offscreen"])
-        except Exception:
-            # Fallback to minimal platform if offscreen is unavailable (e.g., macOS dev boxes)
-            os.environ["QT_QPA_PLATFORM"] = "minimal"
-            app = QApplication([])
-    else:
-        # QApplication already exists - validate it's using the correct platform
-        # This should always be true now due to the environment variable
-        platform = os.environ.get("QT_QPA_PLATFORM", "")
-        if platform != "offscreen":
-            warnings.warn(
-                f"QApplication was created with platform '{platform}' instead of 'offscreen'. "
-                f"This may cause 'real widgets' to appear during tests and crash in WSL. "
-                f"The QT_QPA_PLATFORM environment variable should be set to 'offscreen' "
-                f"before any Qt imports.",
-                RuntimeWarning,
-                stacklevel=2
-            )
-
-    return app
+    return _GLOBAL_QAPP
     # Don't quit app as it may be used by other tests
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _patch_qtbot_short_waits() -> Iterator[None]:
+    """Intercept qtbot.wait for tiny delays to avoid pytest-qt re-entrancy crashes."""
+    # Third-party imports
+    from pytestqt.qtbot import QtBot
+
+    original_wait = QtBot.wait
+
+    def _safe_wait(self, timeout: int = 0) -> None:
+        from tests.test_helpers import process_qt_events
+
+        if timeout <= 5:
+            process_qt_events()
+            return
+        return original_wait(self, timeout)
+
+    QtBot.wait = _safe_wait  # type: ignore[assignment]
+    try:
+        yield
+    finally:
+        QtBot.wait = original_wait  # type: ignore[assignment]
 
 
 # ==============================================================================

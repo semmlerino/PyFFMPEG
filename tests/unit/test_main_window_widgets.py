@@ -37,6 +37,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from tests.test_helpers import process_qt_events
+
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
@@ -139,7 +141,7 @@ class TestMainWindowUIComponents:
         window = MainWindow(cache_manager=real_cache_manager)
         qtbot.addWidget(window)
         # Allow UI to initialize
-        qtbot.wait(1)  # Minimal event processing
+        process_qt_events()
         return window
 
     def test_tab_widget_exists(self, main_window_ui: MainWindow) -> None:
@@ -210,7 +212,7 @@ class TestMainWindowTabFunctionality:
 
         window = MainWindow(cache_manager=real_cache_manager)
         qtbot.addWidget(window)
-        qtbot.wait(1)  # Minimal event processing
+        process_qt_events()
         return window
 
     def test_tab_navigation(self, qtbot: QtBot, tabbed_window: MainWindow) -> None:
@@ -278,7 +280,7 @@ class TestMainWindowTabFunctionality:
             ):
                 tab_widget.setCurrentIndex(new_index)
 
-            qtbot.wait(1)  # Minimal event processing
+            process_qt_events()
 
 
 class TestMainWindowSignalConnections:
@@ -296,7 +298,7 @@ class TestMainWindowSignalConnections:
 
         window = MainWindow(cache_manager=real_cache_manager)
         qtbot.addWidget(window)
-        qtbot.wait(1)  # Minimal event processing
+        process_qt_events()
         return window
 
     def test_shot_model_connections(self, connected_window: MainWindow) -> None:
@@ -376,7 +378,7 @@ class TestMainWindowKeyboardShortcuts:
         # Test that window can handle key events without triggering refresh
         # Use a safe key that won't trigger complex operations
         QTest.keyPress(window, Qt.Key.Key_Space)
-        qtbot.wait(1)  # Minimal event processing
+        process_qt_events()
 
         # The key press should be processed without crashing the window
         assert window.isVisible()
@@ -405,7 +407,7 @@ class TestMainWindowKeyboardShortcuts:
 
             # Ctrl+Tab should navigate tabs (if implemented)
             QTest.keyPress(window, Qt.Key.Key_Tab, Qt.KeyboardModifier.ControlModifier)
-            qtbot.wait(1)  # Minimal event processing
+            process_qt_events()
 
             # Window should still be responsive
             assert window.isVisible()
@@ -428,7 +430,7 @@ class TestMainWindowKeyboardShortcuts:
 
         # Press escape
         QTest.keyPress(window, Qt.Key.Key_Escape)
-        qtbot.wait(1)  # Minimal event processing
+        process_qt_events()
 
         # Window should handle escape gracefully
         # Current behavior: window closes on escape (could be changed if undesired)
@@ -610,7 +612,7 @@ class TestMainWindowIntegration:
         qtbot.addWidget(window)
         window.show()
         qtbot.waitExposed(window)
-        qtbot.wait(1)  # Minimal event processing
+        process_qt_events()
         return window
 
     def test_component_communication(
@@ -624,7 +626,7 @@ class TestMainWindowIntegration:
         assert window is not None
 
         # Process any pending events
-        qtbot.wait(1)  # Minimal event processing
+        process_qt_events()
 
         # Window should remain responsive (fixture shows it)
         assert window.isVisible()
@@ -669,7 +671,7 @@ class TestMainWindowIntegration:
         # Simulate multiple UI updates
         for i in range(5):
             window.statusBar().showMessage(f"Update {i}")
-            qtbot.wait(1)  # Minimal event processing
+            process_qt_events()
 
         # Window should remain responsive (fixture shows it)
         assert window.isVisible()

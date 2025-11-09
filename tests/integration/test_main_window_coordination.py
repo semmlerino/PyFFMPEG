@@ -385,6 +385,13 @@ def main_window_with_real_components(
 
     # Monkey-patch NotificationManager class methods with test double
     # Must happen BEFORE MainWindow creation to avoid Qt threading issues
+    original_notification_methods = {
+        "error": NotificationManager.error,
+        "warning": NotificationManager.warning,
+        "info": NotificationManager.info,
+        "success": NotificationManager.success,
+        "toast": NotificationManager.toast,
+    }
     NotificationManager.error = TestNotificationManager.error
     NotificationManager.warning = TestNotificationManager.warning
     NotificationManager.info = TestNotificationManager.info
@@ -425,57 +432,62 @@ def main_window_with_real_components(
     # Note: Auto-refresh removed from PreviousShotsModel (persistent incremental caching)
     # Previous shots now only refresh on explicit user action
 
-    yield window
+    try:
+        yield window
+    finally:
+        # Restore NotificationManager methods before other tests run
+        for name, method in original_notification_methods.items():
+            setattr(NotificationManager, name, method)
 
-    # CRITICAL: Restore ProgressManager class methods FIRST (before Qt cleanup)
-    # This prevents contamination of subsequent tests
-    ProgressManager.operation = original_operation
-    ProgressManager.start_operation = original_start_operation
-    ProgressManager.finish_operation = original_finish_operation
+        # CRITICAL: Restore ProgressManager class methods FIRST (before Qt cleanup)
+        # This prevents contamination of subsequent tests
+        ProgressManager.operation = original_operation
+        ProgressManager.start_operation = original_start_operation
+        ProgressManager.finish_operation = original_finish_operation
 
-    # CRITICAL: Proper cleanup to prevent crashes
-    # Stop all timers first
-    if hasattr(window, "auto_refresh_timer") and window.auto_refresh_timer:
-        window.auto_refresh_timer.stop()
+        # CRITICAL: Proper cleanup to prevent crashes
+        # Stop all timers first
+        if hasattr(window, "auto_refresh_timer") and window.auto_refresh_timer:
+            window.auto_refresh_timer.stop()
 
-    # Note: Auto-refresh removed from PreviousShotsModel (persistent incremental caching)
-    # No timer cleanup needed for previous shots model
+        # Note: Auto-refresh removed from PreviousShotsModel (persistent incremental caching)
+        # No timer cleanup needed for previous shots model
 
-    # Stop any workers
-    if (
-        hasattr(window, "threede_worker")
-        and window.threede_worker
-        and window.threede_worker.isRunning()
-    ):
-        window.threede_worker.quit()
-        window.threede_worker.wait(1000)
+        # Stop any workers
+        if (
+            hasattr(window, "threede_worker")
+            and window.threede_worker
+            and window.threede_worker.isRunning()
+        ):
+            window.threede_worker.quit()
+            window.threede_worker.wait(1000)
 
-    # Disconnect all signals to prevent crashes during cleanup
-    with contextlib.suppress(RuntimeError, TypeError):
-        window.disconnect()
+        # Disconnect all signals to prevent crashes during cleanup
+        with contextlib.suppress(RuntimeError, TypeError):
+            window.disconnect()
 
-    # Close the window properly
-    window.close()
+        # Close the window properly
+        window.close()
 
-    # Process events to ensure cleanup happens
-    # Third-party imports
-    from PySide6.QtCore import (
-        QCoreApplication,
-    )
+        # Process events to ensure cleanup happens
+        # Third-party imports
+        from PySide6.QtCore import (
+            QCoreApplication,
+        )
 
-    app = QCoreApplication.instance()
-    if app:
-        app.processEvents()
+        app = QCoreApplication.instance()
+        if app:
+            app.processEvents()
 
-    # Delete the window
-    window.deleteLater()
-    qtbot.wait(1)  # Flush Qt deletion queue
+        # Delete the window
+        window.deleteLater()
+        qtbot.wait(1)  # Flush Qt deletion queue
 
-    # Force garbage collection
-    # Standard library imports
-    import gc
+        # Force garbage collection
+        # Standard library imports
+        import gc
 
-    gc.collect()
+        gc.collect()
 
 
 @pytest.mark.slow
