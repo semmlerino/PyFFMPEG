@@ -163,8 +163,9 @@ class PersistentTerminalManager(LoggingMixin, QObject):
             return False
 
         # Try different terminal emulators
-        # Note: -ilc requires command as single string argument
-        dispatcher_command = f"{self.dispatcher_path} {self.fifo_path}"
+        # Note: Use -il (not -ilc) when executing a script file
+        # -i = interactive, -l = login shell (loads .bash_profile for ws function)
+        # -c = command string (only use for inline commands, not script files)
         terminal_commands = [
             # gnome-terminal with title
             [
@@ -172,8 +173,9 @@ class PersistentTerminalManager(LoggingMixin, QObject):
                 "--title=ShotBot Terminal",
                 "--",
                 "bash",
-                "-ilc",
-                dispatcher_command,
+                "-il",
+                self.dispatcher_path,
+                self.fifo_path,
             ],
             # konsole
             [
@@ -182,8 +184,9 @@ class PersistentTerminalManager(LoggingMixin, QObject):
                 "ShotBot Terminal",
                 "-e",
                 "bash",
-                "-ilc",
-                dispatcher_command,
+                "-il",
+                self.dispatcher_path,
+                self.fifo_path,
             ],
             # xterm
             [
@@ -192,16 +195,18 @@ class PersistentTerminalManager(LoggingMixin, QObject):
                 "ShotBot Terminal",
                 "-e",
                 "bash",
-                "-ilc",
-                dispatcher_command,
+                "-il",
+                self.dispatcher_path,
+                self.fifo_path,
             ],
             # fallback to any available terminal
             [
                 "x-terminal-emulator",
                 "-e",
                 "bash",
-                "-ilc",
-                dispatcher_command,
+                "-il",
+                self.dispatcher_path,
+                self.fifo_path,
             ],
         ]
 
