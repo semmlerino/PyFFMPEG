@@ -81,7 +81,6 @@
     "pyrightconfig.json.backup.json",
     "debug_utils.py",
     "simplified_launcher.py",
-    "simple_nuke_launcher.py",
     "transfer_config.json"
   ],
   "exclude_dirs": [
