@@ -1,5 +1,5 @@
-Post-commit hook executed at Sun Nov  9 13:12:13 GMT 2025
-Commit: 7faad7fba460c8a07b1ce1243f00a79363d593fd
+Post-commit hook executed at Sun Nov  9 14:28:29 GMT 2025
+Commit: 92a72bf4daa615250f4a04994a74985dfb0bfc4d
 Branch: master
 Author: GabrielH <gabrhas@gmail.com>
-Message: fix: Narrow publish directory search to publish/mm/* only
+Message: refactor: Use publish/mm directory check to filter 3DE scenes

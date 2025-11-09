@@ -176,9 +176,16 @@ class FileSystemScanner(LoggingMixin):
     def __init__(self) -> None:
         """Initialize FileSystemScanner."""
         super().__init__()
+        # Standard library imports
+        import threading
+
         # Lazy imports to avoid circular dependencies - imported at runtime
         self._fs_coordinator: FilesystemCoordinator | None = None
         self.parser: SceneParser | None = None
+
+        # Thread-safe lazy initialization locks (for concurrent ThreadPoolExecutor usage)
+        self._parser_lock = threading.Lock()
+        self._fs_coordinator_lock = threading.Lock()
 
     @classmethod
     def get_cache_stats(cls) -> dict[str, int]:
@@ -205,11 +212,15 @@ class FileSystemScanner(LoggingMixin):
 
         Returns list of tuples: (name, is_dir, is_file)
         """
-        # Lazy import to avoid circular dependency
+        # Thread-safe lazy import to avoid circular dependency
+        # Uses double-check locking pattern for concurrent ThreadPoolExecutor usage
         if self._fs_coordinator is None:
-            from filesystem_coordinator import FilesystemCoordinator
+            with self._fs_coordinator_lock:
+                # Double-check: another thread might have initialized while waiting for lock
+                if self._fs_coordinator is None:
+                    from filesystem_coordinator import FilesystemCoordinator
 
-            self._fs_coordinator = FilesystemCoordinator()
+                    self._fs_coordinator = FilesystemCoordinator()
 
         # Use FilesystemCoordinator for shared caching across workers
         raw_listing = self._fs_coordinator.get_directory_listing(path)
@@ -729,11 +740,15 @@ class FileSystemScanner(LoggingMixin):
         # Standard library imports
         import traceback
 
-        # Lazy import to avoid circular dependency
+        # Thread-safe lazy import to avoid circular dependency
+        # Uses double-check locking pattern for concurrent ThreadPoolExecutor usage
         if self.parser is None:
-            from scene_parser import SceneParser
+            with self._parser_lock:
+                # Double-check: another thread might have initialized while waiting for lock
+                if self.parser is None:
+                    from scene_parser import SceneParser
 
-            self.parser = SceneParser()
+                    self.parser = SceneParser()
 
         self.logger.info(
             "=== STARTING find_all_3de_files_in_show_targeted (optimized) ==="
@@ -827,8 +842,10 @@ class FileSystemScanner(LoggingMixin):
             # Search 2: Find shots with publish/mm directory (indicates published matchmove)
             self.logger.debug(f"Search 2 (publish/mm dirs): {' '.join(find_cmd_publish_dirs)}")
 
-            # Run find command to get publish/mm directories
+            # Run find command to get publish/mm directories with cancellation support
             import subprocess
+            import time
+
             shots_with_published_mm: set[tuple[str, str]] = set()
             try:
                 process = subprocess.Popen(
@@ -837,7 +854,33 @@ class FileSystemScanner(LoggingMixin):
                     stderr=subprocess.PIPE,
                     text=True,
                 )
-                stdout, stderr = process.communicate(timeout=30)  # Short timeout for directory check
+
+                # Poll process with cancellation checks (similar to _run_find_with_polling)
+                poll_interval = 0.1  # Check every 100ms
+                elapsed_time = 0.0
+                max_wait_time = 30.0  # 30 second timeout for directory check
+
+                while process.poll() is None:  # While process is still running
+                    # Check for cancellation
+                    if cancel_flag and cancel_flag():
+                        self.logger.info("Publish/mm directory search cancelled by user")
+                        process.kill()
+                        _ = process.wait()
+                        return []  # Early exit on cancellation
+
+                    # Check for timeout
+                    if elapsed_time >= max_wait_time:
+                        self.logger.warning(f"Publish/mm directory search timed out after {max_wait_time}s")
+                        process.kill()
+                        _ = process.wait()
+                        break  # Continue with empty set
+
+                    # Sleep briefly and update elapsed time
+                    time.sleep(poll_interval)
+                    elapsed_time += poll_interval
+
+                # Process finished, get output
+                stdout, stderr = process.communicate()
 
                 if process.returncode == 0 and stdout:
                     # Parse directory paths to extract sequence/shot
@@ -851,19 +894,29 @@ class FileSystemScanner(LoggingMixin):
                             shot_dir = dir_path.parent.parent.name  # SEQUENCE_SHOT
                             sequence = dir_path.parent.parent.parent.name  # SEQUENCE
 
-                            # Extract shot number from shot_dir (format: SEQUENCE_SHOT)
+                            # Extract shot number from shot_dir - must match scene_parser.py logic exactly
+                            # to prevent filtering out valid .3de files due to parsing inconsistency
                             if shot_dir.startswith(f"{sequence}_"):
-                                shot = shot_dir[len(sequence) + 1:]
+                                # Remove the sequence prefix to get the shot number
+                                shot = shot_dir[len(sequence) + 1:]  # +1 for the underscore
+                            else:
+                                # CRITICAL FIX: Fallback logic (must match scene_parser.py:156-159)
+                                # Without this, shots with non-standard names are silently excluded,
+                                # causing valid .3de files to be filtered out (data loss bug)
+                                shot_parts = shot_dir.rsplit("_", 1)
+                                shot = shot_parts[1] if len(shot_parts) == 2 else shot_dir
+
+                            # Validate shot is not empty before adding
+                            if shot:
                                 shots_with_published_mm.add((sequence, shot))
                                 self.logger.debug(f"Found published MM for: {sequence}/{shot}")
+                            else:
+                                self.logger.debug(f"Skipping empty shot name from: {shot_dir}")
                         except (IndexError, AttributeError) as e:
                             self.logger.debug(f"Could not parse publish/mm path {line}: {e}")
 
                 self.logger.info(f"Found {len(shots_with_published_mm)} shots with published matchmove")
 
-            except subprocess.TimeoutExpired:
-                self.logger.warning("Publish/mm directory search timed out after 30s")
-                process.kill()
             except Exception as e:
                 self.logger.warning(f"Error finding publish/mm directories: {e}")
 
@@ -933,11 +986,15 @@ class FileSystemScanner(LoggingMixin):
         This uses a more efficient approach than the original by using
         glob patterns directly on the shots directory.
         """
-        # Lazy import to avoid circular dependency
+        # Thread-safe lazy import to avoid circular dependency
+        # Uses double-check locking pattern for concurrent ThreadPoolExecutor usage
         if self.parser is None:
-            from scene_parser import SceneParser
+            with self._parser_lock:
+                # Double-check: another thread might have initialized while waiting for lock
+                if self.parser is None:
+                    from scene_parser import SceneParser
 
-            self.parser = SceneParser()
+                    self.parser = SceneParser()
 
         results: list[tuple[Path, str, str, str, str, str]] = []
         excluded_users = excluded_users or set()

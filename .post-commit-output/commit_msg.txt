@@ -1,1 +1,1 @@
-fix: Narrow publish directory search to publish/mm/* only
+refactor: Use publish/mm directory check to filter 3DE scenes
