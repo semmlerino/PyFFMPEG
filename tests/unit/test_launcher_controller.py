@@ -8,6 +8,7 @@ from __future__ import annotations
 
 # Standard library imports
 from collections.abc import Callable, Generator
+from pathlib import Path
 from typing import Any
 from unittest.mock import Mock, patch
 

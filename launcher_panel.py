@@ -540,7 +540,7 @@ class LauncherPanel(QtWidgetMixin, QWidget):
         logger = logging.getLogger(__name__)
         logger.info(f"📡 LauncherPanel emitting app_launch_requested for: {app_name}")
         self.app_launch_requested.emit(app_name)
-        logger.info(f"✓ Signal emitted")
+        logger.info("✓ Signal emitted")
 
     def set_shot(self, shot: Shot | None) -> None:
         """Update the panel for the selected shot."""

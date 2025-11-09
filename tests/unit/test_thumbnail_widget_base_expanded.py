@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
-from PySide6.QtCore import Qt, QThreadPool, QUrl
+from PySide6.QtCore import Qt, QUrl
 from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtTest import QSignalSpy
 from PySide6.QtWidgets import QApplication, QMenu

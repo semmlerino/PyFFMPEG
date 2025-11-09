@@ -1,1 +1,1 @@
-refactor: Use publish/mm directory check to filter 3DE scenes
+fix: Critical fixes from dual-agent code review

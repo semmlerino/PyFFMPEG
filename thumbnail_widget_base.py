@@ -187,7 +187,7 @@ class BaseThumbnailLoader(QRunnable):
         super().__init__()
         self.widget: ThumbnailWidgetBase = widget
         self.path: Path | None = path
-        size = max(1, widget._thumbnail_size)
+        size = max(1, widget.thumbnail_size)
         self._target_size: QSize = QSize(size, size)
         self._device_pixel_ratio: float = max(1.0, widget.devicePixelRatioF())
         self.signals: BaseThumbnailLoader.Signals = self.Signals()
@@ -358,6 +358,15 @@ class ThumbnailWidgetBase(ABC, QFrame, metaclass=QABCMeta):
         # Set size policy to ensure consistent heights
         self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         self.setFixedHeight(self._calculate_widget_height())
+
+    @property
+    def thumbnail_size(self) -> int:
+        """Get the thumbnail size.
+
+        Returns:
+            Thumbnail size in pixels
+        """
+        return self._thumbnail_size
 
     def _setup_base_ui(self) -> None:
         """Set up the common UI elements."""

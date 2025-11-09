@@ -112,14 +112,23 @@ _GLOBAL_QAPP = _bootstrap_qapplication()
 # ==============================================================================
 
 
-def pytest_collection_modifyitems(config, items):
-    """Group Qt-using tests onto a single xdist worker for stable teardown."""
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """Group Qt-using tests and auto-enable fixtures based on markers.
+
+    1. Groups Qt tests onto a single xdist worker for stable teardown
+    2. Auto-enables fixtures based on markers (e.g., enforce_unique_connections)
+    """
     for item in items:
+        # Group Qt tests onto a single xdist worker
         fixtures = set(getattr(item, "fixturenames", ()) or ())
         if item.get_closest_marker("qt") or fixtures.intersection(
             {"qtbot", "cleanup_qt_state", "qt_cleanup"}
         ):
             item.add_marker(pytest.mark.xdist_group(name="qt"))
+
+        # Auto-enable enforce_unique_connections fixture if marker is present
+        if item.get_closest_marker("enforce_unique_connections"):
+            item.add_marker(pytest.mark.usefixtures("enforce_unique_connections"))
 
 
 # allow_real_secure_executor fixture removed - secure executor no longer exists
@@ -1167,18 +1176,6 @@ def pytest_configure(config: pytest.Config) -> None:
         "markers",
         "enforce_unique_connections: enforce UniqueConnection for signal.connect() in this test",
     )
-
-
-def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
-    """Auto-enable fixtures based on markers.
-
-    This hook makes the @pytest.mark.enforce_unique_connections marker
-    automatically enable the enforce_unique_connections fixture, so tests
-    don't need to both mark AND request the fixture.
-    """
-    for item in items:
-        if item.get_closest_marker("enforce_unique_connections"):
-            item.add_marker(pytest.mark.usefixtures("enforce_unique_connections"))
 
 
 def pytest_runtest_setup(item: pytest.Item) -> None:

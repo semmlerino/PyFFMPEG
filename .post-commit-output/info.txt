@@ -1,5 +1,5 @@
-Post-commit hook executed at Sun Nov  9 14:28:29 GMT 2025
-Commit: 92a72bf4daa615250f4a04994a74985dfb0bfc4d
+Post-commit hook executed at Sun Nov  9 14:39:15 GMT 2025
+Commit: acbb9b316e8e18ef26c32763fcf93782dca9abfc
 Branch: master
 Author: GabrielH <gabrhas@gmail.com>
-Message: refactor: Use publish/mm directory check to filter 3DE scenes
+Message: fix: Critical fixes from dual-agent code review

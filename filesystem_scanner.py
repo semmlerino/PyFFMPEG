@@ -843,9 +843,7 @@ class FileSystemScanner(LoggingMixin):
             self.logger.debug(f"Search 2 (publish/mm dirs): {' '.join(find_cmd_publish_dirs)}")
 
             # Run find command to get publish/mm directories with cancellation support
-            import subprocess
-            import time
-
+            # Note: subprocess and time are already imported at module level
             shots_with_published_mm: set[tuple[str, str]] = set()
             try:
                 process = subprocess.Popen(
@@ -880,7 +878,7 @@ class FileSystemScanner(LoggingMixin):
                     elapsed_time += poll_interval
 
                 # Process finished, get output
-                stdout, stderr = process.communicate()
+                stdout, _stderr = process.communicate()
 
                 if process.returncode == 0 and stdout:
                     # Parse directory paths to extract sequence/shot
