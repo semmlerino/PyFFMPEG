@@ -102,12 +102,14 @@ class LauncherController(LoggingMixin):
         # Setup signal connections
         self._setup_signals()
 
-        self.logger.debug("LauncherController initialized")
+        self.logger.info(f"🎮 LauncherController initialized (id={id(self)})")
 
     def _setup_signals(self) -> None:
         """Setup signal connections for launcher functionality."""
         # Connect launcher panel signals
+        self.logger.info(f"🔌 Connecting app_launch_requested signal (controller id={id(self)})")
         _ = self.window.launcher_panel.app_launch_requested.connect(self.launch_app)
+        self.logger.info(f"✓ app_launch_requested connected to {id(self)}.launch_app")
         _ = self.window.launcher_panel.custom_launcher_requested.connect(
             self.execute_custom_launcher
         )
@@ -222,7 +224,10 @@ class LauncherController(LoggingMixin):
             app_name: Name of the application to launch
         """
         # DIAGNOSTIC: Log current state when button is clicked
-        self.logger.info(f"🚀 launch_app() called for app: {app_name}")
+        import traceback
+        stack = "".join(traceback.format_stack()[-5:-1])  # Last 4 frames before this call
+        self.logger.info(f"🚀 launch_app() called for app: {app_name} (controller id={id(self)})")
+        self.logger.info(f"📞 Call stack:\n{stack}")
         self.logger.info("   Current state check:")
         self.logger.info(
             f"   - _current_scene: {self._current_scene.full_name if self._current_scene else 'None'}"

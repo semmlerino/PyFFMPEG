@@ -266,8 +266,13 @@ class AppLauncherSection(QtWidgetMixin, QWidget):
 
     def _on_launch_clicked(self) -> None:
         """Handle launch button click with progress indication."""
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"🖱️  Button clicked for {self.config.name} (section id={id(self)})")
+
         # Prevent double-clicks
         if self._launch_in_progress:
+            logger.info(f"⏸️  Launch already in progress for {self.config.name}, ignoring click")
             return
 
         # Save original state and update UI
@@ -275,9 +280,11 @@ class AppLauncherSection(QtWidgetMixin, QWidget):
         self._original_button_text = self.launch_button.text()
         self.launch_button.setEnabled(False)
         self.launch_button.setText(f"Launching {self.config.name}...")
+        logger.info(f"📤 Emitting launch_requested signal for {self.config.name}")
 
         # Emit launch request
         self.launch_requested.emit(self.config.name)
+        logger.info(f"✓ Signal emitted for {self.config.name}")
 
         # Reset button after 3 seconds (with safe widget lifecycle check)
         QTimer.singleShot(3000, self._safe_reset_button_state)
@@ -529,7 +536,11 @@ class LauncherPanel(QtWidgetMixin, QWidget):
 
     def _on_app_launch(self, app_name: str) -> None:
         """Handle app launch request from section."""
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"📡 LauncherPanel emitting app_launch_requested for: {app_name}")
         self.app_launch_requested.emit(app_name)
+        logger.info(f"✓ Signal emitted")
 
     def set_shot(self, shot: Shot | None) -> None:
         """Update the panel for the selected shot."""

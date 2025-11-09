@@ -1,1 +1,1 @@
-fix: SessionWarmer event loop freeze with login shell mode
+fix: Replace bash -ilc with bash -lc in launcher commands
