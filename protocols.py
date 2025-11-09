@@ -71,6 +71,7 @@ class ProcessPoolInterface(Protocol):
         command: str,
         cache_ttl: int = 30,
         timeout: int | None = None,
+        use_login_shell: bool = False,
     ) -> str:
         """Execute workspace command."""
         ...

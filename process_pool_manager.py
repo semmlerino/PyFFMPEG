@@ -293,6 +293,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
         command: str,
         cache_ttl: int = 30,
         timeout: int | None = None,
+        use_login_shell: bool = False,
     ) -> str:
         """Execute workspace command with caching and session reuse.
 
@@ -300,6 +301,8 @@ class ProcessPoolManager(LoggingMixin, QObject):
             command: Command to execute
             cache_ttl: Cache time-to-live in seconds
             timeout: Command execution timeout in seconds (default 120s)
+            use_login_shell: If True, use bash -l (login) instead of bash -i (interactive)
+                           Login shell sources workspace functions without blocking on terminal
 
         Returns:
             Command output
@@ -329,9 +332,12 @@ class ProcessPoolManager(LoggingMixin, QObject):
         # Execute command using subprocess
         start_time = time.time()
         try:
-            # Execute using bash -i -c for workspace functions (like 'ws')
+            # Choose shell mode:
+            # -l (login): Sources workspace functions, doesn't block on terminal (for warming)
+            # -i (interactive): Full interactive features, may block on terminal init (for user commands)
+            shell_flag = "-l" if use_login_shell else "-i"
             proc_result = subprocess.run(
-                ["/bin/bash", "-i", "-c", command],
+                ["/bin/bash", shell_flag, "-c", command],
                 capture_output=True,
                 text=True,
                 timeout=timeout,

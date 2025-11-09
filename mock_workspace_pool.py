@@ -127,6 +127,7 @@ class MockWorkspacePool(LoggingMixin):
         command: str,
         cache_ttl: int = 30,
         timeout: int | None = None,  # pyright: ignore[reportUnusedParameter]
+        use_login_shell: bool = False,  # pyright: ignore[reportUnusedParameter]
     ) -> str:
         """Execute workspace command.
 
@@ -137,6 +138,7 @@ class MockWorkspacePool(LoggingMixin):
             command: Command to execute
             cache_ttl: Cache time-to-live
             timeout: Timeout in seconds
+            use_login_shell: Ignored for mock (always compatible)
 
         Returns:
             Command output

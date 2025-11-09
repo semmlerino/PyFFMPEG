@@ -163,6 +163,7 @@ class SessionWarmer(ThreadSafeWorker):
                 "echo warming",
                 cache_ttl=1,  # Short TTL since this is just for warming
                 timeout=15,  # Give enough time for first initialization
+                use_login_shell=True,  # Use bash -l to avoid terminal blocking
             )
             logger.info("Bash session pre-warming completed successfully")
         except Exception as e:
@@ -715,17 +716,17 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # Async initialization was already called in __init__, just pre-warm sessions
         self.logger.info("Using async initialization (already started in __init__)")
         # Pre-warm sessions in background thread to avoid UI freeze
-        # TEMPORARY DIAGNOSTIC: Disable SessionWarmer to test if it causes freeze
-        # The SessionWarmer uses bash -i which may block on terminal initialization in VFX environment
-        if False:  # Temporarily disabled - was: not os.environ.get("PYTEST_CURRENT_TEST")
-            self.logger.info("Creating SessionWarmer...")
+        # Pre-warm bash sessions in background to avoid first-command delay
+        # Skip in test environment to avoid threading issues
+        if not os.environ.get("PYTEST_CURRENT_TEST"):
+            self.logger.info("Creating SessionWarmer with login shell mode...")
             self._session_warmer = SessionWarmer(self._process_pool)
             self.logger.info("Starting SessionWarmer thread...")
             self._session_warmer.start()
             self.logger.info("SessionWarmer thread started in background")
         else:
             self._session_warmer = None
-            self.logger.info("SessionWarmer disabled for diagnostic testing")
+            self.logger.debug("Skipping SessionWarmer in test environment")
 
         has_cached_shots = bool(self.shot_model.shots)
         has_cached_scenes = bool(self.threede_scene_model.scenes)
