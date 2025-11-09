@@ -802,30 +802,19 @@ class FileSystemScanner(LoggingMixin):
                 "-print"
             ]
 
-            # Search 2: Look in publish/mm directories only (3DE scenes are always in mm)
-            find_cmd_publish = [
+            # Search 2: Find shots with publish/mm directory (fast directory check)
+            # This validates which shots have published matchmove work
+            find_cmd_publish_dirs = [
                 "find", str(shots_dir),
-                # Prune unwanted directories first
-                "(",
-                *prune_expr,
-                ")",
-                "-prune",
-                "-o",
-                # Target publish/mm directories specifically (avoids scanning thousands of unrelated files)
-                "-type", "f",
-                "-path", "*/publish/mm/*",
-                "(",
-                "-name", "*.3de",
-                "-o",
-                "-name", "*.3DE",
-                ")",
+                "-type", "d",  # Look for directories only (very fast)
+                "-path", "*/publish/mm",
                 "-print"
             ]
 
-            # Run both searches and combine results
-            self.logger.info("🔍 Running dual search: user + publish directories")
+            # Run both searches: find user files + find publish/mm directories
+            self.logger.info("🔍 Running dual search: user files + publish/mm directories")
 
-            # Search 1: User directories (most common)
+            # Search 1: User directories - find actual .3de files
             self.logger.debug(f"Search 1 (user): {' '.join(find_cmd_user)}")
             user_results = self._run_find_with_polling(
                 find_cmd_user, show_path, show, excluded_users, cancel_flag, max_wait_time=150
@@ -835,15 +824,62 @@ class FileSystemScanner(LoggingMixin):
             if cancel_flag and cancel_flag():
                 return []
 
-            # Search 2: Publish directories
-            self.logger.debug(f"Search 2 (publish): {' '.join(find_cmd_publish)}")
-            publish_results = self._run_find_with_polling(
-                find_cmd_publish, show_path, show, excluded_users, cancel_flag, max_wait_time=150
-            )
+            # Search 2: Find shots with publish/mm directory (indicates published matchmove)
+            self.logger.debug(f"Search 2 (publish/mm dirs): {' '.join(find_cmd_publish_dirs)}")
 
-            # Combine results
-            results.extend(user_results)
-            results.extend(publish_results)
+            # Run find command to get publish/mm directories
+            import subprocess
+            shots_with_published_mm: set[tuple[str, str]] = set()
+            try:
+                process = subprocess.Popen(
+                    find_cmd_publish_dirs,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                )
+                stdout, stderr = process.communicate(timeout=30)  # Short timeout for directory check
+
+                if process.returncode == 0 and stdout:
+                    # Parse directory paths to extract sequence/shot
+                    for line in stdout.strip().split("\n"):
+                        if not line:
+                            continue
+                        # Path format: /shows/SHOW/shots/SEQUENCE/SEQUENCE_SHOT/publish/mm
+                        dir_path = Path(line)
+                        try:
+                            # Navigate up: mm -> publish -> SEQUENCE_SHOT -> SEQUENCE
+                            shot_dir = dir_path.parent.parent.name  # SEQUENCE_SHOT
+                            sequence = dir_path.parent.parent.parent.name  # SEQUENCE
+
+                            # Extract shot number from shot_dir (format: SEQUENCE_SHOT)
+                            if shot_dir.startswith(f"{sequence}_"):
+                                shot = shot_dir[len(sequence) + 1:]
+                                shots_with_published_mm.add((sequence, shot))
+                                self.logger.debug(f"Found published MM for: {sequence}/{shot}")
+                        except (IndexError, AttributeError) as e:
+                            self.logger.debug(f"Could not parse publish/mm path {line}: {e}")
+
+                self.logger.info(f"Found {len(shots_with_published_mm)} shots with published matchmove")
+
+            except subprocess.TimeoutExpired:
+                self.logger.warning("Publish/mm directory search timed out after 30s")
+                process.kill()
+            except Exception as e:
+                self.logger.warning(f"Error finding publish/mm directories: {e}")
+
+            # Filter user_results to only include shots with published matchmove
+            if shots_with_published_mm:
+                results = [
+                    result for result in user_results
+                    if (result[2], result[3]) in shots_with_published_mm  # (sequence, shot)
+                ]
+                self.logger.info(
+                    f"Filtered {len(user_results)} user files to {len(results)} from shots with published MM"
+                )
+            else:
+                # No publish/mm directories found - show all user results
+                results = user_results
+                self.logger.info("No publish/mm directories found - showing all user files")
 
             # Track statistics
             file_count = len(results)
@@ -854,12 +890,12 @@ class FileSystemScanner(LoggingMixin):
             # Log combined results
             elapsed = time.time() - start_time
             self.logger.info(
-                f"✅ Dual search complete: {len(user_results)} user + {len(publish_results)} publish = {file_count} total files from {len(unique_shots)} shots ({elapsed:.1f}s)"
+                f"✅ Dual search complete: {len(user_results)} user files found, {len(results)} files from shots with published MM ({len(unique_shots)} shots, {elapsed:.1f}s)"
             )
 
-            # Fall back to Python search if both failed
+            # Fall back to Python search if user search failed
             if not results:
-                self.logger.info("No results from find commands, falling back to Python-based search")
+                self.logger.info("No results from user directory search, falling back to Python-based search")
                 return self._fallback_python_search(
                     shots_dir, show_path, show, excluded_users
                 )
