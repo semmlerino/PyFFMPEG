@@ -139,9 +139,9 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         if not Path(self.fifo_path).exists():
             return False
 
-        # Use heartbeat ping with shorter timeout for startup checks
+        # Use 3.0s timeout to avoid false negatives when bash is executing commands
         # This tests the full round-trip: write → bash reads → bash responds
-        return self._send_heartbeat_ping(timeout=1.0)
+        return self._send_heartbeat_ping(timeout=3.0)
 
     def _is_terminal_alive(self) -> bool:
         """Check if the terminal process is still running."""
@@ -340,10 +340,11 @@ class PersistentTerminalManager(LoggingMixin, QObject):
             return False
 
         try:
-            fd = os.open(self.fifo_path, os.O_WRONLY | os.O_NONBLOCK)
-            with os.fdopen(fd, "wb", buffering=0) as fifo:
-                _ = fifo.write(command.encode("utf-8"))
-                _ = fifo.write(b"\n")
+            with self._write_lock:
+                fd = os.open(self.fifo_path, os.O_WRONLY | os.O_NONBLOCK)
+                with os.fdopen(fd, "wb", buffering=0) as fifo:
+                    _ = fifo.write(command.encode("utf-8"))
+                    _ = fifo.write(b"\n")
             return True
         except OSError:
             return False
