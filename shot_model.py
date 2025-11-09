@@ -478,9 +478,9 @@ class ShotModel(BaseShotModel):
             # Return immediately with current state
             self.logger.info("Returning immediately (background refresh started)")
             return RefreshResult(success=True, has_changes=False)
-        # Already loading - return False to indicate refresh was skipped
-        self.logger.info("Already loading - skipping refresh request (returning success=False)")
-        return RefreshResult(success=False, has_changes=False)
+        # Already loading - return True to indicate no error (operation in progress)
+        self.logger.info("Already loading - skipping refresh request (returning success=True)")
+        return RefreshResult(success=True, has_changes=False)
 
     def pre_warm_sessions(self) -> None:
         """Pre-warm bash sessions during idle time to reduce first-call overhead.
