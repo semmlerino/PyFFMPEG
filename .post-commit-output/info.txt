@@ -1,5 +1,5 @@
-Post-commit hook executed at Sun Nov  9 12:42:36 GMT 2025
-Commit: db32cdf4f4af8da4004729198607ba034c496fbb
+Post-commit hook executed at Sun Nov  9 12:56:53 GMT 2025
+Commit: 7bd56f1b4bc1cb5616a5584715c9c3e269300279
 Branch: master
 Author: GabrielH <gabrhas@gmail.com>
-Message: debug: Add comprehensive logging to diagnose double-launch issue
+Message: fix: Remove duplicate signal connection causing double-launch

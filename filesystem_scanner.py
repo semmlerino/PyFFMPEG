@@ -802,7 +802,7 @@ class FileSystemScanner(LoggingMixin):
                 "-print"
             ]
 
-            # Search 2: Look in publish directories (depth: shots/seq/shot/publish/...)
+            # Search 2: Look in publish/mm directories only (3DE scenes are always in mm)
             find_cmd_publish = [
                 "find", str(shots_dir),
                 # Prune unwanted directories first
@@ -811,9 +811,9 @@ class FileSystemScanner(LoggingMixin):
                 ")",
                 "-prune",
                 "-o",
-                # Target publish directories with depth limit
+                # Target publish/mm directories specifically (avoids scanning thousands of unrelated files)
                 "-type", "f",
-                "-path", "*/publish/*",
+                "-path", "*/publish/mm/*",
                 "(",
                 "-name", "*.3de",
                 "-o",
