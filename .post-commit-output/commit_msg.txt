@@ -1,1 +1,1 @@
-docs: Update test execution documentation and fix minor test issues
+chore: Update auto-generated files from terminal launch fix
