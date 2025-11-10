@@ -5,15 +5,15 @@ requires-python = ">=3.11"
 
 [tool.basedpyright]
 # Check all Python files in the project (no include list = check everything)
-# NOTE: tests/** excluded from type checking. To catch test-side API misuses (common with Qt fixtures),
-# consider removing "tests/**" from exclude and adding per-file ignores for noisiest test modules.
+# NOTE: tests excluded from type checking (test utilities have untyped decorators and generics)
+# Core business logic is fully typed; this trade-off keeps signal-to-noise high
 exclude = [
+    "tests/**",
     "**/node_modules",
     "**/__pycache__",
     ".venv/**",
     "venv/**",
     "test_venv/**",
-    "tests/**",  # See note above about including tests in type checking
     "docs/**",
     "archive/**",
     "BB/**",
@@ -28,28 +28,19 @@ exclude = [
     ".post-commit-output/**",
     "dev-tools/**",
     "wrapper/**",
-    "PyMPEG.py",
-    "conversion_controller.py",
-    "process_monitor.py",
-    "settings_panel.py",
-    "main_window_refactored.py",
-    "file_list_widget.py",
-    "process_manager.py",
-    "progress_tracker.py",
-    "codec_helpers.py",
+    "*.sh",  # Exclude bash/shell scripts (not Python)
     "*_backup.py",
-    "test_*.py",
-    "screenshot_*.py",
-    "logging_config.py",
     # Utility/maintenance scripts (not part of main application)
     "fix_*.py",
     "run_*.py",
     "verify_*.py",
+    "screenshot_*.py",  # Screenshot utilities
     "bundle_app.py",
     "decode_app.py",
     "recreate_vfx_structure.py",
     "capture_vfx_structure.py",
-    "take_screenshot.py"
+    "take_screenshot.py",
+    "main_window_refactored.py"  # Refactored/obsolete version
 ]
 
 pythonVersion = "3.11"
@@ -62,10 +53,10 @@ typeCheckingMode = "strict"
 # Either approach increases signal without turning the firehose back on.
 reportMissingImports = false
 reportMissingTypeStubs = false
-reportUnknownMemberType = false      # Consider: "warning" to catch library API misuses
-reportUnknownParameterType = false   # Consider: "warning" to catch library API misuses
-reportUnknownArgumentType = false    # Consider: "warning" to catch library API misuses
-reportUnknownVariableType = false    # Consider: "warning" to catch library API misuses
+reportUnknownMemberType = "warning"      # Catch library API misuses
+reportUnknownParameterType = "warning"   # Catch library API misuses
+reportUnknownArgumentType = "warning"    # Catch library API misuses
+reportUnknownVariableType = "warning"    # Catch library API misuses
 reportUndefinedVariable = "warning"
 reportImplicitStringConcatenation = false
 reportUnsafeMultipleInheritance = false
@@ -99,6 +90,7 @@ exclude = [
     "dist",
     "*.egg-info",
     "dev-tools",
+    "*.sh",  # Exclude bash/shell scripts (not Python)
 ]
 
 [tool.ruff.lint]
@@ -214,9 +206,6 @@ ignore = [
 "**/config*.py" = [
     "PLR2004", # magic-value-comparison
 ]
-
-# Scripts and utilities
-"*.py" = []
 
 [tool.ruff.lint.isort]
 # Import sorting configuration
