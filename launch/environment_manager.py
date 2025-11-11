@@ -9,9 +9,11 @@ This module handles environment detection and configuration:
 import logging
 import os
 import shutil
-from typing import Final
+from typing import TYPE_CHECKING, Final
 
-from config import Config
+
+if TYPE_CHECKING:
+    from config import Config
 
 
 logger = logging.getLogger(__name__)
@@ -43,7 +45,7 @@ class EnvironmentManager:
         self._rez_available_cache: bool | None = None
         self._available_terminal_cache: str | None = None
 
-    def is_rez_available(self, config: Config) -> bool:
+    def is_rez_available(self, config: "type[Config]") -> bool:
         """Check if rez environment is available.
 
         Args:
@@ -75,7 +77,7 @@ class EnvironmentManager:
         logger.debug(f"Rez availability cached: {self._rez_available_cache}")
         return self._rez_available_cache
 
-    def get_rez_packages(self, app_name: str, config: Config) -> list[str]:
+    def get_rez_packages(self, app_name: str, config: "type[Config]") -> list[str]:
         """Get rez packages for the specified application.
 
         Args:

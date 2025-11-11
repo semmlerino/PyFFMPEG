@@ -5,8 +5,6 @@ from __future__ import annotations
 # Standard library imports
 import errno
 import os
-import shlex
-import shutil
 import subprocess
 from datetime import UTC, datetime
 from functools import partial
@@ -18,6 +16,7 @@ from PySide6.QtCore import QObject, QTimer, Signal
 
 # Local application imports
 from config import Config
+from launch import CommandBuilder, EnvironmentManager, ProcessExecutor
 from logging_mixin import LoggingMixin
 from notification_manager import NotificationManager
 from nuke_launch_router import NukeLaunchRouter
@@ -84,21 +83,18 @@ class CommandLauncher(LoggingMixin, QObject):
         self.current_shot: Shot | None = None
         self.persistent_terminal = persistent_terminal
 
-        # Cache fields for expensive operations
-        self._rez_available: bool | None = None
-        self._available_terminal: str | None = None
+        # Initialize launch components
+        self.env_manager = EnvironmentManager()
+        self.process_executor = ProcessExecutor(persistent_terminal, Config)
 
         # Initialize the Nuke launch handler
         self.nuke_handler = NukeLaunchRouter()
 
-        # Connect to terminal manager progress signals if available
-        if self.persistent_terminal:
-            _ = self.persistent_terminal.operation_progress.connect(
-                self._on_terminal_progress
-            )
-            _ = self.persistent_terminal.command_result.connect(
-                self._on_terminal_command_result
-            )
+        # Connect process executor signals
+        _ = self.process_executor.execution_started.connect(self._on_execution_started)
+        _ = self.process_executor.execution_progress.connect(self._on_execution_progress)
+        _ = self.process_executor.execution_completed.connect(self._on_execution_completed)
+        _ = self.process_executor.execution_error.connect(self._on_execution_error)
 
         # Use injected dependencies or fall back to defaults
         # Note: These are now deprecated and will be removed in the next phase
@@ -147,123 +143,50 @@ class CommandLauncher(LoggingMixin, QObject):
         """Set the current shot context."""
         self.current_shot = shot
 
-    def _is_rez_available(self) -> bool:
-        """Check if rez environment is available.
-
-        Returns:
-            True if rez is available and should be used
-        """
-        if not Config.USE_REZ_ENVIRONMENT:
-            return False
-
-        # Check for REZ_USED environment variable (indicates we're in a rez env)
-        if Config.REZ_AUTO_DETECT and os.environ.get("REZ_USED"):
-            return True
-
-        # Return cached result if available
-        if self._rez_available is not None:
-            return self._rez_available
-
-        # Check if rez command is available
-        self._rez_available = shutil.which("rez") is not None
-        self.logger.debug(f"Rez availability cached: {self._rez_available}")
-        return self._rez_available
-
-    def _get_rez_packages_for_app(self, app_name: str) -> list[str]:
-        """Get rez packages for the specified application.
+    def _on_execution_started(self, operation: str, message: str) -> None:
+        """Handle execution started from ProcessExecutor.
 
         Args:
-            app_name: Name of the application
-
-        Returns:
-            List of rez packages to load
+            operation: Name of the operation
+            message: Status message
         """
-        package_map = {
-            "nuke": Config.REZ_NUKE_PACKAGES,
-            "maya": Config.REZ_MAYA_PACKAGES,
-            "3de": Config.REZ_3DE_PACKAGES,
-        }
-        return package_map.get(app_name, [])
+        timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
+        self.command_executed.emit(timestamp, f"[{operation}] {message}")
 
-    def _detect_available_terminal(self) -> str | None:
-        """Detect available terminal emulator.
-
-        Returns:
-            Name of available terminal emulator, or None if none found
-        """
-        # Return cached result if available
-        if self._available_terminal is not None:
-            return self._available_terminal
-
-        # Check terminals in order of preference
-        terminals = ["gnome-terminal", "konsole", "xterm", "x-terminal-emulator"]
-        for term in terminals:
-            if shutil.which(term) is not None:
-                self._available_terminal = term
-                self.logger.info(f"Detected terminal: {term}")
-                return term
-
-        # No terminal found
-        self.logger.warning("No terminal emulator found")
-        return None
-
-    def _validate_path_for_shell(self, path: str) -> str:
-        """Validate and escape a path for safe use in shell commands.
+    def _on_execution_progress(self, operation: str, message: str) -> None:
+        """Handle execution progress from ProcessExecutor.
 
         Args:
-            path: Path to validate and escape
-
-        Returns:
-            Safely escaped path string
-
-        Raises:
-            ValueError: If path contains dangerous characters that cannot be escaped
+            operation: Name of the operation
+            message: Progress status message
         """
-        # Standard library imports
-        import shlex
+        timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
+        self.command_executed.emit(timestamp, f"[{operation}] {message}")
 
-        # Check for command injection attempts
-        dangerous_chars = [
-            ";",
-            "&&",
-            "||",
-            "|",  # Command separators
-            ">",
-            "<",
-            ">>",
-            ">&",  # Redirections
-            "`",
-            "$(",  # Command substitution
-            "\n",
-            "\r",  # Newlines that could break out
-            "${",
-            "$((",  # Variable/arithmetic expansion
-        ]
+    def _on_execution_completed(self, success: bool, message: str) -> None:
+        """Handle execution completion from ProcessExecutor.
 
-        for char in dangerous_chars:
-            if char in path:
-                raise ValueError(
-                    f"Path contains dangerous character '{char}' that could allow command injection: {path[:100]}"
-                )
+        Args:
+            success: Whether execution completed successfully
+            message: Completion message (empty if success, error if failed)
+        """
+        if not success and message:
+            self._emit_error(f"Execution failed: {message}")
 
-        # Additional validation for known dangerous patterns
-        dangerous_patterns = [
-            "../",  # Path traversal
-            "/..",  # Path traversal variant
-            "~/.",  # Hidden file access attempts
-        ]
+    def _on_execution_error(self, operation: str, error_message: str) -> None:
+        """Handle execution error from ProcessExecutor.
 
-        for pattern in dangerous_patterns:
-            if pattern in path:
-                raise ValueError(
-                    f"Path contains dangerous pattern '{pattern}': {path[:100]}"
-                )
+        Args:
+            operation: Name of the operation that failed
+            error_message: Error message
+        """
+        self._emit_error(f"[{operation}] {error_message}")
 
-        # Use shlex.quote for safe shell escaping
-        # This adds single quotes around the string and escapes any single quotes within
-        return shlex.quote(path)
-
-    # Method removed - now using NukeLaunchHandler.get_environment_fixes()
+    # Methods removed - now using launch components:
+    # - _is_rez_available() → self.env_manager.is_rez_available(Config)
+    # - _get_rez_packages_for_app() → self.env_manager.get_rez_packages(app_name, Config)
+    # - _detect_available_terminal() → self.env_manager.detect_terminal()
+    # - _validate_path_for_shell() → CommandBuilder.validate_path(path)
 
     def launch_app(
         self,
@@ -335,7 +258,7 @@ class CommandLauncher(LoggingMixin, QObject):
             if latest_scene:
                 # Add the scene file to the command
                 try:
-                    safe_scene_path = self._validate_path_for_shell(str(latest_scene))
+                    safe_scene_path = CommandBuilder.validate_path(str(latest_scene))
                     command = f"{command} -open {safe_scene_path}"
                     timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
                     self.command_executed.emit(
@@ -364,7 +287,7 @@ class CommandLauncher(LoggingMixin, QObject):
             if latest_scene:
                 # Add the scene file to the command
                 try:
-                    safe_scene_path = self._validate_path_for_shell(str(latest_scene))
+                    safe_scene_path = CommandBuilder.validate_path(str(latest_scene))
                     command = f"{command} -file {safe_scene_path}"
                     timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
                     self.command_executed.emit(
@@ -387,7 +310,7 @@ class CommandLauncher(LoggingMixin, QObject):
         # Build full command with ws (workspace setup)
         # Validate and escape workspace path to prevent injection
         try:
-            safe_workspace_path = self._validate_path_for_shell(
+            safe_workspace_path = CommandBuilder.validate_path(
                 self.current_shot.workspace_path
             )
 
@@ -417,8 +340,8 @@ class CommandLauncher(LoggingMixin, QObject):
             return False
 
         # Wrap with rez environment if available
-        if self._is_rez_available():
-            rez_packages = self._get_rez_packages_for_app(app_name)
+        if self.env_manager.is_rez_available(Config):
+            rez_packages = self.env_manager.get_rez_packages(app_name, Config)
             if rez_packages:
                 packages_str = " ".join(rez_packages)
                 # Use bash -ilc (interactive + login) for workspace function loading
@@ -438,7 +361,7 @@ class CommandLauncher(LoggingMixin, QObject):
             full_command = ws_command
 
         # Add logging redirection for debugging
-        full_command = self._add_dispatcher_logging(full_command)
+        full_command = CommandBuilder.add_logging(full_command)
 
         # Log the command to UI
         timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
@@ -473,7 +396,7 @@ class CommandLauncher(LoggingMixin, QObject):
                 self.logger.info(
                     f"Sending command to persistent terminal (async): {full_command}"
                 )
-                is_gui = self._is_gui_app(app_name)
+                is_gui = self.process_executor.is_gui_app(app_name)
                 self.logger.debug(
                     f"Command details:\n  Command: {full_command!r}\n  Is GUI app: {is_gui}"
                 )
@@ -486,7 +409,7 @@ class CommandLauncher(LoggingMixin, QObject):
 
         # Launch in new terminal (original behavior)
         # Pre-check for available terminal
-        terminal = self._detect_available_terminal()
+        terminal = self.env_manager.detect_terminal()
         if terminal is None:
             self._emit_error(
                 "No terminal emulator found (checked: gnome-terminal, konsole, xterm, x-terminal-emulator)"
@@ -509,7 +432,7 @@ class CommandLauncher(LoggingMixin, QObject):
 
             # Verify spawn after 100ms (asynchronous to avoid blocking UI) - Task 5.1
             # Use functools.partial for safe reference capture (avoids lambda race conditions)
-            QTimer.singleShot(100, partial(self._verify_spawn, process, app_name))
+            QTimer.singleShot(100, partial(self.process_executor.verify_spawn, process, app_name))
 
             return True
 
@@ -523,7 +446,7 @@ class CommandLauncher(LoggingMixin, QObject):
                 "Launch Failed", f"{app_name} executable not found"
             )
             # Clear cache on failure - terminal may have been uninstalled
-            self._available_terminal = None
+            self.env_manager.reset_cache()
             return False
 
         except PermissionError as e:
@@ -555,7 +478,7 @@ class CommandLauncher(LoggingMixin, QObject):
         except Exception as e:
             # Fallback for unexpected errors - Task 6.3
             # Clear cache on failure - terminal may have been uninstalled
-            self._available_terminal = None
+            self.env_manager.reset_cache()
             self._emit_error(f"Failed to launch {app_name}: {e!s}")
             return False
 
@@ -579,7 +502,7 @@ class CommandLauncher(LoggingMixin, QObject):
         # Include the scene file in the command
         # Validate and escape scene path to prevent injection
         try:
-            safe_scene_path = self._validate_path_for_shell(str(scene.scene_path))
+            safe_scene_path = CommandBuilder.validate_path(str(scene.scene_path))
             # Add app-specific command-line flags for scene file
             if app_name == "3de":
                 command = f"{command} -open {safe_scene_path}"
@@ -599,7 +522,7 @@ class CommandLauncher(LoggingMixin, QObject):
         # Build full command with ws (workspace setup)
         # Validate and escape workspace path to prevent injection
         try:
-            safe_workspace_path = self._validate_path_for_shell(scene.workspace_path)
+            safe_workspace_path = CommandBuilder.validate_path(scene.workspace_path)
 
             # Apply Nuke environment fixes if needed (same as regular launch)
             env_fixes = ""
@@ -627,8 +550,8 @@ class CommandLauncher(LoggingMixin, QObject):
             return False
 
         # Wrap with rez environment if available
-        if self._is_rez_available():
-            rez_packages = self._get_rez_packages_for_app(app_name)
+        if self.env_manager.is_rez_available(Config):
+            rez_packages = self.env_manager.get_rez_packages(app_name, Config)
             if rez_packages:
                 packages_str = " ".join(rez_packages)
                 # Use bash -ilc (interactive + login) for workspace function loading
@@ -643,7 +566,7 @@ class CommandLauncher(LoggingMixin, QObject):
             full_command = ws_command
 
         # Add logging redirection for debugging
-        full_command = self._add_dispatcher_logging(full_command)
+        full_command = CommandBuilder.add_logging(full_command)
 
         # Log the command
         timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
@@ -675,7 +598,7 @@ class CommandLauncher(LoggingMixin, QObject):
                     f"Sending scene command to persistent terminal (async): {full_command}"
                 )
                 self.logger.debug(
-                    f"Is GUI app: {self._is_gui_app(app_name)}"
+                    f"Is GUI app: {self.process_executor.is_gui_app(app_name)}"
                 )
 
                 # Use async send - returns immediately, GUI stays responsive
@@ -686,7 +609,7 @@ class CommandLauncher(LoggingMixin, QObject):
 
         # Launch in new terminal (original behavior)
         # Pre-check for available terminal
-        terminal = self._detect_available_terminal()
+        terminal = self.env_manager.detect_terminal()
         if terminal is None:
             self._emit_error(
                 "No terminal emulator found (checked: gnome-terminal, konsole, xterm, x-terminal-emulator)"
@@ -709,7 +632,7 @@ class CommandLauncher(LoggingMixin, QObject):
 
             # Verify spawn after 100ms (asynchronous to avoid blocking UI) - Task 5.1
             # Use functools.partial for safe reference capture (avoids lambda race conditions)
-            QTimer.singleShot(100, partial(self._verify_spawn, process, app_name))
+            QTimer.singleShot(100, partial(self.process_executor.verify_spawn, process, app_name))
 
             return True
 
@@ -723,7 +646,7 @@ class CommandLauncher(LoggingMixin, QObject):
                 "Launch Failed", f"{app_name} executable not found"
             )
             # Clear cache on failure - terminal may have been uninstalled
-            self._available_terminal = None
+            self.env_manager.reset_cache()
             return False
 
         except PermissionError as e:
@@ -755,7 +678,7 @@ class CommandLauncher(LoggingMixin, QObject):
         except Exception as e:
             # Fallback for unexpected errors - Task 6.3
             # Clear cache on failure - terminal may have been uninstalled
-            self._available_terminal = None
+            self.env_manager.reset_cache()
             self._emit_error(f"Failed to launch {app_name} with scene: {e!s}")
             return False
 
@@ -811,7 +734,7 @@ class CommandLauncher(LoggingMixin, QObject):
                         )
                     else:
                         # Fallback to just passing the path (safely escaped)
-                        safe_plate_path = self._validate_path_for_shell(raw_plate_path)
+                        safe_plate_path = CommandBuilder.validate_path(raw_plate_path)
                         command = f"{command} {safe_plate_path}"
                         timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
                         version = self._raw_plate_finder.get_version_from_path(
@@ -843,15 +766,15 @@ class CommandLauncher(LoggingMixin, QObject):
         # Build full command with ws (workspace setup)
         # Validate and escape workspace path to prevent injection
         try:
-            safe_workspace_path = self._validate_path_for_shell(scene.workspace_path)
+            safe_workspace_path = CommandBuilder.validate_path(scene.workspace_path)
             ws_command = f"ws {safe_workspace_path} && {command}"
         except ValueError as e:
             self._emit_error(f"Invalid workspace path: {e!s}")
             return False
 
         # Wrap with rez environment if available
-        if self._is_rez_available():
-            rez_packages = self._get_rez_packages_for_app(app_name)
+        if self.env_manager.is_rez_available(Config):
+            rez_packages = self.env_manager.get_rez_packages(app_name, Config)
             if rez_packages:
                 packages_str = " ".join(rez_packages)
                 # Use bash -ilc (interactive + login) for workspace function loading
@@ -870,7 +793,7 @@ class CommandLauncher(LoggingMixin, QObject):
             full_command = ws_command
 
         # Add logging redirection for debugging
-        full_command = self._add_dispatcher_logging(full_command)
+        full_command = CommandBuilder.add_logging(full_command)
 
         # Log the command
         timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
@@ -902,7 +825,7 @@ class CommandLauncher(LoggingMixin, QObject):
                     f"Sending scene context command to persistent terminal (async): {full_command}"
                 )
                 self.logger.debug(
-                    f"Is GUI app: {self._is_gui_app(app_name)}"
+                    f"Is GUI app: {self.process_executor.is_gui_app(app_name)}"
                 )
 
                 # Use async send - returns immediately, GUI stays responsive
@@ -913,7 +836,7 @@ class CommandLauncher(LoggingMixin, QObject):
 
         # Launch in new terminal (fallback or when persistent terminal disabled)
         # Pre-check for available terminal
-        terminal = self._detect_available_terminal()
+        terminal = self.env_manager.detect_terminal()
         if terminal is None:
             self._emit_error(
                 "No terminal emulator found (checked: gnome-terminal, konsole, xterm, x-terminal-emulator)"
@@ -936,7 +859,7 @@ class CommandLauncher(LoggingMixin, QObject):
 
             # Verify spawn after 100ms (asynchronous to avoid blocking UI) - Task 5.1
             # Use functools.partial for safe reference capture (avoids lambda race conditions)
-            QTimer.singleShot(100, partial(self._verify_spawn, process, app_name))
+            QTimer.singleShot(100, partial(self.process_executor.verify_spawn, process, app_name))
 
             return True
 
@@ -950,7 +873,7 @@ class CommandLauncher(LoggingMixin, QObject):
                 "Launch Failed", f"{app_name} executable not found"
             )
             # Clear cache on failure - terminal may have been uninstalled
-            self._available_terminal = None
+            self.env_manager.reset_cache()
             return False
 
         except PermissionError as e:
@@ -982,51 +905,13 @@ class CommandLauncher(LoggingMixin, QObject):
         except Exception as e:
             # Fallback for unexpected errors - Task 6.3
             # Clear cache on failure - terminal may have been uninstalled
-            self._available_terminal = None
+            self.env_manager.reset_cache()
             self._emit_error(f"Failed to launch {app_name} in scene context: {e!s}")
             return False
 
-    def _is_gui_app(self, app_name: str) -> bool:
-        """Check if an application is a GUI application.
-
-        Args:
-            app_name: Name of the application
-
-        Returns:
-            True if the app is a GUI application, False otherwise
-        """
-        # List of known GUI applications that should run in background
-        gui_apps = {
-            "3de",
-            "nuke",
-            "maya",
-            "rv",
-            "houdini",
-            "mari",
-            "katana",
-            "clarisse",
-        }
-        return app_name.lower() in gui_apps
-
-    def _verify_spawn(self, process: subprocess.Popen[bytes], app_name: str) -> None:
-        """Verify process didn't crash immediately after spawning.
-
-        This method polls the process after a short delay to detect immediate crashes.
-        If the process has already exited, it indicates a launch failure.
-
-        Args:
-            process: The subprocess.Popen object to verify
-            app_name: Name of the application being launched (for error messages)
-        """
-        exit_code = process.poll()
-        if exit_code is not None:
-            self._emit_error(f"{app_name} crashed immediately (exit code {exit_code})")
-            NotificationManager.error(
-                "Launch Failed", f"{app_name} crashed immediately"
-            )
-        else:
-            # Process spawned successfully - log for debugging
-            self.logger.debug(f"{app_name} process spawned successfully (PID {process.pid})")
+    # Methods removed - now using launch components:
+    # - _is_gui_app() → self.process_executor.is_gui_app(app_name)
+    # - _verify_spawn() → self.process_executor._verify_spawn(process, app_name)
 
     def _validate_workspace_before_launch(
         self, workspace_path: str, app_name: str
@@ -1068,54 +953,14 @@ class CommandLauncher(LoggingMixin, QObject):
 
         return True
 
-    def _add_dispatcher_logging(self, command: str) -> str:
-        """Add logging redirection to capture command output.
-
-        Gracefully handles directory creation failures and special characters in paths.
-
-        Args:
-            command: The command to add logging to
-
-        Returns:
-            Command with logging redirection appended, or original command if logging unavailable
-        """
-        log_dir = Path.home() / ".shotbot" / "logs"
-
-        try:
-            log_dir.mkdir(parents=True, exist_ok=True)
-            log_file = log_dir / "dispatcher.out"
-            # Quote log file path to handle spaces/special chars in paths
-            quoted_log_file = shlex.quote(str(log_file))
-            return f"{command} 2>&1 | tee -a {quoted_log_file}"
-        except (OSError, PermissionError) as e:
-            # Gracefully degrade: log without tee if setup fails
-            self.logger.warning(
-                f"Failed to setup command logging at {log_dir}: {e}. "
-                f"Commands will execute without logging."
-            )
-            return command
+    # Method removed - now using launch components:
+    # - _add_dispatcher_logging() → CommandBuilder.add_logging(command)
 
     def _emit_error(self, error: str) -> None:
         """Emit error with timestamp."""
         timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
         self.command_error.emit(timestamp, error)
 
-    def _on_terminal_progress(self, operation: str, message: str) -> None:
-        """Handle progress updates from terminal operations.
-
-        Args:
-            operation: Name of the operation (e.g., "send_command")
-            message: Progress status message
-        """
-        timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
-        self.command_executed.emit(timestamp, f"[{operation}] {message}")
-
-    def _on_terminal_command_result(self, success: bool, error_message: str) -> None:
-        """Handle command result from terminal operations.
-
-        Args:
-            success: Whether the command completed successfully
-            error_message: Error message if failed (empty if success)
-        """
-        if not success:
-            self._emit_error(f"Terminal operation failed: {error_message}")
+    # Old terminal signal handlers removed - now using ProcessExecutor signals:
+    # - _on_terminal_progress() → _on_execution_progress()
+    # - _on_terminal_command_result() → _on_execution_completed()

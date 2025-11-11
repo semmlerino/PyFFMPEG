@@ -15,11 +15,11 @@ from typing import TYPE_CHECKING, Final
 
 from PySide6.QtCore import QObject, QTimer, Signal
 
-from config import Config
 from notification_manager import NotificationManager
 
 
 if TYPE_CHECKING:
+    from config import Config
     from persistent_terminal_manager import PersistentTerminalManager
 
 logger = logging.getLogger(__name__)
@@ -64,19 +64,19 @@ class ProcessExecutor(QObject):
     def __init__(
         self,
         persistent_terminal: "PersistentTerminalManager | None",
-        config: Config,
+        config: "type[Config]",
         parent: QObject | None = None,
     ) -> None:
         """Initialize ProcessExecutor.
 
         Args:
             persistent_terminal: Optional persistent terminal manager
-            config: Application configuration
+            config: Application configuration class
             parent: Optional Qt parent object
         """
         super().__init__(parent)
         self.persistent_terminal: PersistentTerminalManager | None = persistent_terminal
-        self.config: Config = config
+        self.config: type[Config] = config
         self.logger: logging.Logger = logger
 
         # Connect to persistent terminal signals if available
@@ -211,11 +211,11 @@ class ProcessExecutor(QObject):
 
         # Verify spawn after 100ms (asynchronous to avoid blocking UI)
         # Use functools.partial for safe reference capture (avoids lambda race conditions)
-        QTimer.singleShot(100, partial(self._verify_spawn, process, app_name))
+        QTimer.singleShot(100, partial(self.verify_spawn, process, app_name))
 
         return True
 
-    def _verify_spawn(self, process: subprocess.Popen[bytes], app_name: str) -> None:
+    def verify_spawn(self, process: subprocess.Popen[bytes], app_name: str) -> None:
         """Verify process didn't crash immediately after spawning.
 
         This method polls the process after a short delay to detect immediate crashes.

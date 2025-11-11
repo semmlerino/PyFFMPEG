@@ -279,7 +279,7 @@ class TestProcessVerification:
             qtbot.waitSignal(executor.execution_completed, timeout=1000),
         ):
             # Call verification
-            executor._verify_spawn(mock_process, "nuke")
+            executor.verify_spawn(mock_process, "nuke")
 
         # Verify notification was shown
         mock_notification.assert_called_once()
@@ -295,7 +295,7 @@ class TestProcessVerification:
         # Use wait_signal instead of signal_blocker
         with qtbot.waitSignal(executor.execution_progress, timeout=1000):
             # Call verification
-            executor._verify_spawn(mock_process, "nuke")
+            executor.verify_spawn(mock_process, "nuke")
 
 
 class TestSignalHandling:
