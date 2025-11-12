@@ -75,6 +75,34 @@ class TestTerminalIntegrationFlow:
             )
             # Note: PersistentTerminalManager is QObject, not QWidget - no qtbot.addWidget needed
 
+            # Mock the modules that CommandLauncher will import in __init__
+            # Standard library imports
+            import sys
+            import types
+
+            # Create simple mock classes for CommandLauncher's internal imports
+            MockRawPlateFinder = type("RawPlateFinder", (), {})
+            MockNukeScriptGenerator = type("NukeScriptGenerator", (), {})
+            MockThreeDELatestFinder = type("ThreeDELatestFinder", (), {})
+            MockMayaLatestFinder = type("MayaLatestFinder", (), {})
+
+            # Create mock modules
+            mock_raw_plate_finder = types.ModuleType("raw_plate_finder")
+            mock_raw_plate_finder.RawPlateFinder = MockRawPlateFinder
+            sys.modules["raw_plate_finder"] = mock_raw_plate_finder
+
+            mock_nuke_script_generator = types.ModuleType("nuke_script_generator")
+            mock_nuke_script_generator.NukeScriptGenerator = MockNukeScriptGenerator
+            sys.modules["nuke_script_generator"] = mock_nuke_script_generator
+
+            mock_threede_latest_finder = types.ModuleType("threede_latest_finder")
+            mock_threede_latest_finder.ThreeDELatestFinder = MockThreeDELatestFinder
+            sys.modules["threede_latest_finder"] = mock_threede_latest_finder
+
+            mock_maya_latest_finder = types.ModuleType("maya_latest_finder")
+            mock_maya_latest_finder.MayaLatestFinder = MockMayaLatestFinder
+            sys.modules["maya_latest_finder"] = mock_maya_latest_finder
+
             # Create launcher with terminal
             launcher = CommandLauncher()
             launcher.persistent_terminal = terminal_manager

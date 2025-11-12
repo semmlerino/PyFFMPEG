@@ -1,5 +1,5 @@
-Post-commit hook executed at Wed Nov 12 07:10:55 GMT 2025
-Commit: d03acaff13a14221c5842a7c5622f942d04906e9
+Post-commit hook executed at Wed Nov 12 07:49:20 GMT 2025
+Commit: 30ff95f36c653f5f24b2fb4c3e61f0dd9116769c
 Branch: master
 Author: GabrielH <gabrhas@gmail.com>
-Message: refactor: Phase B polish - type safety, encapsulation, and integration improvements
+Message: refactor: Phase C improvements (P2-1, P2-2) - Qt best practices and API simplification
