@@ -501,7 +501,7 @@ class PreviousShotsModel(LoggingMixin, QObject):
 
             # Clear directory cache in 3DE scene finder
             # Local application imports
-            from threede_scene_finder import ThreeDESceneFinder
+            from threede_scene_finder_optimized import OptimizedThreeDESceneFinder as ThreeDESceneFinder
 
             if hasattr(ThreeDESceneFinder, "refresh_cache"):
                 cleared_count = ThreeDESceneFinder.refresh_cache()

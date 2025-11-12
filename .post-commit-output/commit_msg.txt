@@ -1,1 +1,1 @@
-refactor: Improve code quality with helper extraction and decomposition
+refactor: Delete unused BaseAssetFinder class and tests (Task 1.1)

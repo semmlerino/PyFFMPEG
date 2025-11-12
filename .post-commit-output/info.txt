@@ -1,5 +1,5 @@
-Post-commit hook executed at Wed Nov 12 11:30:02 GMT 2025
-Commit: 6102dd14a07d94e3f298a7f2bb694f70dde457b7
+Post-commit hook executed at Wed Nov 12 23:47:59 GMT 2025
+Commit: 97bf77df323d07127b3d181544ec5250c317d0ea
 Branch: master
 Author: GabrielH <gabrhas@gmail.com>
-Message: refactor: Improve code quality with helper extraction and decomposition
+Message: refactor: Delete unused BaseAssetFinder class and tests (Task 1.1)

@@ -17,7 +17,7 @@ import pytest
 
 # Local application imports
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from threede_scene_finder import ThreeDESceneFinder
+from threede_scene_finder_optimized import OptimizedThreeDESceneFinder as ThreeDESceneFinder
 
 
 # This test file follows UNIFIED_TESTING_GUIDE best practices:
@@ -512,9 +512,7 @@ def test_path_parsing_for_deep_nested_structure() -> None:
     from config import (
         Config,
     )
-    from threede_scene_finder import (
-        OptimizedThreeDESceneFinder,
-    )
+    from threede_scene_finder_optimized import OptimizedThreeDESceneFinder
 
     # Create realistic file path that was causing issues
     target_file = Path(
