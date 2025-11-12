@@ -292,6 +292,74 @@ class ShotModel(BaseShotModel):
             self.logger.info("AsyncShotLoader.start() called - background thread started")
             self.logger.info("<<< _start_background_refresh() COMPLETE")
 
+    def _process_shot_merge(
+        self,
+        fresh_shots: list[Shot],
+        operation_name: str = "refresh",
+    ) -> ShotMergeResult:
+        """Process shot merge with error handling and migration.
+
+        Args:
+            fresh_shots: Fresh shots from workspace scan
+            operation_name: Operation name for logging (e.g., "refresh", "sync")
+
+        Returns:
+            ShotMergeResult with merged data
+        """
+        # Load cache
+        cached_dicts = self.cache_manager.get_persistent_shots() or []
+        fresh_dicts = [s.to_dict() for s in fresh_shots]
+
+        # Log the data sources for clarity (sync path has different message)
+        if operation_name == "sync":
+            pass  # Sync path logs this elsewhere
+        else:
+            self.logger.info(
+                f"{operation_name}: {len(fresh_dicts)} shots from workspace, "
+                f"{len(cached_dicts)} shots from persistent cache"
+            )
+
+        # Merge with corruption recovery
+        try:
+            merge_result = self.cache_manager.merge_shots_incremental(
+                cached_dicts, fresh_dicts
+            )
+        except (KeyError, TypeError, ValueError) as e:
+            self.logger.warning(f"Cache corruption detected, using fresh data only: {e}")
+            merge_result = ShotMergeResult(
+                updated_shots=[s.to_dict() for s in fresh_shots],
+                new_shots=[s.to_dict() for s in fresh_shots],
+                removed_shots=[],
+                has_changes=True,
+            )
+
+        # Log statistics
+        self.logger.info(
+            f"Shot merge ({operation_name}): {len(merge_result.new_shots)} new, "
+            f"{len(merge_result.removed_shots)} removed, "
+            f"{len(merge_result.updated_shots)} total"
+        )
+
+        # Migrate removed shots
+        if merge_result.removed_shots:
+            try:
+                self.cache_manager.migrate_shots_to_previous(merge_result.removed_shots)
+                removed_names = [
+                    f"{s['show']}:{s['sequence']}_{s['shot']}"
+                    for s in merge_result.removed_shots[:3]
+                ]
+                self.logger.info(
+                    f"Migrated {len(merge_result.removed_shots)} shots to Previous: "
+                    f"{removed_names}{'...' if len(merge_result.removed_shots) > 3 else ''}"
+                )
+            except OSError as e:
+                # Log migration failure but don't abort refresh
+                self.logger.warning(
+                    f"Failed to migrate shots (refresh continues): {e}"
+                )
+
+        return merge_result
+
     @Slot(list)  # type: ignore[reportAny]
     def _on_shots_loaded(self, fresh_shots: list[Shot]) -> None:
         """Handle shots loaded in background (INCREMENTAL VERSION).
@@ -303,29 +371,8 @@ class ShotModel(BaseShotModel):
         old_count = len(self.shots)
 
         try:
-            # Load persistent cache (returns ShotDict list or None)
-            cached_dicts = self.cache_manager.get_persistent_shots() or []
-            fresh_dicts = [s.to_dict() for s in fresh_shots]
-
-            # Log the data sources for clarity
-            self.logger.info(
-                f"Background refresh: {len(fresh_dicts)} shots from workspace, "
-                 f"{len(cached_dicts)} shots from persistent cache"
-            )
-
-            # Merge incremental changes (no conversion needed - cached_dicts already ShotDict)
-            merge_result = self.cache_manager.merge_shots_incremental(
-                cached_dicts, fresh_dicts
-            )
-
-        except (KeyError, TypeError, ValueError) as e:
-            # Corrupted cache data - fall back to fresh data only
-            self.logger.warning(f"Cache corruption detected, using fresh data only: {e}")
-            merge_result = ShotMergeResult(
-                updated_shots=[s.to_dict() for s in fresh_shots],
-                new_shots=[s.to_dict() for s in fresh_shots],
-                removed_shots=[],
-                has_changes=True,
+            merge_result = self._process_shot_merge(
+                fresh_shots, operation_name="background refresh"
             )
         except Exception as e:
             # Unexpected merge failure - report error and abort
@@ -334,29 +381,6 @@ class ShotModel(BaseShotModel):
             self.error_occurred.emit(error_msg)
             self.refresh_finished.emit(False, False)
             return
-
-        # Log merge statistics
-        self.logger.info(
-            f"Shot merge: {len(merge_result.new_shots)} new, "
-             f"{len(merge_result.removed_shots)} removed, "
-             f"{len(merge_result.updated_shots)} total"
-        )
-
-        # Migrate removed shots to Previous Shots
-        if merge_result.removed_shots:
-            try:
-                self.cache_manager.migrate_shots_to_previous(merge_result.removed_shots)
-                removed_names = [
-                    f"{s['show']}:{s['sequence']}_{s['shot']}"
-                    for s in merge_result.removed_shots[:3]
-                ]
-                self.logger.info(
-                    f"Migrated {len(merge_result.removed_shots)} shots to Previous: "
-                     f"{removed_names}{'...' if len(merge_result.removed_shots) > 3 else ''}"
-                )
-            except OSError as e:
-                # Log migration failure but don't abort refresh
-                self.logger.warning(f"Failed to migrate shots (refresh continues): {e}")
 
         # ALWAYS update with merged data (includes metadata updates)
         # This prevents stale workspace_path even when has_changes=False
@@ -617,24 +641,9 @@ class ShotModel(BaseShotModel):
             # Parse output
             fresh_shots = self._parse_ws_output(output)
 
-            # Load persistent cache (returns ShotDict list or None)
-            cached_dicts = self.cache_manager.get_persistent_shots() or []
-            fresh_dicts = [s.to_dict() for s in fresh_shots]
-
-            # Merge incremental changes (with cache corruption recovery)
+            # Process shot merge with error handling and migration
             try:
-                merge_result = self.cache_manager.merge_shots_incremental(
-                    cached_dicts, fresh_dicts
-                )
-            except (KeyError, TypeError, ValueError) as e:
-                # Corrupted cache data - fall back to fresh data only
-                self.logger.warning(f"Cache corruption detected, using fresh data only: {e}")
-                merge_result = ShotMergeResult(
-                    updated_shots=[s.to_dict() for s in fresh_shots],
-                    new_shots=[s.to_dict() for s in fresh_shots],
-                    removed_shots=[],
-                    has_changes=True,
-                )
+                merge_result = self._process_shot_merge(fresh_shots, operation_name="sync")
             except Exception as e:
                 # Unexpected merge failure - report error and abort
                 error_msg = f"Merge operation failed: {e}"
@@ -642,33 +651,6 @@ class ShotModel(BaseShotModel):
                 self.error_occurred.emit(error_msg)
                 self.refresh_finished.emit(False, False)
                 return RefreshResult(success=False, has_changes=False)
-
-            # Log merge statistics
-            self.logger.info(
-                f"Shot merge (sync): {len(merge_result.new_shots)} new, "
-                 f"{len(merge_result.removed_shots)} removed, "
-                 f"{len(merge_result.updated_shots)} total"
-            )
-
-            # Migrate removed shots to Previous Shots
-            if merge_result.removed_shots:
-                try:
-                    self.cache_manager.migrate_shots_to_previous(
-                        merge_result.removed_shots
-                    )
-                    removed_names = [
-                        f"{s['show']}:{s['sequence']}_{s['shot']}"
-                        for s in merge_result.removed_shots[:3]
-                    ]
-                    self.logger.info(
-                        f"Migrated {len(merge_result.removed_shots)} shots to Previous: "
-                         f"{removed_names}{'...' if len(merge_result.removed_shots) > 3 else ''}"
-                    )
-                except OSError as e:
-                    # Log migration failure but don't abort refresh
-                    self.logger.warning(
-                        f"Failed to migrate shots (refresh continues): {e}"
-                    )
 
             # ALWAYS update with merged data (includes metadata updates)
             # Protect against corrupted merge results

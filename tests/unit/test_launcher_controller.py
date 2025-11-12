@@ -441,6 +441,46 @@ class TestApplicationLaunching:
         assert opts["shot"] == test_shot.full_name
         assert "Launched nuke" in target.status_messages
 
+    def test_validate_launch_context_re_syncs_from_command_launcher(
+        self,
+        make_launcher_controller: Callable[
+            [Any, bool], tuple[LauncherController, MockLauncherTarget]
+        ],
+        test_shot: Shot,
+    ) -> None:
+        """Test re-sync fallback when context only in command_launcher.
+
+        This validates the fallback mechanism that prevents silent launch failures
+        when the controller doesn't have context but command_launcher does.
+        """
+        controller, target = make_launcher_controller()
+
+        # Setup: Shot in command_launcher, NOT in controller
+        target.command_launcher.set_current_shot(test_shot)
+        assert controller._current_shot is None
+
+        # Mock checkbox states
+        target.launcher_panel.get_checkbox_state = Mock(return_value=False)
+
+        # Mock app_sections to be subscriptable
+        mock_nuke_section = Mock()
+        mock_nuke_section.get_selected_plate = Mock(return_value=None)
+        target.launcher_panel.app_sections = {"nuke": mock_nuke_section}
+
+        # Action: Launch should trigger re-sync
+        controller.launch_app("nuke")
+
+        # Verify: Launch proceeded (didn't fail due to missing context)
+        # The re-sync happens internally, launch should execute
+        assert len(target.command_launcher.executed_commands) >= 1, (
+            "Launch should have executed after re-syncing context from command_launcher"
+        )
+
+        # Verify: Context was synced
+        assert controller._current_shot is not None, (
+            "Controller should have re-synced shot context from command_launcher"
+        )
+
     def test_launch_app_with_scene_context_3de(
         self,
         make_launcher_controller: Callable[
@@ -545,6 +585,48 @@ class TestApplicationLaunching:
         _, opts = target.command_launcher.executed_commands[0]
         assert opts["open_latest_scene"] is True
         assert opts["create_new_file"] is False  # Should be overridden
+
+    def test_build_launch_options_rejects_workspace_op_without_plate(
+        self,
+        make_launcher_controller: Callable[
+            [Any, bool], tuple[LauncherController, MockLauncherTarget]
+        ],
+        test_shot: Shot,
+    ) -> None:
+        """Test plate validation for Nuke workspace operations.
+
+        This validates that workspace operations (open_latest_scene, create_new_file)
+        require a plate selection and fail gracefully with user notification.
+        """
+        controller, target = make_launcher_controller()
+        controller.set_current_shot(test_shot)
+
+        # Mock: Workspace option checked but NO plate selected
+        target.launcher_panel.get_checkbox_state = Mock(
+            side_effect=lambda app, opt: opt == "open_latest_scene"
+        )
+
+        # Mock: Nuke section returns None for selected plate
+        mock_nuke_section = Mock()
+        mock_nuke_section.get_selected_plate = Mock(return_value=None)
+        target.launcher_panel.app_sections = {"nuke": mock_nuke_section}
+
+        # Mock NotificationManager to verify error shown
+        with patch("controllers.launcher_controller.NotificationManager.warning") as mock_warning:
+            # Action: Launch should fail validation
+            controller.launch_app("nuke")
+
+            # Verify: Launch did NOT proceed
+            assert len(target.command_launcher.executed_commands) == 0, (
+                "Launch should have been blocked due to missing plate selection"
+            )
+
+            # Verify: User was notified
+            mock_warning.assert_called_once()
+            call_args = mock_warning.call_args[0]
+            assert "Plate" in call_args[0], (
+                "Error notification should mention 'Plate' in the title"
+            )
 
 
 # Custom launcher tests

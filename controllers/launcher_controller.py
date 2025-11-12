@@ -15,7 +15,7 @@ a focused, testable component. It handles:
 from __future__ import annotations
 
 # Standard library imports
-from typing import TYPE_CHECKING, Protocol, cast
+from typing import TYPE_CHECKING, Any, Protocol, cast
 
 # Third-party imports
 from PySide6.QtGui import QAction
@@ -42,10 +42,12 @@ import inspect
 from collections.abc import Callable as CallableABC
 from datetime import UTC, datetime
 
+from command_launcher import CommandLauncher, LaunchContext
 from logging_mixin import LoggingMixin
 from notification_manager import NotificationManager, NotificationType
 from progress_manager import ProgressManager
 from shot_model import Shot
+from simplified_launcher import SimplifiedLauncher
 
 
 class LauncherTarget(Protocol):
@@ -217,28 +219,151 @@ class LauncherController(LoggingMixin):
 
         return options
 
+    def _validate_launch_context(self) -> bool:
+        """Validate that we have necessary context for launching.
+
+        Returns:
+            True if context is valid, False otherwise
+        """
+        # Have scene or shot context - valid
+        if self._current_scene or self._current_shot:
+            return True
+
+        # Try to sync context from command_launcher
+        if self.window.command_launcher.current_shot:
+            self._current_shot = self.window.command_launcher.current_shot
+            self.logger.info(f"Re-synced context from command_launcher: {self._current_shot.full_name}")
+            self._log_command(f"Re-synced shot context: {self._current_shot.full_name}")
+            return True
+
+        # No context available
+        self.logger.error("No shot or scene context available for launch")
+        self._log_error("No shot selected - please select a shot before launching")
+        NotificationManager.warning(
+            "No Shot Selected",
+            "Please select a shot before launching applications.",
+        )
+        return False
+
+    def _build_launch_options(self, app_name: str) -> dict[str, Any] | None:
+        """Build launch options from UI state and validate.
+
+        Args:
+            app_name: Name of the application
+
+        Returns:
+            Dictionary of launch options, or None if validation failed
+        """
+        # Get app-specific options
+        options = self.get_launch_options(app_name)
+
+        # Extract individual options
+        include_raw_plate = options.get("include_raw_plate", False)
+        open_latest_threede = options.get("open_latest_threede", False)
+        open_latest_maya = options.get("open_latest_maya", False)
+        open_latest_scene = options.get("open_latest_scene", False)
+        create_new_file = options.get("create_new_file", False)
+
+        # Note: open_latest_scene takes priority if both are checked
+        if open_latest_scene and create_new_file:
+            create_new_file = False
+
+        # Get and validate selected plate for Nuke (if applicable)
+        selected_plate = None
+        if app_name == "nuke":
+            selected_plate = self.window.launcher_panel.app_sections["nuke"].get_selected_plate()
+
+            # Validate plate selection for workspace operations
+            if (open_latest_scene or create_new_file) and not selected_plate:
+                self.logger.error("No plate selected for Nuke workspace operation")
+                self._log_error(
+                    "Please select a plate space before launching Nuke with workspace scripts"
+                )
+                NotificationManager.warning(
+                    "No Plate Selected",
+                    "Please select a plate space (e.g., FG01, BG01) before launching Nuke.",
+                )
+                return None
+
+        return {
+            "include_raw_plate": include_raw_plate,
+            "open_latest_threede": open_latest_threede,
+            "open_latest_maya": open_latest_maya,
+            "open_latest_scene": open_latest_scene,
+            "create_new_file": create_new_file,
+            "selected_plate": selected_plate,
+        }
+
+    def _execute_launch_with_options(
+        self, app_name: str, options: dict[str, Any]
+    ) -> bool:
+        """Execute launch with the given options.
+
+        Args:
+            app_name: Name of the application
+            options: Launch options dictionary
+
+        Returns:
+            True if launch was successful, False otherwise
+        """
+        # Type-safe launch handling for union type (CommandLauncher | SimplifiedLauncher)
+        launcher_method: CallableABC[..., bool] | None = getattr(
+            self.window.command_launcher, "launch_app", None
+        )
+        if launcher_method is None or not callable(launcher_method):
+            return False
+
+        # Check if launcher supports selected_plate parameter
+        sig = inspect.signature(launcher_method)
+        supports_selected_plate = "selected_plate" in sig.parameters
+
+        # Use LaunchContext for CommandLauncher (new API)
+        if supports_selected_plate and options.get("selected_plate") and app_name == "nuke":
+            launcher = cast("CommandLauncher", self.window.command_launcher)
+            context = LaunchContext(
+                include_raw_plate=options["include_raw_plate"],
+                open_latest_threede=options["open_latest_threede"],
+                open_latest_maya=options["open_latest_maya"],
+                open_latest_scene=options["open_latest_scene"],
+                create_new_file=options["create_new_file"],
+                selected_plate=options["selected_plate"],
+            )
+            return launcher.launch_app(app_name, context)
+
+        # CommandLauncher supports both context and legacy params
+        if isinstance(self.window.command_launcher, CommandLauncher):
+            context = LaunchContext(
+                include_raw_plate=options["include_raw_plate"],
+                open_latest_threede=options["open_latest_threede"],
+                open_latest_maya=options["open_latest_maya"],
+                open_latest_scene=options["open_latest_scene"],
+                create_new_file=options["create_new_file"],
+            )
+            return self.window.command_launcher.launch_app(app_name, context)
+
+        # SimplifiedLauncher only supports legacy boolean parameters
+        return self.window.command_launcher.launch_app(
+            app_name,
+            options["include_raw_plate"],
+            options["open_latest_threede"],
+            options["open_latest_maya"],
+            options["open_latest_scene"],
+            options["create_new_file"],
+        )
+
     def launch_app(self, app_name: str) -> None:
         """Launch an application.
 
         Args:
             app_name: Name of the application to launch
         """
-        # DIAGNOSTIC: Log current state when button is clicked
-        import traceback
-        stack = "".join(traceback.format_stack()[-5:-1])  # Last 4 frames before this call
-        self.logger.info(f"🚀 launch_app() called for app: {app_name} (controller id={id(self)})")
-        self.logger.info(f"📞 Call stack:\n{stack}")
-        self.logger.info("   Current state check:")
-        self.logger.info(
-            f"   - _current_scene: {self._current_scene.full_name if self._current_scene else 'None'}"
-        )
-        self.logger.info(
-            f"   - _current_shot: {self._current_shot.full_name if self._current_shot else 'None'}"
-        )
+        # Validate launch context
+        if not self._validate_launch_context():
+            return
 
         # Check if we have a current 3DE scene selected
         if self._current_scene:
-            self.logger.info(f"✓ Using scene context: {self._current_scene.full_name}")
+            self.logger.info(f"Using scene context: {self._current_scene.full_name}")
             # Launch with scene context
             if app_name == "3de":
                 # For 3DE, use the scene file directly
@@ -250,107 +375,29 @@ class LauncherController(LoggingMixin):
                     self._current_scene,
                 )
         else:
-            self.logger.warning("⚠️  No scene context - falling back to shot context")
+            # Shot context path
+            self.logger.info("Using shot context (no scene selected)")
+            self._log_command("Using shot context (no scene selected)")
 
-            # Add visible UI feedback about fallback
-            timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
-            self.window.log_viewer.add_command(
-                timestamp, "Using shot context (no scene selected)"
-            )
+            # Sync command_launcher context if needed
+            if not self.window.command_launcher.current_shot and self._current_shot:
+                self.logger.info(
+                    f"Re-syncing command_launcher context with {self._current_shot.full_name}"
+                )
+                self.window.command_launcher.set_current_shot(self._current_shot)
+                self._log_command(
+                    f"Re-synced shot context: {self._current_shot.full_name}"
+                )
 
-            # Verify command_launcher has shot context set
-            if not self.window.command_launcher.current_shot:
-                if self._current_shot:
-                    # Re-sync contexts
-                    self.logger.info(
-                        f"Re-syncing command_launcher context with {self._current_shot.full_name}"
-                    )
-                    self.window.command_launcher.set_current_shot(self._current_shot)
-                    timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
-                    self.window.log_viewer.add_command(
-                        timestamp,
-                        f"Re-synced shot context: {self._current_shot.full_name}",
-                    )
-                else:
-                    # No context at all - fail gracefully
-                    self.logger.error("No shot or scene context available for launch")
-                    timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
-                    self.window.log_viewer.add_error(
-                        timestamp,
-                        "No shot selected - please select a shot before launching",
-                    )
-                    NotificationManager.warning(
-                        "No Shot Selected",
-                        "Please select a shot before launching applications.",
-                    )
-                    return  # Exit early without setting success
+            # Build and validate launch options
+            options = self._build_launch_options(app_name)
+            if options is None:
+                return  # Validation failed
 
-            # Regular shot launch - get app-specific options
-            options = self.get_launch_options(app_name)
+            # Execute launch
+            success = self._execute_launch_with_options(app_name, options)
 
-            # Extract individual options for command launcher
-            include_raw_plate = options.get("include_raw_plate", False)
-            open_latest_threede = options.get("open_latest_threede", False)
-            open_latest_maya = options.get("open_latest_maya", False)
-            open_latest_scene = options.get("open_latest_scene", False)
-            create_new_file = options.get("create_new_file", False)
-
-            # Note: open_latest_scene takes priority if both are checked
-            if open_latest_scene and create_new_file:
-                create_new_file = False
-
-            # Get selected plate for Nuke (if applicable)
-            selected_plate = None
-            if app_name == "nuke":
-                selected_plate = self.window.launcher_panel.app_sections["nuke"].get_selected_plate()
-
-                # Validate plate selection for workspace operations
-                if (open_latest_scene or create_new_file) and not selected_plate:
-                    self.logger.error("No plate selected for Nuke workspace operation")
-                    timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
-                    self.window.log_viewer.add_error(
-                        timestamp,
-                        "Please select a plate space before launching Nuke with workspace scripts",
-                    )
-                    NotificationManager.warning(
-                        "No Plate Selected",
-                        "Please select a plate space (e.g., FG01, BG01) before launching Nuke.",
-                    )
-                    return  # Exit early without launching
-
-            # Type-safe launch handling for union type (CommandLauncher | SimplifiedLauncher)
-            # Check if launcher supports selected_plate parameter using inspect
-            launcher_method: CallableABC[..., bool] | None = getattr(self.window.command_launcher, "launch_app", None)
-            if launcher_method is None or not callable(launcher_method):
-                success = False
-            else:
-                # Check if method signature includes 'selected_plate' parameter
-                sig = inspect.signature(launcher_method)
-                supports_selected_plate = "selected_plate" in sig.parameters
-
-                if supports_selected_plate and selected_plate and app_name == "nuke":
-                    # Narrow type to CommandLauncher which has selected_plate parameter
-                    launcher = cast("CommandLauncher", self.window.command_launcher)
-                    success = launcher.launch_app(
-                        app_name,
-                        include_raw_plate,
-                        open_latest_threede,
-                        open_latest_maya,
-                        open_latest_scene,
-                        create_new_file,
-                        selected_plate=selected_plate,
-                    )
-                else:
-                    # SimplifiedLauncher or no plate selected - both support base parameters
-                    success = self.window.command_launcher.launch_app(
-                        app_name,
-                        include_raw_plate,
-                        open_latest_threede,
-                        open_latest_maya,
-                        open_latest_scene,
-                        create_new_file,
-                    )
-
+        # Update UI based on success
         if success:
             self.window.update_status(f"Launched {app_name}")
             NotificationManager.toast(
@@ -358,6 +405,7 @@ class LauncherController(LoggingMixin):
             )
         else:
             self.window.update_status(f"Failed to launch {app_name}")
+            # Error details are handled by _on_command_error
             # Error details are handled by _on_command_error
 
     def _launch_app_with_scene(self, app_name: str, scene: ThreeDEScene) -> bool:
@@ -461,16 +509,11 @@ class LauncherController(LoggingMixin):
         if success:
             self.window.update_status(f"Launched '{launcher.name}'")
             # Log the execution
-            timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
-            self.window.log_viewer.add_command(
-                timestamp, f"Custom launcher: {launcher.name}"
-            )
+            self._log_command(f"Custom launcher: {launcher.name}")
         else:
             self.window.update_status(f"Failed to launch '{launcher.name}'")
-            timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
-            self.window.log_viewer.add_error(
-                timestamp,
-                f"Failed to launch custom launcher: {launcher.name}",
+            self._log_error(
+                f"Failed to launch custom launcher: {launcher.name}"
             )
 
     def update_custom_launcher_buttons(self) -> None:
@@ -660,6 +703,24 @@ class LauncherController(LoggingMixin):
             )
         else:
             NotificationManager.toast("Custom command failed", NotificationType.ERROR)
+
+    def _log_command(self, message: str) -> None:
+        """Log command with current timestamp.
+
+        Args:
+            message: Command message to log
+        """
+        timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
+        self.window.log_viewer.add_command(timestamp, message)
+
+    def _log_error(self, message: str) -> None:
+        """Log error with current timestamp.
+
+        Args:
+            message: Error message to log
+        """
+        timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
+        self.window.log_viewer.add_error(timestamp, message)
 
     # ============================================================================
     # Properties - Single Source of Truth for Context State

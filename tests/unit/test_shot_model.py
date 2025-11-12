@@ -17,14 +17,19 @@ from typing import TYPE_CHECKING
 
 # Third-party imports
 import pytest
+from pytest_mock import MockerFixture
+from pytestqt.qtbot import QtBot
 
 from config import Config
 
 # Local application imports
-from shot_model import RefreshResult, Shot
+from cache_manager import ShotMergeResult
+from shot_model import RefreshResult, Shot, ShotModel
 
 
 if TYPE_CHECKING:
+    from cache_manager import CacheManager
+
     # Local application imports
     from tests.unit.test_protocols import TestShotFactory
 
@@ -461,6 +466,126 @@ class TestShotModelErrorHandling:
         result = real_shot_model.refresh_shots()
         assert result.success is True
         assert len(real_shot_model.shots) == 1  # Different shot count = changes
+
+
+class TestShotModelMergeErrorHandling:
+    """Test error handling in _process_shot_merge method."""
+
+    def test_process_shot_merge_cache_corruption_recovery(
+        self,
+        real_shot_model: ShotModel,
+        real_cache_manager: CacheManager,
+        mocker: MockerFixture,
+    ) -> None:
+        """Test recovery when cache merge fails due to corruption.
+
+        This validates that cache corruption (KeyError, TypeError, ValueError)
+        is handled gracefully by falling back to fresh data instead of crashing.
+        """
+        fresh_shots = [
+            Shot("show1", "seq1", "0010", "/path/0010"),
+            Shot("show1", "seq1", "0020", "/path/0020"),
+        ]
+
+        # Mock: Cache merge throws corruption error
+        mock_merge = mocker.patch.object(real_cache_manager, "merge_shots_incremental")
+        mock_merge.side_effect = KeyError("corrupted_field")
+
+        # Action: Process merge should recover
+        result = real_shot_model._process_shot_merge(fresh_shots, "test")
+
+        # Verify: Returns fresh data as fallback
+        assert len(result.updated_shots) == 2, (
+            "Merge should fall back to fresh data when cache is corrupted"
+        )
+        assert result.new_shots == [s.to_dict() for s in fresh_shots]
+        assert result.has_changes is True, (
+            "Corruption recovery should indicate changes occurred"
+        )
+
+    def test_process_shot_merge_migration_failure_continues(
+        self,
+        real_shot_model: ShotModel,
+        real_cache_manager: CacheManager,
+        mocker: MockerFixture,
+    ) -> None:
+        """Test that migration failures don't halt the refresh operation.
+
+        This validates that OSErrors during migration (disk full, permissions)
+        are handled gracefully with a warning, allowing the refresh to complete.
+        """
+        cached_shots = [Shot("show1", "seq1", "0010", "/path/0010")]
+        fresh_shots = [Shot("show1", "seq1", "0020", "/path/0020")]
+
+        # Mock: Valid merge result with removed shot
+        mock_merge_result = ShotMergeResult(
+            updated_shots=[fresh_shots[0].to_dict()],
+            new_shots=[fresh_shots[0].to_dict()],
+            removed_shots=[cached_shots[0].to_dict()],
+            has_changes=True,
+        )
+        mocker.patch.object(
+            real_cache_manager, "merge_shots_incremental", return_value=mock_merge_result
+        )
+
+        # Mock: Migration throws OSError (disk full, permissions, etc.)
+        mock_migrate = mocker.patch.object(
+            real_cache_manager, "migrate_shots_to_previous"
+        )
+        mock_migrate.side_effect = OSError("Disk full")
+
+        # Action: Should complete despite migration failure
+        result = real_shot_model._process_shot_merge(fresh_shots, "test")
+
+        # Verify: Merge still succeeded
+        assert len(result.updated_shots) == 1, (
+            "Merge should complete even if migration fails"
+        )
+        assert result.has_changes is True
+
+        # Verify: Migration was attempted
+        mock_migrate.assert_called_once()
+
+    def test_on_shots_loaded_async_merge_path(
+        self,
+        real_shot_model: ShotModel,
+        real_cache_manager: CacheManager,
+        mocker: MockerFixture,
+        qtbot: QtBot,
+    ) -> None:
+        """Test async loading path calls merge and emits signals correctly.
+
+        This validates that background shot loading uses the same merge logic
+        and emits appropriate signals (shots_loaded, shots_changed).
+        """
+        fresh_shots = [
+            Shot("show1", "seq1", "0010", "/path/0010"),
+            Shot("show1", "seq1", "0020", "/path/0020"),
+        ]
+
+        # Mock: Valid merge with changes
+        mock_merge_result = ShotMergeResult(
+            updated_shots=[s.to_dict() for s in fresh_shots],
+            new_shots=[s.to_dict() for s in fresh_shots],
+            removed_shots=[],
+            has_changes=True,
+        )
+        mocker.patch.object(
+            real_cache_manager, "merge_shots_incremental", return_value=mock_merge_result
+        )
+
+        # Setup signal spies - shots_changed fires when there are new shots added
+        with qtbot.waitSignal(real_shot_model.shots_loaded, timeout=1000) as blocker:
+            # Action: Trigger async load (first load: 0 -> 2 shots)
+            real_shot_model._on_shots_loaded(fresh_shots)
+
+        # Verify: Signal was emitted
+        assert blocker.signal_triggered, "shots_loaded signal should have been emitted for first load"
+
+        # Verify: Shots were updated
+        assert len(real_shot_model.shots) == 2, (
+            "Model should have 2 shots after async load"
+        )
 
 
 class TestShotModelParser:
