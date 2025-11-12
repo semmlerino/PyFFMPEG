@@ -1,1 +1,1 @@
-fix: Update integration tests for CommandLauncher refactoring
+refactor: Improve code quality with helper extraction and decomposition

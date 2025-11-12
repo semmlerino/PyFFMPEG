@@ -1140,7 +1140,7 @@ class MyPlugin(LauncherPlugin):
 Custom launchers automatically integrate with the existing shot model:
 
 ```python
-# In CommandLauncher class
+# In SimplifiedLauncher class (or CommandLauncher for legacy)
 def launch_custom_app(self, launcher_id: str, **kwargs) -> bool:
     """Launch a custom application."""
     if not self.current_shot:

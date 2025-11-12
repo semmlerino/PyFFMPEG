@@ -125,7 +125,8 @@ The "Other 3DE scenes" tab shows 3DE scene files created by other users (excludi
 - `threede_scene_scanner.py` - Background scanner with progress reporting
 
 ### Application Integration
-- `command_launcher.py` - Application launching with scene file support
+- `launcher/simplified_launcher.py` - Streamlined application launcher (default since 2025-11-12)
+- `command_launcher.py` - Legacy launcher (deprecated, use SimplifiedLauncher)
 - `undistortion_finder.py` - Finds undistortion .nk files for Nuke
 - `raw_plate_finder.py` - Finds raw plate sequences for Nuke
 

@@ -1,5 +1,5 @@
-Post-commit hook executed at Wed Nov 12 07:55:41 GMT 2025
-Commit: cc1d84b3e34297b8b23a35eecab7bb18b44818f6
+Post-commit hook executed at Wed Nov 12 11:30:02 GMT 2025
+Commit: 6102dd14a07d94e3f298a7f2bb694f70dde457b7
 Branch: master
 Author: GabrielH <gabrhas@gmail.com>
-Message: fix: Update integration tests for CommandLauncher refactoring
+Message: refactor: Improve code quality with helper extraction and decomposition

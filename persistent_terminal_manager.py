@@ -2,9 +2,24 @@
 
 This module manages a single persistent terminal window that handles all commands,
 eliminating the need to spawn new terminals for each command.
+
+DEPRECATED: This module is deprecated in favor of simplified_launcher.py.
+The SimplifiedLauncher consolidates functionality from 4 modules (3,153 lines) into one (610 lines).
+To use this legacy launcher, set environment variable: USE_SIMPLIFIED_LAUNCHER=false
+
+Migration: Use simplified_launcher.SimplifiedLauncher instead.
 """
 
 from __future__ import annotations
+
+import warnings
+
+warnings.warn(
+    "persistent_terminal_manager is deprecated. Use simplified_launcher.SimplifiedLauncher instead. "
+    "Set USE_SIMPLIFIED_LAUNCHER=false to continue using this module.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 import contextlib
 

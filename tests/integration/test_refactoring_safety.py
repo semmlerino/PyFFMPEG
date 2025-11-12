@@ -384,6 +384,10 @@ class TestCombinedIntegration:
             # Get launcher manager
             launcher_manager = window.launcher_manager
 
+            # Skip if SimplifiedLauncher is active (no launcher_manager)
+            if launcher_manager is None:
+                pytest.skip("Launcher manager not available with SimplifiedLauncher")
+
             # Create test launcher with unique ID and name
             unique_id = f"ui_test_{int(time.time() * 1000)}"
             unique_name = f"UI Test Launcher {int(time.time() * 1000)}"

@@ -199,7 +199,12 @@ class TestMainWindowInitialization:
         assert main_window.threede_scene_model is not None
         assert main_window.previous_shots_model is not None
         assert main_window.command_launcher is not None
-        assert main_window.launcher_manager is not None
+        # launcher_manager is only present with legacy launcher (simplified launcher sets it to None)
+        # Either launcher_manager exists OR command_launcher is SimplifiedLauncher
+        assert (
+            main_window.launcher_manager is not None
+            or main_window.command_launcher.__class__.__name__ == "SimplifiedLauncher"
+        )
 
         # Verify UI components
         assert main_window.tab_widget is not None

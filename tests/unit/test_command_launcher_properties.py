@@ -14,7 +14,6 @@ Test Coverage:
 from __future__ import annotations
 
 import string
-from typing import TYPE_CHECKING
 
 import pytest
 from hypothesis import assume, given, settings
@@ -23,9 +22,6 @@ from hypothesis import strategies as st
 # Local application imports
 from command_launcher import LaunchContext
 from launch import CommandBuilder
-
-if TYPE_CHECKING:
-    pass
 
 
 # Custom strategies for generating test data

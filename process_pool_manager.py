@@ -2,9 +2,24 @@
 
 This module provides centralized process management with pooling, caching,
 and session reuse to reduce the overhead of repeated subprocess calls.
+
+DEPRECATED: This module is deprecated in favor of simplified_launcher.py.
+The SimplifiedLauncher consolidates functionality from 4 modules (3,153 lines) into one (610 lines).
+To use this legacy launcher, set environment variable: USE_SIMPLIFIED_LAUNCHER=false
+
+Migration: Use simplified_launcher.SimplifiedLauncher instead.
 """
 
 from __future__ import annotations
+
+import warnings
+
+warnings.warn(
+    "process_pool_manager is deprecated. Use simplified_launcher.SimplifiedLauncher instead. "
+    "Set USE_SIMPLIFIED_LAUNCHER=false to continue using this module.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 # Standard library imports
 import concurrent.futures
@@ -19,7 +34,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, final
 
 # Third-party imports
-from PySide6.QtCore import QMutex, QMutexLocker, QObject, Signal
+from PySide6.QtCore import QCoreApplication, QMutex, QMutexLocker, QObject, QThread, Signal
 from PySide6.QtWidgets import QApplication
 
 # Local application imports
@@ -306,7 +321,23 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
         Returns:
             Command output
+
+        Raises:
+            RuntimeError: If called from the main thread (UI thread)
         """
+        # CRITICAL: Prevent UI freezes - this method blocks for up to 120 seconds
+        # Must only be called from background threads
+        current_thread = QThread.currentThread()
+        app_instance = QCoreApplication.instance()
+        if app_instance and current_thread == app_instance.thread():
+            raise RuntimeError(
+                "execute_workspace_command() cannot be called on the main (UI) thread!\n"
+                f"This method blocks for up to {ThreadingConfig.SUBPROCESS_TIMEOUT}s "
+                "and will freeze the UI.\n"
+                "Use AsyncShotLoader or background workers instead.\n"
+                f"Command attempted: {command[:100]}..."
+            )
+
         if timeout is None:
             timeout = int(ThreadingConfig.SUBPROCESS_TIMEOUT)
 

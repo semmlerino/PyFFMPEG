@@ -1,6 +1,22 @@
-"""Command launcher for executing applications in shot context."""
+"""Command launcher for executing applications in shot context.
+
+DEPRECATED: This module is deprecated in favor of simplified_launcher.py.
+The SimplifiedLauncher consolidates functionality from 4 modules (3,153 lines) into one (610 lines).
+To use this legacy launcher, set environment variable: USE_SIMPLIFIED_LAUNCHER=false
+
+Migration: Use simplified_launcher.SimplifiedLauncher instead.
+"""
 
 from __future__ import annotations
+
+import warnings
+
+warnings.warn(
+    "command_launcher is deprecated. Use simplified_launcher.SimplifiedLauncher instead. "
+    "Set USE_SIMPLIFIED_LAUNCHER=false to continue using this module.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 # Standard library imports
 import errno
@@ -114,14 +130,23 @@ class CommandLauncher(LoggingMixin, QObject):
         # Initialize scene/file finders (created internally, not injected)
         # Local application imports
         from maya_latest_finder import MayaLatestFinder
+        from nuke_script_generator import NukeScriptGenerator
         from raw_plate_finder import RawPlateFinder
         from threede_latest_finder import ThreeDELatestFinder
-        from nuke_script_generator import NukeScriptGenerator
 
         self._raw_plate_finder = RawPlateFinder
         self._nuke_script_generator = NukeScriptGenerator
         self._threede_latest_finder = ThreeDELatestFinder()
         self._maya_latest_finder = MayaLatestFinder()
+
+    @property
+    def timestamp(self) -> str:
+        """Current UTC timestamp in HH:MM:SS format for logging.
+
+        Returns:
+            Formatted timestamp string suitable for log messages and UI display
+        """
+        return datetime.now(tz=UTC).strftime("%H:%M:%S")
 
     def cleanup(self) -> None:
         """Disconnect signals and cleanup resources.
@@ -157,7 +182,7 @@ class CommandLauncher(LoggingMixin, QObject):
             operation: Name of the operation
             message: Status message
         """
-        timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
+        timestamp = self.timestamp
         self.command_executed.emit(timestamp, f"[{operation}] {message}")
 
     def _on_execution_progress(self, operation: str, message: str) -> None:
@@ -167,7 +192,7 @@ class CommandLauncher(LoggingMixin, QObject):
             operation: Name of the operation
             message: Progress status message
         """
-        timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
+        timestamp = self.timestamp
         self.command_executed.emit(timestamp, f"[{operation}] {message}")
 
     def _on_execution_completed(self, success: bool, message: str) -> None:
@@ -219,7 +244,7 @@ class CommandLauncher(LoggingMixin, QObject):
             self.logger.warning(
                 "Persistent terminal in fallback mode, launching in new terminal"
             )
-            timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
+            timestamp = self.timestamp
             self.command_executed.emit(
                 timestamp,
                 "⚠ Persistent terminal unavailable, launching in new terminal...",
@@ -428,7 +453,7 @@ class CommandLauncher(LoggingMixin, QObject):
             )
 
             # Emit log messages
-            timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
+            timestamp = self.timestamp
             for msg in log_messages:
                 self.command_executed.emit(timestamp, msg)
 
@@ -445,19 +470,19 @@ class CommandLauncher(LoggingMixin, QObject):
                 try:
                     safe_scene_path = CommandBuilder.validate_path(str(latest_scene))
                     command = f"{command} -open {safe_scene_path}"
-                    timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
+                    timestamp = self.timestamp
                     self.command_executed.emit(
                         timestamp,
                         f"Opening latest 3DE scene: {latest_scene.name}",
                     )
                 except ValueError as e:
-                    timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
+                    timestamp = self.timestamp
                     self.command_executed.emit(
                         timestamp,
                         f"Warning: Invalid 3DE scene path: {e!s}",
                     )
             else:
-                timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
+                timestamp = self.timestamp
                 self.command_executed.emit(
                     timestamp,
                     "Info: No 3DE scene files found in workspace",
@@ -474,19 +499,19 @@ class CommandLauncher(LoggingMixin, QObject):
                 try:
                     safe_scene_path = CommandBuilder.validate_path(str(latest_scene))
                     command = f"{command} -file {safe_scene_path}"
-                    timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
+                    timestamp = self.timestamp
                     self.command_executed.emit(
                         timestamp,
                         f"Opening latest Maya scene: {latest_scene.name}",
                     )
                 except ValueError as e:
-                    timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
+                    timestamp = self.timestamp
                     self.command_executed.emit(
                         timestamp,
                         f"Warning: Invalid Maya scene path: {e!s}",
                     )
             else:
-                timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
+                timestamp = self.timestamp
                 self.command_executed.emit(
                     timestamp,
                     "Info: No Maya scene files found in workspace",
@@ -504,7 +529,7 @@ class CommandLauncher(LoggingMixin, QObject):
             if app_name == "nuke":
                 env_fixes = self.nuke_handler.get_environment_fixes()
                 if env_fixes:
-                    timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
+                    timestamp = self.timestamp
                     fix_details: list[str] = []
                     if Config.NUKE_SKIP_PROBLEMATIC_PLUGINS:
                         fix_details.append("runtime NUKE_PATH filtering")
@@ -530,7 +555,7 @@ class CommandLauncher(LoggingMixin, QObject):
             if rez_packages:
                 # Use CommandBuilder to wrap with rez environment
                 full_command = CommandBuilder.wrap_with_rez(ws_command, rez_packages)
-                timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
+                timestamp = self.timestamp
                 packages_str = " ".join(rez_packages)
                 self.command_executed.emit(
                     timestamp, f"Using rez environment with packages: {packages_str}"
@@ -544,7 +569,7 @@ class CommandLauncher(LoggingMixin, QObject):
         full_command = CommandBuilder.add_logging(full_command)
 
         # Log the command to UI
-        timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
+        timestamp = self.timestamp
         self.command_executed.emit(timestamp, full_command)
 
         # Enhanced debug logging for command integrity verification
@@ -604,7 +629,7 @@ class CommandLauncher(LoggingMixin, QObject):
             if app_name == "nuke":
                 env_fixes = self.nuke_handler.get_environment_fixes()
                 if env_fixes:
-                    timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
+                    timestamp = self.timestamp
                     fix_details: list[str] = []
                     if Config.NUKE_SKIP_PROBLEMATIC_PLUGINS:
                         fix_details.append("runtime NUKE_PATH filtering")
@@ -639,7 +664,7 @@ class CommandLauncher(LoggingMixin, QObject):
         full_command = CommandBuilder.add_logging(full_command)
 
         # Log the command
-        timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
+        timestamp = self.timestamp
         self.command_executed.emit(
             timestamp,
             f"{full_command} (Scene by: {scene.user}, Plate: {scene.plate})",
@@ -690,7 +715,7 @@ class CommandLauncher(LoggingMixin, QObject):
                     if script_path:
                         # Launch Nuke with the generated script
                         command = f"{command} {script_path}"
-                        timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
+                        timestamp = self.timestamp
                         version = self._raw_plate_finder.get_version_from_path(
                             raw_plate_path
                         )
@@ -702,7 +727,7 @@ class CommandLauncher(LoggingMixin, QObject):
                         # Fallback to just passing the path (safely escaped)
                         safe_plate_path = CommandBuilder.validate_path(raw_plate_path)
                         command = f"{command} {safe_plate_path}"
-                        timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
+                        timestamp = self.timestamp
                         version = self._raw_plate_finder.get_version_from_path(
                             raw_plate_path
                         )
@@ -712,14 +737,14 @@ class CommandLauncher(LoggingMixin, QObject):
                         )
                 else:
                     # Log warning if plate path found but no frames exist
-                    timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
+                    timestamp = self.timestamp
                     self.command_executed.emit(
                         timestamp,
                         "Warning: Raw plate path found but no frames exist",
                     )
             else:
                 # Log warning if raw plate requested but not found
-                timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
+                timestamp = self.timestamp
                 self.command_executed.emit(
                     timestamp,
                     "Warning: Raw plate not found for this shot",
@@ -744,7 +769,7 @@ class CommandLauncher(LoggingMixin, QObject):
             if rez_packages:
                 # Use CommandBuilder to wrap with rez environment
                 full_command = CommandBuilder.wrap_with_rez(ws_command, rez_packages)
-                timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
+                timestamp = self.timestamp
                 packages_str = " ".join(rez_packages)
                 self.command_executed.emit(
                     timestamp, f"Using rez environment with packages: {packages_str}"
@@ -758,7 +783,7 @@ class CommandLauncher(LoggingMixin, QObject):
         full_command = CommandBuilder.add_logging(full_command)
 
         # Log the command
-        timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
+        timestamp = self.timestamp
         self.command_executed.emit(
             timestamp,
             f"{full_command} (Context: {scene.user}'s {scene.plate})",
@@ -816,7 +841,7 @@ class CommandLauncher(LoggingMixin, QObject):
 
     def _emit_error(self, error: str) -> None:
         """Emit error with timestamp."""
-        timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
+        timestamp = self.timestamp
         self.command_error.emit(timestamp, error)
 
     # Old terminal signal handlers removed - now using ProcessExecutor signals:

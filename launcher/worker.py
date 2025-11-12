@@ -129,9 +129,7 @@ class LauncherWorker(ThreadSafeWorker):
                     pass  # Stream closed or process terminated
 
             # Start threads to drain stdout and stderr (will be joined in cleanup)
-            # Type guard: _process is guaranteed to be non-None after Popen() call
-            assert self._process is not None
-
+            # Type narrowing: _process is guaranteed non-None after successful Popen()
             # Create non-daemon threads for stream draining (must join explicitly)
             self._stdout_thread = threading.Thread(
                 target=drain_stream,
@@ -152,8 +150,7 @@ class LauncherWorker(ThreadSafeWorker):
             while not self.is_stop_requested():
                 try:
                     # Check if process finished with timeout
-                    # Type guard: _process is guaranteed to be non-None at this point
-                    assert self._process is not None
+                    # Type narrowing: _process is non-None throughout this loop
                     return_code = self._process.wait(timeout=1.0)
                     # Process finished normally
                     success = return_code == 0
@@ -218,8 +215,12 @@ class LauncherWorker(ThreadSafeWorker):
                         _ = self._process.wait(timeout=2)
                         self._process = None
                     except subprocess.TimeoutExpired:
-                        # Type guard: process is guaranteed non-None in except block
-                        assert self._process is not None
+                        # Defensive check: process could theoretically be None if modified externally
+                        if self._process is None:  # pyright: ignore[reportUnnecessaryComparison]
+                            self.logger.warning(
+                                f"Process became None during termination timeout for '{self.launcher_id}'"
+                            )
+                            return
                         # Last resort: force kill
                         self.logger.error(
                             f"Process {self._process.pid} failed graceful termination for '{self.launcher_id}', forcing kill"
@@ -229,12 +230,16 @@ class LauncherWorker(ThreadSafeWorker):
                         self._process = None
 
                 except Exception as e:
-                    # Type guard: process is guaranteed non-None here
-                    assert self._process is not None
-                    self.logger.critical(
-                        f"Failed to clean up process {self._process.pid} for '{self.launcher_id}': {e}, manual intervention may be required"
-                    )
-                    # DO NOT set to None - retain reference for monitoring/debugging
+                    # Defensive check: process should be non-None here, but verify
+                    if self._process is not None:  # pyright: ignore[reportUnnecessaryComparison]
+                        self.logger.critical(
+                            f"Failed to clean up process {self._process.pid} for '{self.launcher_id}': {e}, manual intervention may be required"
+                        )
+                        # DO NOT set to None - retain reference for monitoring/debugging
+                    else:
+                        self.logger.critical(
+                            f"Failed to clean up process for '{self.launcher_id}': {e}, process reference lost"
+                        )
             else:
                 # Process already terminated
                 self._process = None

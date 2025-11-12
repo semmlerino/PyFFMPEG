@@ -14,14 +14,16 @@ Test Coverage:
 
 import threading
 import time
+from pathlib import Path
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, Mock
 
 import pytest
 from PySide6.QtCore import QObject, QThread, Signal
 
 # Local application imports
 from command_launcher import CommandLauncher
+
 
 if TYPE_CHECKING:
     from pytest_qt.qtbot import QtBot
@@ -135,12 +137,12 @@ class TestCommandLauncherThreading:
         """Test that signals are emitted correctly from GUI thread."""
         signals_received = []
 
-        def on_command_executed(timestamp: str, command: str) -> None:
-            signals_received.append((timestamp, command))
+        def on_command_error(timestamp: str, error: str) -> None:
+            signals_received.append((timestamp, error))
 
-        launcher.command_executed.connect(on_command_executed)
+        launcher.command_error.connect(on_command_error)
 
-        # Emit error (which internally uses command_executed signal)
+        # Emit error (which internally uses command_error signal)
         launcher._emit_error("Test error")
 
         # Process Qt events to ensure signal delivery
@@ -242,16 +244,20 @@ class TestCommandLauncherThreading:
         # Note: Results may vary due to race conditions, but all should complete
 
     def test_qtimer_callback_thread_safety(
-        self, qtbot: "QtBot", launcher: CommandLauncher, monkeypatch: pytest.MonkeyPatch
+        self, qtbot: "QtBot", launcher: CommandLauncher, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
         """Test that QTimer callbacks execute on correct thread.
 
         CommandLauncher uses QTimer.singleShot for delayed spawn verification.
         This test verifies that the callback executes on the GUI thread.
         """
+        # Create a real temporary workspace directory
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+
         mock_shot = MagicMock(
             full_name="TEST_SHOT_0010",
-            workspace_path="/test/workspace",
+            workspace_path=str(workspace),
         )
         launcher.set_current_shot(mock_shot)
 
@@ -276,7 +282,7 @@ class TestCommandLauncherThreading:
         assert mock_process.poll.called
 
     def test_persistent_terminal_async_command_thread_safety(
-        self, qtbot: "QtBot", launcher: CommandLauncher, monkeypatch: pytest.MonkeyPatch
+        self, qtbot: "QtBot", launcher: CommandLauncher, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
         """Test async command sending to persistent terminal is thread-safe.
 
@@ -290,10 +296,14 @@ class TestCommandLauncherThreading:
 
         launcher.persistent_terminal = mock_terminal
 
+        # Create a real temporary workspace directory
+        workspace = tmp_path / "workspace"
+        workspace.mkdir()
+
         # Set up mock shot
         mock_shot = MagicMock(
             full_name="TEST_SHOT_0010",
-            workspace_path="/test/workspace",
+            workspace_path=str(workspace),
         )
         launcher.set_current_shot(mock_shot)
 
@@ -330,7 +340,7 @@ class TestCommandLauncherThreading:
                 signals_received.append(message)
 
         receiver = SlotReceiver()
-        launcher.command_executed.connect(receiver.on_signal)
+        launcher.command_error.connect(receiver.on_signal)
 
         # Emit signals from worker thread
         def emit_from_thread() -> None:
