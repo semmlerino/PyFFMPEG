@@ -794,7 +794,7 @@ class FileSystemScanner(LoggingMixin):
             ]
 
             # Build prune expression: -path */dir1 -o -path */dir2 ...
-            prune_expr = []
+            prune_expr: list[str] = []
             for i, dir_name in enumerate(prune_dirs):
                 if i > 0:
                     prune_expr.extend(["-o"])

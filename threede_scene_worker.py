@@ -23,7 +23,9 @@ from PySide6.QtCore import (
 from config import Config
 from logging_mixin import LoggingMixin
 from thread_safe_worker import ThreadSafeWorker
-from threede_scene_finder_optimized import OptimizedThreeDESceneFinder as ThreeDESceneFinder
+from threede_scene_finder_optimized import (
+    OptimizedThreeDESceneFinder as ThreeDESceneFinder,
+)
 from typing_compat import override
 from utils import ValidationUtils
 

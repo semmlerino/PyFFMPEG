@@ -425,8 +425,9 @@ class PreviousShotsModel(LoggingMixin, QObject):
         """
         try:
             # Load both sources (persistent - no TTL expiration)
-            scanned_data = self._cache_manager.get_persistent_previous_shots() or []  # pyright: ignore[reportAttributeAccessIssue]
-            migrated_data = self._cache_manager.get_migrated_shots() or []
+            # Type annotation helps type checker infer correct types downstream
+            scanned_data: list[ShotDict] = self._cache_manager.get_persistent_previous_shots() or []  # type: ignore[attr-defined]
+            migrated_data: list[ShotDict] = self._cache_manager.get_migrated_shots() or []
 
             # Merge with deduplication using composite key
             shots_by_key: dict[tuple[str, str, str], ShotDict] = {}
@@ -501,7 +502,9 @@ class PreviousShotsModel(LoggingMixin, QObject):
 
             # Clear directory cache in 3DE scene finder
             # Local application imports
-            from threede_scene_finder_optimized import OptimizedThreeDESceneFinder as ThreeDESceneFinder
+            from threede_scene_finder_optimized import (
+                OptimizedThreeDESceneFinder as ThreeDESceneFinder,
+            )
 
             if hasattr(ThreeDESceneFinder, "refresh_cache"):
                 cleared_count = ThreeDESceneFinder.refresh_cache()

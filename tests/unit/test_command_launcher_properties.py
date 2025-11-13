@@ -125,7 +125,7 @@ class TestLaunchContextProperties:
         context = LaunchContext(include_raw_plate=True)
 
         # Attempt to modify should raise FrozenInstanceError
-        with pytest.raises(Exception, match=r".*frozen.*"):  # FrozenInstanceError from dataclass
+        with pytest.raises(Exception, match=r"cannot assign to field"):  # FrozenInstanceError from dataclass
             context.include_raw_plate = False  # type: ignore[misc]
 
     @given(

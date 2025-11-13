@@ -171,7 +171,7 @@ class ProcessOutputManager:
 
     def process_all_batches(self) -> dict[str, dict[str, int | float | bool]]:
         """Process all pending batches and return results"""
-        results = {}
+        results: dict[str, dict[str, int | float | bool]] = {}
         with self.lock:
             for process_id, buffer in self.buffers.items():
                 results[process_id] = buffer.process_batch()

@@ -84,8 +84,8 @@ class UIUpdateManager(QObject):
             return
 
         # Collect updates to perform
-        updates_to_perform = {}
-        components_to_update = []
+        updates_to_perform: dict[str, object] = {}
+        components_to_update: list[str] = []
 
         # Sort components by priority
         sorted_components = sorted(
@@ -180,7 +180,7 @@ class UIUpdateManager(QObject):
 
     def get_update_stats(self) -> dict[str, dict[str, float]]:
         """Get statistics about update frequencies"""
-        stats = {}
+        stats: dict[str, dict[str, float]] = {}
         current_time = time.time()
 
         for component in self.dirty_flags:

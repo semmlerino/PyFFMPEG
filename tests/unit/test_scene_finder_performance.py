@@ -45,7 +45,9 @@ import pytest
 
 # Local application imports
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from threede_scene_finder_optimized import OptimizedThreeDESceneFinder as ThreeDESceneFinder
+from threede_scene_finder_optimized import (
+    OptimizedThreeDESceneFinder as ThreeDESceneFinder,
+)
 
 
 pytestmark = pytest.mark.performance

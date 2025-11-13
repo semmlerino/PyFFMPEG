@@ -186,7 +186,9 @@ class ThreeDESceneModel:
             # Local application imports
             # Lazy import to break circular dependency:
             # scene_cache → threede_scene_model → threede_scene_finder → ... → scene_cache
-            from threede_scene_finder_optimized import OptimizedThreeDESceneFinder as ThreeDESceneFinder
+            from threede_scene_finder_optimized import (
+                OptimizedThreeDESceneFinder as ThreeDESceneFinder,
+            )
 
             # Step 1: Discover fresh scenes from filesystem
             fresh_scenes = ThreeDESceneFinder.find_all_scenes_in_shows_truly_efficient(

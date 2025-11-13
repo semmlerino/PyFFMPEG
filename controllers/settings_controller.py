@@ -168,9 +168,10 @@ class SettingsController(LoggingMixin):
             except AttributeError:
                 # Fallback to tuple handling or config defaults
                 if isinstance(default_size, tuple) and len(default_size) == 2:
-                    # Type checker can't narrow union type properly here
-                    width = int(default_size[0])
-                    height = int(default_size[1])
+                    # Type checker can't narrow union type properly here, use cast
+                    size_tuple = cast(tuple[int, int], default_size)
+                    width = int(size_tuple[0])
+                    height = int(size_tuple[1])
                     self.window.resize(width, height)
                 else:
                     # Final fallback to config defaults

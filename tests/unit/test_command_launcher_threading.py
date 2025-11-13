@@ -80,7 +80,7 @@ class TestCommandLauncherThreading:
     """Test CommandLauncher threading and concurrency behavior."""
 
     @pytest.fixture(autouse=True)
-    def setup_module_mocks(self, _monkeypatch: pytest.MonkeyPatch) -> None:
+    def setup_module_mocks(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Set up module-level mocks for CommandLauncher imports."""
         import sys
         import types
@@ -281,7 +281,7 @@ class TestCommandLauncherThreading:
         # (We can't directly test thread ID, but if it runs without crashing, it's correct)
         assert mock_process.poll.called
 
-    @pytest.mark.usefixtures("_qtbot")
+    @pytest.mark.usefixtures("qtbot")
     def test_persistent_terminal_async_command_thread_safety(
         self, launcher: CommandLauncher, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
@@ -360,7 +360,7 @@ class TestCommandLauncherThreading:
         for i in range(5):
             assert f"Message {i}" in signals_received[i]
 
-    @pytest.mark.usefixtures("_qtbot")
+    @pytest.mark.usefixtures("qtbot")
     def test_cleanup_thread_safety(
         self, launcher: CommandLauncher
     ) -> None:
@@ -383,7 +383,7 @@ class TestCommandLauncherThreading:
         # Cleanup again from GUI thread (should be idempotent)
         launcher.cleanup()
 
-    @pytest.mark.usefixtures("_qtbot")
+    @pytest.mark.usefixtures("qtbot")
     def test_state_consistency_under_concurrent_access(
         self, launcher: CommandLauncher
     ) -> None:
