@@ -294,10 +294,10 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self.cache_manager,
         )
         # Create persistent terminal manager if enabled
-        # Feature flag for simplified launcher (DEFAULT: true - simplified launcher is now the default)
-        # Set USE_SIMPLIFIED_LAUNCHER=false to use legacy launcher stack (deprecated)
+        # Feature flag for simplified launcher (DEFAULT: false - legacy launcher is the default)
+        # Set USE_SIMPLIFIED_LAUNCHER=true to use experimental simplified launcher
         use_simplified_launcher = (
-            os.environ.get("USE_SIMPLIFIED_LAUNCHER", "true").lower() == "true"
+            os.environ.get("USE_SIMPLIFIED_LAUNCHER", "false").lower() == "true"
         )
 
         if use_simplified_launcher:
