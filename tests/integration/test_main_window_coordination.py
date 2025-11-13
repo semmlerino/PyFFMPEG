@@ -622,8 +622,9 @@ class TestMainWindowUICoordination:
 
         assert window.tab_widget.currentIndex() == 2
 
+    @pytest.mark.usefixtures("_qtbot")
     def test_refresh_button_triggers_shot_refresh(
-        self, main_window_with_real_components: Any, _qtbot: Any
+        self, main_window_with_real_components: Any
     ) -> None:
         """Test that refresh button triggers shot model refresh."""
         window = main_window_with_real_components
@@ -714,8 +715,9 @@ workspace /shows/test/shots/seq01/shot02""")
         executed_cmd = test_subprocess.get_last_command()
         assert executed_cmd is not None
 
+    @pytest.mark.usefixtures("_monkeypatch")
     def test_error_handling_shows_message(
-        self, main_window_with_real_components: Any, qtbot: Any, _monkeypatch: Any
+        self, main_window_with_real_components: Any, qtbot: Any
     ) -> None:
         """Test that errors are properly displayed to user."""
         window = main_window_with_real_components
@@ -815,8 +817,9 @@ workspace /shows/test/shots/seq01/shot02""")
         # Clean up
         window.launcher_manager.delete_launcher(launcher_id)
 
+    @pytest.mark.usefixtures("_qtbot", "_tmp_path")
     def test_settings_persistence(
-        self, main_window_with_real_components: Any, _qtbot: Any, _tmp_path: Path
+        self, main_window_with_real_components: Any
     ) -> None:
         """Test that settings are saved and restored correctly."""
         window = main_window_with_real_components

@@ -81,26 +81,26 @@ class TestTerminalIntegrationFlow:
             import types
 
             # Create simple mock classes for CommandLauncher's internal imports
-            MockRawPlateFinder = type("RawPlateFinder", (), {})
-            MockNukeScriptGenerator = type("NukeScriptGenerator", (), {})
-            MockThreeDELatestFinder = type("ThreeDELatestFinder", (), {})
-            MockMayaLatestFinder = type("MayaLatestFinder", (), {})
+            mock_raw_plate_finder_cls = type("RawPlateFinder", (), {})
+            mock_nuke_script_generator_cls = type("NukeScriptGenerator", (), {})
+            mock_threede_latest_finder_cls = type("ThreeDELatestFinder", (), {})
+            mock_maya_latest_finder_cls = type("MayaLatestFinder", (), {})
 
             # Create mock modules
             mock_raw_plate_finder = types.ModuleType("raw_plate_finder")
-            mock_raw_plate_finder.RawPlateFinder = MockRawPlateFinder
+            mock_raw_plate_finder.RawPlateFinder = mock_raw_plate_finder_cls
             sys.modules["raw_plate_finder"] = mock_raw_plate_finder
 
             mock_nuke_script_generator = types.ModuleType("nuke_script_generator")
-            mock_nuke_script_generator.NukeScriptGenerator = MockNukeScriptGenerator
+            mock_nuke_script_generator.NukeScriptGenerator = mock_nuke_script_generator_cls
             sys.modules["nuke_script_generator"] = mock_nuke_script_generator
 
             mock_threede_latest_finder = types.ModuleType("threede_latest_finder")
-            mock_threede_latest_finder.ThreeDELatestFinder = MockThreeDELatestFinder
+            mock_threede_latest_finder.ThreeDELatestFinder = mock_threede_latest_finder_cls
             sys.modules["threede_latest_finder"] = mock_threede_latest_finder
 
             mock_maya_latest_finder = types.ModuleType("maya_latest_finder")
-            mock_maya_latest_finder.MayaLatestFinder = MockMayaLatestFinder
+            mock_maya_latest_finder.MayaLatestFinder = mock_maya_latest_finder_cls
             sys.modules["maya_latest_finder"] = mock_maya_latest_finder
 
             # Create launcher with terminal

@@ -47,8 +47,7 @@ def valid_filesystem_paths(draw: st.DrawFn) -> str:
         components.append(component)
 
     # Build path
-    path = "/" + "/".join(components)
-    return path
+    return "/" + "/".join(components)
 
 
 @st.composite
@@ -58,7 +57,7 @@ def potentially_dangerous_paths(draw: st.DrawFn) -> str:
     Returns paths that contain injection attempts or invalid characters.
     """
     # Choose a dangerous pattern
-    pattern = draw(
+    return draw(
         st.sampled_from(
             [
                 "../../../etc/passwd",  # Path traversal
@@ -76,7 +75,6 @@ def potentially_dangerous_paths(draw: st.DrawFn) -> str:
             ]
         )
     )
-    return pattern
 
 
 class TestLaunchContextProperties:
@@ -127,7 +125,7 @@ class TestLaunchContextProperties:
         context = LaunchContext(include_raw_plate=True)
 
         # Attempt to modify should raise FrozenInstanceError
-        with pytest.raises(Exception):  # FrozenInstanceError from dataclass
+        with pytest.raises(Exception, match=r".*frozen.*"):  # FrozenInstanceError from dataclass
             context.include_raw_plate = False  # type: ignore[misc]
 
     @given(
@@ -300,14 +298,14 @@ class TestPathValidationEdgeCases:
     @given(path=st.just(""))
     def test_empty_path_rejected(self, path: str) -> None:
         """Verify empty paths are rejected."""
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=r".*empty.*|.*invalid.*"):
             CommandBuilder.validate_path(path)
 
     @given(path=st.text(max_size=0))
     def test_zero_length_path_rejected(self, path: str) -> None:
         """Verify zero-length paths are rejected."""
         if len(path) == 0:
-            with pytest.raises(ValueError):
+            with pytest.raises(ValueError, match=r".*empty.*|.*invalid.*"):
                 CommandBuilder.validate_path(path)
 
     @given(
