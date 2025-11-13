@@ -603,7 +603,7 @@ class TestApplicationLaunching:
 
         # Mock: Workspace option checked but NO plate selected
         target.launcher_panel.get_checkbox_state = Mock(
-            side_effect=lambda app, opt: opt == "open_latest_scene"
+            side_effect=lambda _app, opt: opt == "open_latest_scene"
         )
 
         # Mock: Nuke section returns None for selected plate

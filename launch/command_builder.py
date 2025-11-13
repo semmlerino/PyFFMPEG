@@ -11,9 +11,14 @@ This module handles command assembly, validation, and transformation:
 import logging
 import shlex
 from pathlib import Path
-from typing import Final
+from typing import TYPE_CHECKING, Final
 
-from config import Config
+
+if TYPE_CHECKING:
+    from config import Config
+else:
+    import config
+    Config = config.Config
 
 
 logger = logging.getLogger(__name__)

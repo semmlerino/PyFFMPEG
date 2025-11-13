@@ -425,29 +425,29 @@ def main_window_with_real_components(
     class MockRawPlateFinder:
         """Mock for RawPlateFinder."""
         @staticmethod
-        def find_latest_raw_plate(*args: Any, **kwargs: Any) -> None:
+        def find_latest_raw_plate(*_args: Any, **_kwargs: Any) -> None:
             return None
         @staticmethod
-        def verify_plate_exists(*args: Any, **kwargs: Any) -> bool:
+        def verify_plate_exists(*_args: Any, **_kwargs: Any) -> bool:
             return False
         @staticmethod
-        def get_version_from_path(*args: Any, **kwargs: Any) -> str | None:
+        def get_version_from_path(*_args: Any, **_kwargs: Any) -> str | None:
             return None
 
     class MockNukeScriptGenerator:
         """Mock for NukeScriptGenerator."""
         @staticmethod
-        def create_plate_script(*args: Any, **kwargs: Any) -> str | None:
+        def create_plate_script(*_args: Any, **_kwargs: Any) -> str | None:
             return None
 
     class MockThreeDELatestFinder:
         """Mock for ThreeDELatestFinder."""
-        def find_latest_threede_scene(self, *args: Any, **kwargs: Any) -> str | None:
+        def find_latest_threede_scene(self, *_args: Any, **_kwargs: Any) -> str | None:
             return None
 
     class MockMayaLatestFinder:
         """Mock for MayaLatestFinder."""
-        def find_latest_maya_scene(self, *args: Any, **kwargs: Any) -> str | None:
+        def find_latest_maya_scene(self, *_args: Any, **_kwargs: Any) -> str | None:
             return None
 
     # Create mock modules
@@ -623,7 +623,7 @@ class TestMainWindowUICoordination:
         assert window.tab_widget.currentIndex() == 2
 
     def test_refresh_button_triggers_shot_refresh(
-        self, main_window_with_real_components: Any, qtbot: Any
+        self, main_window_with_real_components: Any, _qtbot: Any
     ) -> None:
         """Test that refresh button triggers shot model refresh."""
         window = main_window_with_real_components
@@ -676,8 +676,8 @@ workspace /shows/test/shots/seq01/shot02""")
         monkeypatch.setattr("command_launcher.subprocess.Popen", test_subprocess.Popen)
 
         # Mock EnvironmentManager methods to ensure launch proceeds
-        monkeypatch.setattr("command_launcher.EnvironmentManager.is_rez_available", lambda self, config: False)
-        monkeypatch.setattr("command_launcher.EnvironmentManager.detect_terminal", lambda self: "gnome-terminal")
+        monkeypatch.setattr("command_launcher.EnvironmentManager.is_rez_available", lambda _self, _config: False)
+        monkeypatch.setattr("command_launcher.EnvironmentManager.detect_terminal", lambda _self: "gnome-terminal")
 
         # Disable persistent terminal to force subprocess path
         monkeypatch.setattr("command_launcher.Config.PERSISTENT_TERMINAL_ENABLED", False)
@@ -715,7 +715,7 @@ workspace /shows/test/shots/seq01/shot02""")
         assert executed_cmd is not None
 
     def test_error_handling_shows_message(
-        self, main_window_with_real_components: Any, qtbot: Any, monkeypatch: Any
+        self, main_window_with_real_components: Any, qtbot: Any, _monkeypatch: Any
     ) -> None:
         """Test that errors are properly displayed to user."""
         window = main_window_with_real_components
@@ -816,7 +816,7 @@ workspace /shows/test/shots/seq01/shot02""")
         window.launcher_manager.delete_launcher(launcher_id)
 
     def test_settings_persistence(
-        self, main_window_with_real_components: Any, qtbot: Any, tmp_path: Path
+        self, main_window_with_real_components: Any, _qtbot: Any, _tmp_path: Path
     ) -> None:
         """Test that settings are saved and restored correctly."""
         window = main_window_with_real_components

@@ -17,17 +17,17 @@ from typing import TYPE_CHECKING
 
 # Third-party imports
 import pytest
-from pytest_mock import MockerFixture
-from pytestqt.qtbot import QtBot
-
-from config import Config
 
 # Local application imports
 from cache_manager import ShotMergeResult
+from config import Config
 from shot_model import RefreshResult, Shot, ShotModel
 
 
 if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
+    from pytestqt.qtbot import QtBot
+
     from cache_manager import CacheManager
 
     # Local application imports

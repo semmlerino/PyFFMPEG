@@ -80,7 +80,7 @@ class TestCommandLauncherThreading:
     """Test CommandLauncher threading and concurrency behavior."""
 
     @pytest.fixture(autouse=True)
-    def setup_module_mocks(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def setup_module_mocks(self, _monkeypatch: pytest.MonkeyPatch) -> None:
         """Set up module-level mocks for CommandLauncher imports."""
         import sys
         import types
@@ -213,8 +213,8 @@ class TestCommandLauncherThreading:
         monkeypatch.setattr("config.Config.APPS", {"test_app": "test_command"})
         monkeypatch.setattr("config.Config.PERSISTENT_TERMINAL_ENABLED", False)
         monkeypatch.setattr("command_launcher.subprocess.Popen", Mock(return_value=Mock(pid=12345)))
-        monkeypatch.setattr("command_launcher.EnvironmentManager.detect_terminal", lambda self: "gnome-terminal")
-        monkeypatch.setattr("command_launcher.EnvironmentManager.is_rez_available", lambda self, config: False)
+        monkeypatch.setattr("command_launcher.EnvironmentManager.detect_terminal", lambda _self: "gnome-terminal")
+        monkeypatch.setattr("command_launcher.EnvironmentManager.is_rez_available", lambda _self, _config: False)
 
         # Track results
         results: list[bool] = []
@@ -267,8 +267,8 @@ class TestCommandLauncherThreading:
 
         mock_process = Mock(pid=12345, poll=Mock(return_value=None))
         monkeypatch.setattr("command_launcher.subprocess.Popen", Mock(return_value=mock_process))
-        monkeypatch.setattr("command_launcher.EnvironmentManager.detect_terminal", lambda self: "gnome-terminal")
-        monkeypatch.setattr("command_launcher.EnvironmentManager.is_rez_available", lambda self, config: False)
+        monkeypatch.setattr("command_launcher.EnvironmentManager.detect_terminal", lambda _self: "gnome-terminal")
+        monkeypatch.setattr("command_launcher.EnvironmentManager.is_rez_available", lambda _self, _config: False)
 
         # Launch app (will schedule QTimer callback)
         result = launcher.launch_app("test_app")
@@ -282,7 +282,7 @@ class TestCommandLauncherThreading:
         assert mock_process.poll.called
 
     def test_persistent_terminal_async_command_thread_safety(
-        self, qtbot: "QtBot", launcher: CommandLauncher, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+        self, _qtbot: "QtBot", launcher: CommandLauncher, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
         """Test async command sending to persistent terminal is thread-safe.
 
@@ -311,7 +311,7 @@ class TestCommandLauncherThreading:
         monkeypatch.setattr("config.Config.APPS", {"test_app": "test_command"})
         monkeypatch.setattr("config.Config.PERSISTENT_TERMINAL_ENABLED", True)
         monkeypatch.setattr("config.Config.USE_PERSISTENT_TERMINAL", True)
-        monkeypatch.setattr("command_launcher.EnvironmentManager.is_rez_available", lambda self, config: False)
+        monkeypatch.setattr("command_launcher.EnvironmentManager.is_rez_available", lambda _self, _config: False)
 
         # Launch app (should use persistent terminal)
         result = launcher.launch_app("test_app")
@@ -336,7 +336,7 @@ class TestCommandLauncherThreading:
             def __init__(self) -> None:
                 super().__init__()
 
-            def on_signal(self, timestamp: str, message: str) -> None:
+            def on_signal(self, _timestamp: str, message: str) -> None:
                 signals_received.append(message)
 
         receiver = SlotReceiver()
@@ -360,7 +360,7 @@ class TestCommandLauncherThreading:
             assert f"Message {i}" in signals_received[i]
 
     def test_cleanup_thread_safety(
-        self, qtbot: "QtBot", launcher: CommandLauncher
+        self, _qtbot: "QtBot", launcher: CommandLauncher
     ) -> None:
         """Test that cleanup() can be safely called from any thread.
 
@@ -382,7 +382,7 @@ class TestCommandLauncherThreading:
         launcher.cleanup()
 
     def test_state_consistency_under_concurrent_access(
-        self, qtbot: "QtBot", launcher: CommandLauncher
+        self, _qtbot: "QtBot", launcher: CommandLauncher
     ) -> None:
         """Test that concurrent state access maintains consistency.
 

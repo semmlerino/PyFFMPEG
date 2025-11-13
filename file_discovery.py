@@ -16,6 +16,7 @@ from logging_mixin import get_module_logger
 from path_validators import PathValidators
 from utils import normalize_plate_id
 
+
 logger = get_module_logger(__name__)
 
 

@@ -13,11 +13,12 @@ from pathlib import Path
 
 # Local application imports
 from config import Config
+from file_discovery import FileDiscovery
 from logging_mixin import get_module_logger
 from path_builders import PathBuilders
 from path_validators import PathValidators
-from file_discovery import FileDiscovery
 from utils import FileUtils, VersionUtils, find_path_case_insensitive
+
 
 logger = get_module_logger(__name__)
 

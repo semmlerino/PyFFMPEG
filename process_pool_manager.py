@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import warnings
 
+
 warnings.warn(
     "process_pool_manager is deprecated. Use simplified_launcher.SimplifiedLauncher instead. "
     "Set USE_SIMPLIFIED_LAUNCHER=false to continue using this module.",
@@ -34,7 +35,14 @@ from pathlib import Path
 from typing import TYPE_CHECKING, final
 
 # Third-party imports
-from PySide6.QtCore import QCoreApplication, QMutex, QMutexLocker, QObject, QThread, Signal
+from PySide6.QtCore import (
+    QCoreApplication,
+    QMutex,
+    QMutexLocker,
+    QObject,
+    QThread,
+    Signal,
+)
 from PySide6.QtWidgets import QApplication
 
 # Local application imports
