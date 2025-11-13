@@ -40,6 +40,7 @@ import psutil
 from PySide6.QtCore import QObject, QThread, Signal
 
 # Local application imports
+from config import Config
 from logging_mixin import LoggingMixin
 
 
@@ -134,8 +135,8 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         super().__init__()
 
         # Set up paths
-        self.fifo_path = fifo_path or "/tmp/shotbot_commands.fifo"
-        self.heartbeat_path = "/tmp/shotbot_heartbeat.txt"
+        self.fifo_path = fifo_path or Config.FIFO_PATH
+        self.heartbeat_path = Config.HEARTBEAT_PATH
         self.dispatcher_log_path = str(Path.home() / ".shotbot/logs/dispatcher_debug.log")
 
         # Find dispatcher script relative to this module
@@ -150,21 +151,23 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         self.terminal_process: subprocess.Popen[bytes] | None = None
         self.dispatcher_pid: int | None = None  # Track dispatcher bash script PID
         self._dummy_writer_fd: int | None = None  # Keeps FIFO alive to prevent EOF
+        self._fd_closed: bool = False  # Track if FD has been closed
 
         # Health monitoring
         self._last_heartbeat_time: float = 0.0
-        self._heartbeat_timeout: float = 60.0  # seconds
-        self._heartbeat_check_interval: float = 30.0  # seconds
+        self._heartbeat_timeout: float = Config.HEARTBEAT_TIMEOUT
+        self._heartbeat_check_interval: float = Config.HEARTBEAT_CHECK_INTERVAL
 
         # Auto-recovery state
         self._restart_attempts: int = 0
-        self._max_restart_attempts: int = 3
+        self._max_restart_attempts: int = Config.MAX_TERMINAL_RESTART_ATTEMPTS
         self._fallback_mode: bool = False  # Use fallback when persistent terminal fails
 
         # Thread safety: Lock for serializing FIFO writes
         # This prevents byte-level corruption when multiple threads
         # call send_command() concurrently
         self._write_lock = threading.Lock()
+        self._state_lock = threading.Lock()  # Protects _dummy_writer_fd, _fd_closed
 
         # Active workers for async operations (prevents garbage collection)
         self._active_workers: list[TerminalOperationWorker] = []
@@ -222,23 +225,26 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         # Open dummy writer to keep FIFO alive and prevent EOF
         # This prevents the bash reader from receiving EOF when command writers close
         # Only open if requested AND if not already open
-        if open_dummy_writer and self._dummy_writer_fd is None:
-            try:
-                self._dummy_writer_fd = os.open(
-                    self.fifo_path, os.O_WRONLY | os.O_NONBLOCK
-                )
-                self.logger.debug(
-                    f"Opened dummy writer (FD {self._dummy_writer_fd}) to keep FIFO alive"
-                )
-            except OSError as e:
-                self.logger.error(f"Failed to open dummy writer: {e}")
-                # Log warning but don't fail - dispatcher might not be running yet
-                # Caller should open dummy writer after dispatcher is ready
-                self.logger.warning(
-                    "Dummy writer could not be opened - dispatcher may not be running yet. "
-                    "Call _open_dummy_writer() after dispatcher is ready."
-                )
-                return False
+        if open_dummy_writer:
+            with self._state_lock:
+                if self._dummy_writer_fd is None:
+                    try:
+                        self._dummy_writer_fd = os.open(
+                            self.fifo_path, os.O_WRONLY | os.O_NONBLOCK
+                        )
+                        self._fd_closed = False  # Mark as open
+                        self.logger.debug(
+                            f"Opened dummy writer (FD {self._dummy_writer_fd}) to keep FIFO alive"
+                        )
+                    except OSError as e:
+                        self.logger.error(f"Failed to open dummy writer: {e}")
+                        # Log warning but don't fail - dispatcher might not be running yet
+                        # Caller should open dummy writer after dispatcher is ready
+                        self.logger.warning(
+                            "Dummy writer could not be opened - dispatcher may not be running yet. "
+                            "Call _open_dummy_writer() after dispatcher is ready."
+                        )
+                        return False
 
         return True
 
@@ -251,33 +257,54 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         Returns:
             True if dummy writer opened successfully or already open, False on error
         """
-        # Already open - nothing to do
-        if self._dummy_writer_fd is not None:
-            self.logger.debug(f"Dummy writer already open (FD {self._dummy_writer_fd})")
-            return True
+        with self._state_lock:
+            # Already open - nothing to do
+            if self._dummy_writer_fd is not None:
+                self.logger.debug(f"Dummy writer already open (FD {self._dummy_writer_fd})")
+                return True
 
-        # Verify FIFO exists
-        if not Path(self.fifo_path).exists():
-            self.logger.error(f"Cannot open dummy writer - FIFO doesn't exist: {self.fifo_path}")
-            return False
+            # Verify FIFO exists
+            if not Path(self.fifo_path).exists():
+                self.logger.error(f"Cannot open dummy writer - FIFO doesn't exist: {self.fifo_path}")
+                return False
 
-        # Open dummy writer (requires reader to be present)
-        try:
-            self._dummy_writer_fd = os.open(
-                self.fifo_path, os.O_WRONLY | os.O_NONBLOCK
-            )
-            self.logger.debug(
-                f"Opened dummy writer (FD {self._dummy_writer_fd}) to keep FIFO alive"
-            )
-            return True
-        except OSError as e:
-            self.logger.error(f"Failed to open dummy writer: {e}")
-            if e.errno == errno.ENXIO:
-                self.logger.error(
-                    "ENXIO error: No reader available. "
-                    "Ensure dispatcher is running before opening dummy writer."
+            # Open dummy writer (requires reader to be present)
+            try:
+                self._dummy_writer_fd = os.open(
+                    self.fifo_path, os.O_WRONLY | os.O_NONBLOCK
                 )
-            return False
+                self._fd_closed = False  # Mark as open
+                self.logger.debug(
+                    f"Opened dummy writer (FD {self._dummy_writer_fd}) to keep FIFO alive"
+                )
+                return True
+            except OSError as e:
+                self.logger.error(f"Failed to open dummy writer: {e}")
+                if e.errno == errno.ENXIO:
+                    self.logger.error(
+                        "ENXIO error: No reader available. "
+                        "Ensure dispatcher is running before opening dummy writer."
+                    )
+                return False
+
+    def _close_dummy_writer_fd(self) -> None:
+        """Close dummy writer FD (idempotent).
+
+        This method is safe to call multiple times.
+        """
+        with self._state_lock:
+            if self._fd_closed or self._dummy_writer_fd is None:
+                return
+
+            try:
+                os.close(self._dummy_writer_fd)
+                self._fd_closed = True
+                self.logger.debug(f"Closed dummy writer FD {self._dummy_writer_fd}")
+            except OSError as e:
+                if e.errno != errno.EBADF:  # Not already closed
+                    self.logger.warning(f"Error closing dummy writer: {e}")
+            finally:
+                self._dummy_writer_fd = None
 
     def _is_dispatcher_running(self) -> bool:
         """Check if the terminal dispatcher is running and ready to read from FIFO.
@@ -927,14 +954,7 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         time.sleep(0.5)
 
         # Close dummy writer FD before cleaning up FIFO
-        if self._dummy_writer_fd is not None:
-            try:
-                os.close(self._dummy_writer_fd)
-                self.logger.debug(f"Closed dummy writer FD {self._dummy_writer_fd} for restart")
-                self._dummy_writer_fd = None
-            except OSError as e:
-                self.logger.warning(f"Error closing dummy writer during restart: {e}")
-                self._dummy_writer_fd = None
+        self._close_dummy_writer_fd()
 
         # Clean up and recreate FIFO to prevent stale file handle issues
         self.logger.debug("Cleaning up FIFO before restart")
@@ -992,14 +1012,7 @@ class PersistentTerminalManager(LoggingMixin, QObject):
             _ = self.close_terminal()
 
         # Close dummy writer FD first
-        if self._dummy_writer_fd is not None:
-            try:
-                os.close(self._dummy_writer_fd)
-                self.logger.debug(f"Closed dummy writer FD {self._dummy_writer_fd}")
-                self._dummy_writer_fd = None
-            except OSError as e:
-                self.logger.warning(f"Error closing dummy writer: {e}")
-                self._dummy_writer_fd = None
+        self._close_dummy_writer_fd()
 
         # Remove FIFO if it exists
         if Path(self.fifo_path).exists():
@@ -1016,14 +1029,7 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         after the application exits.
         """
         # Close dummy writer FD first
-        if self._dummy_writer_fd is not None:
-            try:
-                os.close(self._dummy_writer_fd)
-                self.logger.debug(f"Closed dummy writer FD {self._dummy_writer_fd}")
-                self._dummy_writer_fd = None
-            except OSError as e:
-                self.logger.warning(f"Error closing dummy writer: {e}")
-                self._dummy_writer_fd = None
+        self._close_dummy_writer_fd()
 
         # Only remove FIFO, leave terminal running
         if Path(self.fifo_path).exists():
@@ -1039,9 +1045,8 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         """Cleanup on deletion."""
         try:
             # Close dummy writer FD
-            if hasattr(self, "_dummy_writer_fd") and self._dummy_writer_fd is not None:
-                with contextlib.suppress(OSError):
-                    os.close(self._dummy_writer_fd)
+            if hasattr(self, "_close_dummy_writer_fd"):
+                self._close_dummy_writer_fd()
 
             # Only cleanup FIFO, leave terminal running
             if hasattr(self, "fifo_path") and Path(self.fifo_path).exists():

@@ -53,15 +53,19 @@ class SimplifiedLauncher(LoggingMixin, QObject):
     process_started = Signal(str, int)  # command, pid
     process_finished = Signal(str, int)  # command, return_code
 
-    def __init__(self) -> None:
-        """Initialize the simplified launcher."""
-        super().__init__()
+    def __init__(self, parent: QObject | None = None) -> None:
+        """Initialize the simplified launcher.
+
+        Args:
+            parent: Optional parent QObject for proper Qt ownership
+        """
+        super().__init__(parent)
 
         # Cache for workspace commands with 30-minute TTL
         self._ws_cache: dict[
             str, tuple[str, float]
         ] = {}  # command -> (result, timestamp)
-        self._ws_cache_ttl = 1800  # 30 minutes (not 30 seconds!)
+        self._ws_cache_ttl = Config.WS_CACHE_TTL
 
         # Track active processes for cleanup
         self._active_processes: dict[int, subprocess.Popen[str]] = {}
