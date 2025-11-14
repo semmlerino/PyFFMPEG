@@ -8,12 +8,12 @@
 
 ## Executive Summary
 
-Multi-agent analysis identified **24 issues** in the launcher/terminal system. **7 critical/high issues fixed** - all tests pass. System has complex architecture (1,552-line God class, 7 locks) requiring careful maintenance.
+Multi-agent analysis identified **24 issues** in the launcher/terminal system. **Phase 1-3 complete: All 7 critical/high threading and IPC issues fixed** - all tests pass (44 passed, 2 skipped in 29.04s). System has complex architecture (1,552-line God class, 10 locks) requiring Phase 4 refactoring.
 
 **Statistics**:
 - 3 CRITICAL issues (all fixed ✅)
-- 8 HIGH severity (6 fixed ✅, 2 remaining)
-- 13 MEDIUM/LOW (1 fixed ✅, architecture/code quality remain)
+- 8 HIGH severity (all fixed ✅)
+- 13 MEDIUM/LOW (1 fixed ✅, architecture/code quality remain for Phase 4)
 
 ---
 
@@ -131,7 +131,7 @@ def get_instance(cls, max_workers: int = 4):
 
 ---
 
-### #5: FIFO TOCTOU Race
+### ✅ #5: FIFO TOCTOU Race - FIXED (2025-11-14)
 
 **Severity**: MEDIUM
 **File**: `persistent_terminal_manager.py:674-681`
@@ -144,11 +144,17 @@ with self._write_lock:
     fd = os.open(self.fifo_path, ...)  # USE - may be different FIFO
 ```
 
-**Fix**: Move check inside lock
+**Fix**: Move check inside lock:
+```python
+with self._write_lock:
+    if not Path(self.fifo_path).exists():  # Atomic check+use
+        return False
+    fd = os.open(self.fifo_path, ...)
+```
 
 ---
 
-### #6: Timestamp Collision
+### ✅ #6: Timestamp Collision - FIXED (2025-11-14)
 
 **Severity**: HIGH (silent command loss)
 **File**: `command_launcher.py:297-310`
@@ -159,7 +165,11 @@ timestamp = self.timestamp  # "12:34:56"
 self._pending_fallback[timestamp] = (cmd, app)  # Multiple cmds/sec collide
 ```
 
-**Fix**: Use UUID instead of timestamp
+**Fix**: Use UUID instead of timestamp:
+```python
+command_id = str(uuid.uuid4())
+self._pending_fallback[command_id] = (cmd, app, time.time())
+```
 
 ---
 
@@ -174,7 +184,7 @@ self._pending_fallback[timestamp] = (cmd, app)  # Multiple cmds/sec collide
 
 ---
 
-### #8: Missing Qt.ConnectionType Specifications
+### ✅ #8: Missing Qt.ConnectionType Specifications - FIXED (2025-11-14)
 
 **Severity**: HIGH
 **Files**: Multiple cross-thread signal connections
@@ -186,8 +196,10 @@ worker.progress.connect(on_progress)  # No connection type specified
 
 **Fix**: Explicit queued connections for thread safety:
 ```python
-worker.progress.connect(on_progress, type=Qt.ConnectionType.QueuedConnection)
+worker.progress.connect(on_progress, Qt.ConnectionType.QueuedConnection)
 ```
+
+**Applied**: 11 cross-thread connections updated across 2 files
 
 ---
 
@@ -275,12 +287,12 @@ tests/integration/test_terminal_integration.py::test_cleanup_on_application_exit
 ======================== 44 passed, 2 skipped in 28.87s ========================
 ```
 
-**After Fixes (Phase 1-3)**:
+**After Fixes (Phase 1-3) - Final Verification**:
 ```bash
-# Terminal integration + command launcher tests
+# Terminal integration + affected unit tests (comprehensive)
 ~/.local/bin/uv run pytest tests/integration/test_terminal_integration.py \
-  tests/unit/test_command_launcher.py -v
-======================== 19 passed, 2 skipped in 15.52s ========================
+  tests/unit/test_command_launcher.py tests/unit/test_process_pool_manager.py -v
+======================== 44 passed, 2 skipped in 29.04s ========================
 ```
 
 ---
@@ -307,7 +319,7 @@ tests/integration/test_terminal_integration.py::test_cleanup_on_application_exit
 - `command_launcher.py:115, 125-154, 177-204` - Signal leak fixed (#2)
 - `process_pool_manager.py:223-280` - Singleton race fixed (#4)
 
-### Phase 3 Fixes Applied ✅
+### Phase 3 Fixes Applied ✅ (Commit 3f90449)
 - `command_launcher.py:113, 296-329, 395-401` - Timestamp collision fixed (#6)
   - Replaced second-precision timestamp keys with UUIDs
   - Added `time.time()` for aging logic
@@ -318,6 +330,22 @@ tests/integration/test_terminal_integration.py::test_cleanup_on_application_exit
   - Added explicit `Qt.ConnectionType.QueuedConnection` for 3 cross-thread connections
 - `command_launcher.py:27, 126-173` - Qt.ConnectionType added (#8)
   - Added explicit `Qt.ConnectionType.QueuedConnection` for 8 cross-thread connections
+
+### Additional Enhancements (Commit 3f90449)
+- `persistent_terminal_manager.py:1439-1530` - Enhanced cleanup deadlock prevention
+  - Atomic worker list clearing (prevent additions during cleanup)
+  - Signal disconnection BEFORE interruption (prevent callbacks)
+  - Extended worker timeout 2s → 10s
+  - Abandon hung workers instead of terminate() (prevents orphaned locks)
+- `persistent_terminal_manager.py:943-992` - Enhanced FIFO retry logic
+  - Increased retries 2 → 3
+  - Added retry for ENXIO (no reader) and EAGAIN (buffer full)
+  - Exponential backoff for EAGAIN (0.1s, 0.2s, 0.4s)
+- `persistent_terminal_manager.py:1091-1146, 1401-1422` - Worker interruption checks
+  - Pass worker reference to health check and restart functions
+  - Check `isInterruptionRequested()` at key points for clean cancellation
+- `persistent_terminal_manager.py:1126-1146` - Restart serialization
+  - Wrap restart checking under `_restart_lock` to prevent AB-BA deadlock
 
 ### Phase 4 Needs Attention
 - `launcher/worker.py` - QThread anti-pattern (#7)
@@ -347,8 +375,11 @@ All agent findings consolidated in this report
 - **2025-11-14 17:00** - Report condensed for clarity
 - **2025-11-14 17:15** - Phase 2 complete: Fixed signal leak (#2), worker race (#3), singleton race (#4)
 - **2025-11-14 17:45** - Phase 3 complete: Fixed timestamp collision (#6), FIFO TOCTOU (#5), Qt.ConnectionType (#8)
+- **2025-11-14 18:30** - All Phase 1-3 fixes committed (commit 3f90449), comprehensive test verification
 
 **Status**: Phase 1-3 COMPLETE ✅ - Phase 4 pending (architecture refactoring)
+
+**Git Commit**: `3f90449` - "fix: Resolve 5 critical launcher/terminal threading and IPC issues"
 
 ---
 
