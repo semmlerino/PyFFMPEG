@@ -21,8 +21,7 @@ if TYPE_CHECKING:
 class NukeLaunchHandler(LoggingMixin):
     """Handles all Nuke-specific launching logic.
 
-    This class consolidates Nuke launching functionality that was previously
-    duplicated across CommandLauncher and SimplifiedLauncher.
+    This class provides centralized Nuke launching functionality used by CommandLauncher.
     """
 
     def __init__(self) -> None:

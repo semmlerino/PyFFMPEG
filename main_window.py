@@ -294,44 +294,19 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self.cache_manager,
         )
         # Create persistent terminal manager if enabled
-        # Feature flag for simplified launcher (DEFAULT: false - legacy launcher is the default)
-        # Set USE_SIMPLIFIED_LAUNCHER=true to use experimental simplified launcher
-        use_simplified_launcher = (
-            os.environ.get("USE_SIMPLIFIED_LAUNCHER", "false").lower() == "true"
+        self.persistent_terminal: PersistentTerminalManager | None = None
+        if Config.PERSISTENT_TERMINAL_ENABLED and Config.USE_PERSISTENT_TERMINAL:
+            self.persistent_terminal = PersistentTerminalManager(
+                fifo_path=Config.PERSISTENT_TERMINAL_FIFO
+            )
+
+        self.command_launcher = CommandLauncher(
+            persistent_terminal=self.persistent_terminal,
+            parent=self,
         )
-
-        if use_simplified_launcher:
-            # Use new simplified launcher (500 lines vs 2,872 lines)
-            # Local application imports
-            from simplified_launcher import SimplifiedLauncher
-
-            self.logger.info(
-                "Using SimplifiedLauncher - streamlined process management"
-            )
-            self.command_launcher = SimplifiedLauncher()
-
-            # NOTE: SimplifiedLauncher implements ProcessPoolInterface
-            # We could pass it to ShotModel, but currently ShotModel
-            # was already created with self._process_pool above.
-            # This is a known limitation of the SimplifiedLauncher approach.
-
-            self.launcher_manager = None  # Not needed with simplified approach
-            self.persistent_terminal = None
-        else:
-            # Use legacy launcher stack
-            self.persistent_terminal: PersistentTerminalManager | None = None
-            if Config.PERSISTENT_TERMINAL_ENABLED and Config.USE_PERSISTENT_TERMINAL:
-                self.persistent_terminal = PersistentTerminalManager(
-                    fifo_path=Config.PERSISTENT_TERMINAL_FIFO
-                )
-
-            self.command_launcher = CommandLauncher(
-                persistent_terminal=self.persistent_terminal,
-                parent=self,
-            )
-            self.launcher_manager = LauncherManager(
-                process_pool=self._process_pool, parent=self
-            )
+        self.launcher_manager = LauncherManager(
+            process_pool=self._process_pool, parent=self
+        )
 
         # NOTE: Current scene/shot context now managed by launcher_controller (single source of truth)
         self._closing = False  # Track shutdown state
@@ -352,13 +327,14 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         else:
             self.logger.info("Using ThreeDEController for 3DE scene management")
             # MainWindow implements ThreeDETarget protocol functionally at runtime
-            # command_launcher union type and QMainWindow position-only params differ from Protocol
+            # QMainWindow position-only params differ from Protocol
             self.threede_controller = ThreeDEController(self)  # pyright: ignore[reportArgumentType]
 
         # Initialize launcher controller for all launcher functionality
         self.logger.info("Using LauncherController for launcher management")
         # MainWindow implements LauncherTarget protocol functionally at runtime
-        self.launcher_controller = LauncherController(self)
+        # QMainWindow position-only params differ from Protocol
+        self.launcher_controller = LauncherController(self)  # pyright: ignore[reportArgumentType]
         self._setup_menu()
         self._setup_accessibility()  # Add accessibility support
         self._connect_signals()

@@ -546,32 +546,42 @@ terminal_mgr.command_error.connect(self.on_command_error)
 terminal_mgr.send_command("ws nuke shot_name")
 ```
 
-### SimplifiedLauncher (⚠️ DEPRECATED - Will Be Removed)
+### CommandLauncher (Production Launcher)
 
-**SimplifiedLauncher is deprecated and will be removed.** It has critical bugs and architectural issues.
+**CommandLauncher is the production launcher system** for application launching with shot context.
 
-**File**: `launcher/simplified_launcher.py` (will be removed)
+**File**: `command_launcher.py`
 
-**Known Issues**:
-- Missing Rez/workspace integration
-- Parameter forwarding bugs
-- No proper thread safety
-- Incomplete implementation
-- Missing persistent terminal support
+**Features**:
+- Application launching with shot context
+- Rez environment integration
+- Persistent terminal support via PersistentTerminalManager
+- LaunchContext API for flexible launch options
+- Scene-based launching support
 
-**Status**: DO NOT USE in production code. Use PersistentTerminalManager instead.
+**Usage**:
+```python
+from command_launcher import CommandLauncher, LaunchContext
 
-**Note**: SimplifiedLauncher will be archived and removed in a future release once all code paths are migrated to PersistentTerminalManager.
+# Initialize with persistent terminal
+launcher = CommandLauncher(persistent_terminal=terminal_mgr, parent=self)
 
-### Legacy Launcher Consolidation
+# Launch with context
+context = LaunchContext(
+    include_raw_plate=True,
+    open_latest_threede=False,
+    create_new_file=True
+)
+launcher.launch_app("nuke", context)
+```
 
-The legacy launcher stack (CommandLauncher, LauncherManager, ProcessPoolManager) is being consolidated into PersistentTerminalManager as the unified launcher system.
+### Launcher Architecture
 
-**Current Architecture**:
-- **PersistentTerminalManager**: Primary launcher (production-ready)
-- **CommandLauncher**: Being consolidated into PersistentTerminalManager
-- **LauncherManager**: Custom launcher management (to be integrated)
-- **ProcessPoolManager**: Process pool functionality (to be integrated)
+**Current Production Stack**:
+- **PersistentTerminalManager**: Terminal session management with FIFO communication
+- **CommandLauncher**: Application launching with shot context
+- **LauncherManager**: Custom launcher management
+- **ProcessPoolManager**: Process pool functionality
 
 ### For Developers
 

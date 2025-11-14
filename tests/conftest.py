@@ -397,6 +397,28 @@ def qt_cleanup(qapp: QApplication) -> Iterator[None]:
 
 
 @pytest.fixture(autouse=True)
+def cleanup_persistent_terminals(qtbot: QtBot) -> Iterator[None]:
+    """Stop all PersistentTerminalManager workers BEFORE Qt teardown.
+
+    This runs before pytest-qt's teardown to prevent workers from spawning
+    subprocesses during teardown (which causes Fatal Python error: Aborted).
+
+    See UNIFIED_TESTING_V2.MD: "Stop all async operations" must happen BEFORE teardown.
+    """
+    yield
+
+    # Clean up all PersistentTerminalManager instances
+    # This MUST run BEFORE pytest-qt teardown to prevent workers from
+    # spawning subprocesses during Qt cleanup (causes Fatal Python error: Aborted)
+    try:
+        from persistent_terminal_manager import PersistentTerminalManager
+        PersistentTerminalManager.cleanup_all_instances()
+    except (ImportError, RuntimeError) as e:
+        # Module not imported or already cleaned up - OK
+        pass
+
+
+@pytest.fixture(autouse=True)
 def cleanup_state() -> Iterator[None]:
     """Clean up all module-level caches and singleton state before and after each test.
 
@@ -571,16 +593,10 @@ def cleanup_state() -> Iterator[None]:
         warnings.warn(f"FilesystemCoordinator reset failed: {e}", RuntimeWarning, stacklevel=2)
 
     # ThreadSafeWorker Zombie Cleanup
-    from PySide6.QtCore import QMutexLocker
-
-    from thread_safe_worker import ThreadSafeWorker
-
-    with QMutexLocker(ThreadSafeWorker._zombie_mutex):
-        zombie_count = len(ThreadSafeWorker._zombie_threads)
-        if zombie_count > 0:
-            ThreadSafeWorker.cleanup_old_zombies()
-            ThreadSafeWorker._zombie_threads.clear()
-            ThreadSafeWorker._zombie_timestamps.clear()
+    # Skip zombie cleanup during teardown to avoid deadlock
+    # pytest will terminate all workers anyway
+    # See UNIFIED_TESTING_V2.MD: "Stop all async operations" must happen BEFORE teardown
+    # This cleanup runs DURING teardown, which is too late
 
     # Force garbage collection to clean up any instances that cached state
     # (e.g., TargetedShotsFinder instances with cached Config.SHOWS_ROOT regex patterns)

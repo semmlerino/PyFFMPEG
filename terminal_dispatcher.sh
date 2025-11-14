@@ -42,8 +42,9 @@ cleanup_and_exit() {
 }
 
 # Trap EXIT and errors to log shutdown reason
+# FIX: Removed ERR trap - user commands can legitimately fail (e.g., command not found)
+# ERR trap would cause dispatcher to exit on ANY non-zero exit code, breaking all future launches
 trap 'cleanup_and_exit 0 "Normal EXIT signal"' EXIT
-trap 'cleanup_and_exit 1 "ERROR signal (command failed)"' ERR
 trap 'cleanup_and_exit 130 "Caught SIGINT (Ctrl+C)"' INT
 trap 'cleanup_and_exit 143 "Caught SIGTERM"' TERM
 

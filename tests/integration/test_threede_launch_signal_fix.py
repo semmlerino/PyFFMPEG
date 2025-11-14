@@ -102,6 +102,23 @@ class TestCommandLauncherWithSceneSupport(QObject):
         self.command_executed.emit("00:00:00", f"Launched {app_name} with scene")
         return True
 
+    def launch_app_with_scene_context(
+        self,
+        app_name: str,
+        scene: ThreeDEScene,
+        include_raw_plate: bool = False,
+    ) -> bool:
+        """Launch app with scene context (shot context, no scene file)."""
+        command = {
+            "app_name": app_name,
+            "scene": scene,
+            "include_raw_plate": include_raw_plate,
+            "method": "launch_app_with_scene_context",
+        }
+        self.executed_commands.append(command)
+        self.command_executed.emit("00:00:00", f"Launched {app_name}")
+        return True
+
 
 class MockLauncherTargetForIntegration(QObject):
     """Mock MainWindow for integration testing."""

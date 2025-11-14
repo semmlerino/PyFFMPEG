@@ -221,12 +221,7 @@ class TestMainWindowNoHang:
         assert safe_main_window.threede_scene_model is not None
         assert safe_main_window.previous_shots_model is not None
         assert safe_main_window.command_launcher is not None
-        # launcher_manager is only present with legacy launcher (simplified launcher sets it to None)
-        # Either launcher_manager exists OR command_launcher is SimplifiedLauncher
-        assert (
-            safe_main_window.launcher_manager is not None
-            or safe_main_window.command_launcher.__class__.__name__ == "SimplifiedLauncher"
-        )
+        assert safe_main_window.launcher_manager is not None
 
         # Test UI components
         assert safe_main_window.tab_widget is not None

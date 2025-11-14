@@ -34,12 +34,9 @@ if TYPE_CHECKING:
     from launcher_panel import LauncherPanel
     from log_viewer import LogViewer
     from shot_model import Shot
-    from simplified_launcher import SimplifiedLauncher
     from threede_scene_model import ThreeDEScene
 
 # Runtime imports (needed at runtime)
-import inspect
-from collections.abc import Callable as CallableABC
 from datetime import UTC, datetime
 
 from command_launcher import CommandLauncher, LaunchContext
@@ -47,15 +44,12 @@ from logging_mixin import LoggingMixin
 from notification_manager import NotificationManager, NotificationType
 from progress_manager import ProgressManager
 from shot_model import Shot
-from simplified_launcher import (
-    SimplifiedLauncher,  # noqa: TC001 - needed at runtime for Protocol
-)
 
 
 class LauncherTarget(Protocol):
     """Protocol defining the interface required by LauncherController."""
 
-    command_launcher: CommandLauncher | SimplifiedLauncher
+    command_launcher: CommandLauncher
     launcher_manager: LauncherManager | None
     launcher_panel: LauncherPanel
     log_viewer: LogViewer
@@ -308,50 +302,16 @@ class LauncherController(LoggingMixin):
         Returns:
             True if launch was successful, False otherwise
         """
-        # Type-safe launch handling for union type (CommandLauncher | SimplifiedLauncher)
-        launcher_method: CallableABC[..., bool] | None = getattr(
-            self.window.command_launcher, "launch_app", None
+        # Build launch context from options
+        context = LaunchContext(
+            include_raw_plate=options["include_raw_plate"],
+            open_latest_threede=options["open_latest_threede"],
+            open_latest_maya=options["open_latest_maya"],
+            open_latest_scene=options["open_latest_scene"],
+            create_new_file=options["create_new_file"],
+            selected_plate=options.get("selected_plate"),
         )
-        if launcher_method is None or not callable(launcher_method):
-            return False
-
-        # Check if launcher supports selected_plate parameter
-        sig = inspect.signature(launcher_method)
-        supports_selected_plate = "selected_plate" in sig.parameters
-
-        # Use LaunchContext for CommandLauncher (new API)
-        if supports_selected_plate and options.get("selected_plate") and app_name == "nuke":
-            launcher = cast("CommandLauncher", self.window.command_launcher)
-            context = LaunchContext(
-                include_raw_plate=options["include_raw_plate"],
-                open_latest_threede=options["open_latest_threede"],
-                open_latest_maya=options["open_latest_maya"],
-                open_latest_scene=options["open_latest_scene"],
-                create_new_file=options["create_new_file"],
-                selected_plate=options["selected_plate"],
-            )
-            return launcher.launch_app(app_name, context)
-
-        # CommandLauncher supports both context and legacy params
-        if isinstance(self.window.command_launcher, CommandLauncher):
-            context = LaunchContext(
-                include_raw_plate=options["include_raw_plate"],
-                open_latest_threede=options["open_latest_threede"],
-                open_latest_maya=options["open_latest_maya"],
-                open_latest_scene=options["open_latest_scene"],
-                create_new_file=options["create_new_file"],
-            )
-            return self.window.command_launcher.launch_app(app_name, context)
-
-        # SimplifiedLauncher only supports legacy boolean parameters
-        return self.window.command_launcher.launch_app(
-            app_name,
-            options["include_raw_plate"],
-            options["open_latest_threede"],
-            options["open_latest_maya"],
-            options["open_latest_scene"],
-            options["create_new_file"],
-        )
+        return self.window.command_launcher.launch_app(app_name, context)
 
     def launch_app(self, app_name: str) -> None:
         """Launch an application.
@@ -446,26 +406,12 @@ class LauncherController(LoggingMixin):
             )
         )
 
-        # Check if the launcher supports scene context (CommandLauncher vs SimplifiedLauncher)
-        if hasattr(self.window.command_launcher, "launch_app_with_scene_context"):
-            launcher = cast("CommandLauncher", self.window.command_launcher)
-            if launcher.launch_app_with_scene_context(
-                app_name,
-                scene,
-                include_raw_plate,
-            ):
-                return True
-        else:
-            # SimplifiedLauncher doesn't support scene context, fall back to regular launch
-            scene_shot = Shot(
-                show=scene.show,
-                sequence=scene.sequence,
-                shot=scene.shot,
-                workspace_path=scene.workspace_path,
-            )
-            self.set_current_shot(scene_shot)
-            return self.window.command_launcher.launch_app(app_name)
-        return False
+        # Launch with scene context
+        return self.window.command_launcher.launch_app_with_scene_context(
+            app_name,
+            scene,
+            include_raw_plate,
+        )
 
     def execute_custom_launcher(self, launcher_id: str) -> None:
         """Execute a custom launcher.

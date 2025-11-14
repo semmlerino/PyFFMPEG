@@ -555,12 +555,7 @@ class TestMainWindowUICoordination:
         # Verify essential components exist
         assert window.shot_model is not None
         assert window.cache_manager is not None
-        # launcher_manager is only present with legacy launcher (simplified launcher sets it to None)
-        # Either launcher_manager exists OR command_launcher is SimplifiedLauncher
-        assert (
-            window.launcher_manager is not None
-            or window.command_launcher.__class__.__name__ == "SimplifiedLauncher"
-        )
+        assert window.launcher_manager is not None
         assert window.command_launcher is not None
 
         # Verify UI elements
@@ -785,10 +780,7 @@ workspace /shows/test/shots/seq01/shot02""")
     ) -> None:
         """Test custom launcher creation and execution."""
         window = main_window_with_real_components
-
-        # Skip if using SimplifiedLauncher (no custom launcher support)
-        if window.launcher_manager is None:
-            pytest.skip("Custom launcher integration not supported with SimplifiedLauncher")
+        assert window.launcher_manager is not None
 
         # Get initial launcher count
         initial_count = len(window.launcher_manager.list_launchers())

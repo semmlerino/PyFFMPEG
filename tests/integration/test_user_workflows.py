@@ -412,7 +412,7 @@ class TestUserWorkflows:
                 workspace_path=str(shot_path),  # Use actual created path, not hardcoded path
             )
 
-            # Create and set the shot context (SimplifiedLauncher requires it)
+            # Create and set the shot context
             test_shot = Shot.from_dict(shot_data)
             main_window.command_launcher.current_shot = test_shot
 
@@ -427,11 +427,10 @@ class TestUserWorkflows:
             # Process events
             qtbot.wait(1)  # Minimal event processing
 
-            # Verify Maya was called (SimplifiedLauncher uses terminal, so command structure differs)
+            # Verify Maya was called
             if mock_popen.called:
                 call_args = mock_popen.call_args
                 command_str = " ".join(call_args[0][0]) if call_args[0] else ""
-                # SimplifiedLauncher wraps in gnome-terminal, so just verify maya was called
                 assert "maya" in command_str.lower()
 
     @pytest.mark.integration

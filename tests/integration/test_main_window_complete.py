@@ -326,12 +326,7 @@ class TestMainWindowCompleteWorkflows:
             # Verify behavior: launcher was invoked (not implementation detail)
             # Following UNIFIED_TESTING_GUIDE: Test behavior, not mock calls
             assert mock_launch.called  # Launcher was used
-            # With legacy launcher: launcher_manager should exist
-            # With simplified launcher: launcher_manager is None (by design)
-            assert (
-                window.launcher_manager is not None
-                or window.command_launcher.__class__.__name__ == "SimplifiedLauncher"
-            )
+            assert window.launcher_manager is not None
 
         # Step 3: Verify window remains functional
         assert window.isVisible()

@@ -14,6 +14,7 @@ from PySide6.QtCore import (
     QObject,
     Qt,
     QThread,
+    QTimer,
     QWaitCondition,
     Signal,
     SignalInstance,
@@ -82,7 +83,9 @@ class ThreadSafeWorker(LoggingMixin, QThread):
     _zombie_threads: ClassVar[list[ThreadSafeWorker]] = []
     _zombie_timestamps: ClassVar[dict[int, float]] = {}  # Track when zombified
     _zombie_mutex: ClassVar[QMutex] = QMutex()  # Protects _zombie_threads access
+    _zombie_cleanup_timer: ClassVar[QTimer | None] = None  # Periodic cleanup timer
     _MAX_ZOMBIE_AGE_SECONDS: ClassVar[int] = 60  # Try cleanup after 60s
+    _ZOMBIE_CLEANUP_INTERVAL_MS: ClassVar[int] = 60000  # Cleanup every 60s
 
     def __init__(self, parent: QObject | None = None) -> None:
         """Initialize thread-safe worker.
@@ -562,21 +565,19 @@ class ThreadSafeWorker(LoggingMixin, QThread):
 
                     # Add to class-level collection to prevent garbage collection
                     # This prevents "QThread: Destroyed while thread is still running" crash
+                    # FIXED: Don't call cleanup_old_zombies() from within mutex (DEADLOCK!)
+                    # QMutex is NOT recursive - cleanup_old_zombies() tries to acquire
+                    # the same mutex again → deadlock. Let periodic cleanup handle it.
                     with QMutexLocker(ThreadSafeWorker._zombie_mutex):
                         ThreadSafeWorker._zombie_threads.append(self)
                         ThreadSafeWorker._zombie_timestamps[id(self)] = time.time()
                         zombie_count = len(ThreadSafeWorker._zombie_threads)
 
-                        # Periodically cleanup old zombies (every 10th zombie)
-                        if zombie_count % 10 == 0:
-                            cleaned = ThreadSafeWorker.cleanup_old_zombies()
-                            if cleaned > 0:
-                                self.logger.info(f"Cleaned up {cleaned} old zombie threads")
-
                     self.logger.warning(
 
                             f"Worker {id(self)}: Added to zombie collection "
-                            f"({zombie_count} total zombies)"
+                            f"({zombie_count} total zombies). "
+                            "Periodic cleanup will attempt recovery."
 
                     )
                 else:
@@ -602,8 +603,8 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         current_time = time.time()
 
         # CRITICAL: Protect all access to shared zombie collections
-        # Qt's QMutexLocker supports recursive locking, so this is safe
-        # even when called from safe_terminate() which already holds the mutex
+        # NOTE: This method should NOT be called from within _zombie_mutex critical section
+        # as QMutex is NOT recursive and would cause deadlock.
         with QMutexLocker(cls._zombie_mutex):
             zombies_to_keep = []
 
@@ -627,3 +628,54 @@ class ThreadSafeWorker(LoggingMixin, QThread):
             cls._zombie_threads = zombies_to_keep
 
         return cleaned
+
+    @classmethod
+    def start_zombie_cleanup_timer(cls) -> None:
+        """Start the periodic zombie cleanup timer.
+
+        This should be called once during application initialization to enable
+        automatic cleanup of zombie threads. The timer runs in the main thread
+        and calls cleanup_old_zombies() every 60 seconds.
+
+        Thread-Safe:
+            Safe to call from any thread. Timer callback runs in main thread.
+        """
+        import logging
+
+        if cls._zombie_cleanup_timer is not None:
+            # Timer already started
+            return
+
+        logger = logging.getLogger("ThreadSafeWorker")
+
+        # Create timer in main thread context (no parent = main thread)
+        cls._zombie_cleanup_timer = QTimer()
+        cls._zombie_cleanup_timer.setInterval(cls._ZOMBIE_CLEANUP_INTERVAL_MS)
+
+        def cleanup_callback() -> None:
+            """Periodic cleanup callback."""
+            cleaned = cls.cleanup_old_zombies()
+            if cleaned > 0:
+                logger.info(f"Periodic zombie cleanup: removed {cleaned} finished threads")
+
+        _ = cls._zombie_cleanup_timer.timeout.connect(cleanup_callback)
+        cls._zombie_cleanup_timer.start()
+
+        logger.info(
+            f"Started periodic zombie cleanup timer "
+            f"(interval: {cls._ZOMBIE_CLEANUP_INTERVAL_MS}ms)"
+        )
+
+    @classmethod
+    def stop_zombie_cleanup_timer(cls) -> None:
+        """Stop the periodic zombie cleanup timer.
+
+        This should be called during application shutdown to cleanly stop
+        the cleanup timer.
+
+        Thread-Safe:
+            Safe to call from any thread.
+        """
+        if cls._zombie_cleanup_timer is not None:
+            cls._zombie_cleanup_timer.stop()
+            cls._zombie_cleanup_timer = None

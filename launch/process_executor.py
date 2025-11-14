@@ -9,11 +9,12 @@ This module handles process execution and management:
 
 import logging
 import subprocess
+import warnings
 from datetime import UTC, datetime
 from functools import partial
 from typing import TYPE_CHECKING, Final
 
-from PySide6.QtCore import QObject, QTimer, Signal
+from PySide6.QtCore import QObject, QTimer, Signal, Slot
 
 from notification_manager import NotificationManager
 
@@ -250,6 +251,7 @@ class ProcessExecutor(QObject):
                 timestamp, f"{app_name} started successfully (PID {process.pid})"
             )
 
+    @Slot(str, str)
     def _on_terminal_progress(self, operation: str, message: str) -> None:
         """Handle progress updates from persistent terminal operations.
 
@@ -264,6 +266,7 @@ class ProcessExecutor(QObject):
         timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
         self.execution_progress.emit(timestamp, f"[{operation}] {message}")
 
+    @Slot(bool, str)
     def _on_terminal_command_result(self, success: bool, error_message: str) -> None:
         """Handle command result from persistent terminal operations.
 
@@ -281,5 +284,38 @@ class ProcessExecutor(QObject):
             timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
             error_msg = f"Terminal operation failed: {error_message}"
             self.execution_error.emit(timestamp, error_msg)
+
+    def cleanup(self) -> None:
+        """Disconnect signals to prevent memory leaks.
+
+        This method should be called before deleting the ProcessExecutor instance
+        to ensure all signal connections are properly cleaned up.
+        """
+        if self.persistent_terminal:
+            # Suppress RuntimeWarning from PySide6 disconnect() calls
+            # The warning is emitted before the exception, so we need to filter it
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    category=RuntimeWarning,
+                    message="Failed to disconnect.*from signal",
+                )
+                try:
+                    _ = self.persistent_terminal.operation_progress.disconnect(
+                        self._on_terminal_progress
+                    )
+                    _ = self.persistent_terminal.command_result.disconnect(
+                        self._on_terminal_command_result
+                    )
+                    self.logger.debug("Disconnected ProcessExecutor signals")
+                except (RuntimeError, TypeError):
+                    pass  # Already disconnected
+
+    def __del__(self) -> None:
+        """Cleanup on destruction."""
+        try:
+            self.cleanup()
+        except Exception:
+            pass  # Ignore errors in destructor
 
 

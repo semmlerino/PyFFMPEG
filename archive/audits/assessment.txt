@@ -1,0 +1,54 @@
+⚠️ Issues / oddities to fix
+
+Misleading “refresh success” while already loading
+
+ShotModel.refresh_strategy: “Already loading – returning current state”
+
+But RefreshOrchestrator still logs “Success… (0.0s)”.
+Fix: Have refresh_strategy() return a tri-state (started|already_loading|failed) and only show success when actual work happened; otherwise show “refresh in progress” or nothing.
+
+User exclusion logic looks inverted
+
+Twice you log Excluding users: {'gabriel-h'} but then you explicitly search -path */user/gabriel-h.
+Fix: Either rename that log to “Including users” or correct the filter so you’re not both excluding and then explicitly including the same user. This could silently hide results in other code paths.
+
+Duplicate progress ops (possible imbalance/leak)
+
+You start “Scanning for 3DE scenes” twice at 17:38:17 but only one “Finished” appears.
+Fix: Give each progress op a unique key (e.g., scan_3de_worker vs scan_prev_shots) and enforce 1:1 start/finish with an RAII token or context manager.
+
+Cache/manager double-initializations
+
+SimpleCacheManager initialized appears twice during startup (same path).
+Fix: Make CacheManager a singleton or inject a shared instance to avoid redundant work and potential races on TTL/config.
+
+No cached shots + proactive timer → redundant refresh
+
+QTimer fires _refresh_shots() immediately while the async loader is already running, causing the “already loading” short-circuit above.
+Fix: Gate the first QTimer refresh on a “loader finished or timeout” signal, or skip if loading_in_progress=True.
+
+EXR thumbnail fallback is heavy/fragile
+
+PIL can’t read EXR (expected), you fall back to MOV extraction (works but costly).
+Fix (preferable): Use OpenImageIO or oiio-tool/oiiotool via subprocess for EXR → JPEG thumbnails. Keep the MOV fallback, but mark it as secondary.
+
+Progress names too similar
+
+You also log “Scanning for previous shots” and “Scanning for 3DE scenes” concurrently; easy to confuse.
+Fix: Make labels precise (e.g., “Prev-shots scan (user: gabriel-h)” vs “3DE scene discovery”).
+
+Over-eager settings writes
+
+“Settings saved successfully” fires on every selection change.
+Fix: Debounce or write-only-on-dirty to cut unnecessary disk I/O.
+
+Minor log noise / duplication
+
+Both “enhanced 3DE scene discovery” and “progressive 3DE scene discovery” are announced; likely the same mode.
+Fix: Consolidate to one message to keep logs crisp.
+
+Nice-to-have diagnostics
+
+Log the PID at startup and the app instance UUID so two launches (17:31 and 17:38) are clearly disambiguated.
+
+Add a duration to the session warmer (it currently looks instant) to catch slow env in future.

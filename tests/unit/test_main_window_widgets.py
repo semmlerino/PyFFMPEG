@@ -320,10 +320,7 @@ class TestMainWindowSignalConnections:
         # Window should have launcher manager
         if hasattr(window, "launcher_manager"):
             launcher_manager = window.launcher_manager
-
-            # Skip if SimplifiedLauncher is active (launcher_manager is None)
-            if launcher_manager is None:
-                pytest.skip("Launcher manager not available with SimplifiedLauncher")
+            assert launcher_manager is not None
 
             # Launcher manager should have basic methods (check actual method names)
             assert hasattr(launcher_manager, "list_launchers")

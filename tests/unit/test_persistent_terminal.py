@@ -26,5 +26,5 @@ def test_persistent_terminal_manager_creation(qapp: "QApplication") -> None:
     manager = PersistentTerminalManager()
     assert manager is not None
 
-    # Cleanup without trying to use terminal
-    manager.cleanup_fifo_only()
+    # Cleanup terminal workers and FIFO
+    manager.cleanup()

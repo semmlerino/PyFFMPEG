@@ -78,6 +78,9 @@ class TestPersistentTerminalManager:
 
             yield manager
 
+        # Cleanup
+        manager.cleanup()
+
     def test_initialization(
         self,
         terminal_manager: PersistentTerminalManager,
@@ -1295,12 +1298,9 @@ class TestDispatcherLaunchIssues:
             )
             yield manager
 
-            # Cleanup
-            try:
-                if manager._dummy_writer_fd is not None:
-                    os.close(manager._dummy_writer_fd)
-            except (OSError, AttributeError):
-                pass
+        # Stop workers before cleaning up file descriptors
+        manager.cleanup()
+
 
     def test_dispatcher_script_exists_before_launch(
         self,

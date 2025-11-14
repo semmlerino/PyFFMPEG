@@ -325,6 +325,12 @@ Environment Variables:
     window = MainWindow()
     logger.info("MainWindow created successfully")
 
+    # Start periodic zombie thread cleanup (prevents memory leaks)
+    from thread_safe_worker import ThreadSafeWorker
+
+    ThreadSafeWorker.start_zombie_cleanup_timer()
+    logger.info("Started periodic zombie thread cleanup timer")
+
     # In headless mode, patch the window to prevent display operations
     if headless_mode:
         # Local application imports

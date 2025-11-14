@@ -20,7 +20,7 @@ import subprocess
 import threading
 import time
 from pathlib import Path
-from typing import final
+from typing import ClassVar, final
 
 # Third-party imports
 import psutil
@@ -131,6 +131,10 @@ class TerminalOperationWorker(QThread):
 class PersistentTerminalManager(LoggingMixin, QObject):
     """Manages a single persistent terminal for all commands."""
 
+    # Class-level tracking for test cleanup
+    _test_instances: ClassVar[list[PersistentTerminalManager]] = []
+    _test_instances_lock: ClassVar[threading.Lock] = threading.Lock()
+
     # Signals
     terminal_started = Signal(int)  # PID of terminal
     terminal_closed = Signal()
@@ -208,6 +212,10 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         self.logger.info(
             f"PersistentTerminalManager initialized with FIFO: {self.fifo_path}"
         )
+
+        # Track instance for test cleanup
+        with self.__class__._test_instances_lock:
+            self.__class__._test_instances.append(self)
 
     def _ensure_fifo(self, open_dummy_writer: bool = True) -> bool:
         """Ensure the FIFO exists for command communication.
@@ -1212,7 +1220,35 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         return False
 
     def cleanup(self) -> None:
-        """Clean up resources (FIFO and terminal)."""
+        """Clean up resources (workers, FIFO, and terminal).
+
+        IMPORTANT: Workers must be stopped FIRST to prevent deadlock on _state_lock.
+        """
+        # 1. STOP ALL WORKERS FIRST (before acquiring any locks)
+        with self._workers_lock:
+            workers_to_stop = list(self._active_workers)
+
+        if workers_to_stop:
+            self.logger.info(f"Stopping {len(workers_to_stop)} active workers before cleanup")
+
+        for worker in workers_to_stop:
+            # Request stop and wait with timeout
+            worker.requestInterruption()
+            if not worker.wait(3000):  # 3 second timeout
+                self.logger.warning(f"Worker {id(worker)} did not stop gracefully")
+                worker.terminate()
+                _ = worker.wait(1000)  # Wait 1s for termination
+
+        # Clear workers list
+        with self._workers_lock:
+            self._active_workers.clear()
+
+        # Remove from test instances tracking
+        with self.__class__._test_instances_lock:
+            if self in self.__class__._test_instances:
+                self.__class__._test_instances.remove(self)
+
+        # 2. THEN cleanup terminal and resources (safe now that workers are stopped)
         # Close terminal if running
         if self._is_terminal_alive():
             _ = self.close_terminal()
@@ -1234,6 +1270,11 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         This is useful when we want to keep the terminal open
         after the application exits.
         """
+        # Remove from test instances tracking
+        with self.__class__._test_instances_lock:
+            if self in self.__class__._test_instances:
+                self.__class__._test_instances.remove(self)
+
         # Close dummy writer FD first
         self._close_dummy_writer_fd()
 
@@ -1259,3 +1300,24 @@ class PersistentTerminalManager(LoggingMixin, QObject):
                 Path(self.fifo_path).unlink()
         except Exception:
             pass
+
+    @classmethod
+    def cleanup_all_instances(cls) -> None:
+        """Clean up all tracked instances (for test teardown).
+
+        INTERNAL USE ONLY: This is called by pytest fixtures to ensure
+        all PersistentTerminalManager instances are cleaned up before
+        pytest-qt teardown begins.
+
+        This prevents workers from spawning subprocesses during pytest teardown,
+        which causes "Fatal Python error: Aborted" crashes.
+        """
+        with cls._test_instances_lock:
+            instances = list(cls._test_instances)
+
+        for instance in instances:
+            try:
+                instance.cleanup()
+            except Exception:
+                # Ignore errors during test cleanup
+                pass

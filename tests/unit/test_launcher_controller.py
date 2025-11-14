@@ -48,23 +48,25 @@ class TestCommandLauncher(QObject):
     def launch_app(
         self,
         app_name: str,
-        include_raw_plate: bool = False,
-        open_latest_threede: bool = False,
-        open_latest_maya: bool = False,
-        open_latest_scene: bool = False,
-        create_new_file: bool = False,
+        context: Any = None,
     ) -> bool:
-        """Simulate launching an application."""
+        """Simulate launching an application with LaunchContext."""
+        from command_launcher import LaunchContext
+
+        # Handle LaunchContext or default values
+        if context is None or not isinstance(context, LaunchContext):
+            context = LaunchContext()
+
         self.last_command = f"{app_name} with options"
         self.executed_commands.append(
             (
                 app_name,
                 {
-                    "include_raw_plate": include_raw_plate,
-                    "open_latest_threede": open_latest_threede,
-                    "open_latest_maya": open_latest_maya,
-                    "open_latest_scene": open_latest_scene,
-                    "create_new_file": create_new_file,
+                    "include_raw_plate": context.include_raw_plate,
+                    "open_latest_threede": context.open_latest_threede,
+                    "open_latest_maya": context.open_latest_maya,
+                    "open_latest_scene": context.open_latest_scene,
+                    "create_new_file": context.create_new_file,
                     "shot": self.current_shot.full_name if self.current_shot else None,
                 },
             )

@@ -1,28 +1,19 @@
 """Command launcher for executing applications in shot context.
 
-DEPRECATED: This module is deprecated in favor of simplified_launcher.py.
-The SimplifiedLauncher consolidates functionality from 4 modules (3,153 lines) into one (610 lines).
-To use this legacy launcher, set environment variable: USE_SIMPLIFIED_LAUNCHER=false
-
-Migration: Use simplified_launcher.SimplifiedLauncher instead.
+This module provides the production launcher system for Shotbot, handling:
+- Application launching with shot context
+- Rez environment integration
+- Persistent terminal management
+- Process lifecycle management
 """
 
 from __future__ import annotations
-
-import warnings
-
-
-warnings.warn(
-    "command_launcher is deprecated. Use simplified_launcher.SimplifiedLauncher instead. "
-    "Set USE_SIMPLIFIED_LAUNCHER=false to continue using this module.",
-    DeprecationWarning,
-    stacklevel=2,
-)
 
 # Standard library imports
 import errno
 import os
 import subprocess
+import warnings
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from functools import partial
@@ -135,8 +126,8 @@ class CommandLauncher(LoggingMixin, QObject):
         from raw_plate_finder import RawPlateFinder
         from threede_latest_finder import ThreeDELatestFinder
 
-        self._raw_plate_finder = RawPlateFinder
-        self._nuke_script_generator = NukeScriptGenerator
+        self._raw_plate_finder = RawPlateFinder()
+        self._nuke_script_generator = NukeScriptGenerator()
         self._threede_latest_finder = ThreeDELatestFinder()
         self._maya_latest_finder = MayaLatestFinder()
 
@@ -159,14 +150,28 @@ class CommandLauncher(LoggingMixin, QObject):
             Safe to call multiple times. Silently handles already-disconnected signals.
             Safe to call even if __init__ failed partway through.
         """
-        try:
-            _ = self.process_executor.execution_started.disconnect(self._on_execution_started)
-            _ = self.process_executor.execution_progress.disconnect(self._on_execution_progress)
-            _ = self.process_executor.execution_completed.disconnect(self._on_execution_completed)
-            _ = self.process_executor.execution_error.disconnect(self._on_execution_error)
-        except (RuntimeError, TypeError, AttributeError):
-            # Signals already disconnected, object destroyed, or __init__ failed before creating process_executor
-            pass
+        # Suppress RuntimeWarning from PySide6 disconnect() calls
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                category=RuntimeWarning,
+                message="Failed to disconnect.*from signal",
+            )
+            try:
+                _ = self.process_executor.execution_started.disconnect(self._on_execution_started)
+                _ = self.process_executor.execution_progress.disconnect(self._on_execution_progress)
+                _ = self.process_executor.execution_completed.disconnect(self._on_execution_completed)
+                _ = self.process_executor.execution_error.disconnect(self._on_execution_error)
+            except (RuntimeError, TypeError, AttributeError):
+                # Signals already disconnected, object destroyed, or __init__ failed before creating process_executor
+                pass
+
+            # FIX: Cleanup ProcessExecutor's signal connections to PersistentTerminalManager
+            # Without this, signal connections from ProcessExecutor to PersistentTerminalManager leak
+            try:
+                self.process_executor.cleanup()
+            except (RuntimeError, TypeError, AttributeError):
+                pass
 
     def __del__(self) -> None:
         """Ensure cleanup on destruction."""
