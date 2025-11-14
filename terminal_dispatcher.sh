@@ -121,6 +121,21 @@ is_gui_app() {
         fi
     fi
 
+    # Handle ws <workspace> && <command> format (non-Rez environments)
+    # Example: "ws /srv/shows/foo/shot && nuke"
+    if [[ "$cmd" =~ ws[[:space:]]+[^[:space:]]+[[:space:]]+\&\&[[:space:]]+(.+) ]]; then
+        local after_ws="${BASH_REMATCH[1]}"
+        # Extract first word (the actual executable)
+        local exe="${after_ws%% *}"
+
+        # Check if this is a GUI app
+        case "$exe" in
+            nuke|maya|rv|3de|houdini|katana|mari|clarisse)
+                return 0
+                ;;
+        esac
+    fi
+
     # Fallback: Check if command starts with known GUI executables
     # This handles direct invocations without wrappers
     case "$cmd" in
@@ -157,6 +172,21 @@ extract_app_name() {
         fi
     fi
 
+    # Handle ws <workspace> && <command> format (non-Rez environments)
+    if [[ "$cmd" =~ ws[[:space:]]+[^[:space:]]+[[:space:]]+\&\&[[:space:]]+(.+) ]]; then
+        local after_ws="${BASH_REMATCH[1]}"
+        # Extract first word (the actual executable)
+        local exe="${after_ws%% *}"
+
+        # Check if this is a known GUI app
+        case "$exe" in
+            nuke|maya|rv|3de|houdini|katana|mari|clarisse)
+                echo "$exe"
+                return 0
+                ;;
+        esac
+    fi
+
     # Fallback: Extract from direct invocations
     local first_word="${cmd%% *}"
     case "$first_word" in
@@ -171,8 +201,21 @@ extract_app_name() {
 }
 
 # Signal handling for defense in depth
-# Ignore signals from backgrounded jobs to prevent read loop interruption
-trap '' SIGCHLD SIGHUP SIGPIPE
+# Ignore SIGHUP and SIGPIPE to prevent read loop interruption
+# Note: SIGCHLD is not ignored to allow zombie process reaping
+trap '' SIGHUP SIGPIPE
+
+# Start background zombie reaper to prevent accumulation
+# This handles GUI apps that are backgrounded and later exit
+(
+    while true; do
+        # Non-blocking wait for any child process
+        wait -n 2>/dev/null
+        # Small sleep to avoid busy-wait when no children
+        sleep 0.1
+    done
+) &
+REAPER_PID=$!
 
 # Open FIFO with persistent file descriptor to avoid reader gap race conditions
 # Using FD 3 for persistent read access - this eliminates windows where no reader exists
@@ -236,7 +279,8 @@ while true; do
         # Heartbeat responder
         if [ "$cmd" = "__HEARTBEAT__" ]; then
             log_debug "Received heartbeat ping, sending PONG"
-            echo "PONG" > "$HEARTBEAT_FILE"
+            # Atomic write to prevent TOCTTOU race condition during Python's read
+            echo "PONG" > "${HEARTBEAT_FILE}.tmp" && mv "${HEARTBEAT_FILE}.tmp" "$HEARTBEAT_FILE"
             continue
         fi
 

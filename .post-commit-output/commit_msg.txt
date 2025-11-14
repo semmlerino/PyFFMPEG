@@ -1,1 +1,1 @@
-refactor: Remove SimplifiedLauncher and fix pytest teardown crashes
+feat: Add command verification and improve worker shutdown handling

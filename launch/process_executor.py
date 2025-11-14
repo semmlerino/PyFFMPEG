@@ -34,8 +34,6 @@ class ProcessExecutor(QObject):
     It provides signal-based status reporting and handles process verification.
 
     Signals:
-        execution_started: Emitted when command execution starts
-                          Args: (timestamp: str, message: str)
         execution_progress: Emitted for progress updates
                            Args: (timestamp: str, message: str)
         execution_completed: Emitted when execution completes
@@ -45,7 +43,6 @@ class ProcessExecutor(QObject):
     """
 
     # Signals - type annotations for clarity
-    execution_started: Signal = Signal(str, str)  # timestamp, message
     execution_progress: Signal = Signal(str, str)  # timestamp, message
     execution_completed: Signal = Signal(bool, str)  # success, error_message
     execution_error: Signal = Signal(str, str)  # timestamp, error_message

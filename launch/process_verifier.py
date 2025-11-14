@@ -11,12 +11,14 @@ Thread Safety:
 
 from __future__ import annotations
 
+import re
 import time
 from logging import Logger
 from pathlib import Path
 from typing import TYPE_CHECKING, final
 
 import psutil
+
 
 if TYPE_CHECKING:
     from logging_mixin import ContextualLogger
@@ -25,7 +27,6 @@ if TYPE_CHECKING:
 class ProcessVerificationError(Exception):
     """Raised when process verification fails."""
 
-    pass
 
 
 @final
@@ -66,12 +67,15 @@ class ProcessVerifier:
         self,
         command: str,
         timeout_sec: float | None = None,
+        enqueue_time: float | None = None,
     ) -> tuple[bool, str]:
         """Wait for launched process to start and verify it exists.
 
         Args:
             command: The command that was executed
             timeout_sec: How long to wait (default: VERIFICATION_TIMEOUT_SEC)
+            enqueue_time: Time when command was enqueued (for filtering stale PID files).
+                         If None, uses current time minus timeout (conservative filter).
 
         Returns:
             (success, message) tuple
@@ -80,6 +84,11 @@ class ProcessVerifier:
         """
         if timeout_sec is None:
             timeout_sec = self.VERIFICATION_TIMEOUT_SEC
+
+        # If no enqueue time provided, use conservative estimate
+        # (current time minus timeout ensures we don't reject fresh PIDs)
+        if enqueue_time is None:
+            enqueue_time = time.time() - timeout_sec
 
         # Check if this is a GUI app (needs verification)
         if not self._is_gui_app(command):
@@ -91,7 +100,7 @@ class ProcessVerifier:
             return True, "Could not extract app name (skipping verification)"
 
         # Wait for PID file to appear
-        pid = self._wait_for_pid_file(app_name, timeout_sec)
+        pid = self._wait_for_pid_file(app_name, timeout_sec, enqueue_time)
         if pid is None:
             msg = f"PID file not found after {timeout_sec}s"
             self.logger.warning(f"Process verification failed: {msg}")
@@ -102,10 +111,9 @@ class ProcessVerifier:
             msg = f"Process verified (PID: {pid})"
             self.logger.info(f"✓ {msg}")
             return True, msg
-        else:
-            msg = f"Process {pid} not found (crashed immediately?)"
-            self.logger.warning(f"Process verification failed: {msg}")
-            return False, msg
+        msg = f"Process {pid} not found (crashed immediately?)"
+        self.logger.warning(f"Process verification failed: {msg}")
+        return False, msg
 
     def _is_gui_app(self, command: str) -> bool:
         """Check if command launches a GUI app that needs verification.
@@ -115,11 +123,16 @@ class ProcessVerifier:
 
         Returns:
             True if this is a GUI app
+
+        Note:
+            Uses word boundaries to avoid false positives (e.g., "rv" in "/srv/data")
         """
         # GUI apps we want to verify
         gui_apps = ["nuke", "3de", "maya", "rv", "houdini"]
         cmd_lower = command.lower()
-        return any(app in cmd_lower for app in gui_apps)
+
+        # Use word boundaries to avoid false matches like "rv" in "/srv/"
+        return any(re.search(rf"\b{re.escape(app)}\b", cmd_lower) for app in gui_apps)
 
     def _extract_app_name(self, command: str) -> str | None:
         """Extract app name from command for PID file lookup.
@@ -129,13 +142,17 @@ class ProcessVerifier:
 
         Returns:
             App name (e.g., "nuke", "3de") or None
+
+        Note:
+            Uses word boundaries to avoid false matches (e.g., "rv" in "/srv/data")
         """
         # Look for known app names
         gui_apps = ["nuke", "3de", "maya", "rv", "houdini"]
         cmd_lower = command.lower()
 
+        # Use word boundaries to avoid false matches
         for app in gui_apps:
-            if app in cmd_lower:
+            if re.search(rf"\b{re.escape(app)}\b", cmd_lower):
                 return app
 
         return None
@@ -144,19 +161,29 @@ class ProcessVerifier:
         self,
         app_name: str,
         timeout_sec: float,
+        enqueue_time: float,
     ) -> int | None:
         """Wait for PID file to appear and read PID.
 
         Args:
             app_name: Name of app (e.g., "nuke")
             timeout_sec: How long to wait
+            enqueue_time: Time when command was enqueued (filters stale PID files)
 
         Returns:
             PID if found, None if timeout
-        """
-        start_time = time.time()
 
-        while time.time() - start_time < timeout_sec:
+        Note:
+            Only considers PID files created after enqueue_time to avoid accepting
+            stale PID files from previous launches.
+
+            Uses monotonic time for timeout loop to prevent clock changes from
+            affecting the wait duration.
+        """
+        # Use monotonic time for timeout to avoid clock skew issues
+        start_time = time.monotonic()
+
+        while time.monotonic() - start_time < timeout_sec:
             # Look for latest PID file for this app
             # Format: /tmp/shotbot_pids/<app_name>_<timestamp>.pid
             pid_dir = Path(self.PID_FILE_DIR)
@@ -166,9 +193,19 @@ class ProcessVerifier:
 
             pid_files = list(pid_dir.glob(f"{app_name}_*.pid"))
 
-            if pid_files:
+            # Filter out stale PID files (created before command was enqueued)
+            # Use 2-second tolerance to handle clock skew (NTP adjustments, etc.)
+            # This allows files created slightly before enqueue_time due to clock drift
+            clock_skew_tolerance = 2.0
+            fresh_pid_files = [
+                f
+                for f in pid_files
+                if f.stat().st_mtime >= enqueue_time - clock_skew_tolerance
+            ]
+
+            if fresh_pid_files:
                 # Use most recent file
-                latest_pid_file = max(pid_files, key=lambda p: p.stat().st_mtime)
+                latest_pid_file = max(fresh_pid_files, key=lambda p: p.stat().st_mtime)
 
                 try:
                     pid_str = latest_pid_file.read_text().strip()

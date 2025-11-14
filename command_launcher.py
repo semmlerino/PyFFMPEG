@@ -13,6 +13,7 @@ from __future__ import annotations
 import errno
 import os
 import subprocess
+import threading
 import warnings
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -106,6 +107,10 @@ class CommandLauncher(LoggingMixin, QObject):
         self.current_shot: Shot | None = None
         self.persistent_terminal = persistent_terminal
 
+        # Fallback retry mechanism - stores commands that failed async for retry
+        self._pending_fallback: dict[str, tuple[str, str]] = {}  # timestamp -> (cmd, app_name)
+        self._fallback_lock = threading.Lock()  # Thread-safe dict access
+
         # Initialize launch components
         self.env_manager = EnvironmentManager()
         self.process_executor = ProcessExecutor(persistent_terminal, Config)
@@ -114,7 +119,6 @@ class CommandLauncher(LoggingMixin, QObject):
         self.nuke_handler = NukeLaunchRouter()
 
         # Connect process executor signals
-        _ = self.process_executor.execution_started.connect(self._on_execution_started)
         _ = self.process_executor.execution_progress.connect(self._on_execution_progress)
         _ = self.process_executor.execution_completed.connect(self._on_execution_completed)
         _ = self.process_executor.execution_error.connect(self._on_execution_error)
@@ -125,6 +129,10 @@ class CommandLauncher(LoggingMixin, QObject):
             _ = self.persistent_terminal.command_executing.connect(self._on_command_executing)
             _ = self.persistent_terminal.command_verified.connect(self._on_command_verified)
             _ = self.persistent_terminal.command_error.connect(self._on_command_error_internal)
+            # Connect operation_finished for fallback retry mechanism
+            _ = self.persistent_terminal.operation_finished.connect(
+                self._on_persistent_terminal_operation_finished
+            )
 
         # Initialize scene/file finders (created internally, not injected)
         # Local application imports
@@ -165,7 +173,6 @@ class CommandLauncher(LoggingMixin, QObject):
                 message="Failed to disconnect.*from signal",
             )
             try:
-                _ = self.process_executor.execution_started.disconnect(self._on_execution_started)
                 _ = self.process_executor.execution_progress.disconnect(self._on_execution_progress)
                 _ = self.process_executor.execution_completed.disconnect(self._on_execution_completed)
                 _ = self.process_executor.execution_error.disconnect(self._on_execution_error)
@@ -173,11 +180,16 @@ class CommandLauncher(LoggingMixin, QObject):
                 # Signals already disconnected, object destroyed, or __init__ failed before creating process_executor
                 pass
 
-            # Disconnect Phase 1 lifecycle signals
+            # Disconnect Phase 1 & 2 lifecycle signals
             if self.persistent_terminal:
                 try:
                     _ = self.persistent_terminal.command_queued.disconnect(self._on_command_queued)
                     _ = self.persistent_terminal.command_executing.disconnect(self._on_command_executing)
+                    _ = self.persistent_terminal.command_verified.disconnect(self._on_command_verified)
+                    _ = self.persistent_terminal.command_error.disconnect(self._on_command_error_internal)
+                    _ = self.persistent_terminal.operation_finished.disconnect(
+                        self._on_persistent_terminal_operation_finished
+                    )
                 except (RuntimeError, TypeError, AttributeError):
                     # Signals already disconnected or __init__ failed
                     pass
@@ -196,16 +208,6 @@ class CommandLauncher(LoggingMixin, QObject):
     def set_current_shot(self, shot: Shot | None) -> None:
         """Set the current shot context."""
         self.current_shot = shot
-
-    def _on_execution_started(self, operation: str, message: str) -> None:
-        """Handle execution started from ProcessExecutor.
-
-        Args:
-            operation: Name of the operation
-            message: Status message
-        """
-        timestamp = self.timestamp
-        self.command_executed.emit(timestamp, f"[{operation}] {message}")
 
     def _on_execution_progress(self, operation: str, message: str) -> None:
         """Handle execution progress from ProcessExecutor.
@@ -275,19 +277,90 @@ class CommandLauncher(LoggingMixin, QObject):
         # Emit to log viewer (uses existing command_error signal)
         self.command_error.emit(timestamp, error)
 
+    def _on_persistent_terminal_operation_finished(
+        self, operation: str, success: bool, message: str
+    ) -> None:
+        """Handle persistent terminal operation completion with fallback retry.
+
+        If operation failed and we have a pending fallback, retry with new terminal.
+
+        Args:
+            operation: Operation type (e.g., "send_command")
+            success: Whether operation succeeded
+            message: Status/error message
+        """
+        if success:
+            # Clear any pending fallback for successful commands
+            # We don't know exact timestamp, so clear old ones (>30s ago)
+            from datetime import datetime
+
+            now = datetime.now()
+            to_remove = []
+
+            # Thread-safe dict iteration and cleanup
+            with self._fallback_lock:
+                for ts in self._pending_fallback:
+                    try:
+                        parsed = datetime.strptime(ts, "%H:%M:%S")
+                        # Handle day rollover - assume same day if within reason
+                        elapsed = (now.hour * 3600 + now.minute * 60 + now.second) - (
+                            parsed.hour * 3600 + parsed.minute * 60 + parsed.second
+                        )
+                        if elapsed < 0:  # Day rollover
+                            elapsed += 86400
+                        if elapsed > 30:  # Older than 30 seconds
+                            to_remove.append(ts)
+                    except ValueError:
+                        # Invalid timestamp, remove it
+                        to_remove.append(ts)
+
+                # Use pop with default to avoid KeyError if another thread deleted
+                for ts in to_remove:
+                    _ = self._pending_fallback.pop(ts, None)
+            return
+
+        # Operation failed - check if we should fallback
+        with self._fallback_lock:
+            if not self._pending_fallback:
+                return  # No pending fallback
+
+            # Get oldest pending command (FIFO queue)
+            timestamps = sorted(self._pending_fallback.keys())
+            if not timestamps:
+                return
+
+            oldest_timestamp = timestamps[0]
+            # Pop with default to avoid KeyError if another thread deleted it
+            result = self._pending_fallback.pop(oldest_timestamp, None)
+            if result is None:
+                return  # Another thread already processed this
+
+        full_command, app_name = result
+
+        self.logger.warning(
+            f"Persistent terminal failed: {message}. Retrying with new terminal window."
+        )
+
+        # Retry with fallback
+        _ = self._launch_in_new_terminal(
+            full_command, app_name, "persistent terminal failed"
+        )
+
     # Methods removed - now using launch components:
     # - _is_rez_available() → self.env_manager.is_rez_available(Config)
     # - _get_rez_packages_for_app() → self.env_manager.get_rez_packages(app_name, Config)
     # - _detect_available_terminal() → self.env_manager.detect_terminal()
     # - _validate_path_for_shell() → CommandBuilder.validate_path(path)
 
-    def _try_persistent_terminal(self, full_command: str) -> bool:
+    def _try_persistent_terminal(self, full_command: str, app_name: str = "") -> bool:
         """Try executing command in persistent terminal.
 
-        Template method helper for persistent terminal execution.
+        Template method helper for persistent terminal execution. If the async
+        execution fails, the fallback mechanism will retry with a new terminal.
 
         Args:
             full_command: Complete command to execute
+            app_name: Application name (for fallback retry if needed)
 
         Returns:
             True if command was successfully queued in persistent terminal,
@@ -316,6 +389,11 @@ class CommandLauncher(LoggingMixin, QObject):
         self.logger.info(
             f"Sending command to persistent terminal (async): {full_command}"
         )
+
+        # Store command for potential fallback retry if async execution fails
+        timestamp = self.timestamp
+        with self._fallback_lock:
+            self._pending_fallback[timestamp] = (full_command, app_name)
 
         # Use async send - returns immediately, GUI stays responsive
         # Progress and completion are reported via signals
@@ -432,13 +510,13 @@ class CommandLauncher(LoggingMixin, QObject):
             error_context: Additional context for error messages (e.g., " with scene")
 
         Returns:
-            True if launch successful, False otherwise
+            True if launch successful (or queued for async execution), False otherwise
         """
-        # Try persistent terminal first
-        if self._try_persistent_terminal(full_command):
+        # Try persistent terminal first (async, may retry with fallback later)
+        if self._try_persistent_terminal(full_command, app_name):
             return True
 
-        # Fallback to new terminal window
+        # Fallback to new terminal window (synchronous)
         return self._launch_in_new_terminal(full_command, app_name, error_context)
 
     def launch_app(
