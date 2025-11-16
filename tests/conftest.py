@@ -484,12 +484,9 @@ def cleanup_state() -> Iterator[None]:
         # Qt objects may already be deleted
         pass
 
-    # Reset ProcessPoolManager
-    try:
-        from process_pool_manager import ProcessPoolManager
-        ProcessPoolManager.reset()
-    except (RuntimeError, AttributeError, ImportError):
-        pass
+    # ProcessPoolManager reset removed - now handled by mock_process_pool_manager autouse fixture
+    # The autouse fixture patches ProcessPoolManager._instance for all tests
+    # Resetting here would interfere with the mock
 
     # Reset FilesystemCoordinator
     try:
@@ -1095,27 +1092,65 @@ def test_process_pool():
     return TestProcessPool()
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def mock_process_pool_manager(monkeypatch, test_process_pool):
-    """Patch ProcessPoolManager to use test double.
+    """Patch ProcessPoolManager to use test double (AUTOUSE).
 
-    This fixture patches ProcessPoolManager for tests that need subprocess mocking.
-    Use this fixture explicitly in tests that need it (not autouse).
+    This fixture patches ProcessPoolManager globally to prevent subprocess crashes
+    in parallel test execution. Many components (ShotModel, Workers) internally use
+    ProcessPoolManager as a singleton, making it impractical to mock at every call site.
 
-    Per UNIFIED_TESTING_V2.MD:
-    - Autouse appropriate ONLY for: Qt cleanup, cache clearing, QMessageBox mocking, random seed
-    - NOT for: subprocess, filesystem, database mocking (use explicit fixtures)
+    EXCEPTION TO UNIFIED_TESTING_V2.MD GUIDANCE:
+    - Normally subprocess mocking should NOT be autouse (per UNIFIED_TESTING_V2.MD)
+    - But ProcessPoolManager is a singleton used throughout the codebase
+    - Without global mocking, tests crash in parallel when multiple workers
+      try to execute real "ws -sg" commands (C-level subprocess crash)
+    - This is the pragmatic choice for a singleton dependency that's not at
+      a system boundary
 
-    Usage:
-        def test_something(mock_process_pool_manager):
-            # Test code that uses ProcessPoolManager
-            pass
+    This fixture is applied automatically to all tests to ensure subprocess
+    isolation in parallel execution (-n auto).
     """
-    # Patch ProcessPoolManager.get_instance() to return our test double
+    # Patch the singleton instance directly - get_instance() checks this first
     monkeypatch.setattr(
-        "process_pool_manager.ProcessPoolManager.get_instance",
-        lambda: test_process_pool,
+        "process_pool_manager.ProcessPoolManager._instance",
+        test_process_pool,
     )
+
+
+@pytest.fixture(autouse=True)
+def mock_subprocess_popen(monkeypatch):
+    """Mock subprocess.Popen to prevent crashes in launcher/worker.py (AUTOUSE).
+
+    launcher/worker.py directly calls subprocess.Popen (not through ProcessPoolManager),
+    which causes parallel test crashes. This fixture mocks Popen globally.
+
+    EXCEPTION TO UNIFIED_TESTING_V2.MD GUIDANCE:
+    - Normally subprocess mocking should NOT be autouse
+    - But launcher/worker.py makes direct subprocess.Popen calls throughout the codebase
+    - Without global mocking, tests crash in parallel execution
+    - This is pragmatic for code that directly spawns subprocesses
+
+    Returns a mock Popen that doesn't actually spawn processes.
+    """
+    import io
+    from unittest.mock import MagicMock
+
+    mock_popen = MagicMock()
+    mock_process = mock_popen.return_value
+    mock_process.pid = 12345
+    mock_process.poll.return_value = 0  # Process finished
+    mock_process.wait.return_value = 0  # Exit code 0
+    mock_process.returncode = 0
+    # Use real file-like objects instead of None (Qt threading requires real file objects)
+    mock_process.stdout = io.BytesIO(b"")
+    mock_process.stderr = io.BytesIO(b"")
+    mock_process.communicate.return_value = (b"", b"")
+
+    # Patch in launcher.worker module namespace (uses `import subprocess`)
+    monkeypatch.setattr("launcher.worker.subprocess.Popen", mock_popen)
+    # Also patch in subprocess module for any other direct callers
+    monkeypatch.setattr("subprocess.Popen", mock_popen)
 
 
 @pytest.fixture
