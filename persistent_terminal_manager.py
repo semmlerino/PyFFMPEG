@@ -373,6 +373,14 @@ class PersistentTerminalManager(LoggingMixin, QObject):
                         )
                     except OSError as e:
                         self.logger.error(f"Failed to open dummy writer: {e}")
+                        # CRITICAL BUG FIX #28: Clean up FIFO if dummy writer fails
+                        # Without this, FIFO remains but _dummy_writer_fd is None,
+                        # causing all future commands to fail
+                        try:
+                            Path(self.fifo_path).unlink()
+                            self.logger.debug("Cleaned up FIFO after dummy writer failure")
+                        except OSError:
+                            pass  # Best effort cleanup
                         # Log warning but don't fail - dispatcher might not be running yet
                         # Caller should open dummy writer after dispatcher is ready
                         self.logger.warning(
@@ -1170,7 +1178,18 @@ class PersistentTerminalManager(LoggingMixin, QObject):
         _ = thread.finished.connect(worker.deleteLater)  # Cleanup worker when thread finishes
 
         # Store worker AND thread reference to prevent garbage collection (thread-safe)
+        # CRITICAL BUG FIX #53: Double-check shutdown flag to prevent worker leak
+        # Without this check, cleanup() can clear _active_workers between first check (line 1122)
+        # and this append, causing the new worker to be added AFTER cleanup completes.
         with self._workers_lock:
+            if self._shutdown_requested:
+                # Shutdown happened while we were creating worker - clean it up immediately
+                self.logger.warning("Shutdown detected during worker creation - cleaning up immediately")
+                worker.deleteLater()
+                thread.quit()
+                # Return False to indicate command was not queued
+                self.command_result.emit(False, "Manager shutting down")
+                return False
             self._active_workers.append((worker, thread))
 
         # Clean up worker and thread when finished
@@ -1505,9 +1524,18 @@ class PersistentTerminalManager(LoggingMixin, QObject):
                     try:
                         Path(self.fifo_path).unlink()
                         # CRITICAL: fsync parent directory to ensure unlink is committed
+                        # CRITICAL BUG FIX #52: Make fsync non-fatal (durability, not correctness)
                         parent_fd = os.open(str(parent_dir), os.O_RDONLY)
                         try:
-                            os.fsync(parent_fd)
+                            try:
+                                os.fsync(parent_fd)
+                            except OSError as fsync_error:
+                                # fsync can fail (EROFS, EIO, etc.) - log but continue
+                                # This only affects durability, not correctness
+                                self.logger.warning(
+                                    f"Could not sync parent directory (errno {fsync_error.errno}): {fsync_error}. "
+                                    "Continuing anyway - FIFO creation may not be durable."
+                                )
                         finally:
                             os.close(parent_fd)
                         self.logger.debug(f"Removed stale FIFO at {self.fifo_path}")
@@ -1645,32 +1673,67 @@ class PersistentTerminalManager(LoggingMixin, QObject):
                 self.__class__._test_instances.remove(self)
 
         # 2. THEN cleanup terminal and resources
-        # CRITICAL: Workers may be abandoned (still running) if wait() timed out.
-        # Must snapshot state under lock to prevent race conditions with abandoned workers.
-        with self._state_lock:
-            terminal_pid_snapshot = self.terminal_pid
-            terminal_process_snapshot = self.terminal_process
-            dummy_writer_fd_snapshot = self._dummy_writer_fd
-            fd_closed_snapshot = self._fd_closed
+        # CRITICAL BUG FIX #34: Workers may be abandoned (still running) if wait() timed out.
+        # Abandoned workers might hold locks, so we MUST NOT acquire locks here.
+        # Use best-effort attribute access instead of lock-protected snapshot.
+        try:
+            terminal_pid_snapshot = getattr(self, "terminal_pid", None)
+            terminal_process_snapshot = getattr(self, "terminal_process", None)
+            dummy_writer_fd_snapshot = getattr(self, "_dummy_writer_fd", None)
+            fd_closed_snapshot = getattr(self, "_fd_closed", False)
             # CRITICAL BUG FIX #19: Clear dummy writer ready flag during cleanup
+            # Set directly without lock - safe because cleanup is final operation
             self._dummy_writer_ready = False
+        except Exception:
+            # If attribute access fails, use safe defaults
+            terminal_pid_snapshot = None
+            terminal_process_snapshot = None
+            dummy_writer_fd_snapshot = None
+            fd_closed_snapshot = False
 
         # Close terminal if running (use snapshots - safe even if workers still running)
         if terminal_pid_snapshot is not None:
             try:
-                # Try to send exit command to dispatcher if FIFO is open
-                # Use snapshots to avoid TOCTOU race with abandoned workers
-                if not fd_closed_snapshot and dummy_writer_fd_snapshot is not None:
+                # CRITICAL BUG FIX #50: Use tryLock to prevent deadlock with abandoned workers
+                # Abandoned workers (line 1641) may still hold _write_lock. Using blocking
+                # lock acquisition here would cause permanent deadlock. Instead, try with
+                # timeout and skip graceful exit if lock not available.
+                # RLock doesn't support timeout parameter, so use non-blocking acquire in loop
+                lock_timeout = 1.0  # 1 second timeout
+                lock_poll_interval = 0.01  # 10ms polling
+                lock_acquired = False
+                elapsed = 0.0
+
+                while elapsed < lock_timeout:
+                    if self._write_lock.acquire(blocking=False):
+                        lock_acquired = True
+                        break
+                    time.sleep(lock_poll_interval)
+                    elapsed += lock_poll_interval
+
+                if lock_acquired:
                     try:
-                        _ = os.write(dummy_writer_fd_snapshot, b"exit\n")
-                    except OSError as e:
-                        # Expected if FD closed by another thread (abandoned worker)
-                        if e.errno == errno.EBADF:
-                            pass  # FD closed concurrently - expected race condition
-                        else:
-                            self.logger.warning(f"Error writing to FIFO during cleanup: {e}")
-                    except Exception:
-                        pass  # Any other error - continue with terminate
+                        # Try to send exit command to dispatcher if FIFO is open
+                        # Use snapshots to avoid TOCTOU race with abandoned workers
+                        if not fd_closed_snapshot and dummy_writer_fd_snapshot is not None:
+                            try:
+                                _ = os.write(dummy_writer_fd_snapshot, b"exit\n")
+                            except OSError as e:
+                                # Expected if FD closed by another thread (abandoned worker)
+                                if e.errno == errno.EBADF:
+                                    pass  # FD closed concurrently - expected race condition
+                                else:
+                                    self.logger.warning(f"Error writing to FIFO during cleanup: {e}")
+                            except Exception:
+                                pass  # Any other error - continue with terminate
+                    finally:
+                        self._write_lock.release()
+                else:
+                    # Lock held by abandoned worker - skip graceful exit
+                    self.logger.warning(
+                        "Could not acquire write lock for graceful shutdown "
+                        "(likely held by abandoned worker). Proceeding with force terminate."
+                    )
 
                 # Give dispatcher time to exit gracefully
                 time.sleep(0.5)

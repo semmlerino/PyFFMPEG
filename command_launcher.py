@@ -118,7 +118,7 @@ class CommandLauncher(LoggingMixin, QObject):
 
         # Initialize launch components
         self.env_manager = EnvironmentManager()
-        self.process_executor = ProcessExecutor(persistent_terminal, Config)
+        self.process_executor = ProcessExecutor(persistent_terminal, Config, parent=self)
 
         # Initialize the Nuke launch handler
         self.nuke_handler = NukeLaunchRouter()
@@ -376,6 +376,26 @@ class CommandLauncher(LoggingMixin, QObject):
             self._cleanup_stale_fallback_entries()
             return
 
+        # CRITICAL BUG FIX #51: Distinguish verification timeout from send failure
+        # Verification timeout means command was sent successfully but app slow to start.
+        # Do NOT retry in this case - the app is already launching, retrying would create duplicate instance.
+        # Only retry on actual send failures (FIFO write errors, dispatcher not ready, etc.)
+        if "Verification failed" in message or "verification timeout" in message.lower():
+            self.logger.warning(
+                f"Command verification failed ({message}), but command was sent. "
+                "App may be slow to start. NOT retrying to prevent duplicate launch."
+            )
+            # Remove from fallback queue (command is running, just slow)
+            with self._fallback_lock:
+                if self._pending_fallback:
+                    oldest_id = min(
+                        self._pending_fallback.keys(),
+                        key=lambda k: self._pending_fallback[k][2]
+                    )
+                    _ = self._pending_fallback.pop(oldest_id, None)
+                    self.logger.debug(f"Removed slow-starting command from fallback queue: {oldest_id}")
+            return
+
         # Operation failed - check if we should fallback
         # CRITICAL: Hold lock through entire operation to prevent TOCTOU race.
         # Without lock held, another thread could clear dict between empty check and min(),
@@ -399,7 +419,7 @@ class CommandLauncher(LoggingMixin, QObject):
         full_command, app_name, _ = result
 
         self.logger.warning(
-            f"Persistent terminal failed: {message}. Retrying with new terminal window."
+            f"Persistent terminal send failed: {message}. Retrying with new terminal window."
         )
 
         # Retry with fallback
