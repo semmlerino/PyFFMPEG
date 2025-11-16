@@ -3,13 +3,11 @@
 from __future__ import annotations
 
 import time
-from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
-import psutil
 import pytest
 
-from launch.process_verifier import ProcessVerifier, ProcessVerificationError
+from launch.process_verifier import ProcessVerifier
 
 
 pytestmark = [pytest.mark.unit]

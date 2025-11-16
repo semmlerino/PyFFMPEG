@@ -413,7 +413,7 @@ def cleanup_persistent_terminals(qtbot: QtBot) -> Iterator[None]:
     try:
         from persistent_terminal_manager import PersistentTerminalManager
         PersistentTerminalManager.cleanup_all_instances()
-    except (ImportError, RuntimeError) as e:
+    except (ImportError, RuntimeError):
         # Module not imported or already cleaned up - OK
         pass
 

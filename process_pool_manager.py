@@ -221,7 +221,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
     command_failed = Signal(str, str)  # command_id, error
 
     def __new__(
-        cls, max_workers: int = 4, sessions_per_type: int = 3  # noqa: ARG004
+        cls, max_workers: int = 4, sessions_per_type: int = 3
     ) -> ProcessPoolManager:
         """Ensure singleton pattern with proper thread safety.
 

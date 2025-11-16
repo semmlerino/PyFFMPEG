@@ -500,8 +500,82 @@ class TestPersistentTerminalManager:
         # Assert: Terminal closed and relaunched with FIFO cleanup
         assert result is True
         mock_close.assert_called_once()
-        mock_unlink.assert_called_once()  # FIFO should be cleaned up
+        # Bug Fix #3: Now unlinks twice (stale temp FIFO + old FIFO)
+        assert mock_unlink.call_count == 2
         mock_launch.assert_called_once()
+
+    @patch("time.sleep")
+    def test_restart_terminal_failure_resets_dummy_writer_flag(
+        self, mock_sleep: MagicMock, terminal_manager: PersistentTerminalManager
+    ) -> None:
+        """Test that restart_terminal resets _dummy_writer_ready on failure.
+
+        CRITICAL BUG FIX: If restart fails, _dummy_writer_ready must be reset to True
+        to allow commands to execute in fallback mode. Without this, all future
+        commands are permanently blocked.
+        """
+        with (
+            patch.object(terminal_manager, "close_terminal"),
+            patch.object(
+                terminal_manager, "_launch_terminal", return_value=False  # FAIL
+            ),
+            patch("pathlib.Path.mkdir"),
+            patch("pathlib.Path.exists", return_value=True),
+            patch("pathlib.Path.unlink"),
+            patch("os.mkfifo"),
+            patch("os.rename"),
+            patch("os.open", return_value=99),
+            patch("os.fsync"),
+            patch("os.close"),
+        ):
+            # Setup: Simulate restart attempt (sets flag to False)
+            with terminal_manager._state_lock:
+                terminal_manager._dummy_writer_ready = False
+
+            # Act: Restart fails
+            result = terminal_manager.restart_terminal()
+
+            # Assert: Restart failed but flag was reset to allow fallback mode
+            assert result is False
+            assert terminal_manager._dummy_writer_ready is True
+
+    @patch("time.sleep")
+    def test_restart_terminal_timeout_sets_dummy_writer_flag(
+        self, mock_sleep: MagicMock, terminal_manager: PersistentTerminalManager
+    ) -> None:
+        """Test that restart_terminal sets flag even if dummy writer open fails.
+
+        CRITICAL BUG FIX: If dispatcher starts but dummy writer open fails (timeout),
+        the flag must still be set to allow commands (best effort mode).
+        """
+        with (
+            patch.object(terminal_manager, "close_terminal"),
+            patch.object(terminal_manager, "_launch_terminal", return_value=True),
+            patch.object(
+                terminal_manager, "_is_dispatcher_running", return_value=True
+            ),
+            patch.object(
+                terminal_manager, "_open_dummy_writer", return_value=False  # FAIL
+            ),
+            patch("pathlib.Path.mkdir"),
+            patch("pathlib.Path.exists", return_value=True),
+            patch("pathlib.Path.unlink"),
+            patch("os.mkfifo"),
+            patch("os.rename"),
+            patch("os.open", return_value=99),
+            patch("os.fsync"),
+            patch("os.close"),
+        ):
+            # Setup: Simulate restart attempt
+            with terminal_manager._state_lock:
+                terminal_manager._dummy_writer_ready = False
+
+            # Act: Restart succeeds but dummy writer open fails
+            result = terminal_manager.restart_terminal()
+
+            # Assert: Restart succeeded, flag set despite dummy writer failure
+            assert result is True
+            assert terminal_manager._dummy_writer_ready is True
 
     @patch("os.path.exists", return_value=True)
     @patch("os.unlink")
@@ -511,16 +585,24 @@ class TestPersistentTerminalManager:
         mock_exists: MagicMock,
         terminal_manager: PersistentTerminalManager,
     ) -> None:
-        """Test full cleanup."""
-        with (
-            patch.object(terminal_manager, "_is_terminal_alive", return_value=True),
-            patch.object(terminal_manager, "close_terminal") as mock_close,
-        ):
-            # Act: Cleanup
-            terminal_manager.cleanup()
+        """Test full cleanup.
 
-        # Assert: Terminal closed and FIFO removed
-        mock_close.assert_called_once()
+        Note: cleanup() now inlines terminal shutdown instead of calling close_terminal()
+        for thread safety (can't safely call methods that acquire locks when workers
+        may be abandoned). Test validates terminal is terminated, not implementation.
+        """
+        # Setup: Mock terminal process
+        mock_process = MagicMock()
+        mock_process.poll.return_value = None  # Process is running
+        terminal_manager.terminal_pid = 12345
+        terminal_manager.terminal_process = mock_process
+
+        # Act: Cleanup
+        terminal_manager.cleanup()
+
+        # Assert: Terminal process was terminated and FIFO removed
+        # cleanup() now calls terminate() directly instead of close_terminal()
+        mock_process.terminate.assert_called_once()
         # Path.unlink() passes Path object to os.unlink (not string)
         mock_unlink.assert_called_once()
         assert str(mock_unlink.call_args[0][0]) == str(terminal_manager.fifo_path)

@@ -9,12 +9,11 @@ This module handles process execution and management:
 
 import logging
 import subprocess
-import warnings
 from datetime import UTC, datetime
 from functools import partial
 from typing import TYPE_CHECKING, Final
 
-from PySide6.QtCore import QObject, QTimer, Signal, Slot
+from PySide6.QtCore import QMetaObject, QObject, QTimer, Signal, Slot
 
 from notification_manager import NotificationManager
 
@@ -77,13 +76,20 @@ class ProcessExecutor(QObject):
         self.config: type[Config] = config
         self.logger: logging.Logger = logger
 
+        # CRITICAL BUG FIX #20: Track signal connections for proper cleanup
+        self._signal_connections: list[QMetaObject.Connection] = []
+
         # Connect to persistent terminal signals if available
         if self.persistent_terminal:
-            _ = self.persistent_terminal.operation_progress.connect(
-                self._on_terminal_progress
+            self._signal_connections.append(
+                self.persistent_terminal.operation_progress.connect(
+                    self._on_terminal_progress
+                )
             )
-            _ = self.persistent_terminal.command_result.connect(
-                self._on_terminal_command_result
+            self._signal_connections.append(
+                self.persistent_terminal.command_result.connect(
+                    self._on_terminal_command_result
+                )
             )
 
     def is_gui_app(self, app_name: str) -> bool:
@@ -164,7 +170,7 @@ class ProcessExecutor(QObject):
         # Use async send - returns immediately, GUI stays responsive
         # Progress and completion are reported via signals
         assert self.persistent_terminal is not None  # Type narrowing
-        self.persistent_terminal.send_command_async(command)
+        _ = self.persistent_terminal.send_command_async(command)
         self.logger.debug("Command queued for async execution in persistent terminal")
         return True
 
@@ -287,26 +293,19 @@ class ProcessExecutor(QObject):
 
         This method should be called before deleting the ProcessExecutor instance
         to ensure all signal connections are properly cleaned up.
+
+        CRITICAL BUG FIX #20: Use connection list instead of receiver reference.
+        The old pattern (disconnect by receiver) fails if terminal is deleted first.
         """
-        if self.persistent_terminal:
-            # Suppress RuntimeWarning from PySide6 disconnect() calls
-            # The warning is emitted before the exception, so we need to filter it
-            with warnings.catch_warnings():
-                warnings.filterwarnings(
-                    "ignore",
-                    category=RuntimeWarning,
-                    message="Failed to disconnect.*from signal",
-                )
-                try:
-                    _ = self.persistent_terminal.operation_progress.disconnect(
-                        self._on_terminal_progress
-                    )
-                    _ = self.persistent_terminal.command_result.disconnect(
-                        self._on_terminal_command_result
-                    )
-                    self.logger.debug("Disconnected ProcessExecutor signals")
-                except (RuntimeError, TypeError):
-                    pass  # Already disconnected
+        # Disconnect all tracked signal connections
+        for connection in self._signal_connections:
+            try:
+                _ = QObject.disconnect(connection)
+            except (RuntimeError, TypeError):
+                pass  # Already disconnected or connection invalid
+
+        self._signal_connections.clear()
+        self.logger.debug("Disconnected ProcessExecutor signals")
 
     def __del__(self) -> None:
         """Cleanup on destruction."""

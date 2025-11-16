@@ -43,7 +43,10 @@ class ProcessVerifier:
     """
 
     # Configuration
-    VERIFICATION_TIMEOUT_SEC: float = 5.0  # How long to wait for process
+    # CRITICAL FIX: Increased from 5.0 to 30.0 to prevent command double-execution
+    # GUI apps like Nuke/Maya can take 8-15 seconds to write PID files
+    # Previously, timeout would trigger fallback retry, launching duplicate instances
+    VERIFICATION_TIMEOUT_SEC: float = 30.0  # How long to wait for process
     POLL_INTERVAL_SEC: float = 0.2  # How often to check
     PID_FILE_DIR: str = "/tmp/shotbot_pids"  # Where dispatcher writes PIDs
 
@@ -193,19 +196,25 @@ class ProcessVerifier:
 
             pid_files = list(pid_dir.glob(f"{app_name}_*.pid"))
 
-            # Filter out stale PID files (created before command was enqueued)
-            # Use 2-second tolerance to handle clock skew (NTP adjustments, etc.)
-            # This allows files created slightly before enqueue_time due to clock drift
+            # CRITICAL BUG FIX #21: Cache stat results to prevent race condition
+            # Race scenario: stat() called twice (filter + max) → file deleted between calls → FileNotFoundError
+            # Solution: Call stat() once per file, cache results, filter out errors
             clock_skew_tolerance = 2.0
-            fresh_pid_files = [
-                f
-                for f in pid_files
-                if f.stat().st_mtime >= enqueue_time - clock_skew_tolerance
-            ]
+            file_stats: list[tuple[Path, float]] = []
 
-            if fresh_pid_files:
-                # Use most recent file
-                latest_pid_file = max(fresh_pid_files, key=lambda p: p.stat().st_mtime)
+            for f in pid_files:
+                try:
+                    mtime = f.stat().st_mtime
+                    # Filter out stale PID files (created before command was enqueued)
+                    if mtime >= enqueue_time - clock_skew_tolerance:
+                        file_stats.append((f, mtime))
+                except OSError:
+                    # File deleted or inaccessible - skip it
+                    continue
+
+            if file_stats:
+                # Use most recent file (use cached mtime instead of calling stat() again)
+                latest_pid_file, _ = max(file_stats, key=lambda x: x[1])
 
                 try:
                     pid_str = latest_pid_file.read_text().strip()

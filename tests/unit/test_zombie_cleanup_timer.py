@@ -6,9 +6,9 @@ import time
 from typing import TYPE_CHECKING
 
 import pytest
-from PySide6.QtCore import QTimer
 
 from thread_safe_worker import ThreadSafeWorker
+
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot

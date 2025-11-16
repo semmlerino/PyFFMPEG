@@ -14,6 +14,7 @@ Following UNIFIED_TESTING_GUIDE best practices:
 from __future__ import annotations
 
 import io
+import signal
 import subprocess
 from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
@@ -516,18 +517,23 @@ class TestProcessTermination:
         qapp: QApplication,
         worker_id: str,
     ) -> None:
-        """Test _terminate_process calls process.terminate()."""
+        """Test _terminate_process sends SIGTERM to process group."""
         worker = LauncherWorker(worker_id, "nuke")
 
         try:
             mock_process = Mock()
+            mock_process.pid = 12345  # Must be int for os.getpgid()
             mock_process.poll.return_value = None
             mock_process.wait.return_value = 0
             worker._process = mock_process
 
-            worker._terminate_process()
+            with patch("os.getpgid", return_value=12345), patch("os.killpg") as mock_killpg:
+                worker._terminate_process()
 
-            mock_process.terminate.assert_called_once()
+                # Should call os.killpg with SIGTERM
+                mock_killpg.assert_called()
+                assert mock_killpg.call_args[0][0] == 12345  # pgid
+                assert mock_killpg.call_args[0][1] == signal.SIGTERM
         finally:
             worker.safe_stop()
             worker.deleteLater()
@@ -544,15 +550,17 @@ class TestProcessTermination:
 
         try:
             mock_process = Mock()
+            mock_process.pid = 12345  # Must be int for os.getpgid()
             mock_process.poll.return_value = None
             mock_process.wait.return_value = 0
             worker._process = mock_process
 
-            worker._terminate_process()
+            with patch("os.getpgid", return_value=12345), patch("os.killpg"):
+                worker._terminate_process()
 
-            # Should wait with 10s timeout
-            mock_process.wait.assert_called()
-            assert mock_process.wait.call_args[1]["timeout"] == 10
+                # Should wait with 10s timeout
+                mock_process.wait.assert_called()
+                assert mock_process.wait.call_args[1]["timeout"] == 10
         finally:
             worker.safe_stop()
             worker.deleteLater()
@@ -564,11 +572,12 @@ class TestProcessTermination:
         qapp: QApplication,
         worker_id: str,
     ) -> None:
-        """Test _terminate_process kills process if graceful timeout."""
+        """Test _terminate_process kills process group if graceful timeout."""
         worker = LauncherWorker(worker_id, "nuke")
 
         try:
             mock_process = Mock()
+            mock_process.pid = 12345  # Must be int for os.getpgid()
             mock_process.poll.return_value = None
             mock_process.wait.side_effect = [
                 subprocess.TimeoutExpired("cmd", 10),  # First wait times out
@@ -576,14 +585,17 @@ class TestProcessTermination:
             ]
             worker._process = mock_process
 
-            worker._terminate_process()
+            with patch("os.getpgid", return_value=12345), patch("os.killpg") as mock_killpg:
+                worker._terminate_process()
 
-            # Should call kill after timeout
-            mock_process.kill.assert_called_once()
+                # Should call os.killpg twice: SIGTERM then SIGKILL
+                assert mock_killpg.call_count == 2
+                assert mock_killpg.call_args_list[0][0][1] == signal.SIGTERM
+                assert mock_killpg.call_args_list[1][0][1] == signal.SIGKILL
 
-            # Should wait again after kill
-            assert mock_process.wait.call_count == 2
-            assert mock_process.wait.call_args_list[1][1]["timeout"] == 5
+                # Should wait again after kill
+                assert mock_process.wait.call_count == 2
+                assert mock_process.wait.call_args_list[1][1]["timeout"] == 5
         finally:
             worker.safe_stop()
             worker.deleteLater()
@@ -619,14 +631,17 @@ class TestProcessTermination:
 
         try:
             mock_process = Mock()
+            mock_process.pid = 12345  # Must be int for os.getpgid()
             mock_process.poll.return_value = None  # Still running
             mock_process.wait.return_value = 0
             worker._process = mock_process
 
-            worker._cleanup_process()
+            with patch("os.getpgid", return_value=12345), patch("os.killpg") as mock_killpg:
+                worker._cleanup_process()
 
-            # Should call terminate
-            mock_process.terminate.assert_called()
+                # Should call os.killpg with SIGTERM
+                mock_killpg.assert_called()
+                assert mock_killpg.call_args[0][1] == signal.SIGTERM
         finally:
             worker.safe_stop()
             worker.deleteLater()
@@ -701,6 +716,7 @@ class TestProcessTermination:
 
         try:
             mock_process = Mock()
+            mock_process.pid = 12345  # Must be int for os.getpgid()
             mock_process.poll.return_value = None
             mock_process.wait.return_value = 0
             worker._process = mock_process
@@ -709,10 +725,12 @@ class TestProcessTermination:
             worker.set_state(WorkerState.STARTING)
             worker.set_state(WorkerState.RUNNING)
 
-            worker.request_stop()
+            with patch("os.getpgid", return_value=12345), patch("os.killpg") as mock_killpg:
+                worker.request_stop()
 
-            # Should terminate subprocess
-            mock_process.terminate.assert_called()
+                # Should terminate subprocess via os.killpg
+                mock_killpg.assert_called()
+                assert mock_killpg.call_args[0][1] == signal.SIGTERM
         finally:
             worker.safe_stop()
             worker.deleteLater()

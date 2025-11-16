@@ -124,16 +124,20 @@ class CommandBuilder:
             packages: List of Rez packages to load
 
         Returns:
-            Rez-wrapped command: 'rez env {packages} -- bash -ilc "{command}"'
+            Rez-wrapped command: 'rez env {packages} -- bash -ilc {quoted_command}'
 
         Notes:
             - Uses bash -ilc (interactive + login) for workspace function loading
             - Safe in terminal context (persistent terminal or GUI terminal has TTY)
-            - Double quotes command to preserve it as single argument
+            - Uses shlex.quote() to safely escape the command for shell
+            - Handles commands containing quotes, spaces, and special characters
         """
         packages_str = " ".join(packages)
         logger.debug(f"Wrapping command with rez packages: {packages_str}")
-        return f'rez env {packages_str} -- bash -ilc "{command}"'
+        # CRITICAL FIX: Use shlex.quote() to properly escape the command
+        # This prevents shell injection and handles commands with quotes/special chars
+        quoted_command = shlex.quote(command)
+        return f"rez env {packages_str} -- bash -ilc {quoted_command}"
 
     @staticmethod
     def apply_nuke_environment_fixes(command: str, config: "type[Config]") -> str:

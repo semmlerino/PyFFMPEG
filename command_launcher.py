@@ -16,7 +16,6 @@ import subprocess
 import threading
 import time
 import uuid
-import warnings
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from functools import partial
@@ -112,6 +111,7 @@ class CommandLauncher(LoggingMixin, QObject):
         # Fallback retry mechanism - stores commands that failed async for retry
         self._pending_fallback: dict[str, tuple[str, str, float]] = {}  # uuid -> (cmd, app_name, timestamp)
         self._fallback_lock = threading.Lock()  # Thread-safe dict access
+        self._fallback_cleanup_timer: QTimer | None = None  # Timer for periodic cleanup of stale entries
 
         # Track signal connections for proper cleanup
         self._signal_connections: list[QMetaObject.Connection] = []
@@ -193,6 +193,44 @@ class CommandLauncher(LoggingMixin, QObject):
         """
         return datetime.now(tz=UTC).strftime("%H:%M:%S")
 
+    def _apply_nuke_environment_fixes(self, app_name: str, context: str = "") -> str:
+        """Apply Nuke environment fixes and emit status signals.
+
+        Extracts the Nuke environment fix logic to eliminate code duplication
+        across launch_app(), launch_app_with_scene(), and related methods.
+
+        Args:
+            app_name: The application name (only applies fixes if "nuke")
+            context: Optional context string for the status message (e.g., "scene launch")
+
+        Returns:
+            Environment fix prefix string (empty if not Nuke or no fixes needed)
+        """
+        if app_name != "nuke":
+            return ""
+
+        env_fixes = self.nuke_handler.get_environment_fixes()
+        if not env_fixes:
+            return ""
+
+        # Build fix details list
+        fix_details: list[str] = []
+        if Config.NUKE_SKIP_PROBLEMATIC_PLUGINS:
+            fix_details.append("runtime NUKE_PATH filtering")
+        if Config.NUKE_OCIO_FALLBACK_CONFIG:
+            fix_details.append("OCIO fallback")
+        fix_details.append("crash reporting disabled")
+
+        # Emit status signal
+        timestamp = self.timestamp
+        context_str = f"for {context}" if context else "to prevent Nuke crashes"
+        self.command_executed.emit(
+            timestamp,
+            f"Applied environment fixes {context_str}: {', '.join(fix_details)}",
+        )
+
+        return env_fixes
+
     def cleanup(self) -> None:
         """Disconnect signals and cleanup resources.
 
@@ -208,7 +246,7 @@ class CommandLauncher(LoggingMixin, QObject):
         if hasattr(self, "_signal_connections"):
             for connection in self._signal_connections:
                 try:
-                    QObject.disconnect(connection)
+                    _ = QObject.disconnect(connection)
                 except (RuntimeError, TypeError):
                     # Connection already disconnected or sender/receiver destroyed
                     pass
@@ -219,6 +257,15 @@ class CommandLauncher(LoggingMixin, QObject):
         try:
             if hasattr(self, "process_executor"):
                 self.process_executor.cleanup()
+        except (RuntimeError, TypeError, AttributeError):
+            pass
+
+        # Stop and cleanup fallback cleanup timer
+        try:
+            if hasattr(self, "_fallback_cleanup_timer") and self._fallback_cleanup_timer is not None:
+                self._fallback_cleanup_timer.stop()
+                self._fallback_cleanup_timer.deleteLater()
+                self._fallback_cleanup_timer = None
         except (RuntimeError, TypeError, AttributeError):
             pass
 
@@ -311,38 +358,44 @@ class CommandLauncher(LoggingMixin, QObject):
             message: Status/error message
         """
         if success:
-            # Clear any pending fallback for successful commands
-            # Remove entries older than 30 seconds
-            now = time.time()
-            to_remove = []
-
-            # Thread-safe dict iteration and cleanup
+            # CRITICAL BUG FIX: Remove the specific command that succeeded (oldest entry)
+            # Previous implementation only removed entries >30s old, causing wrong commands to retry
             with self._fallback_lock:
-                for command_id, (_, _, creation_time) in self._pending_fallback.items():
-                    elapsed = now - creation_time
-                    if elapsed > 30:  # Older than 30 seconds
-                        to_remove.append(command_id)
+                if not self._pending_fallback:
+                    return  # No pending entries
 
-                # Use pop with default to avoid KeyError if another thread deleted
-                for command_id in to_remove:
-                    _ = self._pending_fallback.pop(command_id, None)
+                # Remove oldest entry (FIFO - should be the command that just completed)
+                oldest_id = min(
+                    self._pending_fallback.keys(),
+                    key=lambda k: self._pending_fallback[k][2]  # Sort by timestamp
+                )
+                _ = self._pending_fallback.pop(oldest_id, None)
+                self.logger.debug(f"Removed successful command from fallback queue: {oldest_id}")
+
+            # Also run time-based cleanup as safety net for stale entries
+            self._cleanup_stale_fallback_entries()
             return
 
         # Operation failed - check if we should fallback
+        # CRITICAL: Hold lock through entire operation to prevent TOCTOU race.
+        # Without lock held, another thread could clear dict between empty check and min(),
+        # causing ValueError: min() arg is an empty sequence.
         with self._fallback_lock:
             if not self._pending_fallback:
                 return  # No pending fallback
 
             # Get oldest pending command (FIFO queue) by creation time
+            # Lock still held - dict cannot be modified by other threads
             oldest_id = min(
                 self._pending_fallback.keys(),
                 key=lambda k: self._pending_fallback[k][2]  # Sort by timestamp (3rd element)
             )
-            # Pop with default to avoid KeyError if another thread deleted it
+            # Pop with default to be extra defensive (shouldn't happen with lock held)
             result = self._pending_fallback.pop(oldest_id, None)
             if result is None:
-                return  # Another thread already processed this
+                return  # Another thread got it (shouldn't happen with lock held)
 
+        # Lock released - safe to use result (immutable tuple)
         full_command, app_name, _ = result
 
         self.logger.warning(
@@ -353,6 +406,58 @@ class CommandLauncher(LoggingMixin, QObject):
         _ = self._launch_in_new_terminal(
             full_command, app_name, "persistent terminal failed"
         )
+
+    def _cleanup_stale_fallback_entries(self) -> None:
+        """Remove fallback entries older than 30 seconds.
+
+        This method is called both:
+        1. On successful command completion (existing behavior)
+        2. Periodically by QTimer (new behavior to prevent indefinite retention)
+
+        Thread Safety:
+            Uses _fallback_lock for thread-safe dict access
+        """
+        now = time.time()
+        to_remove = []
+
+        # Thread-safe dict iteration and cleanup
+        with self._fallback_lock:
+            for command_id, (_, _, creation_time) in self._pending_fallback.items():
+                elapsed = now - creation_time
+                if elapsed > 30:  # Older than 30 seconds
+                    to_remove.append(command_id)
+
+            # Use pop with default to avoid KeyError if another thread deleted
+            for command_id in to_remove:
+                _ = self._pending_fallback.pop(command_id, None)
+
+        # Log cleanup if any entries were removed
+        if to_remove:
+            self.logger.debug(
+                f"Cleaned up {len(to_remove)} stale fallback entries older than 30s"
+            )
+
+    def _schedule_fallback_cleanup(self) -> None:
+        """Schedule periodic cleanup of stale fallback entries.
+
+        Creates a single-shot QTimer that will clean up stale entries after 30 seconds.
+        This ensures entries don't remain indefinitely if no subsequent successful
+        commands occur.
+
+        Thread Safety:
+            Qt timers are thread-safe and will execute on the main thread
+        """
+        # Stop existing timer if any (prevents multiple timers)
+        if self._fallback_cleanup_timer is not None:
+            self._fallback_cleanup_timer.stop()
+            self._fallback_cleanup_timer.deleteLater()
+            self._fallback_cleanup_timer = None
+
+        # Create new single-shot timer for 30 second cleanup
+        self._fallback_cleanup_timer = QTimer(self)
+        self._fallback_cleanup_timer.setSingleShot(True)
+        _ = self._fallback_cleanup_timer.timeout.connect(self._cleanup_stale_fallback_entries)
+        self._fallback_cleanup_timer.start(30000)  # 30 seconds in milliseconds
 
     # Methods removed - now using launch components:
     # - _is_rez_available() → self.env_manager.is_rez_available(Config)
@@ -404,9 +509,20 @@ class CommandLauncher(LoggingMixin, QObject):
         with self._fallback_lock:
             self._pending_fallback[command_id] = (full_command, app_name, time.time())
 
+        # Schedule cleanup timer to prevent indefinite retention if no subsequent success
+        self._schedule_fallback_cleanup()
+
         # Use async send - returns immediately, GUI stays responsive
         # Progress and completion are reported via signals
-        self.persistent_terminal.send_command_async(full_command)
+        # CRITICAL BUG FIX: Check return value - False means command was rejected synchronously
+        if not self.persistent_terminal.send_command_async(full_command):
+            # Command rejected (shutdown, empty, fallback mode, or not ready)
+            # Remove from fallback queue since it wasn't accepted
+            with self._fallback_lock:
+                _ = self._pending_fallback.pop(command_id, None)
+            self.logger.warning("Persistent terminal rejected command synchronously")
+            return False  # Let caller try new terminal fallback
+
         self.logger.debug("Command queued for async execution in persistent terminal")
         return True
 
@@ -673,22 +789,7 @@ class CommandLauncher(LoggingMixin, QObject):
             )
 
             # Apply Nuke environment fixes if needed
-            env_fixes = ""
-            if app_name == "nuke":
-                env_fixes = self.nuke_handler.get_environment_fixes()
-                if env_fixes:
-                    timestamp = self.timestamp
-                    fix_details: list[str] = []
-                    if Config.NUKE_SKIP_PROBLEMATIC_PLUGINS:
-                        fix_details.append("runtime NUKE_PATH filtering")
-                    if Config.NUKE_OCIO_FALLBACK_CONFIG:
-                        fix_details.append("OCIO fallback")
-                    fix_details.append("crash reporting disabled")
-
-                    self.command_executed.emit(
-                        timestamp,
-                        f"Applied environment fixes to prevent Nuke crashes: {', '.join(fix_details)}",
-                    )
+            env_fixes = self._apply_nuke_environment_fixes(app_name)
 
             # Build base command WITHOUT background operator
             # We'll add & only when actually sending to persistent terminal
@@ -773,22 +874,7 @@ class CommandLauncher(LoggingMixin, QObject):
             safe_workspace_path = CommandBuilder.validate_path(scene.workspace_path)
 
             # Apply Nuke environment fixes if needed (same as regular launch)
-            env_fixes = ""
-            if app_name == "nuke":
-                env_fixes = self.nuke_handler.get_environment_fixes()
-                if env_fixes:
-                    timestamp = self.timestamp
-                    fix_details: list[str] = []
-                    if Config.NUKE_SKIP_PROBLEMATIC_PLUGINS:
-                        fix_details.append("runtime NUKE_PATH filtering")
-                    if Config.NUKE_OCIO_FALLBACK_CONFIG:
-                        fix_details.append("OCIO fallback")
-                    fix_details.append("crash reporting disabled")
-
-                    self.command_executed.emit(
-                        timestamp,
-                        f"Applied environment fixes for Nuke scene launch: {', '.join(fix_details)}",
-                    )
+            env_fixes = self._apply_nuke_environment_fixes(app_name, "Nuke scene launch")
 
             # Build base command WITHOUT background operator
             # We'll add & only when actually sending to persistent terminal
