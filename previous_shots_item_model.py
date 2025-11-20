@@ -6,7 +6,6 @@ extending BaseItemModel with integration to PreviousShotsModel for data updates.
 
 from __future__ import annotations
 
-import contextlib
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QModelIndex, QObject, Qt, Signal
@@ -222,14 +221,20 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
 
     def cleanup(self) -> None:
         """Clean up resources before deletion."""
-        # Stop timers
+        # Stop timers - wrap in try/except since C++ object may already be deleted
         if hasattr(self, "_thumbnail_timer"):
-            self._thumbnail_timer.stop()
-            self._thumbnail_timer.deleteLater()
+            try:
+                self._thumbnail_timer.stop()
+                self._thumbnail_timer.deleteLater()
+            except RuntimeError:
+                pass  # Timer already deleted at C++ level
 
         if hasattr(self, "_thumbnail_debounce_timer"):
-            self._thumbnail_debounce_timer.stop()
-            self._thumbnail_debounce_timer.deleteLater()
+            try:
+                self._thumbnail_debounce_timer.stop()
+                self._thumbnail_debounce_timer.deleteLater()
+            except RuntimeError:
+                pass  # Timer already deleted at C++ level
 
         # Clear caches
         self.clear_thumbnail_cache()
@@ -240,23 +245,25 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
         self._selected_index: QPersistentModelIndex = QPersistentModelIndex()
 
         # Disconnect from underlying model
-        # Note: We check receivers() before disconnecting to avoid RuntimeWarnings
-        # from Qt when attempting to disconnect signals that have no connections.
-        # Qt's receivers() method is not properly typed in PySide6 stubs
+        # Use try/except pattern instead of receivers() check, as PySide6's
+        # receivers() doesn't accept slot arguments
         if hasattr(self._underlying_model, "shots_updated"):
-            with contextlib.suppress(RuntimeError, TypeError, AttributeError):
-                if self._underlying_model.shots_updated.receivers(self._on_underlying_shots_updated) > 0:  # pyright: ignore[reportAttributeAccessIssue]
-                    _ = self._underlying_model.shots_updated.disconnect(
-                        self._on_underlying_shots_updated
-                    )
+            try:
+                _ = self._underlying_model.shots_updated.disconnect(
+                    self._on_underlying_shots_updated
+                )
+            except (RuntimeError, TypeError, AttributeError):
+                pass  # Signal not connected or already disconnected
 
         # Disconnect signals safely
-        with contextlib.suppress(RuntimeError, TypeError, AttributeError):
-            if self.items_updated.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue]
-                _ = self.items_updated.disconnect()
-        with contextlib.suppress(RuntimeError, TypeError, AttributeError):
-            if self.shots_updated.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue]
-                _ = self.shots_updated.disconnect()
+        try:
+            _ = self.items_updated.disconnect()
+        except (RuntimeError, TypeError):
+            pass  # No connections to disconnect
+        try:
+            _ = self.shots_updated.disconnect()
+        except (RuntimeError, TypeError):
+            pass  # No connections to disconnect
 
         self.logger.info("PreviousShotsItemModel cleanup complete")
 

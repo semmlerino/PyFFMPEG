@@ -1,7 +1,13 @@
 """Process Pool Manager for optimized subprocess handling.
 
-This module provides centralized process management with pooling, caching,
-and session reuse to reduce the overhead of repeated subprocess calls.
+This module provides centralized process management with:
+- Parallel execution via ThreadPoolExecutor (the "pool" in the name)
+- Command caching to avoid redundant subprocess calls
+- Centralized workspace command execution
+
+Note: Each command spawns a fresh bash subprocess. The "pool" refers to
+the thread pool for parallel execution, not session reuse. Caching provides
+the primary performance benefit by avoiding repeated shell invocations.
 """
 
 from __future__ import annotations
@@ -39,7 +45,6 @@ logger = get_module_logger(__name__)
 
 if TYPE_CHECKING:
     # Local application imports
-    from persistent_bash_session import PersistentBashSession
     from type_definitions import PerformanceMetricsDict
 
 # Import debug utilities
@@ -205,10 +210,17 @@ class CommandCache:
 
 @final
 class ProcessPoolManager(LoggingMixin, QObject):
-    """Centralized process management with pooling and caching.
+    """Centralized process management with thread pooling and caching.
 
     This singleton class manages all subprocess operations for the application,
-    providing session reuse, command caching, and parallel execution.
+    providing:
+    - Parallel execution via ThreadPoolExecutor
+    - Command caching to avoid redundant subprocess calls
+    - Centralized workspace command handling
+
+    The "pool" in ProcessPoolManager refers to the thread pool for parallelism,
+    not bash session pooling. Each command spawns a fresh subprocess, with
+    caching providing the primary performance optimization.
     """
 
     # Singleton instance
@@ -220,9 +232,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
     command_completed = Signal(str, object)  # command_id, result
     command_failed = Signal(str, str)  # command_id, error
 
-    def __new__(
-        cls, max_workers: int = 4, sessions_per_type: int = 3
-    ) -> ProcessPoolManager:
+    def __new__(cls, max_workers: int = 4) -> ProcessPoolManager:
         """Ensure singleton pattern with proper thread safety.
 
         CRITICAL: Holds lock across both __new__ and __init__ to prevent race where
@@ -239,19 +249,18 @@ class ProcessPoolManager(LoggingMixin, QObject):
                     # Create instance but DON'T set cls._instance yet
                     instance = super().__new__(cls)
                     # Initialize BEFORE making visible (call __init__ manually)
-                    instance.__init__(max_workers, sessions_per_type)
+                    instance.__init__(max_workers)
                     # Now safe to expose - fully initialized
                     cls._instance = instance
                     # Set flag so __init__ doesn't run again
                     cls._initialized = True
         return cls._instance
 
-    def __init__(self, max_workers: int = 4, sessions_per_type: int = 3) -> None:
+    def __init__(self, max_workers: int = 4) -> None:
         """Initialize process pool manager.
 
         Args:
             max_workers: Maximum concurrent workers
-            sessions_per_type: Number of sessions to maintain per type for parallelism
 
         Note: __new__ calls this manually under lock, so we don't need lock here.
         If called directly (e.g., by Python after __new__), check if already initialized.
@@ -265,13 +274,6 @@ class ProcessPoolManager(LoggingMixin, QObject):
         self._executor = concurrent.futures.ThreadPoolExecutor(
             max_workers=max_workers,
         )
-        # Session pools: type -> list of sessions
-        self._session_pools: dict[str, list[PersistentBashSession]] = {}
-        self._session_round_robin: dict[str, int] = {}  # Track next session to use
-        self._session_creation_in_progress: dict[
-            str, bool
-        ] = {}  # Prevent double creation
-        self._sessions_per_type = sessions_per_type
         self._cache = CommandCache(default_ttl=30)
         self._session_lock = QMutex()  # Use Qt mutex for consistency
         self._metrics = ProcessMetrics()
@@ -318,8 +320,17 @@ class ProcessPoolManager(LoggingMixin, QObject):
             Command output
 
         Raises:
-            RuntimeError: If called from the main thread (UI thread)
+            RuntimeError: If called from the main thread (UI thread) or after shutdown
         """
+        # CRITICAL BUG FIX #29: Check shutdown flag before executing
+        # Without this check, commands submitted after shutdown() cause RuntimeError
+        with QMutexLocker(self._mutex):
+            if self._shutdown_requested:
+                raise RuntimeError(
+                    "ProcessPoolManager has been shut down. "
+                    "Cannot execute new workspace commands."
+                )
+
         # CRITICAL: Prevent UI freezes - this method blocks for up to 120 seconds
         # Must only be called from background threads
         current_thread = QThread.currentThread()
@@ -406,6 +417,14 @@ class ProcessPoolManager(LoggingMixin, QObject):
         Returns:
             Dictionary mapping commands to results
         """
+        # CRITICAL BUG FIX #32: Check shutdown flag before executing batch commands
+        with QMutexLocker(self._mutex):
+            if self._shutdown_requested:
+                raise RuntimeError(
+                    "ProcessPoolManager has been shut down. "
+                    "Cannot execute batch commands."
+                )
+
         # Check cache first and separate cached from non-cached
         results: dict[str, str | None] = {}
         commands_to_execute: list[str] = []
@@ -567,30 +586,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
         self.logger.debug(f"Starting ProcessPoolManager shutdown (timeout={timeout}s)")
 
-        # Stage 1: Clear session tracking with error handling
-        try:
-            with QMutexLocker(self._session_lock):
-                session_count = len(self._session_round_robin)
-                self._session_round_robin.clear()
-                if session_count > 0:
-                    self.logger.debug(
-                        f"Cleared {session_count} session tracking entries"
-                    )
-        except Exception as e:
-            self.logger.warning(f"Error clearing session tracking: {e}")
-
-        # Stage 1.5: Clear session pools (bash sessions that persist between tests)
-        try:
-            with QMutexLocker(self._session_lock):
-                pool_count = len(self._session_pools)
-                self._session_pools.clear()
-                self._session_creation_in_progress.clear()
-                if pool_count > 0:
-                    self.logger.debug(f"Cleared {pool_count} session pools")
-        except Exception as e:
-            self.logger.warning(f"Error clearing session pools: {e}")
-
-        # Stage 2: Graceful executor shutdown using public API
+        # Stage 1: Graceful executor shutdown using public API
         shutdown_successful = False
         try:
             self.logger.debug("Initiating ThreadPoolExecutor shutdown")
@@ -656,6 +652,26 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
         status = "successful" if shutdown_successful else "with timeout"
         self.logger.info(f"ProcessPoolManager shutdown complete ({status})")
+
+    def __del__(self) -> None:
+        """Ensure cleanup on destruction.
+
+        CRITICAL BUG FIX #36: Ensure ThreadPoolExecutor is shut down even if
+        shutdown() not called explicitly. ThreadPoolExecutor has threads that
+        need explicit shutdown - Python's garbage collector won't clean them up.
+
+        This provides defensive cleanup but explicit shutdown() is preferred.
+        """
+        try:
+            # Only shutdown if we have an executor
+            if hasattr(self, "_executor") and hasattr(self, "_shutdown_requested"):
+                # Only call shutdown if not already shut down
+                if not self._shutdown_requested:
+                    self.logger.debug("ProcessPoolManager.__del__ called - triggering shutdown")
+                    self.shutdown(timeout=2.0)
+        except Exception:
+            # Ignore errors in destructor - we're being destroyed anyway
+            pass
 
     @classmethod
     def reset(cls) -> None:

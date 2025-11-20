@@ -53,8 +53,8 @@ class Shot:
         repr=False,
         compare=False,
     )
-    _thumbnail_lock: threading.RLock = field(
-        default_factory=threading.RLock,
+    _thumbnail_lock: threading.Lock = field(
+        default_factory=threading.Lock,
         init=False,
         repr=False,
         compare=False,
@@ -88,13 +88,15 @@ class Shot:
         Results are cached after the first search to avoid repeated
         expensive filesystem operations.
 
-        Thread-safe using double-checked locking pattern with RLock.
+        Thread-safe: Uses double-checked locking to ensure only one thread performs
+        the expensive thumbnail discovery while others wait for the cached result.
+        The sentinel value _NOT_SEARCHED distinguishes "not searched" from "searched but found nothing".
         """
-        # First check without lock (optimization for already-cached case)
+        # First check without lock (fast path for already-cached case)
         if self._cached_thumbnail_path is not _NOT_SEARCHED:
             return cast("Path | None", self._cached_thumbnail_path)
 
-        # Acquire lock for the expensive operation
+        # Acquire lock for expensive operation
         with self._thumbnail_lock:
             # Double-check inside lock (another thread may have populated cache)
             if self._cached_thumbnail_path is not _NOT_SEARCHED:
@@ -165,14 +167,20 @@ class LauncherDict(TypedDict, total=False):
 
 
 class ProcessInfoDict(TypedDict):
-    """Information about a running process."""
+    """Information about a running process.
 
-    pid: int
+    Used by LauncherProcessManager.get_active_process_info() to return
+    normalized information about both subprocesses and workers.
+    """
+
+    type: Literal["subprocess", "worker"]
+    key: str
+    launcher_id: str
+    launcher_name: str
     command: str
+    pid: int
+    running: bool
     start_time: float
-    shot_name: str | None
-    launcher_id: str | None
-    status: Literal["running", "finished", "error"]
 
 
 class CacheMetricsDict(TypedDict):
