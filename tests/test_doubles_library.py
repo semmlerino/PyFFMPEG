@@ -1161,6 +1161,11 @@ class TestProcessPool:
         self.should_fail = False
         self.fail_with_timeout = False
 
+    def shutdown(self, timeout: float = 5.0) -> None:
+        """Shutdown the test double (no-op for test double)."""
+        # Reset state on shutdown for test isolation
+        self.reset()
+
     def invalidate_cache(self, command: str) -> None:
         """Invalidate cache for a command (test double behavior)."""
         # Test double: track invalidation and clear from cache

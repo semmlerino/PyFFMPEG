@@ -324,7 +324,7 @@ class NukeLaunchHandler(LoggingMixin):
                 "export NUKE_DISABLE_CRASH_REPORTING=1",  # Disable crash reporting to avoid hang
                 'export NUKE_TEMP_DIR="/tmp"',  # Ensure temp directory is accessible
                 'export NUKE_DISK_CACHE="/tmp/nuke_cache"',  # Set disk cache location
-                "export SHOTGRID_DISABLE_BOOTSTRAP=1",  # Skip ShotGrid Toolkit bootstrap
+                # Allow ShotGrid Toolkit to bootstrap - needed for colorspace hooks
             ]
         )
 

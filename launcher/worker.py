@@ -98,7 +98,10 @@ class LauncherWorker(ThreadSafeWorker):
         """
         try:
             # Emit start signal
-            self.command_started.emit(self.launcher_id, self.command)
+            try:
+                self.command_started.emit(self.launcher_id, self.command)
+            except RuntimeError:
+                return  # Signal source deleted, abort work
             self.logger.info(
                 f"Worker {id(self)} starting launcher '{self.launcher_id}': {self.command}",
             )
@@ -159,7 +162,11 @@ class LauncherWorker(ThreadSafeWorker):
                     self.logger.info(
                         f"Worker {id(self)} finished launcher '{self.launcher_id}' with code {return_code}",
                     )
-                    self.command_finished.emit(self.launcher_id, success, return_code)
+                    try:
+                        self.command_finished.emit(self.launcher_id, success, return_code)
+                    except RuntimeError:
+                        # Signal source deleted during shutdown
+                        pass
                     return
                 except subprocess.TimeoutExpired:
                     # Process still running, check for stop request
@@ -171,13 +178,19 @@ class LauncherWorker(ThreadSafeWorker):
                     f"Worker {id(self)} stopping launcher '{self.launcher_id}' due to stop request",
                 )
                 self._terminate_process()
-                self.command_finished.emit(self.launcher_id, False, -2)
+                try:
+                    self.command_finished.emit(self.launcher_id, False, -2)
+                except RuntimeError:
+                    pass  # Signal source deleted during shutdown
 
         except Exception as e:
             error_msg = f"Worker exception for launcher '{self.launcher_id}': {e!s}"
             self.logger.exception(error_msg)
-            self.command_error.emit(self.launcher_id, error_msg)
-            self.command_finished.emit(self.launcher_id, False, -1)
+            try:
+                self.command_error.emit(self.launcher_id, error_msg)
+                self.command_finished.emit(self.launcher_id, False, -1)
+            except RuntimeError:
+                pass  # Signal source deleted during shutdown
         finally:
             # Ensure process is cleaned up
             self._cleanup_process()

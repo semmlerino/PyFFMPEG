@@ -745,7 +745,8 @@ class TestProcessStartupValidation:
 
     def test_running_process_valid(self, validator: LauncherValidator) -> None:
         """Test running process is valid."""
-        mock_process = Mock(spec=subprocess.Popen)
+        # Note: Don't use spec=subprocess.Popen - autouse fixture mocks it globally
+        mock_process = Mock()
         mock_process.poll.return_value = None  # Process still running
         mock_process.pid = 12345
 
@@ -753,7 +754,7 @@ class TestProcessStartupValidation:
 
     def test_terminated_process_invalid(self, validator: LauncherValidator) -> None:
         """Test terminated process is invalid."""
-        mock_process = Mock(spec=subprocess.Popen)
+        mock_process = Mock()
         mock_process.poll.return_value = 0  # Process has exited
         mock_process.pid = 12345
 
@@ -761,7 +762,7 @@ class TestProcessStartupValidation:
 
     def test_failed_process_invalid(self, validator: LauncherValidator) -> None:
         """Test process with non-zero exit code is invalid."""
-        mock_process = Mock(spec=subprocess.Popen)
+        mock_process = Mock()
         mock_process.poll.return_value = 1  # Process exited with error
         mock_process.pid = 12345
 
@@ -771,7 +772,7 @@ class TestProcessStartupValidation:
         self, validator: LauncherValidator
     ) -> None:
         """Test exception during process validation is handled gracefully."""
-        mock_process = Mock(spec=subprocess.Popen)
+        mock_process = Mock()
         mock_process.poll.side_effect = Exception("Test error")
 
         assert validator.validate_process_startup(mock_process) is False

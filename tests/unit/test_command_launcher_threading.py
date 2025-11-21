@@ -105,7 +105,7 @@ class TestCommandLauncherThreading:
     @pytest.fixture
     def launcher(self) -> CommandLauncher:
         """Create CommandLauncher instance for testing."""
-        return CommandLauncher(persistent_terminal=None)
+        return CommandLauncher()
 
     def test_current_shot_access_from_worker_thread(
         self, qtbot: "QtBot", launcher: CommandLauncher
@@ -211,7 +211,6 @@ class TestCommandLauncherThreading:
 
         # Mock dependencies
         monkeypatch.setattr("config.Config.APPS", {"test_app": "test_command"})
-        monkeypatch.setattr("config.Config.PERSISTENT_TERMINAL_ENABLED", False)
         monkeypatch.setattr("command_launcher.subprocess.Popen", Mock(return_value=Mock(pid=12345)))
         monkeypatch.setattr("command_launcher.EnvironmentManager.detect_terminal", lambda _self: "gnome-terminal")
         monkeypatch.setattr("command_launcher.EnvironmentManager.is_rez_available", lambda _self, _config: False)
@@ -263,7 +262,6 @@ class TestCommandLauncherThreading:
 
         # Mock dependencies
         monkeypatch.setattr("config.Config.APPS", {"test_app": "test_command"})
-        monkeypatch.setattr("config.Config.PERSISTENT_TERMINAL_ENABLED", False)
 
         mock_process = Mock(pid=12345, poll=Mock(return_value=None))
         monkeypatch.setattr("command_launcher.subprocess.Popen", Mock(return_value=mock_process))
@@ -280,46 +278,6 @@ class TestCommandLauncherThreading:
         # Verify spawn verification was called
         # (We can't directly test thread ID, but if it runs without crashing, it's correct)
         assert mock_process.poll.called
-
-    @pytest.mark.usefixtures("qtbot")
-    def test_persistent_terminal_async_command_thread_safety(
-        self, launcher: CommandLauncher, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
-        """Test async command sending to persistent terminal is thread-safe.
-
-        The persistent terminal uses async command sending which involves
-        threading internally. This test verifies it works correctly.
-        """
-        # Create mock persistent terminal
-        mock_terminal = Mock()
-        mock_terminal.is_fallback_mode = False
-        mock_terminal.send_command_async = Mock()
-
-        launcher.persistent_terminal = mock_terminal
-
-        # Create a real temporary workspace directory
-        workspace = tmp_path / "workspace"
-        workspace.mkdir()
-
-        # Set up mock shot
-        mock_shot = MagicMock(
-            full_name="TEST_SHOT_0010",
-            workspace_path=str(workspace),
-        )
-        launcher.set_current_shot(mock_shot)
-
-        # Mock config
-        monkeypatch.setattr("config.Config.APPS", {"test_app": "test_command"})
-        monkeypatch.setattr("config.Config.PERSISTENT_TERMINAL_ENABLED", True)
-        monkeypatch.setattr("config.Config.USE_PERSISTENT_TERMINAL", True)
-        monkeypatch.setattr("command_launcher.EnvironmentManager.is_rez_available", lambda _self, _config: False)
-
-        # Launch app (should use persistent terminal)
-        result = launcher.launch_app("test_app")
-
-        # Verify async command was sent
-        assert result is True
-        assert mock_terminal.send_command_async.called
 
     def test_signal_slot_cross_thread_delivery(
         self, qtbot: "QtBot", launcher: CommandLauncher

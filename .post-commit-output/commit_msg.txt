@@ -1,1 +1,1 @@
-docs: Complete archive with remaining Serena memory files
+refactor: Remove backward compat properties from LauncherManager

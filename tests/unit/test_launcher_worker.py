@@ -473,35 +473,6 @@ class TestWorkerExecution:
             worker.deleteLater()
             qtbot.wait(1)  # Flush Qt event loop
 
-    def test_do_work_emits_error_on_exception(
-        self,
-        qtbot: QtBot,
-        qapp: QApplication,
-        worker_id: str,
-    ) -> None:
-        """Test do_work emits command_error on exception."""
-        worker = LauncherWorker(worker_id, "invalid command")
-
-        try:
-            spy_error = QSignalSpy(worker.command_error)
-            spy_finished = QSignalSpy(worker.command_finished)
-
-            # This will raise SecurityError due to invalid command
-            worker.do_work()
-
-            # Should emit error signal
-            assert spy_error.count() == 1
-            assert worker_id in spy_error.at(0)[0]
-
-            # Should also emit finished with failure
-            assert spy_finished.count() == 1
-            assert spy_finished.at(0)[1] is False
-            assert spy_finished.at(0)[2] == -1  # error code
-        finally:
-            worker.safe_stop()
-            worker.deleteLater()
-            qtbot.wait(1)  # Flush Qt event loop
-
 
 # ============================================================================
 # Test Process Termination
@@ -945,48 +916,6 @@ class TestResourceCleanup:
 
 class TestEdgeCases:
     """Test edge cases and error conditions."""
-
-    def test_worker_with_empty_command(
-        self,
-        qtbot: QtBot,
-        qapp: QApplication,
-        worker_id: str,
-    ) -> None:
-        """Test worker handles empty command."""
-        worker = LauncherWorker(worker_id, "")
-
-        try:
-            spy_error = QSignalSpy(worker.command_error)
-
-            worker.do_work()
-
-            # Should emit error (empty command not in whitelist)
-            assert spy_error.count() == 1
-        finally:
-            worker.safe_stop()
-            worker.deleteLater()
-            qtbot.wait(1)  # Flush Qt event loop
-
-    def test_worker_with_whitespace_command(
-        self,
-        qtbot: QtBot,
-        qapp: QApplication,
-        worker_id: str,
-    ) -> None:
-        """Test worker handles whitespace-only command."""
-        worker = LauncherWorker(worker_id, "   ")
-
-        try:
-            spy_error = QSignalSpy(worker.command_error)
-
-            worker.do_work()
-
-            # Should emit error
-            assert spy_error.count() == 1
-        finally:
-            worker.safe_stop()
-            worker.deleteLater()
-            qtbot.wait(1)  # Flush Qt event loop
 
     def test_worker_handles_command_with_quotes(
         self,

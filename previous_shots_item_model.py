@@ -6,6 +6,7 @@ extending BaseItemModel with integration to PreviousShotsModel for data updates.
 
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QModelIndex, QObject, Qt, Signal
@@ -246,24 +247,28 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
 
         # Disconnect from underlying model
         # Use try/except pattern instead of receivers() check, as PySide6's
-        # receivers() doesn't accept slot arguments
-        if hasattr(self._underlying_model, "shots_updated"):
-            try:
-                _ = self._underlying_model.shots_updated.disconnect(
-                    self._on_underlying_shots_updated
-                )
-            except (RuntimeError, TypeError, AttributeError):
-                pass  # Signal not connected or already disconnected
+        # receivers() doesn't accept slot arguments.
+        # Suppress RuntimeWarning that PySide6 emits when disconnecting signals
+        # with no receivers connected.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            if hasattr(self._underlying_model, "shots_updated"):
+                try:
+                    _ = self._underlying_model.shots_updated.disconnect(
+                        self._on_underlying_shots_updated
+                    )
+                except (RuntimeError, TypeError, AttributeError):
+                    pass  # Signal not connected or already disconnected
 
-        # Disconnect signals safely
-        try:
-            _ = self.items_updated.disconnect()
-        except (RuntimeError, TypeError):
-            pass  # No connections to disconnect
-        try:
-            _ = self.shots_updated.disconnect()
-        except (RuntimeError, TypeError):
-            pass  # No connections to disconnect
+            # Disconnect signals safely
+            try:
+                _ = self.items_updated.disconnect()
+            except (RuntimeError, TypeError):
+                pass  # No connections to disconnect
+            try:
+                _ = self.shots_updated.disconnect()
+            except (RuntimeError, TypeError):
+                pass  # No connections to disconnect
 
         self.logger.info("PreviousShotsItemModel cleanup complete")
 

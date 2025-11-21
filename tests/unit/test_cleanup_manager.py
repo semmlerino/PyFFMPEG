@@ -61,11 +61,6 @@ def mock_main_window() -> Mock:
     window.previous_shots_item_model = Mock()
     window.previous_shots_item_model.cleanup = Mock()
 
-    # Terminal
-    window.persistent_terminal = Mock()
-    window.persistent_terminal.cleanup = Mock()
-    window.persistent_terminal.cleanup_fifo_only = Mock()
-
     return window
 
 
@@ -126,8 +121,6 @@ class TestCleanupOrchestration:
         ) as mock_managers, patch.object(
             cleanup_manager, "_cleanup_models"
         ) as mock_models, patch.object(
-            cleanup_manager, "_cleanup_terminal"
-        ) as mock_terminal, patch.object(
             cleanup_manager, "_final_cleanup"
         ) as mock_final:
             cleanup_manager.perform_cleanup()
@@ -138,7 +131,6 @@ class TestCleanupOrchestration:
         mock_session.assert_called_once()
         mock_managers.assert_called_once()
         mock_models.assert_called_once()
-        mock_terminal.assert_called_once()
         mock_final.assert_called_once()
 
     def test_perform_cleanup_emits_finished_even_on_exception(
@@ -409,60 +401,6 @@ class TestModelsCleanup:
 
 
 # =============================================================================
-# Terminal Cleanup Tests
-# =============================================================================
-
-
-class TestTerminalCleanup:
-    """Test persistent terminal cleanup."""
-
-    def test_cleanup_terminal_calls_cleanup(
-        self, cleanup_manager: CleanupManager, mock_main_window: Mock
-    ) -> None:
-        """Test terminal cleanup calls cleanup method."""
-        with patch("cleanup_manager.Config") as mock_config:
-            mock_config.KEEP_TERMINAL_ON_EXIT = False
-            cleanup_manager._cleanup_terminal()
-
-        mock_main_window.persistent_terminal.cleanup.assert_called_once()
-
-    def test_cleanup_terminal_keeps_terminal_open_if_configured(
-        self, cleanup_manager: CleanupManager, mock_main_window: Mock
-    ) -> None:
-        """Test terminal cleanup respects KEEP_TERMINAL_ON_EXIT config."""
-        with patch("cleanup_manager.Config") as mock_config:
-            mock_config.KEEP_TERMINAL_ON_EXIT = True
-
-            cleanup_manager._cleanup_terminal()
-
-        # Should not call full cleanup
-        mock_main_window.persistent_terminal.cleanup.assert_not_called()
-        # Should call FIFO-only cleanup
-        mock_main_window.persistent_terminal.cleanup_fifo_only.assert_called_once()
-
-    def test_cleanup_terminal_handles_missing_terminal(
-        self, cleanup_manager: CleanupManager, mock_main_window: Mock
-    ) -> None:
-        """Test cleanup handles missing terminal gracefully."""
-        del mock_main_window.persistent_terminal
-
-        # Should not raise
-        cleanup_manager._cleanup_terminal()
-
-    def test_cleanup_terminal_handles_missing_cleanup_fifo_only(
-        self, cleanup_manager: CleanupManager, mock_main_window: Mock
-    ) -> None:
-        """Test cleanup handles terminal without cleanup_fifo_only method."""
-        del mock_main_window.persistent_terminal.cleanup_fifo_only
-
-        with patch("cleanup_manager.Config") as mock_config:
-            mock_config.KEEP_TERMINAL_ON_EXIT = True
-
-            # Should not raise
-            cleanup_manager._cleanup_terminal()
-
-
-# =============================================================================
 # Final Cleanup Tests
 # =============================================================================
 
@@ -548,7 +486,6 @@ class TestCleanupIntegration:
         mock_main_window.launcher_manager.shutdown.assert_called_once()
         mock_main_window.cache_manager.shutdown.assert_called_once()
         mock_main_window.shot_model.cleanup.assert_called_once()
-        mock_main_window.persistent_terminal.cleanup.assert_called_once()
 
     def test_cleanup_with_partial_components(self) -> None:
         """Test cleanup works with only some components present."""

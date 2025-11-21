@@ -124,11 +124,12 @@ class CommandBuilder:
             packages: List of Rez packages to load
 
         Returns:
-            Rez-wrapped command: 'rez env {packages} -- bash -ilc {quoted_command}'
+            Rez-wrapped command: 'rez env {packages} -- bash -lc {quoted_command}'
 
         Notes:
-            - Uses bash -ilc (interactive + login) for workspace function loading
-            - Safe in terminal context (persistent terminal or GUI terminal has TTY)
+            - Uses bash -lc (login only, non-interactive) to avoid double shell init
+            - The outer terminal already provides interactive context (TTY)
+            - Using -ilc here would cause double ~/.bashrc sourcing and slow startup
             - Uses shlex.quote() to safely escape the command for shell
             - Handles commands containing quotes, spaces, and special characters
         """
@@ -137,7 +138,7 @@ class CommandBuilder:
         # CRITICAL FIX: Use shlex.quote() to properly escape the command
         # This prevents shell injection and handles commands with quotes/special chars
         quoted_command = shlex.quote(command)
-        return f"rez env {packages_str} -- bash -ilc {quoted_command}"
+        return f"rez env {packages_str} -- bash -lc {quoted_command}"
 
     @staticmethod
     def apply_nuke_environment_fixes(command: str, config: "type[Config]") -> str:
@@ -205,28 +206,48 @@ class CommandBuilder:
         return fix_details
 
     @staticmethod
-    def add_logging(command: str) -> str:
+    def add_logging(command: str, config: "type[Config] | None" = None) -> str:
         """Add logging redirection to capture command output.
 
         Args:
             command: Command to add logging to
+            config: Application configuration (optional for backward compatibility)
 
         Returns:
             Command with logging redirection: "{command} 2>&1 | tee -a {logfile}"
-            Or original command if logging directory cannot be created
+            Or original command if logging is disabled or setup fails
 
         Notes:
             - Creates ~/.shotbot/logs/ directory if needed
             - Logs to ~/.shotbot/logs/dispatcher.out
             - Uses tee to capture output while showing in terminal
             - Quotes log file path to handle spaces/special chars
+            - Rotates log file if it exceeds configured size
             - Gracefully degrades if logging setup fails
         """
+        # Check if logging is enabled (default to True for backward compatibility)
+        if config is not None and not config.ENABLE_LAUNCH_LOGGING:
+            logger.debug("Launch logging disabled via config")
+            return command
+
         log_dir = Path.home() / ".shotbot" / "logs"
 
         try:
             log_dir.mkdir(parents=True, exist_ok=True)
             log_file = log_dir / "dispatcher.out"
+
+            # Rotate log if it exceeds max size
+            max_size_mb = config.LAUNCH_LOG_MAX_SIZE_MB if config else 10
+            if max_size_mb > 0 and log_file.exists():
+                size_mb = log_file.stat().st_size / (1024 * 1024)
+                if size_mb >= max_size_mb:
+                    # Rotate: rename current to .old, truncate current
+                    old_log = log_dir / "dispatcher.out.old"
+                    if old_log.exists():
+                        old_log.unlink()
+                    _ = log_file.rename(old_log)
+                    logger.info(f"Rotated log file (was {size_mb:.1f}MB)")
+
             # Quote log file path to handle spaces/special chars
             quoted_log_file = shlex.quote(str(log_file))
             logger.debug(f"Adding logging redirection to: {log_file}")

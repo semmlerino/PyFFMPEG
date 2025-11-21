@@ -495,57 +495,6 @@ cache_manager.clear_cache()  # Clears all caches including 3DE scenes
 
 ## Launcher System Architecture
 
-### PersistentTerminalManager (Primary Launcher)
-
-**PersistentTerminalManager is the production launcher system** for Shotbot.
-
-**File**: `persistent_terminal_manager.py`
-
-#### Overview
-PersistentTerminalManager provides robust terminal session management with persistent FIFO-based communication for reliable command execution in VFX production environments.
-
-**Architecture**:
-- Persistent terminal sessions via FIFO (named pipe) communication
-- Background command execution with process tracking
-- Worker thread management with Qt parent-child relationships
-- Atomic FIFO recreation for robust restart handling
-- Comprehensive error handling and logging
-
-#### Key Features
-- **FIFO Communication**: Reliable inter-process communication via named pipes
-- **Terminal Persistence**: Sessions remain active across multiple commands
-- **Process Lifecycle Management**: Track and cleanup background processes
-- **Signal-Based Communication**: Qt signals for thread-safe coordination (command_executed, command_error)
-- **Thread Safety**: Proper locking and Qt parent-child relationships
-- **Atomic Operations**: Safe FIFO recreation and session management
-
-#### Core Components
-**TerminalOperationWorker**: QThread worker for asynchronous command execution
-- Background operation execution
-- Signal emission for completion/errors
-- Proper Qt parent-child lifecycle management
-
-**FIFO Management**:
-- Atomic recreation on startup (handles stale FIFOs from crashes)
-- Non-blocking write operations
-- Timeout handling for terminal availability
-- Graceful cleanup on shutdown
-
-#### Usage Pattern
-```python
-from persistent_terminal_manager import PersistentTerminalManager
-
-# Initialize
-terminal_mgr = PersistentTerminalManager(parent=self)
-
-# Connect signals
-terminal_mgr.command_executed.connect(self.on_command_executed)
-terminal_mgr.command_error.connect(self.on_command_error)
-
-# Execute command
-terminal_mgr.send_command("ws nuke shot_name")
-```
-
 ### CommandLauncher (Production Launcher)
 
 **CommandLauncher is the production launcher system** for application launching with shot context.
@@ -555,16 +504,16 @@ terminal_mgr.send_command("ws nuke shot_name")
 **Features**:
 - Application launching with shot context
 - Rez environment integration
-- Persistent terminal support via PersistentTerminalManager
 - LaunchContext API for flexible launch options
 - Scene-based launching support
+- Spawns new terminal windows for each command
 
 **Usage**:
 ```python
 from command_launcher import CommandLauncher, LaunchContext
 
-# Initialize with persistent terminal
-launcher = CommandLauncher(persistent_terminal=terminal_mgr, parent=self)
+# Initialize
+launcher = CommandLauncher(parent=self)
 
 # Launch with context
 context = LaunchContext(
@@ -578,38 +527,7 @@ launcher.launch_app("nuke", context)
 ### Launcher Architecture
 
 **Current Production Stack**:
-- **PersistentTerminalManager**: Terminal session management with FIFO communication
 - **CommandLauncher**: Application launching with shot context
 - **LauncherManager**: Custom launcher management
 - **ProcessPoolManager**: Process pool functionality
-
-### For Developers
-
-#### Using PersistentTerminalManager
-```python
-from persistent_terminal_manager import PersistentTerminalManager
-
-# Initialize with Qt parent for proper lifecycle
-terminal_mgr = PersistentTerminalManager(parent=self)
-
-# Connect signals
-terminal_mgr.command_executed.connect(self.on_command_executed)
-terminal_mgr.command_error.connect(self.on_command_error)
-
-# Send command (async execution)
-terminal_mgr.send_command("ws nuke MY_SHOT_v001")
-
-# Cleanup (automatic via Qt parent-child, but can call explicitly)
-terminal_mgr.cleanup()
-```
-
-#### Configuration
-PersistentTerminalManager configuration is in `config.py`:
-
-```python
-# Terminal configuration
-PERSISTENT_TERMINAL_ENABLED: bool = True
-PERSISTENT_TERMINAL_FIFO: str = "/tmp/shotbot_commands.fifo"
-PERSISTENT_TERMINAL_TITLE: str = "ShotBot Terminal"
-```
 

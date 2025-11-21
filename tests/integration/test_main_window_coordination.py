@@ -675,10 +675,6 @@ workspace /shows/test/shots/seq01/shot02""")
         monkeypatch.setattr("command_launcher.EnvironmentManager.is_rez_available", lambda _self, _config: False)
         monkeypatch.setattr("command_launcher.EnvironmentManager.detect_terminal", lambda _self: "gnome-terminal")
 
-        # Disable persistent terminal to force subprocess path
-        monkeypatch.setattr("command_launcher.Config.PERSISTENT_TERMINAL_ENABLED", False)
-        monkeypatch.setattr("command_launcher.Config.USE_PERSISTENT_TERMINAL", False)
-
         # Create real workspace directory to pass validation
         workspace_path = tmp_path / "test_workspace"
         workspace_path.mkdir(parents=True, exist_ok=True)

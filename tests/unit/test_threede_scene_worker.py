@@ -16,6 +16,7 @@ from __future__ import annotations
 # Standard library imports
 import contextlib
 import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
@@ -184,10 +185,15 @@ class TestThreeDESceneFinder:
         _shot_tuples: list[tuple[str, str, str, str]],
         _excluded_users: set[str],
         _batch_size: int,
+        cancel_flag: Callable[[], bool] | None = None,
     ) -> Generator[tuple[list[ThreeDEScene], int, int, str], None, None]:
         """Progressive scanning test double (class method version)."""
         # Yield configured batches from class data
-        yield from cls._class_progressive_batches
+        for batch in cls._class_progressive_batches:
+            # Check cancellation like the real implementation
+            if cancel_flag and cancel_flag():
+                return
+            yield batch
 
     @classmethod
     def estimate_scan_size(

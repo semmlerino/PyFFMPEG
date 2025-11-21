@@ -48,9 +48,13 @@ class LauncherProcessManager(LoggingMixin, QObject):
         ThreadingConfig.SUBPROCESS_TIMEOUT * 1000  # Convert seconds to ms
     )
 
-    def __init__(self) -> None:
-        """Initialize the process manager."""
-        super().__init__()
+    def __init__(self, parent: QObject | None = None) -> None:
+        """Initialize the process manager.
+
+        Args:
+            parent: Optional Qt parent object for proper lifecycle management
+        """
+        super().__init__(parent)
 
         # Thread-safe process tracking with detailed information
         self._active_processes: dict[str, ProcessInfo] = {}

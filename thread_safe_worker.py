@@ -133,38 +133,54 @@ class ThreadSafeWorker(LoggingMixin, QThread):
 
             # Check if transition is valid
             if not force and new_state not in self.VALID_TRANSITIONS.get(current, []):
-                self.logger.warning(
-                    f"Worker {id(self)}: Invalid transition {current.name} -> {new_state.name}",
-                )
+                try:
+                    self.logger.warning(
+                        f"Worker {id(self)}: Invalid transition {current.name} -> {new_state.name}",
+                    )
+                except (SystemError, RuntimeError):
+                    # Can occur during Python shutdown
+                    pass
                 return False
 
             # Perform transition
-            self.logger.debug(
-                f"Worker {id(self)}: {current.name} -> {new_state.name}"
-                + (" (forced)" if force else ""),
-            )
+            try:
+                self.logger.debug(
+                    f"Worker {id(self)}: {current.name} -> {new_state.name}"
+                    + (" (forced)" if force else ""),
+                )
+            except (SystemError, RuntimeError):
+                # Can occur during Python shutdown when enum module is being unloaded
+                pass
             self._state = new_state
 
             # Wake waiting threads
             self._state_condition.wakeAll()
 
             # Determine which signal to emit (but don't emit inside mutex!)
-            if new_state == WorkerState.STOPPED:
-                signal_to_emit = self.worker_stopped
-            elif new_state == WorkerState.ERROR:
-                # Store error message for emission outside mutex
-                signal_to_emit = (self.worker_error, "State error")
+            try:
+                if new_state == WorkerState.STOPPED:
+                    signal_to_emit = self.worker_stopped
+                elif new_state == WorkerState.ERROR:
+                    # Store error message for emission outside mutex
+                    signal_to_emit = (self.worker_error, "State error")
+            except (SystemError, RuntimeError):
+                # Can occur during Python shutdown when enum module is being unloaded
+                pass
 
         # Emit signals outside the mutex to prevent deadlock
         # This prevents any possibility of deadlock if a slot tries to acquire the same mutex
         if signal_to_emit:
-            if isinstance(signal_to_emit, tuple):
-                # Signal with arguments
-                signal, *args = signal_to_emit
-                signal.emit(*args)
-            else:
-                # Signal without arguments
-                signal_to_emit.emit()
+            try:
+                if isinstance(signal_to_emit, tuple):
+                    # Signal with arguments
+                    signal, *args = signal_to_emit
+                    signal.emit(*args)
+                else:
+                    # Signal without arguments
+                    signal_to_emit.emit()
+            except (RuntimeError, SystemError):
+                # Signal source may be deleted during shutdown
+                pass
 
         return True
 
@@ -350,33 +366,42 @@ class ThreadSafeWorker(LoggingMixin, QThread):
 
             self.do_work()
         except Exception as e:
-            self.logger.exception(f"Worker {id(self)}: Exception in do_work")
-            _ = self.set_state(WorkerState.ERROR)
-            self.worker_error.emit(str(e))
+            try:
+                self.logger.exception(f"Worker {id(self)}: Exception in do_work")
+                _ = self.set_state(WorkerState.ERROR)
+                self.worker_error.emit(str(e))
+            except (SystemError, RuntimeError):
+                # Can occur during Python shutdown
+                pass
         finally:
             # Respect the state machine - transition properly to STOPPED
-            current_state = self.get_state()
-            if current_state == WorkerState.RUNNING:
-                # Valid transition: RUNNING -> STOPPING -> STOPPED
-                if not self.set_state(WorkerState.STOPPING):
-                    self.logger.warning("Failed to transition to STOPPING, forcing it")
-                    _ = self.set_state(WorkerState.STOPPING, force=True)
-                # Now transition from STOPPING to STOPPED
-                if not self.set_state(WorkerState.STOPPED):
-                    self.logger.warning("Failed to transition to STOPPED, forcing it")
-                    _ = self.set_state(WorkerState.STOPPED, force=True)
-            elif current_state == WorkerState.ERROR:
-                # Valid transition: ERROR -> STOPPED
-                if not self.set_state(WorkerState.STOPPED):
-                    self.logger.warning(
-                        "Failed to transition from ERROR to STOPPED, forcing it",
-                    )
-                    _ = self.set_state(WorkerState.STOPPED, force=True)
-            elif current_state not in [WorkerState.STOPPED, WorkerState.DELETED]:
-                # For other states, try direct transition to STOPPED
-                if not self.set_state(WorkerState.STOPPED):
-                    self.logger.warning(f"Forcing STOPPED state from {current_state}")
-                    _ = self.set_state(WorkerState.STOPPED, force=True)
+            # Wrap in try/except to handle Python shutdown when enum module is being unloaded
+            try:
+                current_state = self.get_state()
+                if current_state == WorkerState.RUNNING:
+                    # Valid transition: RUNNING -> STOPPING -> STOPPED
+                    if not self.set_state(WorkerState.STOPPING):
+                        self.logger.warning("Failed to transition to STOPPING, forcing it")
+                        _ = self.set_state(WorkerState.STOPPING, force=True)
+                    # Now transition from STOPPING to STOPPED
+                    if not self.set_state(WorkerState.STOPPED):
+                        self.logger.warning("Failed to transition to STOPPED, forcing it")
+                        _ = self.set_state(WorkerState.STOPPED, force=True)
+                elif current_state == WorkerState.ERROR:
+                    # Valid transition: ERROR -> STOPPED
+                    if not self.set_state(WorkerState.STOPPED):
+                        self.logger.warning(
+                            "Failed to transition from ERROR to STOPPED, forcing it",
+                        )
+                        _ = self.set_state(WorkerState.STOPPED, force=True)
+                elif current_state not in [WorkerState.STOPPED, WorkerState.DELETED]:
+                    # For other states, try direct transition to STOPPED
+                    if not self.set_state(WorkerState.STOPPED):
+                        self.logger.warning(f"Forcing STOPPED state from {current_state}")
+                        _ = self.set_state(WorkerState.STOPPED, force=True)
+            except (SystemError, RuntimeError):
+                # Can occur during Python shutdown when enum module is being unloaded
+                pass
 
     def do_work(self) -> None:
         """Override this method with actual work implementation.

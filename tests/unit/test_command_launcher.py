@@ -13,7 +13,6 @@ from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
-from PySide6.QtCore import QObject, Signal
 
 from command_launcher import CommandLauncher
 from config import Config
@@ -111,60 +110,6 @@ class TestMayaLatestFinder:
         return None
 
 
-class TestPersistentTerminalManager(QObject):
-    """Test double for PersistentTerminalManager."""
-
-    __test__ = False  # Prevent pytest collection
-
-    # Signals (matching real PersistentTerminalManager)
-    command_finished = Signal(str, int)  # key, return_code
-    command_error = Signal(str, str)  # key, error_message
-    operation_started = Signal(str)  # operation_name
-    operation_progress = Signal(str, str)  # operation_name, status_message
-    operation_finished = Signal(str, bool, str)  # operation_name, success, message
-    command_result = Signal(bool, str)  # success, error_message
-
-    # Phase 1 lifecycle signals (new)
-    command_queued = Signal(str, str)  # timestamp, command
-    command_executing = Signal(str)  # timestamp
-    command_verified = Signal(str, str)  # timestamp, message
-
-    def __init__(self) -> None:
-        """Initialize test terminal manager."""
-        super().__init__()
-        self.executed_commands: list[tuple[str, str]] = []  # Changed from list[str] to str
-        self.is_available = True
-        self._fallback_mode = False  # Add fallback mode attribute
-
-    @property
-    def is_fallback_mode(self) -> bool:
-        """Check if persistent terminal is in fallback mode."""
-        return self._fallback_mode
-
-    def is_terminal_available(self) -> bool:
-        """Check if terminal is available."""
-        return self.is_available
-
-    def execute_command(self, key: str, command: list[str]) -> None:
-        """Record command execution."""
-        # Simulate immediate success
-        self.command_finished.emit(key, 0)
-
-    def send_command(self, command: str) -> bool:
-        """Send command to terminal (mocked - synchronous)."""
-        self.executed_commands.append(("sync", command))
-        return True
-
-    def send_command_async(self, command: str) -> None:
-        """Send command asynchronously (mocked)."""
-        self.executed_commands.append(("async", command))
-        # Simulate immediate success via signals
-        self.operation_started.emit("send_command")
-        self.operation_progress.emit("send_command", "Sending command")
-        self.command_result.emit(True, "")
-        self.operation_finished.emit("send_command", True, "Command sent")
-
-
 class TestCommandLauncher:
     """Test CommandLauncher functionality."""
 
@@ -193,9 +138,7 @@ class TestCommandLauncher:
         mock_maya_latest_finder.MayaLatestFinder = TestMayaLatestFinder
         sys.modules["maya_latest_finder"] = mock_maya_latest_finder
 
-        return CommandLauncher(
-            persistent_terminal=None,  # Test without persistent terminal first
-        )
+        return CommandLauncher()
 
     @pytest.fixture
     def test_shot(self) -> Shot:
@@ -218,7 +161,6 @@ class TestCommandLauncher:
     def test_initialization(self, launcher: CommandLauncher) -> None:
         """Test CommandLauncher initializes correctly."""
         assert launcher.current_shot is None
-        assert launcher.persistent_terminal is None
         assert hasattr(launcher, "command_executed")
         assert hasattr(launcher, "command_error")
 
@@ -484,121 +426,6 @@ class TestCommandLauncher:
         # Verify subprocess was attempted
         assert mock_popen.called
 
-    @pytest.mark.skip(reason="Persistent terminal disabled in config")
-    @patch.object(
-        CommandLauncher, "_validate_workspace_before_launch", return_value=True
-    )
-    @patch("command_launcher.Config.PERSISTENT_TERMINAL_ENABLED", True)
-    @patch("command_launcher.Config.USE_PERSISTENT_TERMINAL", True)
-    @patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False)
-    def test_persistent_terminal_usage(
-        self, mock_rez: MagicMock, mock_validate: MagicMock, qtbot: QtBot, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """Test using persistent terminal manager with async API."""
-        # Mock the modules that will be imported in __init__
-        import sys
-        import types
-
-        # Create mock modules
-        mock_raw_plate_finder = types.ModuleType("raw_plate_finder")
-        mock_raw_plate_finder.RawPlateFinder = TestRawPlateFinder
-        sys.modules["raw_plate_finder"] = mock_raw_plate_finder
-
-        mock_nuke_script_generator = types.ModuleType("nuke_script_generator")
-        mock_nuke_script_generator.NukeScriptGenerator = TestNukeScriptGenerator
-        sys.modules["nuke_script_generator"] = mock_nuke_script_generator
-
-        mock_threede_latest_finder = types.ModuleType("threede_latest_finder")
-        mock_threede_latest_finder.ThreeDELatestFinder = TestThreeDELatestFinder
-        sys.modules["threede_latest_finder"] = mock_threede_latest_finder
-
-        mock_maya_latest_finder = types.ModuleType("maya_latest_finder")
-        mock_maya_latest_finder.MayaLatestFinder = TestMayaLatestFinder
-        sys.modules["maya_latest_finder"] = mock_maya_latest_finder
-
-        terminal = TestPersistentTerminalManager()
-        launcher = CommandLauncher(
-            persistent_terminal=terminal,
-        )
-
-        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
-        launcher.set_current_shot(shot)
-
-        # Launch app - should use persistent terminal (async)
-        result = launcher.launch_app("nuke")
-
-        # Should be successful
-        assert result is True
-
-        # Wait for any Qt events to process
-        process_qt_events()
-
-        # Verify terminal was used with async API
-        assert len(terminal.executed_commands) == 1
-        mode, command = terminal.executed_commands[0]
-        assert mode == "async"  # Verify async method was used
-        assert "nuke" in command
-
-    @pytest.mark.skip(reason="Persistent terminal disabled in config")
-    @patch.object(
-        CommandLauncher, "_validate_workspace_before_launch", return_value=True
-    )
-    @patch("command_launcher.Config.PERSISTENT_TERMINAL_ENABLED", True)
-    @patch("command_launcher.Config.USE_PERSISTENT_TERMINAL", True)
-    def test_persistent_terminal_unavailable(
-        self, mock_validate: MagicMock, qtbot: QtBot, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """Test fallback when persistent terminal is in fallback mode."""
-        # Mock the modules that will be imported in __init__
-        import sys
-        import types
-
-        # Create mock modules
-        mock_raw_plate_finder = types.ModuleType("raw_plate_finder")
-        mock_raw_plate_finder.RawPlateFinder = TestRawPlateFinder
-        sys.modules["raw_plate_finder"] = mock_raw_plate_finder
-
-        mock_nuke_script_generator = types.ModuleType("nuke_script_generator")
-        mock_nuke_script_generator.NukeScriptGenerator = TestNukeScriptGenerator
-        sys.modules["nuke_script_generator"] = mock_nuke_script_generator
-
-        mock_threede_latest_finder = types.ModuleType("threede_latest_finder")
-        mock_threede_latest_finder.ThreeDELatestFinder = TestThreeDELatestFinder
-        sys.modules["threede_latest_finder"] = mock_threede_latest_finder
-
-        mock_maya_latest_finder = types.ModuleType("maya_latest_finder")
-        mock_maya_latest_finder.MayaLatestFinder = TestMayaLatestFinder
-        sys.modules["maya_latest_finder"] = mock_maya_latest_finder
-
-        terminal = TestPersistentTerminalManager()
-        terminal._fallback_mode = True  # Simulate terminal in fallback mode
-
-        launcher = CommandLauncher(
-            persistent_terminal=terminal,
-        )
-
-        shot = Shot("TEST", "seq01", "0010", f"{Config.SHOWS_ROOT}/TEST/shots/seq01/seq01_0010")
-        launcher.set_current_shot(shot)
-
-        with (
-            patch("command_launcher.subprocess.Popen") as mock_popen,
-            patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False),
-        ):
-            mock_popen.return_value = MagicMock()
-
-            # Launch app - should fall back to subprocess
-            result = launcher.launch_app("nuke")
-
-            # Should be successful
-            assert result is True
-
-            # Wait for QTimer.singleShot(100ms) callback to complete
-            process_qt_events()
-
-            # Verify subprocess was used as fallback (terminal was NOT used)
-            assert mock_popen.called
-            assert len(terminal.executed_commands) == 0  # Terminal should not have been used
-
 
 class TestCommandLauncherSignals:
     """Test CommandLauncher signal emissions."""
@@ -627,9 +454,7 @@ class TestCommandLauncherSignals:
         mock_maya_latest_finder.MayaLatestFinder = TestMayaLatestFinder
         sys.modules["maya_latest_finder"] = mock_maya_latest_finder
 
-        return CommandLauncher(
-            persistent_terminal=None,
-        )
+        return CommandLauncher()
 
     def test_signal_data_format(self, launcher: CommandLauncher, qtbot: QtBot) -> None:
         """Test basic launcher functionality."""

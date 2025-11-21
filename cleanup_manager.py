@@ -9,7 +9,6 @@ from typing import Any, Protocol
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QApplication
 
-from config import Config
 from logging_mixin import LoggingMixin
 
 
@@ -29,7 +28,6 @@ class MainWindowProtocol(Protocol):
     shot_model: Any
     previous_shots_model: Any
     previous_shots_item_model: Any
-    persistent_terminal: Any
     command_launcher: Any
 
 
@@ -72,7 +70,6 @@ class CleanupManager(QObject, LoggingMixin):
             self._cleanup_session_warmer()
             self._cleanup_managers()
             self._cleanup_models()
-            self._cleanup_terminal()
             self._final_cleanup()
 
             self.logger.debug("MainWindow cleanup sequence completed")
@@ -196,25 +193,6 @@ class CleanupManager(QObject, LoggingMixin):
                     self.main_window.previous_shots_item_model.cleanup()
             except Exception as e:
                 self.logger.error(f"Error cleaning up PreviousShotsItemModel: {e}")
-
-    def _cleanup_terminal(self) -> None:
-        """Clean up persistent terminal if it exists."""
-        if not (
-            hasattr(self.main_window, "persistent_terminal")
-            and self.main_window.persistent_terminal
-        ):
-            return
-
-        self.logger.debug("Cleaning up persistent terminal")
-
-        # Check if we should keep terminal open after exit
-        if not getattr(Config, "KEEP_TERMINAL_ON_EXIT", False):
-            self.main_window.persistent_terminal.cleanup()
-        else:
-            # Just cleanup FIFO but leave terminal running
-            self.logger.info("Keeping terminal open after application exit")
-            if hasattr(self.main_window.persistent_terminal, "cleanup_fifo_only"):
-                self.main_window.persistent_terminal.cleanup_fifo_only()
 
     def _final_cleanup(self) -> None:
         """Perform final cleanup steps - QRunnables, timers, and garbage collection."""

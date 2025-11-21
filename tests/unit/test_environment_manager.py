@@ -45,14 +45,18 @@ class TestRezAvailability:
 
         assert env_manager.is_rez_available(mock_config) is False
 
-    def test_rez_detected_via_env_variable(
+    def test_rez_skipped_when_already_in_rez_environment(
         self, env_manager: EnvironmentManager, mock_config: MagicMock
     ) -> None:
-        """Test Rez detection via REZ_USED environment variable."""
+        """Test that rez wrapping is skipped when REZ_USED is set.
+
+        When REZ_USED is set, we're already in a rez environment.
+        Returning False avoids double-wrapping commands.
+        """
         mock_config.REZ_AUTO_DETECT = True
 
         with patch.dict(os.environ, {"REZ_USED": "1"}):
-            assert env_manager.is_rez_available(mock_config) is True
+            assert env_manager.is_rez_available(mock_config) is False
 
     def test_rez_not_detected_when_auto_detect_disabled(
         self, env_manager: EnvironmentManager, mock_config: MagicMock

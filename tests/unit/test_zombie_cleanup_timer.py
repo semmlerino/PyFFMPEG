@@ -73,9 +73,11 @@ class TestZombieCleanupTimer:
 
         worker = QuickWorker()
 
-        # Wait for signal WHILE starting (before it finishes)
-        with qtbot.wait_signal(worker.finished, timeout=2000):
-            worker.start()
+        # Start worker and wait for it to finish using Qt's native wait
+        # (safer than wait_signal for instant-finishing threads)
+        worker.start()
+        finished = worker.wait(2000)  # Use Qt's native wait
+        assert finished, "Worker did not finish in time"
 
         # Worker should be finished now
         assert not worker.isRunning()

@@ -175,21 +175,6 @@ class TestPathConfigurationValidation:
         assert settings_file.is_absolute(), "SETTINGS_FILE should be absolute path"
         assert ".shotbot" in str(settings_file), "SETTINGS_FILE should be in .shotbot directory"
 
-    def test_terminal_fifo_path_is_absolute(self) -> None:
-        """Validate persistent terminal FIFO path is absolute.
-
-        FIFO paths must be absolute for reliable IPC operations.
-        """
-        fifo_path = Config.PERSISTENT_TERMINAL_FIFO
-        path = Path(fifo_path)
-
-        assert path.is_absolute(), (
-            f"PERSISTENT_TERMINAL_FIFO must be absolute path, got: {fifo_path}"
-        )
-        assert path.parent.exists(), (
-            f"PERSISTENT_TERMINAL_FIFO parent directory should exist: {path.parent}"
-        )
-
     def test_path_segments_are_not_empty(self) -> None:
         """Validate path segment lists contain no empty strings.
 

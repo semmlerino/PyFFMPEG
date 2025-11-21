@@ -103,7 +103,6 @@ from launcher_panel import LauncherPanel  # Improved launcher UI
 from log_viewer import LogViewer
 from logging_mixin import LoggingMixin, get_module_logger
 from notification_manager import NotificationManager
-from persistent_terminal_manager import PersistentTerminalManager
 from previous_shots_item_model import PreviousShotsItemModel
 from previous_shots_model import PreviousShotsModel
 from previous_shots_view import PreviousShotsView
@@ -293,17 +292,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             cast("BaseShotModel", self.shot_model),
             self.cache_manager,
         )
-        # Create persistent terminal manager if enabled
-        self.persistent_terminal: PersistentTerminalManager | None = None
-        if Config.PERSISTENT_TERMINAL_ENABLED and Config.USE_PERSISTENT_TERMINAL:
-            self.persistent_terminal = PersistentTerminalManager(
-                fifo_path=Config.PERSISTENT_TERMINAL_FIFO
-            )
 
-        self.command_launcher = CommandLauncher(
-            persistent_terminal=self.persistent_terminal,
-            parent=self,
-        )
+        self.command_launcher = CommandLauncher(parent=self)
         self.launcher_manager = LauncherManager(
             process_pool=self._process_pool, parent=self
         )

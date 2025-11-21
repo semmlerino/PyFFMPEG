@@ -397,28 +397,6 @@ def qt_cleanup(qapp: QApplication) -> Iterator[None]:
 
 
 @pytest.fixture(autouse=True)
-def cleanup_persistent_terminals(qtbot: QtBot) -> Iterator[None]:
-    """Stop all PersistentTerminalManager workers BEFORE Qt teardown.
-
-    This runs before pytest-qt's teardown to prevent workers from spawning
-    subprocesses during teardown (which causes Fatal Python error: Aborted).
-
-    See UNIFIED_TESTING_V2.MD: "Stop all async operations" must happen BEFORE teardown.
-    """
-    yield
-
-    # Clean up all PersistentTerminalManager instances
-    # This MUST run BEFORE pytest-qt teardown to prevent workers from
-    # spawning subprocesses during Qt cleanup (causes Fatal Python error: Aborted)
-    try:
-        from persistent_terminal_manager import PersistentTerminalManager
-        PersistentTerminalManager.cleanup_all_instances()
-    except (ImportError, RuntimeError):
-        # Module not imported or already cleaned up - OK
-        pass
-
-
-@pytest.fixture(autouse=True)
 def cleanup_state() -> Iterator[None]:
     """Clean up all module-level caches and singleton state before and after each test.
 
@@ -462,6 +440,11 @@ def cleanup_state() -> Iterator[None]:
             shutil.rmtree(shared_cache_dir)
         except FileNotFoundError:
             # Race condition in pytest-xdist: another worker may have deleted it
+            pass
+        except OSError:
+            # Race condition in pytest-xdist: another worker may have created
+            # files while we were deleting. This is acceptable during parallel
+            # testing - each test should handle its own cache isolation.
             pass
 
     # CRITICAL: Reset _cache_disabled flag to ensure consistent test behavior
@@ -590,10 +573,18 @@ def cleanup_state() -> Iterator[None]:
         warnings.warn(f"FilesystemCoordinator reset failed: {e}", RuntimeWarning, stacklevel=2)
 
     # ThreadSafeWorker Zombie Cleanup
-    # Skip zombie cleanup during teardown to avoid deadlock
+    # Don't call cleanup_old_zombies() during teardown (can cause deadlock)
     # pytest will terminate all workers anyway
     # See UNIFIED_TESTING_V2.MD: "Stop all async operations" must happen BEFORE teardown
-    # This cleanup runs DURING teardown, which is too late
+    # However, we CAN safely clear the tracking lists to prevent test contamination
+    from thread_safe_worker import ThreadSafeWorker
+    try:
+        ThreadSafeWorker.stop_zombie_cleanup_timer()
+        ThreadSafeWorker._zombie_threads.clear()
+        ThreadSafeWorker._zombie_timestamps.clear()
+    except Exception as e:
+        import warnings
+        warnings.warn(f"ThreadSafeWorker reset failed: {e}", RuntimeWarning, stacklevel=2)
 
     # Force garbage collection to clean up any instances that cached state
     # (e.g., TargetedShotsFinder instances with cached Config.SHOWS_ROOT regex patterns)
@@ -1088,6 +1079,28 @@ def test_process_pool():
             self._outputs_queue = []
             self._errors = ""
             self._repeat_output = True
+
+        def shutdown(self, timeout: float = 5.0) -> None:
+            """Shutdown the test double (no-op for test double)."""
+            # Reset state on shutdown for test isolation
+            self.reset()
+
+        def find_files_python(self, directory: str, pattern: str) -> list[str]:
+            """Find files using Python glob (real implementation for test double).
+
+            This method uses real filesystem operations since it doesn't involve
+            subprocess calls that would cause parallel test issues.
+            """
+            from pathlib import Path
+
+            try:
+                path = Path(directory)
+                if not path.exists():
+                    return []
+                files = list(path.rglob(pattern))
+                return [str(f) for f in files]
+            except Exception:
+                return []
 
     return TestProcessPool()
 

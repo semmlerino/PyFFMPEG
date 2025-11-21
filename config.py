@@ -113,25 +113,9 @@ class Config:
     ]
     NUKE_OCIO_FALLBACK_CONFIG: str = "/usr/share/color/nuke-default/config.ocio"  # Fallback OCIO config if system one fails
 
-    # Persistent Terminal Settings
-    PERSISTENT_TERMINAL_ENABLED: bool = (
-        False  # Master switch to enable/disable persistent terminal
-    )
-    USE_PERSISTENT_TERMINAL: bool = (
-        True  # Use single terminal for all commands (when enabled)
-    )
-    PERSISTENT_TERMINAL_FIFO: str = "/tmp/shotbot_commands.fifo"  # FIFO path for commands
-    PERSISTENT_TERMINAL_TITLE: str = "ShotBot Terminal"  # Terminal window title
-    KEEP_TERMINAL_ON_EXIT: bool = False  # Keep terminal open when ShotBot closes
-    CLEAR_TERMINAL_BEFORE_COMMAND: bool = False  # Clear screen before each command
-    TERMINAL_DISPATCHER_SCRIPT: str = "terminal_dispatcher.sh"  # Dispatcher script name
-
-    # Terminal Management Configuration
-    FIFO_PATH: str = os.getenv("SHOTBOT_FIFO_PATH", "/tmp/shotbot_commands.fifo")
-    HEARTBEAT_PATH: str = os.getenv("SHOTBOT_HEARTBEAT_PATH", "/tmp/shotbot_heartbeat.txt")
-    HEARTBEAT_TIMEOUT: float = float(os.getenv("SHOTBOT_HEARTBEAT_TIMEOUT", "60.0"))
-    HEARTBEAT_CHECK_INTERVAL: float = float(os.getenv("SHOTBOT_HEARTBEAT_CHECK_INTERVAL", "30.0"))
-    MAX_TERMINAL_RESTART_ATTEMPTS: int = int(os.getenv("SHOTBOT_MAX_TERMINAL_RESTART_ATTEMPTS", "3"))
+    # Launch logging
+    ENABLE_LAUNCH_LOGGING: bool = True  # Log launch output via tee to ~/.shotbot/logs/dispatcher.out
+    LAUNCH_LOG_MAX_SIZE_MB: int = 10  # Max log file size in MB before rotation (0 = no limit)
 
     # Settings file
     SETTINGS_FILE: Path = Path.home() / ".shotbot" / "settings.json"

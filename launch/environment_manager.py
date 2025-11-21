@@ -32,10 +32,15 @@ class EnvironmentManager:
     independently without requiring shared state.
     """
 
-    # Terminal preference order
+    # Terminal preference order (common VFX facility terminals)
     TERMINAL_PREFERENCE: Final[list[str]] = [
         "gnome-terminal",
         "konsole",
+        "xfce4-terminal",
+        "mate-terminal",
+        "alacritty",
+        "kitty",
+        "terminology",
         "xterm",
         "x-terminal-emulator",
     ]
@@ -46,27 +51,29 @@ class EnvironmentManager:
         self._available_terminal_cache: str | None = None
 
     def is_rez_available(self, config: "type[Config]") -> bool:
-        """Check if rez environment is available.
+        """Check if rez environment is available and should be used for wrapping.
 
         Args:
             config: Application configuration
 
         Returns:
-            True if rez is available and should be used
+            True if rez is available and should be used for wrapping commands
 
         Notes:
             - Checks config.USE_REZ_ENVIRONMENT first
-            - If REZ_AUTO_DETECT enabled, checks REZ_USED environment variable
+            - If REZ_AUTO_DETECT enabled and REZ_USED is set, returns False
+              (already in a rez context, don't double-wrap)
             - Otherwise checks if 'rez' command is available
             - Caches result for performance
         """
         if not config.USE_REZ_ENVIRONMENT:
             return False
 
-        # Check for REZ_USED environment variable (indicates we're in a rez env)
+        # Check for REZ_USED environment variable (indicates we're already in a rez env)
+        # Don't wrap again to avoid double-wrapping and package conflicts
         if config.REZ_AUTO_DETECT and os.environ.get("REZ_USED"):
-            logger.debug("Rez detected via REZ_USED environment variable")
-            return True
+            logger.debug("Already in rez environment (REZ_USED set), skipping rez wrapping")
+            return False
 
         # Return cached result if available
         if self._rez_available_cache is not None:

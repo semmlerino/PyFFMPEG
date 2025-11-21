@@ -1,7 +1,6 @@
 """Process execution management for application launching.
 
 This module handles process execution and management:
-- Persistent terminal routing
 - New terminal window launching
 - Process verification
 - Signal-based status reporting
@@ -10,17 +9,15 @@ This module handles process execution and management:
 import logging
 import subprocess
 from datetime import UTC, datetime
-from functools import partial
 from typing import TYPE_CHECKING, Final
 
-from PySide6.QtCore import QMetaObject, QObject, QTimer, Signal, Slot
+from PySide6.QtCore import QObject, QTimer, Signal
 
 from notification_manager import NotificationManager
 
 
 if TYPE_CHECKING:
     from config import Config
-    from persistent_terminal_manager import PersistentTerminalManager
 
 logger = logging.getLogger(__name__)
 
@@ -28,9 +25,8 @@ logger = logging.getLogger(__name__)
 class ProcessExecutor(QObject):
     """Executes commands via terminal or subprocess.
 
-    This class handles the actual execution of commands, either through
-    a persistent terminal manager or by spawning new terminal windows.
-    It provides signal-based status reporting and handles process verification.
+    This class handles the actual execution of commands by spawning new terminal
+    windows. It provides signal-based status reporting and handles process verification.
 
     Signals:
         execution_progress: Emitted for progress updates
@@ -60,37 +56,19 @@ class ProcessExecutor(QObject):
 
     def __init__(
         self,
-        persistent_terminal: "PersistentTerminalManager | None",
         config: "type[Config]",
         parent: QObject | None = None,
     ) -> None:
         """Initialize ProcessExecutor.
 
         Args:
-            persistent_terminal: Optional persistent terminal manager
             config: Application configuration class
             parent: Optional Qt parent object
         """
         super().__init__(parent)
-        self.persistent_terminal: PersistentTerminalManager | None = persistent_terminal
         self.config: type[Config] = config
         self.logger: logging.Logger = logger
-
-        # CRITICAL BUG FIX #20: Track signal connections for proper cleanup
-        self._signal_connections: list[QMetaObject.Connection] = []
-
-        # Connect to persistent terminal signals if available
-        if self.persistent_terminal:
-            self._signal_connections.append(
-                self.persistent_terminal.operation_progress.connect(
-                    self._on_terminal_progress
-                )
-            )
-            self._signal_connections.append(
-                self.persistent_terminal.command_result.connect(
-                    self._on_terminal_command_result
-                )
-            )
+        self._pending_timers: list[QTimer] = []
 
     def is_gui_app(self, app_name: str) -> bool:
         """Check if an application is a GUI application.
@@ -106,73 +84,6 @@ class ProcessExecutor(QObject):
             block the terminal. Non-GUI apps run in foreground for interactivity.
         """
         return app_name.lower() in self.GUI_APPS
-
-    def can_use_persistent_terminal(self) -> bool:
-        """Check if persistent terminal can be used.
-
-        Returns:
-            True if persistent terminal is available and enabled
-
-        Notes:
-            Checks multiple conditions:
-            - Persistent terminal object exists
-            - Persistent terminal is enabled in config
-            - USE_PERSISTENT_TERMINAL flag is set
-            - Terminal is not in fallback mode
-        """
-        if not self.persistent_terminal:
-            return False
-
-        if not self.config.PERSISTENT_TERMINAL_ENABLED:
-            return False
-
-        if not self.config.USE_PERSISTENT_TERMINAL:
-            return False
-
-        # Check if terminal is in fallback mode
-        if self.persistent_terminal.is_fallback_mode:
-            self.logger.warning("Persistent terminal is in fallback mode")
-            return False
-
-        return True
-
-    def execute_in_persistent_terminal(
-        self, command: str, app_name: str
-    ) -> bool:
-        """Execute command in persistent terminal (async).
-
-        Args:
-            command: Command to execute
-            app_name: Application name (for logging)
-
-        Returns:
-            True if command was queued successfully
-
-        Notes:
-            - Uses async send - returns immediately
-            - GUI stays responsive during execution
-            - Progress and completion reported via signals
-            - Dispatcher handles backgrounding of GUI apps
-        """
-        if not self.can_use_persistent_terminal():
-            self.logger.warning("Persistent terminal not available")
-            return False
-
-        self.logger.info(
-            f"Sending command to persistent terminal (async): {command}"
-        )
-
-        is_gui = self.is_gui_app(app_name)
-        self.logger.debug(
-            f"Command details:\n  Command: {command!r}\n  Is GUI app: {is_gui}"
-        )
-
-        # Use async send - returns immediately, GUI stays responsive
-        # Progress and completion are reported via signals
-        assert self.persistent_terminal is not None  # Type narrowing
-        _ = self.persistent_terminal.send_command_async(command)
-        self.logger.debug("Command queued for async execution in persistent terminal")
-        return True
 
     def execute_in_new_terminal(
         self, command: str, app_name: str, terminal: str
@@ -214,8 +125,26 @@ class ProcessExecutor(QObject):
         process = subprocess.Popen(term_cmd)
 
         # Verify spawn after 100ms (asynchronous to avoid blocking UI)
-        # Use functools.partial for safe reference capture (avoids lambda race conditions)
-        QTimer.singleShot(100, partial(self.verify_spawn, process, app_name))
+        # Use a cancellable QTimer to avoid "Signal source deleted" errors
+        # when ProcessExecutor is cleaned up before the timer fires
+        timer = QTimer(self)
+        timer.setSingleShot(True)
+        timer.setInterval(100)
+
+        # Store timer reference for cleanup
+        self._pending_timers.append(timer)
+
+        # Connect with cleanup of timer from list
+        def on_timeout() -> None:
+            # Check if timer was removed by cleanup() - if so, skip callback
+            if timer not in self._pending_timers:
+                return  # Cleanup already happened, ProcessExecutor may be deleted
+            self._pending_timers.remove(timer)
+            self.verify_spawn(process, app_name)
+            timer.deleteLater()
+
+        _ = timer.timeout.connect(on_timeout)
+        timer.start()
 
         return True
 
@@ -240,8 +169,12 @@ class ProcessExecutor(QObject):
             timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
             error_msg = f"{app_name} crashed immediately (exit code {exit_code})"
 
-            self.execution_error.emit(timestamp, error_msg)
-            self.execution_completed.emit(False, error_msg)
+            try:
+                self.execution_error.emit(timestamp, error_msg)
+                self.execution_completed.emit(False, error_msg)
+            except RuntimeError:
+                # Signal source deleted - object is being cleaned up
+                return
 
             NotificationManager.error(
                 "Launch Failed", f"{app_name} crashed immediately"
@@ -250,62 +183,29 @@ class ProcessExecutor(QObject):
             # Process spawned successfully
             self.logger.debug(f"{app_name} process spawned successfully (PID {process.pid})")
             timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
-            self.execution_progress.emit(
-                timestamp, f"{app_name} started successfully (PID {process.pid})"
-            )
-
-    @Slot(str, str)
-    def _on_terminal_progress(self, operation: str, message: str) -> None:
-        """Handle progress updates from persistent terminal operations.
-
-        Args:
-            operation: Name of the operation (e.g., "send_command")
-            message: Progress status message
-
-        Notes:
-            - Connected to persistent_terminal.operation_progress signal
-            - Forwards progress to execution_progress signal with timestamp
-        """
-        timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
-        self.execution_progress.emit(timestamp, f"[{operation}] {message}")
-
-    @Slot(bool, str)
-    def _on_terminal_command_result(self, success: bool, error_message: str) -> None:
-        """Handle command result from persistent terminal operations.
-
-        Args:
-            success: Whether the command completed successfully
-            error_message: Error message if failed (empty if success)
-
-        Notes:
-            - Connected to persistent_terminal.command_result signal
-            - Emits execution_completed and execution_error signals as appropriate
-        """
-        self.execution_completed.emit(success, error_message)
-
-        if not success:
-            timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
-            error_msg = f"Terminal operation failed: {error_message}"
-            self.execution_error.emit(timestamp, error_msg)
+            try:
+                self.execution_progress.emit(
+                    timestamp, f"{app_name} started successfully (PID {process.pid})"
+                )
+            except RuntimeError:
+                # Signal source deleted - object is being cleaned up
+                pass
 
     def cleanup(self) -> None:
-        """Disconnect signals to prevent memory leaks.
+        """Cleanup resources.
 
-        This method should be called before deleting the ProcessExecutor instance
-        to ensure all signal connections are properly cleaned up.
-
-        CRITICAL BUG FIX #20: Use connection list instead of receiver reference.
-        The old pattern (disconnect by receiver) fails if terminal is deleted first.
+        This method is called before deleting the ProcessExecutor instance.
+        Stops all pending timers to prevent "Signal source deleted" errors.
         """
-        # Disconnect all tracked signal connections
-        for connection in self._signal_connections:
+        # Stop and clean up all pending timers
+        for timer in self._pending_timers:
             try:
-                _ = QObject.disconnect(connection)
-            except (RuntimeError, TypeError):
-                pass  # Already disconnected or connection invalid
-
-        self._signal_connections.clear()
-        self.logger.debug("Disconnected ProcessExecutor signals")
+                timer.stop()
+                timer.deleteLater()
+            except RuntimeError:
+                pass  # Timer may already be deleted
+        self._pending_timers.clear()
+        self.logger.debug("ProcessExecutor cleanup completed")
 
     def __del__(self) -> None:
         """Cleanup on destruction."""
@@ -313,5 +213,4 @@ class ProcessExecutor(QObject):
             self.cleanup()
         except Exception:
             pass  # Ignore errors in destructor
-
 

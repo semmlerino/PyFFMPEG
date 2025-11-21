@@ -106,7 +106,7 @@ fi
 
 # Test 4: Rez wrapper with 3DE should be detected as GUI (extracts inner command)
 test_start "Rez wrapper with 3DE is GUI app"
-if is_gui_app 'rez env 3de -- bash -ilc "ws /shows/jack_ryan/shots/TB_090/TB_090_0020 && 3de -open /shows/jack_ryan/shots/TB_090/TB_090_0020/user/gabriel-h/mm/3de/mm-default/scenes/scene/FG01/TB_090_0020_mm_default_FG01_scene_v002.3de"'; then
+if is_gui_app 'rez env 3de -- bash -lc "ws /shows/jack_ryan/shots/TB_090/TB_090_0020 && 3de -open /shows/jack_ryan/shots/TB_090/TB_090_0020/user/gabriel-h/mm/3de/mm-default/scenes/scene/FG01/TB_090_0020_mm_default_FG01_scene_v002.3de"'; then
     test_pass
 else
     test_fail "Expected rez wrapper with 3de to be detected as GUI app"
@@ -114,7 +114,7 @@ fi
 
 # Test 5: Rez wrapper with nuke should be detected as GUI
 test_start "Rez wrapper with nuke is GUI app"
-if is_gui_app 'rez env nuke -- bash -ilc "ws /path && nuke /path/script.nk"'; then
+if is_gui_app 'rez env nuke -- bash -lc "ws /path && nuke /path/script.nk"'; then
     test_pass
 else
     test_fail "Expected rez wrapper with nuke to be detected as GUI app"
@@ -122,7 +122,7 @@ fi
 
 # Test 6: Rez wrapper with maya should be detected as GUI
 test_start "Rez wrapper with maya is GUI app"
-if is_gui_app 'rez env maya -- bash -ilc "ws /path && maya -file /path/scene.ma"'; then
+if is_gui_app 'rez env maya -- bash -lc "ws /path && maya -file /path/scene.ma"'; then
     test_pass
 else
     test_fail "Expected rez wrapper with maya to be detected as GUI app"
@@ -154,7 +154,7 @@ fi
 
 # Test 10: Rez env alone (no GUI app after &&) should NOT be GUI
 test_start "Rez env without GUI app is NOT GUI app"
-if ! is_gui_app 'rez env python -- bash -ilc "python --version"'; then
+if ! is_gui_app 'rez env python -- bash -lc "python --version"'; then
     test_pass
 else
     test_fail "Expected rez env python to NOT be GUI app"
@@ -178,7 +178,7 @@ fi
 
 # Test 13: Complex rez wrapper with multiple commands, last being GUI
 test_start "Complex rez wrapper with GUI at end"
-if is_gui_app 'rez env 3de -- bash -ilc "export FOO=bar && ws /path && 3de -open /file.3de"'; then
+if is_gui_app 'rez env 3de -- bash -lc "export FOO=bar && ws /path && 3de -open /file.3de"'; then
     test_pass
 else
     test_fail "Expected complex rez command with 3de at end to be GUI app"
@@ -186,7 +186,7 @@ fi
 
 # Test 14: Rez wrapper with only env setup (no GUI) should NOT be GUI
 test_start "Rez wrapper with only environment setup is NOT GUI"
-if ! is_gui_app 'rez env mypackage -- bash -ilc "ws /path"'; then
+if ! is_gui_app 'rez env mypackage -- bash -lc "ws /path"'; then
     test_pass
 else
     test_fail "Expected rez with only ws command to NOT be GUI app"
