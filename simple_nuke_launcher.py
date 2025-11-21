@@ -149,6 +149,18 @@ os.environ["USER"] = {user!r}
 script_dir = {str(script_dir)!r}
 os.makedirs(script_dir, exist_ok=True)
 
+# Check if SGTK engine is already running to prevent double registration
+# SGTK bootstraps on Nuke startup via nuke_tools init.py, and scriptNew()
+# can trigger hooks that attempt to re-register. Set flag to prevent this.
+try:
+    import sgtk
+    if sgtk.platform.current_engine():
+        # Engine already running - set flag to prevent re-registration attempts
+        os.environ["SGTK_BOOTSTRAP_DONE"] = "1"
+        print("SGTK engine already running, flagged to prevent re-registration")
+except ImportError:
+    pass  # SGTK not available, proceed normally
+
 # Set up new script
 nuke.scriptNew()
 
