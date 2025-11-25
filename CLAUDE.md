@@ -402,9 +402,11 @@ def cleanup_qt_state(qtbot: QtBot):
 ### Test Coverage
 
 ```bash
-# Generate and view coverage report
-# (Coverage enabled by default via pyproject.toml)
-~/.local/bin/uv run pytest tests/
+# Coverage is disabled by default for faster local runs
+# Run with coverage manually:
+~/.local/bin/uv run pytest tests/ --cov=. --cov-report=term-missing --cov-report=html:coverage_html
+
+# View the HTML report
 open coverage_html/index.html
 ```
 

@@ -23,8 +23,8 @@ from pathlib import Path
 import pytest
 
 
-# Set up paths
-project_root = Path(__file__).parent
+# Set up paths - go up 2 levels from tests/utilities/ to project root
+project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 os.chdir(project_root)
 
@@ -140,8 +140,7 @@ def build_pytest_args(args):
             [
                 "--cov=.",
                 "--cov-report=term-missing",
-                "--cov-report=html",
-                "--cov-config=.coveragerc",
+                "--cov-report=html:coverage_html",
             ]
         )
 

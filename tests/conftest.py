@@ -542,7 +542,9 @@ def cleanup_state() -> Iterator[None]:
     if shared_cache_dir.exists():
         try:
             shutil.rmtree(shared_cache_dir)
-        except FileNotFoundError:
+        except (FileNotFoundError, OSError):
+            # FileNotFoundError: Already deleted by another worker
+            # OSError: Directory not empty (race condition during parallel execution)
             pass
 
     # CRITICAL: Reset _cache_disabled flag after test
@@ -1106,7 +1108,7 @@ def test_process_pool():
 
 
 @pytest.fixture(autouse=True)
-def mock_process_pool_manager(monkeypatch, test_process_pool):
+def mock_process_pool_manager(request, monkeypatch, test_process_pool):
     """Patch ProcessPoolManager to use test double (AUTOUSE).
 
     This fixture patches ProcessPoolManager globally to prevent subprocess crashes
@@ -1123,7 +1125,14 @@ def mock_process_pool_manager(monkeypatch, test_process_pool):
 
     This fixture is applied automatically to all tests to ensure subprocess
     isolation in parallel execution (-n auto).
+
+    OPT-OUT: Use @pytest.mark.real_subprocess to skip this mock for tests that
+    need real subprocess behavior.
     """
+    # Allow opt-out for tests that need real subprocess behavior
+    if "real_subprocess" in [m.name for m in request.node.iter_markers()]:
+        return  # Skip mock for this test
+
     # Patch the singleton instance directly - get_instance() checks this first
     monkeypatch.setattr(
         "process_pool_manager.ProcessPoolManager._instance",
@@ -1132,7 +1141,7 @@ def mock_process_pool_manager(monkeypatch, test_process_pool):
 
 
 @pytest.fixture(autouse=True)
-def mock_subprocess_popen(monkeypatch):
+def mock_subprocess_popen(request, monkeypatch):
     """Mock subprocess.Popen to prevent crashes in launcher/worker.py (AUTOUSE).
 
     launcher/worker.py directly calls subprocess.Popen (not through ProcessPoolManager),
@@ -1144,8 +1153,15 @@ def mock_subprocess_popen(monkeypatch):
     - Without global mocking, tests crash in parallel execution
     - This is pragmatic for code that directly spawns subprocesses
 
+    OPT-OUT: Use @pytest.mark.real_subprocess to skip this mock for tests that
+    need real subprocess behavior.
+
     Returns a mock Popen that doesn't actually spawn processes.
     """
+    # Allow opt-out for tests that need real subprocess behavior
+    if "real_subprocess" in [m.name for m in request.node.iter_markers()]:
+        return  # Skip mock for this test
+
     import io
     from unittest.mock import MagicMock
 

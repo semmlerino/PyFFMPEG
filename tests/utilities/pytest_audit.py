@@ -8,6 +8,10 @@ import time
 from pathlib import Path
 
 
+# Project root - go up 2 levels from tests/utilities/
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+
+
 def run_pytest_with_timeout(timeout_per_test=5):
     """Run pytest and collect results."""
     print("Running pytest audit with timeout...")
@@ -29,7 +33,7 @@ def run_pytest_with_timeout(timeout_per_test=5):
             check=False, capture_output=True,
             text=True,
             timeout=30,
-            cwd=Path(__file__).parent,
+            cwd=PROJECT_ROOT,
         )
 
         # Parse collected tests
@@ -76,7 +80,7 @@ def audit_individual_file(test_file, timeout=10):
             check=False, capture_output=True,
             text=True,
             timeout=timeout,
-            cwd=Path(__file__).parent,
+            cwd=PROJECT_ROOT,
         )
 
         duration = time.time() - start_time

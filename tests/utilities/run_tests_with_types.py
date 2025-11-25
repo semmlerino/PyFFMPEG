@@ -16,6 +16,10 @@ import sys
 from pathlib import Path
 
 
+# Project root - go up 2 levels from tests/utilities/
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+
+
 def run_command(cmd: list[str], description: str) -> tuple[bool, str]:
     """Run a command and return success status and output."""
     print(f"🔍 {description}...")
@@ -24,7 +28,7 @@ def run_command(cmd: list[str], description: str) -> tuple[bool, str]:
             cmd,
             check=False, capture_output=True,
             text=True,
-            cwd=Path(__file__).parent,
+            cwd=PROJECT_ROOT,
             timeout=300,  # 5 minute timeout
         )
 
@@ -84,8 +88,7 @@ def run_tests_with_coverage() -> bool:
         "no:xvfb",
         "--cov=.",
         "--cov-report=term-missing",
-        "--cov-report=html",
-        "--cov-config=.coveragerc",
+        "--cov-report=html:coverage_html",
         "tests/",
     ]
 
@@ -137,8 +140,8 @@ def main() -> int:
     """Main test runner."""
     print("🧪 Running comprehensive test suite with type checking...")
 
-    # Set working directory
-    os.chdir(Path(__file__).parent)
+    # Set working directory to project root
+    os.chdir(PROJECT_ROOT)
 
     all_passed = True
 

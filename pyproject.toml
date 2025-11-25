@@ -236,15 +236,14 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 
 # Test execution options
+# NOTE: Coverage is disabled by default for faster local runs.
+# Run with coverage manually: pytest tests/ --cov=. --cov-report=term-missing --cov-report=html:coverage_html
 addopts = [
     "--strict-markers",     # Fail on unknown markers
     "-ra",                  # Show all test summary info
     "-q",                   # Quiet mode - focus on failures (omit on CLI for verbose output)
     "--durations=20",       # Show slowest 20 tests
     "--tb=short",
-    "--cov=.",
-    "--cov-report=term-missing:skip-covered",
-    "--cov-report=html:coverage_html",
     "-p", "no:rerunfailures",
     "-p", "no:xvfb",
     "--dist=loadgroup",     # Keeps xdist groups on a single worker for Qt safety
@@ -288,6 +287,7 @@ markers = [
     "critical: Critical/high priority tests",
     "performance: Performance benchmarks and comparisons (may be skipped in CI/WSL)",
     "enforce_unique_connections: Tests with UniqueConnection enforcement for signal safety",
+    "real_subprocess: Skip autouse subprocess mocks for tests needing real process behavior",
 ]
 
 # Coverage configuration
@@ -320,7 +320,7 @@ omit = [
 [tool.coverage.report]
 skip_covered = true     # Don't show files with 100% coverage in terminal output
 show_missing = true     # Show line numbers of missing coverage
-fail_under = 0          # Don't fail on coverage threshold (adjust when baseline is established)
+fail_under = 0          # No threshold - coverage is informational (enforce in CI with full suite)
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",
