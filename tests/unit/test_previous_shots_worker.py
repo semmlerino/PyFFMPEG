@@ -4,17 +4,17 @@ Tests the background worker thread with real Qt threading and signal emission.
 Focuses on thread safety, signal emission, and cancellation behavior.
 
 UNIFIED_TESTING_GUIDE COMPLIANCE:
-1. Mock only at system boundaries (subprocess.run, not internal methods)
+1. Mock only at system boundaries
 2. Test behavior, not implementation details
-3. Use real PreviousShotsFinder (base class) with subprocess.run mocks
+3. Use real PreviousShotsFinder (base class) with Path.rglob() scanning
 4. Proper QThread cleanup without qtbot.addWidget()
 5. PySide6 QSignalSpy API (count() method)
 6. Signal waiters set up BEFORE actions to prevent race conditions
 
 IMPLEMENTATION NOTES:
-- Tests replace ParallelShotsFinder with base PreviousShotsFinder to ensure
-  subprocess.run mocking works (ParallelShotsFinder uses different code paths)
-- This maintains testing principles while enabling proper system boundary mocking
+- Tests replace ParallelShotsFinder with base PreviousShotsFinder to use Path.rglob()
+  instead of subprocess.run (ParallelShotsFinder uses find command which has WSL issues)
+- Real directory structures are created for rglob() to discover
 - Real Qt signals and threading are used throughout
 
 Focus areas:
@@ -28,8 +28,6 @@ Focus areas:
 from __future__ import annotations
 
 # Standard library imports
-import platform
-import sys
 from collections.abc import Generator
 from typing import TYPE_CHECKING, Any, NoReturn
 
@@ -135,22 +133,45 @@ class TestPreviousShotsWorkerBasics:
 
 
 class TestPreviousShotsWorkerWorkflow:
-    """Test complete workflow with mocked system boundaries."""
+    """Test complete workflow with real directory structures.
+
+    Uses actual directories that Path.rglob() can find instead of subprocess mocking.
+    PreviousShotsFinder.find_user_shots() uses rglob(), not subprocess.run.
+    """
 
     @pytest.fixture
-    def worker_with_cleanup(
-        self, tmp_path: Path
-    ) -> Generator[PreviousShotsWorker, None, None]:
-        """Create worker with cleanup."""
+    def shows_root_with_shots(self, tmp_path: Path) -> Path:
+        """Create shows directory structure with user shots for rglob() to find.
+
+        Creates directories matching the VFX path pattern:
+        /shows/{show}/shots/{seq}/{seq}_{shot}/user/{user}
+        """
         shows_root = tmp_path / "shows"
         shows_root.mkdir(exist_ok=True)
 
+        # Create shot directories that PreviousShotsFinder.find_user_shots() will find via rglob()
+        # Pattern: **/user/testuser
+        shot_dirs = [
+            shows_root / "show1" / "shots" / "seq1" / "seq1_shot1" / "user" / "testuser",
+            shows_root / "show1" / "shots" / "seq1" / "seq1_shot2" / "user" / "testuser",
+            shows_root / "show2" / "shots" / "seq2" / "seq2_shot1" / "user" / "testuser",
+        ]
+        for shot_dir in shot_dirs:
+            shot_dir.mkdir(parents=True, exist_ok=True)
+
+        return shows_root
+
+    @pytest.fixture
+    def worker_with_cleanup(
+        self, shows_root_with_shots: Path
+    ) -> Generator[PreviousShotsWorker, None, None]:
+        """Create worker with cleanup and pre-populated shot directories."""
         active_shots = [
             Shot("active_show", "seq1", "shot1", f"{Config.SHOWS_ROOT}/active_show/shots/seq1/shot1"),
         ]
 
         worker = PreviousShotsWorker(
-            active_shots=active_shots, username="testuser", shows_root=shows_root
+            active_shots=active_shots, username="testuser", shows_root=shows_root_with_shots
         )
         yield worker
 
@@ -159,41 +180,23 @@ class TestPreviousShotsWorkerWorkflow:
             worker.stop()
             worker.wait(5000)
 
-    @pytest.mark.skipif(
-        sys.platform == "linux" and "microsoft" in platform.release().lower(),
-        reason="WSL subprocess.run with find command returns empty results",
-    )
     def test_complete_workflow_with_results(
         self,
         worker_with_cleanup: PreviousShotsWorker,
         qtbot: Any,
-        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Test complete run() workflow with mocked subprocess at system boundary."""
+        """Test complete run() workflow with real directory structures.
+
+        Uses PreviousShotsFinder (base class) which scans via Path.rglob().
+        The shows_root_with_shots fixture creates the directories rglob() finds.
+        """
         worker = worker_with_cleanup
 
-        # Mock subprocess.run (system boundary) to simulate find command output
-        # Must use VFX path format: /shows/{show}/shots/{seq}/{seq}_{shot}/user/{user}
-        find_output = [
-            f"{Config.SHOWS_ROOT}/show1/shots/seq1/seq1_shot1/user/testuser",
-            f"{Config.SHOWS_ROOT}/show1/shots/seq1/seq1_shot2/user/testuser",
-            f"{Config.SHOWS_ROOT}/show2/shots/seq2/seq2_shot1/user/testuser",
-        ]
-
-        test_result = TestCompletedProcess(
-            args=[], returncode=0, stdout="\n".join(find_output) + "\n"
-        )
-
-        # Replace finder with base class that uses subprocess.run for testing
-        # Local application imports
-        from previous_shots_finder import (
-            PreviousShotsFinder,
-        )
+        # Replace finder with base class that uses Path.rglob() (not subprocess)
+        # ParallelShotsFinder uses subprocess.run which requires different mocking
+        from previous_shots_finder import PreviousShotsFinder
 
         worker._finder = PreviousShotsFinder(username="testuser")
-
-        # FIX: Use monkeypatch for cleaner subprocess mocking
-        monkeypatch.setattr("subprocess.run", lambda *_args, **_kwargs: test_result)
 
         # Collect shot_found signals to verify count
         shot_found_signals: list[dict[str, Any]] = []
@@ -204,6 +207,7 @@ class TestPreviousShotsWorkerWorkflow:
         worker.shot_found.connect(collect_shot_found)
 
         # Set up expectation for scan_finished with result validation
+        # 3 shots created in shows_root_with_shots fixture
         def check_scan_result(final_result: list[dict[str, Any]]) -> bool:
             return isinstance(final_result, list) and len(final_result) == 3
 
@@ -220,46 +224,56 @@ class TestPreviousShotsWorkerWorkflow:
         # 3 found shots - 0 matching active shots = 3 approved shots
         assert len(shot_found_signals) == 3
 
+    @pytest.fixture
+    def empty_shows_root(self, tmp_path: Path) -> Path:
+        """Create empty shows directory for no-results testing."""
+        shows_root = tmp_path / "shows"
+        shows_root.mkdir(exist_ok=True)
+        return shows_root
+
     def test_workflow_with_no_results(
         self,
-        worker_with_cleanup: PreviousShotsWorker,
+        empty_shows_root: Path,
         qtbot: Any,
-        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Test workflow when no shots are found."""
-        worker = worker_with_cleanup
+        """Test workflow when no shots are found.
 
-        # Mock empty find command output
-        test_result = TestCompletedProcess(args=[], returncode=0, stdout="")
+        Uses empty directory structure so rglob() finds nothing.
+        """
+        # Create worker with empty shows_root
+        active_shots: list[Shot] = []
+        worker = PreviousShotsWorker(
+            active_shots=active_shots,
+            username="testuser",
+            shows_root=empty_shows_root,
+        )
 
         scan_finished_spy = QSignalSpy(worker.scan_finished)
         shot_found_spy = QSignalSpy(worker.shot_found)
 
-        # Replace finder with base class that uses subprocess.run for testing
-        # Local application imports
-        from previous_shots_finder import (
-            PreviousShotsFinder,
-        )
+        # Replace finder with base class that uses Path.rglob()
+        from previous_shots_finder import PreviousShotsFinder
 
         worker._finder = PreviousShotsFinder(username="testuser")
-
-        # FIX: Use monkeypatch for cleaner subprocess mocking
-        monkeypatch.setattr("subprocess.run", lambda *_args, **_kwargs: test_result)
 
         try:
             with qtbot.waitSignal(worker.scan_finished, timeout=5000):
                 worker.start()
+
+            worker.wait(2000)
+
+            # Should complete successfully with no results
+            assert scan_finished_spy.count() == 1
+            assert shot_found_spy.count() == 0
+
+            final_result = scan_finished_spy.at(0)[0]
+            assert len(final_result) == 0
+
         finally:
-            pass  # monkeypatch automatically restores
-
-        worker.wait(2000)
-
-        # Should complete successfully with no results
-        assert scan_finished_spy.count() == 1
-        assert shot_found_spy.count() == 0
-
-        final_result = scan_finished_spy.at(0)[0]
-        assert len(final_result) == 0
+            # Cleanup worker
+            if worker.isRunning():
+                worker.stop()
+                worker.wait(5000)
 
     def test_workflow_with_stop_request(
         self,
@@ -368,68 +382,78 @@ class TestPreviousShotsWorkerWorkflow:
         # Should not emit scan_finished on error
         assert scan_finished_spy.count() == 0
 
-    @pytest.mark.skipif(
-        sys.platform == "linux" and "microsoft" in platform.release().lower(),
-        reason="WSL subprocess.run with find command returns empty results",
-    )
+    @pytest.fixture
+    def single_shot_shows_root(self, tmp_path: Path) -> Path:
+        """Create shows directory with a single shot for data format testing."""
+        shows_root = tmp_path / "shows"
+        shows_root.mkdir(exist_ok=True)
+
+        # Create single shot directory
+        shot_dir = (
+            shows_root / "different_show" / "shots" / "testseq" / "testseq_testshot"
+            / "user" / "testuser"
+        )
+        shot_dir.mkdir(parents=True, exist_ok=True)
+
+        return shows_root
+
     def test_signal_data_format(
         self,
-        worker_with_cleanup: PreviousShotsWorker,
+        single_shot_shows_root: Path,
         qtbot: Any,
-        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Test signal data format matches expected structure."""
-        worker = worker_with_cleanup
+        """Test signal data format matches expected structure.
 
-        # Mock subprocess output with single shot (different from active_show to avoid filtering)
-        test_result = TestCompletedProcess(
-            args=[],
-            returncode=0,
-            stdout=f"{Config.SHOWS_ROOT}/different_show/shots/testseq/testseq_testshot/user/testuser\n",
+        Uses real directory structure and PreviousShotsFinder (rglob-based).
+        """
+        # Create worker with single-shot structure
+        active_shots: list[Shot] = []  # No active shots to filter
+        worker = PreviousShotsWorker(
+            active_shots=active_shots,
+            username="testuser",
+            shows_root=single_shot_shows_root,
         )
 
         shot_found_spy = QSignalSpy(worker.shot_found)
         scan_finished_spy = QSignalSpy(worker.scan_finished)
 
-        # Replace finder with base class that uses subprocess.run for testing
-        # Local application imports
-        from previous_shots_finder import (
-            PreviousShotsFinder,
-        )
+        # Replace finder with base class that uses Path.rglob()
+        from previous_shots_finder import PreviousShotsFinder
 
         worker._finder = PreviousShotsFinder(username="testuser")
-
-        # FIX: Use monkeypatch for cleaner subprocess mocking
-        monkeypatch.setattr("subprocess.run", lambda *_args, **_kwargs: test_result)
 
         try:
             with qtbot.waitSignal(worker.scan_finished, timeout=5000):
                 worker.start()
+
+            worker.wait(2000)
+
+            # Verify shot_found signal data structure
+            assert shot_found_spy.count() == 1
+            shot_dict = shot_found_spy.at(0)[0]
+
+            required_keys = {"show", "sequence", "shot", "workspace_path"}
+            assert set(shot_dict.keys()) == required_keys
+            assert shot_dict["show"] == "different_show"
+            assert shot_dict["sequence"] == "testseq"
+            assert shot_dict["shot"] == "testshot"
+            # Workspace path is in tmp directory, not Config.SHOWS_ROOT
+            assert shot_dict["workspace_path"].endswith(
+                "different_show/shots/testseq/testseq_testshot"
+            )
+
+            # Verify scan_finished signal data structure
+            assert scan_finished_spy.count() == 1
+            final_shots = scan_finished_spy.at(0)[0]
+            assert isinstance(final_shots, list)
+            assert len(final_shots) == 1
+            assert final_shots[0] == shot_dict
+
         finally:
-            pass  # monkeypatch automatically restores
-
-        worker.wait(2000)
-
-        # Verify shot_found signal data structure
-        assert shot_found_spy.count() == 1
-        shot_dict = shot_found_spy.at(0)[0]
-
-        required_keys = {"show", "sequence", "shot", "workspace_path"}
-        assert set(shot_dict.keys()) == required_keys
-        assert shot_dict["show"] == "different_show"
-        assert shot_dict["sequence"] == "testseq"
-        assert shot_dict["shot"] == "testshot"
-        assert (
-            shot_dict["workspace_path"]
-            == f"{Config.SHOWS_ROOT}/different_show/shots/testseq/testseq_testshot"
-        )
-
-        # Verify scan_finished signal data structure
-        assert scan_finished_spy.count() == 1
-        final_shots = scan_finished_spy.at(0)[0]
-        assert isinstance(final_shots, list)
-        assert len(final_shots) == 1
-        assert final_shots[0] == shot_dict
+            # Cleanup worker
+            if worker.isRunning():
+                worker.stop()
+                worker.wait(5000)
 
 
 class TestPreviousShotsWorkerIntegration:
