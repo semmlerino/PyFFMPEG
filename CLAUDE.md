@@ -240,7 +240,11 @@ shotbot/
 ├── controllers/       # Application controllers
 ├── core/             # Core business logic
 ├── launcher/         # Launch system components
+├── launch/           # Process launching utilities
 ├── tests/            # Test suite
+│   ├── fixtures/     # Modular test fixtures
+│   ├── integration/  # Integration tests
+│   └── unit/         # Unit tests
 ├── docs/             # Documentation
 ├── .git/hooks/       # Git hooks for auto-push
 ├── shotbot.py        # Main entry point
@@ -300,10 +304,8 @@ class MySingleton:
 
 **When creating new singletons:**
 1. Always add a `reset()` classmethod
-2. Add to `tests/conftest.py` cleanup_state fixture
+2. Add to `tests/fixtures/singleton_isolation.py` cleanup fixtures
 3. Document what state is cleared
-
-See `docs/XDIST_REMEDIATION_ROADMAP.md` for parallelization strategy.
 
 ## Qt Widget Guidelines
 
@@ -373,8 +375,35 @@ def cleanup_qt_state(qtbot: QtBot):
 - Qt-specific testing patterns and pitfalls
 - Debugging workflows and common issues
 
+### Test Fixture Architecture
+
+Test fixtures are organized in modular files under `tests/fixtures/`:
+
+| Module | Purpose |
+|--------|---------|
+| `determinism.py` | Seed control for reproducible tests |
+| `temp_directories.py` | Temporary directory management |
+| `test_doubles.py` | Mock objects and test doubles |
+| `subprocess_mocking.py` | Subprocess isolation |
+| `qt_safety.py` | Qt thread safety validation |
+| `qt_cleanup.py` | Qt state cleanup between tests |
+| `singleton_isolation.py` | Singleton reset fixtures |
+| `data_factories.py` | Test data generation |
+
+**Session-scoped Qt fixtures** (`qapp`, `_patch_qtbot_short_waits`) remain in `tests/conftest.py` for proper xdist compatibility.
+
+**Key fixture: `process_qt_events()`** - Use this instead of `qtbot.wait(1)` for Qt event processing:
+```python
+from tests.test_helpers import process_qt_events
+
+# In test cleanup
+process_qt_events()  # ✅ Process pending Qt events
+model.deleteLater()
+process_qt_events()  # ✅ Execute deleteLater
+```
+
 ### Current Test Status
-- **2,300+ tests passing** (`pytest tests/ -n auto --dist=loadgroup`)
+- **2,600+ tests passing** (`pytest tests/ -n auto --dist=loadgroup`)
 - Grouped-parallel runs match serial reliability thanks to the early QApplication
   bootstrap, qtbot wait patch, and xdist grouping
 - Comprehensive coverage across:
