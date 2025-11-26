@@ -252,9 +252,10 @@ class TestNukeEnvironmentFixes:
 
         result = CommandBuilder.apply_nuke_environment_fixes(command, mock_config)
 
-        # Should contain NUKE_PATH filtering
+        # Should contain NUKE_PATH filtering using case statement approach
         assert "NUKE_PATH=$(" in result
-        assert "grep -v '/problematic_plugins'" in result
+        assert "case" in result
+        assert "problematic_plugins" in result
 
         # Should contain OCIO fallback
         assert "OCIO=/path/to/config.ocio" in result
@@ -284,9 +285,10 @@ class TestNukeEnvironmentFixes:
 
         result = CommandBuilder.apply_nuke_environment_fixes(command, mock_config)
 
-        # Should contain NUKE_PATH filtering and crash reporting
+        # Should contain NUKE_PATH filtering (case statement approach) and crash reporting
         assert "NUKE_PATH=$(" in result
-        assert "grep -v '/problematic_plugins'" in result
+        assert "case" in result
+        assert "problematic_plugins" in result
         assert "NUKE_CRASH_REPORTS=0" in result
         assert "OCIO=" not in result
 

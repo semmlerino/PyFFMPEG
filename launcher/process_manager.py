@@ -359,17 +359,99 @@ class LauncherProcessManager(LoggingMixin, QObject):
 
         return info_list
 
+    # Non-blocking termination constants
+    TERMINATION_POLL_INTERVAL_MS = 100  # Poll every 100ms
+    TERMINATION_MAX_ATTEMPTS = 50  # 50 * 100ms = 5 seconds
+
+    def _check_process_terminated(
+        self,
+        process: subprocess.Popen[bytes],
+        process_key: str,
+        force: bool,
+        attempt: int = 0,
+    ) -> None:
+        """Non-blocking check if process terminated.
+
+        Uses QTimer.singleShot polling instead of blocking wait() to keep UI responsive.
+        Calls itself recursively via QTimer until process terminates or max attempts reached.
+
+        Args:
+            process: The subprocess to check
+            process_key: Key identifying the process
+            force: Whether force-kill was used
+            attempt: Current attempt number (0-indexed)
+        """
+        # Guard against signal emission after object deletion
+        if self._shutting_down:
+            return
+
+        # Check if process has terminated
+        return_code = process.poll()
+        if return_code is not None:
+            self.logger.info(f"Process {process_key} terminated with code {return_code}")
+            self.process_finished.emit(process_key, return_code == 0, return_code)
+            return
+
+        # Max attempts reached - force kill if not already forced
+        if attempt >= self.TERMINATION_MAX_ATTEMPTS:
+            if not force:
+                process.kill()
+                self.logger.warning(f"Force-killed process {process_key} after timeout")
+                # Schedule one more check to get final status
+                QTimer.singleShot(
+                    self.TERMINATION_POLL_INTERVAL_MS,
+                    lambda: self._finalize_killed_process(process, process_key),
+                )
+            else:
+                # Already force-killed, report failure
+                self.logger.warning(f"Process {process_key} kill timeout reached")
+                self.process_finished.emit(process_key, False, -9)
+            return
+
+        # Schedule next check (non-blocking)
+        QTimer.singleShot(
+            self.TERMINATION_POLL_INTERVAL_MS,
+            lambda: self._check_process_terminated(process, process_key, force, attempt + 1),
+        )
+
+    def _finalize_killed_process(
+        self, process: subprocess.Popen[bytes], process_key: str
+    ) -> None:
+        """Check final status after force-kill.
+
+        Args:
+            process: The subprocess that was killed
+            process_key: Key identifying the process
+        """
+        # Guard against signal emission after object deletion
+        if self._shutting_down:
+            return
+
+        return_code = process.poll()
+        if return_code is not None:
+            self.process_finished.emit(process_key, False, return_code)
+        else:
+            # Still running after kill - give up
+            self.logger.error(f"Process {process_key} still running after kill")
+            self.process_finished.emit(process_key, False, -9)
+
     def terminate_process(self, process_key: str, force: bool = False) -> bool:
-        """Terminate a specific process.
+        """Terminate a specific process (non-blocking).
 
         Args:
             process_key: Key of the process to terminate
             force: If True, force kill the process
 
         Returns:
-            True if process was terminated, False otherwise
+            True if termination was initiated, False if process not found.
+            Actual termination result is signaled via process_finished signal.
+
+        Note:
+            This method is non-blocking. Instead of waiting for process termination,
+            it initiates termination and returns immediately. The process_finished
+            signal is emitted when termination completes.
         """
-        # Get process/worker reference under lock, then release before blocking operations
+        # Get process/worker reference under lock, then release before operations
         process_info = None
         worker = None
 
@@ -383,7 +465,7 @@ class LauncherProcessManager(LoggingMixin, QObject):
                 # Remove from tracking immediately
                 del self._active_workers[process_key]
 
-        # Now do blocking operations OUTSIDE the lock to prevent UI freezes
+        # Handle process termination (non-blocking)
         if process_info is not None:
             try:
                 if force:
@@ -391,41 +473,21 @@ class LauncherProcessManager(LoggingMixin, QObject):
                 else:
                     process_info.process.terminate()
 
-                # Wait briefly for termination (no longer holding lock)
-                try:
-                    _ = process_info.process.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    if not force:
-                        # Try force kill as fallback
-                        process_info.process.kill()
-                        _ = process_info.process.wait(timeout=2)
-
-                self.logger.info(f"Terminated process {process_key}")
+                # Start non-blocking termination check instead of blocking wait()
+                self._check_process_terminated(process_info.process, process_key, force)
                 return True
 
             except Exception as e:
                 self.logger.error(f"Failed to terminate process {process_key}: {e}")
+                self.process_finished.emit(process_key, False, -1)
                 return False
 
+        # Handle worker termination (workers have their own async mechanism)
         if worker is not None:
             try:
                 _ = worker.request_stop()
-                # Wait outside lock to prevent blocking other operations
-                if not worker.wait(5000):  # Wait 5 seconds
-                    self.logger.warning(
-                        f"Worker {process_key} did not stop gracefully"
-                    )
-
-                # Disconnect signals to prevent warnings
-                try:
-                    _ = worker.command_started.disconnect()
-                    _ = worker.command_finished.disconnect()
-                    _ = worker.command_error.disconnect()
-                except (RuntimeError, TypeError):
-                    # Signals may already be disconnected
-                    pass
-
-                self.worker_removed.emit(process_key)
+                # Start async worker check instead of blocking wait()
+                self._check_worker_stopped(worker, process_key)
                 return True
             except Exception as e:
                 self.logger.error(f"Failed to stop worker {process_key}: {e}")
@@ -433,6 +495,50 @@ class LauncherProcessManager(LoggingMixin, QObject):
 
         self.logger.warning(f"Process/worker {process_key} not found")
         return False
+
+    def _check_worker_stopped(
+        self, worker: LauncherWorker, worker_key: str, attempt: int = 0
+    ) -> None:
+        """Non-blocking check if worker has stopped.
+
+        Args:
+            worker: The worker thread to check
+            worker_key: Key identifying the worker
+            attempt: Current attempt number
+        """
+        # Guard against signal emission after object deletion
+        if self._shutting_down:
+            return
+
+        if not worker.isRunning():
+            # Worker stopped - clean up signals
+            try:
+                _ = worker.command_started.disconnect()
+                _ = worker.command_finished.disconnect()
+                _ = worker.command_error.disconnect()
+            except (RuntimeError, TypeError):
+                # Signals may already be disconnected
+                pass
+            self.worker_removed.emit(worker_key)
+            return
+
+        if attempt >= self.TERMINATION_MAX_ATTEMPTS:
+            self.logger.warning(f"Worker {worker_key} did not stop gracefully")
+            # Clean up signals anyway
+            try:
+                _ = worker.command_started.disconnect()
+                _ = worker.command_finished.disconnect()
+                _ = worker.command_error.disconnect()
+            except (RuntimeError, TypeError):
+                pass
+            self.worker_removed.emit(worker_key)
+            return
+
+        # Schedule next check
+        QTimer.singleShot(
+            self.TERMINATION_POLL_INTERVAL_MS,
+            lambda: self._check_worker_stopped(worker, worker_key, attempt + 1),
+        )
 
     def _cleanup_finished_processes(self) -> None:
         """Clean up finished processes from tracking (thread-safe)."""
@@ -532,9 +638,27 @@ class LauncherProcessManager(LoggingMixin, QObject):
             self._cleanup_scheduled = False
         self._periodic_cleanup()
 
-    def stop_all_workers(self) -> None:
-        """Stop all active workers and processes gracefully."""
+    # Shutdown configuration
+    SHUTDOWN_TIMEOUT_MS = 15000  # 15 second total shutdown timeout
+    MIN_WORKER_WAIT_MS = 100  # Minimum wait per worker to check status
+
+    def stop_all_workers(self, timeout_ms: int | None = None) -> None:
+        """Stop all active workers and processes gracefully with shared deadline.
+
+        Args:
+            timeout_ms: Total timeout in milliseconds for all workers/processes.
+                       Defaults to SHUTDOWN_TIMEOUT_MS (15 seconds).
+
+        Note:
+            Uses a shared deadline so that stuck workers don't accumulate
+            wait times. If deadline is reached, remaining workers are
+            abandoned to allow app shutdown to proceed.
+        """
+        if timeout_ms is None:
+            timeout_ms = self.SHUTDOWN_TIMEOUT_MS
+
         self._shutting_down = True
+        deadline = time.monotonic() + (timeout_ms / 1000.0)
 
         # Stop timers
         self._cleanup_timer.stop()
@@ -545,15 +669,35 @@ class LauncherProcessManager(LoggingMixin, QObject):
             processes = list(self._active_processes.keys())
             workers_snapshot = dict(self._active_workers)
 
-        # Terminate all processes
+        # Request stop on ALL workers first (parallel initiation)
+        for worker in workers_snapshot.values():
+            try:
+                _ = worker.request_stop()
+            except Exception as e:
+                self.logger.debug(f"Error requesting worker stop: {e}")
+
+        # Terminate all processes (non-blocking - just initiates termination)
         for process_key in processes:
             _ = self.terminate_process(process_key, force=False)
 
-        # Stop all workers with signal disconnection
+        # Wait for workers with SHARED deadline (not per-worker timeout)
         for worker_key, worker in workers_snapshot.items():
+            remaining_sec = deadline - time.monotonic()
+            if remaining_sec <= 0:
+                self.logger.warning(
+                    f"Shutdown timeout reached, skipping remaining workers"
+                )
+                break
+
+            # Calculate wait time: remaining time, but at least MIN_WORKER_WAIT_MS
+            remaining_ms = int(remaining_sec * 1000)
+            wait_ms = max(remaining_ms, self.MIN_WORKER_WAIT_MS)
+
             try:
-                _ = worker.request_stop()
-                _ = worker.wait(5000)  # Wait 5 seconds
+                if not worker.wait(wait_ms):
+                    self.logger.warning(
+                        f"Worker {worker_key} did not stop within timeout"
+                    )
 
                 # Disconnect signals to prevent warnings
                 try:
@@ -572,7 +716,8 @@ class LauncherProcessManager(LoggingMixin, QObject):
             self._active_workers.clear()
             self._active_processes.clear()
 
-        self.logger.info("All workers and processes stopped")
+        elapsed_ms = int((time.monotonic() - (deadline - timeout_ms / 1000.0)) * 1000)
+        self.logger.info(f"All workers and processes stopped in {elapsed_ms}ms")
 
     def shutdown(self) -> None:
         """Shutdown the process manager and clean up resources."""
