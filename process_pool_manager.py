@@ -22,7 +22,7 @@ import sys
 import threading
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, final
+from typing import TYPE_CHECKING, Final, final
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -81,7 +81,9 @@ if HAS_DEBUG_UTILS:
 
 @final
 class CommandCache:
-    """TTL-based cache for command results."""
+    """TTL-based cache for command results with LRU eviction."""
+
+    MAX_CACHE_SIZE: Final[int] = 500  # Maximum entries before LRU eviction
 
     def __init__(self, default_ttl: int = 30) -> None:
         """Initialize command cache.
@@ -191,11 +193,10 @@ class CommandCache:
         return hashlib.sha256(command.encode()).hexdigest()
 
     def _cleanup_expired(self) -> None:
-        """Remove expired entries."""
-        if len(self._cache) <= 100:  # Don't cleanup small caches
-            return
-
+        """Remove expired entries and enforce max size with LRU eviction."""
         current_time = time.time()
+
+        # Remove expired entries
         expired = [
             key
             for key, (_, timestamp, ttl, _) in self._cache.items()
@@ -206,6 +207,18 @@ class CommandCache:
 
         if expired:
             logger.debug(f"Cleaned up {len(expired)} expired cache entries")
+
+        # Enforce max size with LRU eviction (evict oldest entries)
+        if len(self._cache) > self.MAX_CACHE_SIZE:
+            # Sort by timestamp (oldest first) and evict excess entries
+            entries_by_age = sorted(
+                self._cache.items(),
+                key=lambda x: x[1][1],  # Sort by timestamp (index 1 in tuple)
+            )
+            excess_count = len(self._cache) - self.MAX_CACHE_SIZE
+            for key, _ in entries_by_age[:excess_count]:
+                del self._cache[key]
+            logger.debug(f"LRU evicted {excess_count} cache entries (max size: {self.MAX_CACHE_SIZE})")
 
 
 @final
@@ -574,6 +587,11 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
         Args:
             timeout: Maximum time to wait for executor shutdown in seconds
+
+        Note:
+            Uses a timeout wrapper around executor.shutdown() to prevent
+            indefinite blocking if tasks are stuck. If the graceful shutdown
+            takes longer than timeout, a forced shutdown is triggered.
         """
         with QMutexLocker(self._mutex):
             if self._shutdown_requested:
@@ -585,22 +603,42 @@ class ProcessPoolManager(LoggingMixin, QObject):
 
         self.logger.debug(f"Starting ProcessPoolManager shutdown (timeout={timeout}s)")
 
-        # Stage 1: Graceful executor shutdown using public API
+        # Stage 1: Graceful executor shutdown with timeout wrapper
+        # ThreadPoolExecutor.shutdown() doesn't support timeout parameter,
+        # so we wrap it in a background thread with our own timeout
         shutdown_successful = False
-        try:
-            self.logger.debug("Initiating ThreadPoolExecutor shutdown")
-            # Try to shutdown with wait and cancel_futures
-            # Note: ThreadPoolExecutor.shutdown() doesn't support timeout parameter
-            # We use cancel_futures=True (Python 3.9+) to cancel pending work
+        shutdown_complete = threading.Event()
+
+        def _do_shutdown() -> None:
+            """Perform executor shutdown in background thread."""
             try:
                 # Python 3.11+ guaranteed to support cancel_futures parameter
                 self._executor.shutdown(wait=True, cancel_futures=True)
-                shutdown_successful = True
-                self.logger.debug("ThreadPoolExecutor shutdown completed normally")
             except Exception as e:
-                self.logger.debug(f"Executor shutdown exception: {e}")
-                # Force shutdown without wait as fallback
-                self._executor.shutdown(wait=False)
+                self.logger.debug(f"Executor shutdown exception in thread: {e}")
+            finally:
+                shutdown_complete.set()
+
+        try:
+            self.logger.debug("Initiating ThreadPoolExecutor shutdown")
+            shutdown_thread = threading.Thread(
+                target=_do_shutdown, daemon=True, name="ExecutorShutdown"
+            )
+            shutdown_thread.start()
+
+            # Wait for shutdown with timeout
+            if shutdown_complete.wait(timeout=timeout):
+                shutdown_successful = True
+                self.logger.debug("ThreadPoolExecutor shutdown completed within timeout")
+            else:
+                # Timeout reached - force shutdown
+                self.logger.warning(
+                    f"Executor shutdown timed out after {timeout}s, forcing non-blocking shutdown"
+                )
+                try:
+                    self._executor.shutdown(wait=False)
+                except Exception as e:
+                    self.logger.debug(f"Force shutdown exception: {e}")
 
         except Exception as e:
             self.logger.error(f"Error during ProcessPoolManager executor shutdown: {e}")

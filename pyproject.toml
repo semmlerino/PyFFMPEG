@@ -1,6 +1,8 @@
+# Minimal project metadata - just enough for uv/PEP 621 compliance
+# Not an installable package: no [build-system], no dependencies list
 [project]
 name = "shotbot"
-version = "1.0.0"
+version = "0.0.0"  # Placeholder - actual versioning via git tags
 requires-python = ">=3.11"
 
 [tool.basedpyright]
@@ -138,7 +140,7 @@ ignore = [
 
     # Import placement
     "E402",    # module-level-import-not-at-top-of-file (sometimes needed for Qt apps)
-    "TC003",   # typing-only-standard-library-import (prefer consistency)
+    "TCH003",  # typing-only-standard-library-import (prefer consistency)
 
     # Qt-specific patterns
     "SLF001",  # private-member-access (common in Qt testing and subclassing)
@@ -217,10 +219,6 @@ lines-after-imports = 2
 # Keep modern Python syntax
 keep-runtime-typing = true
 
-[tool.ruff.lint.mccabe]
-# Max complexity (default is 10, we're a bit more lenient)
-max-complexity = 15
-
 [tool.ruff.format]
 # Use Black-compatible formatting
 quote-style = "double"
@@ -241,7 +239,6 @@ python_functions = ["test_*"]
 addopts = [
     "--strict-markers",     # Fail on unknown markers
     "-ra",                  # Show all test summary info
-    "-q",                   # Quiet mode - focus on failures (omit on CLI for verbose output)
     "--durations=20",       # Show slowest 20 tests
     "--tb=short",
     "-p", "no:rerunfailures",
@@ -325,7 +322,7 @@ exclude_lines = [
     "pragma: no cover",
     "def __repr__",
     "if TYPE_CHECKING:",
-    "if __name__ == .__main__.:",
+    'if __name__ == "__main__":',
     "raise AssertionError",
     "raise NotImplementedError",
     "@(abc\\.)?abstractmethod",

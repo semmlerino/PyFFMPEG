@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from launch.environment_builder import EnvironmentCommandBuilder
 from launcher.models import LauncherEnvironment
 

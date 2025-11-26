@@ -64,7 +64,7 @@ class TestBuildTerminalCommand:
     """Tests for _build_terminal_command helper method."""
 
     @pytest.mark.parametrize(
-        "terminal,expected_cmd",
+        ("terminal", "expected_cmd"),
         [
             ("gnome-terminal", ["gnome-terminal", "--", "bash", "-ilc", "cmd"]),
             ("konsole", ["konsole", "-e", "bash", "-ilc", "cmd"]),

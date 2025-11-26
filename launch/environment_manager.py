@@ -9,6 +9,9 @@ This module handles environment detection and configuration:
 import logging
 import os
 import shutil
+import subprocess
+import threading
+import time
 from typing import TYPE_CHECKING, Final
 
 
@@ -45,11 +48,15 @@ class EnvironmentManager:
         "x-terminal-emulator",
     ]
 
+    # Cache TTL for terminal detection (5 minutes)
+    TERMINAL_CACHE_TTL_SEC: Final[float] = 300.0
+
     def __init__(self) -> None:
         """Initialize EnvironmentManager with empty cache."""
         self._rez_available_cache: bool | None = None
         self._ws_available_cache: bool | None = None
         self._available_terminal_cache: str | None = None
+        self._terminal_cache_time: float = 0.0
 
     def is_rez_available(self, config: "type[Config]") -> bool:
         """Check if rez environment is available and should be used for wrapping.
@@ -90,16 +97,32 @@ class EnvironmentManager:
         """Check if ws (workspace) command is available.
 
         Returns:
-            True if ws command is available on PATH
+            True if ws command is available (binary, function, or alias)
 
         Notes:
+            - Uses bash login shell to detect shell functions/aliases
+              (shutil.which only finds binaries, not shell functions)
             - Checks once and caches result
             - Used for pre-flight validation before launching
         """
         if self._ws_available_cache is not None:
             return self._ws_available_cache
 
-        self._ws_available_cache = shutil.which("ws") is not None
+        # Use bash login shell to check for ws - handles binaries, functions, and aliases
+        # shutil.which() only finds binaries, but ws is often a shell function in VFX studios
+        try:
+            result = subprocess.run(
+                ["bash", "-lc", "command -v ws"],
+                check=False, capture_output=True,
+                text=True,
+                timeout=2,  # Reduced from 5s to avoid long UI freezes
+            )
+            self._ws_available_cache = result.returncode == 0
+        except (subprocess.TimeoutExpired, OSError) as e:
+            logger.warning(f"Failed to check ws availability: {e}")
+            # Fall back to shutil.which (better than nothing)
+            self._ws_available_cache = shutil.which("ws") is not None
+
         logger.debug(f"ws availability cached: {self._ws_available_cache}")
         return self._ws_available_cache
 
@@ -134,21 +157,28 @@ class EnvironmentManager:
 
         Notes:
             - Checks terminals in preference order
-            - Caches result for performance
+            - Caches result for performance with 5-minute TTL
             - Preference: gnome-terminal > konsole > xterm > x-terminal-emulator
         """
-        # Return cached result if available
-        if self._available_terminal_cache is not None:
+        # Return cached result if not expired (cache_time > 0 means detection was performed)
+        current_time = time.monotonic()
+        if (
+            self._terminal_cache_time > 0
+            and current_time - self._terminal_cache_time < self.TERMINAL_CACHE_TTL_SEC
+        ):
             return self._available_terminal_cache
 
         # Check terminals in order of preference
         for term in self.TERMINAL_PREFERENCE:
             if shutil.which(term) is not None:
                 self._available_terminal_cache = term
+                self._terminal_cache_time = current_time
                 logger.info(f"Detected terminal: {term}")
                 return term
 
-        # No terminal found
+        # No terminal found - cache the None result too
+        self._available_terminal_cache = None
+        self._terminal_cache_time = current_time
         logger.warning("No terminal emulator found")
         return None
 
@@ -160,4 +190,25 @@ class EnvironmentManager:
         self._rez_available_cache = None
         self._ws_available_cache = None
         self._available_terminal_cache = None
+        self._terminal_cache_time = 0.0
         logger.debug("EnvironmentManager cache reset")
+
+    def warm_cache_async(self) -> None:
+        """Pre-warm environment caches in background thread.
+
+        Call this at startup to avoid blocking the main thread on first
+        environment checks. The caches will be populated in the background
+        and subsequent calls to is_rez_available(), is_ws_available(), and
+        detect_terminal() will return immediately from cache.
+        """
+        def _warm() -> None:
+            try:
+                # These calls will populate the caches
+                _ = self.is_ws_available()
+                _ = self.detect_terminal()
+                logger.debug("Environment caches pre-warmed successfully")
+            except Exception as e:
+                logger.warning(f"Error during cache pre-warming: {e}")
+
+        thread = threading.Thread(target=_warm, daemon=True, name="EnvironmentCacheWarm")
+        thread.start()

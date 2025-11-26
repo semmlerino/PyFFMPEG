@@ -97,13 +97,18 @@ class TestNukeLaunchRouter:
         assert any("no options selected" in msg.lower() for msg in messages)
 
     def test_no_plate_selected_error(self, router, mock_shot) -> None:
-        """Test error handling when no plate is selected."""
+        """Test error handling when no plate is selected.
+
+        When plate is required but not selected, returns empty command to
+        prevent launching empty Nuke (caller should check and abort).
+        """
         options = {"open_latest_scene": True}
         command, messages = router.prepare_nuke_command(
             mock_shot, "nuke", options, selected_plate=None
         )
 
-        assert command == "nuke"
+        # Empty command signals failure - prevents launching empty Nuke
+        assert command == ""
         assert any("no plate selected" in msg.lower() for msg in messages)
 
     def test_create_new_takes_priority_over_open_latest(self, router, mock_shot) -> None:

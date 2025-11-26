@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
+from pathlib import Path
 from typing import TYPE_CHECKING, TypedDict
 
 
@@ -346,6 +347,7 @@ class ProcessInfo:
     command: str
     timestamp: float
     validated: bool
+    log_file: Path | None
 
     def __init__(  # pyright: ignore[reportMissingSuperCall]
         self,
@@ -354,6 +356,7 @@ class ProcessInfo:
         launcher_name: str,
         command: str,
         timestamp: float,
+        log_file: Path | None = None,
     ) -> None:
         """Initialize ProcessInfo.
 
@@ -363,6 +366,7 @@ class ProcessInfo:
             launcher_name: Human-readable launcher name
             command: The command that was executed
             timestamp: Start timestamp
+            log_file: Path to stderr log file for debugging launch failures
         """
         self.process = process
         self.launcher_id = launcher_id
@@ -370,3 +374,4 @@ class ProcessInfo:
         self.command = command
         self.timestamp = timestamp
         self.validated = False  # Whether process startup was validated
+        self.log_file = log_file  # Path to stderr log file

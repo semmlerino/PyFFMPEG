@@ -90,6 +90,7 @@ class CommandLauncher(LoggingMixin, QObject):
 
         # Initialize launch components
         self.env_manager = EnvironmentManager()
+        self.env_manager.warm_cache_async()  # Pre-warm caches in background
         self.process_executor = ProcessExecutor(Config, parent=self)
 
         # Initialize the Nuke launch handler
@@ -378,6 +379,11 @@ class CommandLauncher(LoggingMixin, QObject):
             for msg in log_messages:
                 self.command_executed.emit(timestamp, msg)
 
+            # Check for empty command (signals failure, e.g., missing plate)
+            if not command:
+                self._emit_error("Nuke launch aborted - see log messages above")
+                return False
+
         # Old Nuke handling code has been removed - see NukeLaunchHandler
 
         # Handle 3DE with latest scene file
@@ -397,11 +403,11 @@ class CommandLauncher(LoggingMixin, QObject):
                         f"Opening latest 3DE scene: {latest_scene.name}",
                     )
                 except ValueError as e:
-                    timestamp = self.timestamp
-                    self.command_executed.emit(
-                        timestamp,
-                        f"Warning: Invalid 3DE scene path: {e!s}",
+                    # Abort launch on invalid scene path to prevent data loss
+                    self._emit_error(
+                        f"Cannot launch 3DE: Invalid scene path '{latest_scene}': {e!s}"
                     )
+                    return False
             else:
                 timestamp = self.timestamp
                 self.command_executed.emit(
@@ -426,11 +432,11 @@ class CommandLauncher(LoggingMixin, QObject):
                         f"Opening latest Maya scene: {latest_scene.name}",
                     )
                 except ValueError as e:
-                    timestamp = self.timestamp
-                    self.command_executed.emit(
-                        timestamp,
-                        f"Warning: Invalid Maya scene path: {e!s}",
+                    # Abort launch on invalid scene path to prevent data loss
+                    self._emit_error(
+                        f"Cannot launch Maya: Invalid scene path '{latest_scene}': {e!s}"
                     )
+                    return False
             else:
                 timestamp = self.timestamp
                 self.command_executed.emit(
@@ -477,6 +483,24 @@ class CommandLauncher(LoggingMixin, QObject):
                 full_command = ws_command
         else:
             full_command = ws_command
+            # Emit visible warning that Rez wrapping is skipped - app version depends on ws/PATH
+            timestamp = self.timestamp
+            if Config.WS_HANDLES_REZ:
+                self.command_executed.emit(
+                    timestamp,
+                    f"Note: Rez skipped - workspace handles {app_name} environment",
+                )
+            elif os.environ.get("REZ_USED"):
+                self.command_executed.emit(
+                    timestamp,
+                    f"Note: Already in rez environment - skipping rez wrap for {app_name}",
+                )
+            else:
+                # Rez not available but expected - warn user
+                self.command_executed.emit(
+                    timestamp,
+                    f"Warning: Rez not available - {app_name} will use system PATH version",
+                )
 
         # Add logging redirection for debugging
         full_command = CommandBuilder.add_logging(full_command, Config)
@@ -564,6 +588,11 @@ class CommandLauncher(LoggingMixin, QObject):
                 full_command = ws_command
         else:
             full_command = ws_command
+            # Log that Rez wrapping is skipped
+            if Config.WS_HANDLES_REZ:
+                self.logger.debug(
+                    f"Rez wrapping skipped for {app_name} scene launch (WS_HANDLES_REZ=True)"
+                )
 
         # Add logging redirection for debugging
         full_command = CommandBuilder.add_logging(full_command, Config)
@@ -671,7 +700,12 @@ class CommandLauncher(LoggingMixin, QObject):
         # Validate and escape workspace path to prevent injection
         try:
             safe_workspace_path = CommandBuilder.validate_path(scene.workspace_path)
-            ws_command = f"ws {safe_workspace_path} && {command}"
+
+            # Apply Nuke environment fixes if needed (same as other launch paths)
+            env_fixes = self._apply_nuke_environment_fixes(app_name, "scene context launch")
+
+            # Build workspace command with environment fixes
+            ws_command = f"ws {safe_workspace_path} && {env_fixes}{command}"
         except ValueError as e:
             self._emit_error(f"Invalid workspace path: {e!s}")
             return False
@@ -691,6 +725,11 @@ class CommandLauncher(LoggingMixin, QObject):
                 full_command = ws_command
         else:
             full_command = ws_command
+            # Log that Rez wrapping is skipped
+            if Config.WS_HANDLES_REZ:
+                self.logger.debug(
+                    f"Rez wrapping skipped for {app_name} scene context (WS_HANDLES_REZ=True)"
+                )
 
         # Add logging redirection for debugging
         full_command = CommandBuilder.add_logging(full_command, Config)
@@ -709,14 +748,22 @@ class CommandLauncher(LoggingMixin, QObject):
     # - _is_gui_app() → self.process_executor.is_gui_app(app_name)
     # - _verify_spawn() → self.process_executor._verify_spawn(process, app_name)
 
+    # Apps that require write permission to workspace (for scene saves, temp files)
+    WRITE_REQUIRED_APPS: frozenset[str] = frozenset({"nuke", "maya", "3de", "houdini"})
+
+    # Minimum disk space required (MB)
+    MIN_DISK_SPACE_MB: int = 100
+
     def _validate_workspace_before_launch(
         self, workspace_path: str, app_name: str
     ) -> bool:
         """Validate workspace is accessible before launching application.
 
-        Performs two critical checks:
+        Performs critical checks:
         1. Workspace directory exists
         2. User has read and execute permissions
+        3. User has write permission (for apps that need it)
+        4. Sufficient disk space available
 
         Args:
             workspace_path: Path to the workspace directory
@@ -746,6 +793,28 @@ class CommandLauncher(LoggingMixin, QObject):
                 f"Cannot launch {app_name}: No read/execute permission for: {workspace_path}"
             )
             return False
+
+        # Check write permission for apps that need it
+        if app_name.lower() in self.WRITE_REQUIRED_APPS:
+            if not os.access(workspace_path, os.W_OK):
+                self._emit_error(
+                    f"Cannot launch {app_name}: No write permission for: {workspace_path}"
+                )
+                return False
+
+        # Check disk space availability
+        try:
+            stat = os.statvfs(workspace_path)
+            available_mb = (stat.f_bavail * stat.f_frsize) / (1024 * 1024)
+            if available_mb < self.MIN_DISK_SPACE_MB:
+                self._emit_error(
+                    f"Cannot launch {app_name}: Insufficient disk space "
+                    f"({available_mb:.0f}MB available, {self.MIN_DISK_SPACE_MB}MB required)"
+                )
+                return False
+        except OSError as e:
+            # Log warning but don't block launch if we can't check disk space
+            self.logger.warning(f"Could not check disk space for {workspace_path}: {e}")
 
         return True
 

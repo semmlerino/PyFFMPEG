@@ -140,7 +140,7 @@ class TestCommandLauncher:
 
         # Mock is_ws_available to return True (ws isn't available in dev environment)
         from launch import EnvironmentManager
-        monkeypatch.setattr(EnvironmentManager, "is_ws_available", lambda self: True)
+        monkeypatch.setattr(EnvironmentManager, "is_ws_available", lambda _self: True)
 
         return CommandLauncher()
 
@@ -498,7 +498,7 @@ class TestCommandLauncherSignals:
 
         # Mock is_ws_available to return True (ws isn't available in dev environment)
         from launch import EnvironmentManager
-        monkeypatch.setattr(EnvironmentManager, "is_ws_available", lambda self: True)
+        monkeypatch.setattr(EnvironmentManager, "is_ws_available", lambda _self: True)
 
         return CommandLauncher()
 

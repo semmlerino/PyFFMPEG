@@ -10,7 +10,11 @@ from __future__ import annotations
 import subprocess
 import time
 import uuid
-from typing import final
+from pathlib import Path
+from typing import TYPE_CHECKING, final
+
+if TYPE_CHECKING:
+    from typing import TextIO
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -99,14 +103,30 @@ class LauncherProcessManager(LoggingMixin, QObject):
 
         Returns:
             Process key if successful, None otherwise
+
+        Notes:
+            Captures stderr to a log file for debugging launch failures.
+            Log files are stored in ~/.shotbot/logs/launcher_{id}_{timestamp}.log
         """
+        log_file: Path | None = None
+        stderr_handle: TextIO | None = None
+
         try:
-            # Start the process
+            # Create log file for stderr capture (helps debug launch failures)
+            log_dir = Path.home() / ".shotbot" / "logs"
+            log_dir.mkdir(parents=True, exist_ok=True)
+            log_file = log_dir / f"launcher_{launcher_id}_{int(time.time())}.log"
+
+            # Open file for stderr capture - file stays open while process runs
+            # The subprocess inherits the file descriptor and continues writing
+            stderr_handle = open(log_file, "w")  # noqa: SIM115 - need to keep open
+
+            # Start the process with stderr capture
             process = subprocess.Popen(
                 command,
                 shell=False,
                 stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                stderr=stderr_handle,  # Capture stderr for debugging
                 cwd=working_dir,
                 start_new_session=True,
             )
@@ -114,13 +134,14 @@ class LauncherProcessManager(LoggingMixin, QObject):
             # Generate unique process key
             process_key = self._generate_process_key(launcher_id, process.pid)
 
-            # Track the process
+            # Track the process (including log file path for later retrieval)
             process_info = ProcessInfo(
                 process=process,
                 launcher_id=launcher_id,
                 launcher_name=launcher_name,
                 command=" ".join(command),
                 timestamp=time.time(),
+                log_file=log_file,
             )
 
             with QMutexLocker(self._process_lock):
@@ -129,6 +150,7 @@ class LauncherProcessManager(LoggingMixin, QObject):
             self.logger.info(
                 f"Started subprocess for launcher '{launcher_name}' (PID: {process.pid})",
             )
+            self.logger.debug(f"Subprocess stderr captured to: {log_file}")
 
             # Emit signal
             self.process_started.emit(launcher_id, " ".join(command))
@@ -136,6 +158,12 @@ class LauncherProcessManager(LoggingMixin, QObject):
             return process_key
 
         except Exception as e:
+            # Close stderr handle if we opened it but failed to start process
+            if stderr_handle is not None:
+                try:
+                    stderr_handle.close()
+                except Exception:
+                    pass
             self.logger.error(f"Failed to start subprocess: {e}")
             self.process_error.emit(launcher_id, str(e))
             return None

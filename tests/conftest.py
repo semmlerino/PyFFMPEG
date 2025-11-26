@@ -12,9 +12,8 @@ from __future__ import annotations
 import os
 import sys
 import tempfile
-import uuid
-import warnings
 from pathlib import Path
+
 
 # ==============================================================================
 # CRITICAL: Qt Environment Setup (MUST be before PySide6 imports)
@@ -40,11 +39,11 @@ os.environ.setdefault("SHOTBOT_SECURE_EXECUTOR_MODE", "mock")
 # NOW safe to import PySide6
 # ==============================================================================
 from typing import TYPE_CHECKING
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 from PySide6.QtCore import QSettings, QStandardPaths
-from PySide6.QtWidgets import QApplication, QMessageBox
+from PySide6.QtWidgets import QApplication
 
 
 if TYPE_CHECKING:
@@ -275,6 +274,10 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line(
         "markers",
         "enforce_unique_connections: enforce UniqueConnection for signal.connect() in this test",
+    )
+    config.addinivalue_line(
+        "markers",
+        "real_subprocess: execute test with real subprocess (bypasses autouse mocks)",
     )
 
 

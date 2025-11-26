@@ -1,5 +1,5 @@
-Post-commit hook executed at Tue Nov 25 22:50:21 GMT 2025
-Commit: 2ce119101dd6cb65063243d3e50aa0ddf3907a25
+Post-commit hook executed at Wed Nov 26 18:52:54 GMT 2025
+Commit: 4b4963199b62e8aa87a99553b84e7da0a98f73d1
 Branch: master
 Author: GabrielH <gabrhas@gmail.com>
-Message: fix: Test utilities path resolution and configuration cleanup
+Message: fix: Prevent signal emission after object deletion and update tests

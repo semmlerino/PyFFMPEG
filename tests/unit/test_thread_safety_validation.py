@@ -13,7 +13,6 @@ Run with: python3 test_thread_safety_validation.py
 # Standard library imports
 import concurrent.futures
 import logging
-import os
 import sys
 import threading
 import time

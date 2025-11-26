@@ -45,7 +45,7 @@ from unittest.mock import patch
 
 # Third-party imports
 import pytest
-from PySide6.QtTest import QSignalSpy, QTest
+from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
 # Local application imports

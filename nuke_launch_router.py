@@ -102,12 +102,14 @@ class NukeLaunchRouter(LoggingMixin):
             create_new: Whether to create new version
 
         Returns:
-            Tuple of (command, log_messages)
+            Tuple of (command, log_messages). Returns empty command ("") on error
+            to prevent launch - caller should check for empty command.
         """
         if not selected_plate:
             log_messages = ["Error: No plate selected. Please select a plate space."]
             self.logger.error("No plate selected for simple workflow")
-            return base_command, log_messages
+            # Return empty command to signal failure - prevents launching empty Nuke
+            return "", log_messages
 
         self.simple_launches += 1
         self.logger.info(

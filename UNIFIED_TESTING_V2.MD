@@ -510,10 +510,6 @@ timeout_method = "thread"  # Works on all platforms
 # but "thread" is more portable and works reliably on Windows/WSL
 ```
 
-**pytest-randomly** is configured in `pyproject.toml` and runs automatically. When a failure occurs:
-1. Copy the seed from the output: `Using --randomly-seed=XXXXX`
-2. Reproduce with: `uv run pytest --randomly-seed=XXXXX path/to/test.py`
-
 ---
 
 ## Testing Principles
@@ -588,7 +584,7 @@ os.environ.setdefault("QT_LOGGING_RULES", "*.warning=true")
 - Use try/finally for Qt resources
 - Use `tmp_path` for cache directories in tests
 - Use `qtbot.waitSignal()` for async Qt testing
-- Ensure `pytest-timeout` and `pytest-randomly` are configured (already in `pyproject.toml`)
+- Ensure `pytest-timeout` is configured (already in `pyproject.toml`)
 - Use Hypothesis for validation/transformation logic
 - Follow AAA pattern (Arrange-Act-Assert)
 - Name tests descriptively: `test_<unit>_<scenario>_<expected>`

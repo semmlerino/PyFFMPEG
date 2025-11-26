@@ -40,8 +40,11 @@ def integration_temp_dir() -> Iterator[Path]:
 
 
 @pytest.fixture
-def mock_shows_structure(integration_temp_dir: Path) -> dict[str, Any]:
+def mock_shows_structure(
+    integration_temp_dir: Path, request: pytest.FixtureRequest
+) -> dict[str, Any]:
     """Create a realistic shows directory structure for integration tests."""
+    request.node.add_marker(pytest.mark.slow)
     shows_root = integration_temp_dir / "shows"
 
     # Create multiple shows
@@ -118,8 +121,11 @@ def mock_shows_structure(integration_temp_dir: Path) -> dict[str, Any]:
 
 
 @pytest.fixture
-def performance_dataset(integration_temp_dir: Path) -> dict[str, Any]:
+def performance_dataset(
+    integration_temp_dir: Path, request: pytest.FixtureRequest
+) -> dict[str, Any]:
     """Create a large dataset for performance testing."""
+    request.node.add_marker(pytest.mark.slow)
     perf_root = integration_temp_dir / "performance"
     shots = []
 
@@ -166,8 +172,11 @@ def isolated_cache_dir() -> Iterator[Path]:
 
 
 @pytest.fixture
-def vfx_production_environment(integration_temp_dir: Path) -> dict[str, Any]:
+def vfx_production_environment(
+    integration_temp_dir: Path, request: pytest.FixtureRequest
+) -> dict[str, Any]:
     """Create realistic VFX production environment for comprehensive testing."""
+    request.node.add_marker(pytest.mark.slow)
     shows_root = integration_temp_dir / "vfx_production"
 
     # Production shows with realistic structure

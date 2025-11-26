@@ -1,1 +1,1 @@
-fix: Test utilities path resolution and configuration cleanup
+fix: Prevent signal emission after object deletion and update tests

@@ -64,6 +64,9 @@ class ProcessExecutor(QObject):
         "clarisse",
     }
 
+    # Zombie process reaping configuration
+    REAP_INTERVAL_MS: Final[int] = 30000  # Reap every 30 seconds
+
     def __init__(
         self,
         config: "type[Config]",
@@ -79,6 +82,20 @@ class ProcessExecutor(QObject):
         self.config: type[Config] = config
         self.logger: logging.Logger = logger
         self._pending_timers: list[QTimer] = []
+
+        # Track spawned processes to prevent zombie accumulation
+        self._spawned_processes: list[subprocess.Popen[bytes]] = []
+
+        # Periodic timer to reap finished processes
+        self._reap_timer = QTimer(self)
+        self._reap_timer.setInterval(self.REAP_INTERVAL_MS)
+        _ = self._reap_timer.timeout.connect(self._reap_zombie_processes)
+        self._reap_timer.start()
+
+        # Shutdown flag for daemon thread safety
+        # Daemon threads check this before emitting signals to avoid
+        # "Signal source deleted" errors when ProcessExecutor is cleaned up
+        self._shutdown_flag = threading.Event()
 
     def is_gui_app(self, app_name: str) -> bool:
         """Check if an application is a GUI application.
@@ -107,12 +124,12 @@ class ProcessExecutor(QObject):
         """
         if terminal == "gnome-terminal":
             return ["gnome-terminal", "--", "bash", "-ilc", command]
-        elif terminal == "konsole":
+        if terminal == "konsole":
             return ["konsole", "-e", "bash", "-ilc", command]
-        elif terminal == "kitty":
+        if terminal == "kitty":
             # kitty uses different syntax: kitty bash -ilc "command"
             return ["kitty", "bash", "-ilc", command]
-        elif terminal in [
+        if terminal in [
             "xterm",
             "x-terminal-emulator",
             "xfce4-terminal",
@@ -122,9 +139,8 @@ class ProcessExecutor(QObject):
         ]:
             # These terminals all use -e flag for command execution
             return [terminal, "-e", "bash", "-ilc", command]
-        else:
-            # Headless fallback: direct bash execution
-            return ["/bin/bash", "-ilc", command]
+        # Headless fallback: direct bash execution
+        return ["/bin/bash", "-ilc", command]
 
     def execute_in_new_terminal(
         self, command: str, app_name: str, terminal: str | None = None
@@ -145,8 +161,14 @@ class ProcessExecutor(QObject):
             - Schedules process verification after 100ms
         """
         if terminal is None:
-            self.logger.info(
-                f"No terminal available, launching {app_name} directly (headless mode)"
+            self.logger.warning(
+                f"No terminal available, launching {app_name} in headless mode. "
+                "If app prompts for input, it may hang."
+            )
+            NotificationManager.warning(
+                "Headless Launch",
+                f"No terminal found. {app_name} will run without terminal window. "
+                "Install gnome-terminal, konsole, or xterm for better experience.",
             )
         else:
             self.logger.info(f"Launching {app_name} in new {terminal} terminal")
@@ -157,6 +179,9 @@ class ProcessExecutor(QObject):
         try:
             # Spawn process
             process = subprocess.Popen(term_cmd)
+
+            # Track process for zombie reaping
+            self._spawned_processes.append(process)
 
             # Verify spawn after 100ms (asynchronous to avoid blocking UI)
             # Use a cancellable QTimer to avoid "Signal source deleted" errors
@@ -235,12 +260,57 @@ class ProcessExecutor(QObject):
                 # Signal source deleted - object is being cleaned up
                 pass
 
+    def _reap_zombie_processes(self) -> None:
+        """Reap finished processes to prevent zombie accumulation.
+
+        This method is called periodically via QTimer to clean up processes
+        that have finished. It removes terminated processes from tracking
+        to free system resources and prevent process table exhaustion.
+        """
+        if not self._spawned_processes:
+            return
+
+        still_running: list[subprocess.Popen[bytes]] = []
+        reaped_count = 0
+
+        for proc in self._spawned_processes:
+            try:
+                # poll() returns None if still running, return code if finished
+                # This also reaps zombie processes (equivalent to waitpid WNOHANG)
+                if proc.poll() is None:
+                    still_running.append(proc)
+                else:
+                    reaped_count += 1
+            except Exception:
+                # Process may have been reaped by something else or invalid
+                reaped_count += 1
+
+        self._spawned_processes = still_running
+
+        if reaped_count > 0:
+            self.logger.debug(
+                f"Reaped {reaped_count} finished processes, {len(still_running)} still running"
+            )
+
     def cleanup(self) -> None:
         """Cleanup resources.
 
         This method is called before deleting the ProcessExecutor instance.
         Stops all pending timers to prevent "Signal source deleted" errors.
         """
+        # Signal daemon threads to stop (they check this before emitting signals)
+        self._shutdown_flag.set()
+
+        # Stop reap timer
+        try:
+            self._reap_timer.stop()
+        except (RuntimeError, AttributeError):
+            pass  # Timer may not exist or already deleted
+
+        # Final reap of any remaining processes
+        self._reap_zombie_processes()
+        self._spawned_processes.clear()
+
         # Stop and clean up all pending timers
         for timer in self._pending_timers:
             try:
@@ -313,6 +383,10 @@ class ProcessExecutor(QObject):
 
         This method runs in a background thread and uses QTimer.singleShot
         to safely emit signals back to the main thread.
+
+        Note:
+            Checks _shutdown_flag before emitting signals to avoid
+            "Signal source deleted" errors when ProcessExecutor is cleaned up.
         """
         # Map app names to possible process names
         app_process_names: dict[str, list[str]] = {
@@ -333,8 +407,17 @@ class ProcessExecutor(QObject):
 
         start_time = time.monotonic()
         while time.monotonic() - start_time < timeout_sec:
+            # Check shutdown flag - exit cleanly if ProcessExecutor is being deleted
+            if self._shutdown_flag.is_set():
+                self.logger.debug(f"Verification thread for {app_name} exiting due to shutdown")
+                return
+
             try:
                 for proc in psutil.process_iter(["name", "create_time", "pid"]):
+                    # Check shutdown flag frequently to respond quickly
+                    if self._shutdown_flag.is_set():
+                        return
+
                     try:
                         proc_name = proc.info.get("name", "").lower()
                         create_time = proc.info.get("create_time", 0)
@@ -347,11 +430,12 @@ class ProcessExecutor(QObject):
                                 self.logger.info(
                                     f"Verified {app_name} process (PID: {found_pid})"
                                 )
-                                # Emit signal safely from main thread
-                                QTimer.singleShot(
-                                    0,
-                                    partial(self._emit_verified, app_name, found_pid),
-                                )
+                                # Check shutdown before emitting signal
+                                if not self._shutdown_flag.is_set():
+                                    QTimer.singleShot(
+                                        0,
+                                        partial(self._emit_verified, app_name, found_pid),
+                                    )
                                 return
                     except (
                         psutil.NoSuchProcess,
@@ -365,6 +449,10 @@ class ProcessExecutor(QObject):
             time.sleep(poll_interval_sec)
 
         # Timeout - process not found
+        # Check shutdown before emitting timeout signal
+        if self._shutdown_flag.is_set():
+            return
+
         self.logger.warning(
             f"{app_name} process not found after {timeout_sec}s verification"
         )
@@ -382,14 +470,37 @@ class ProcessExecutor(QObject):
             pass  # Object being cleaned up
 
     def _emit_timeout(self, app_name: str) -> None:
-        """Emit app_verification_timeout signal (called from main thread via QTimer)."""
+        """Emit app_verification_timeout signal (called from main thread via QTimer).
+
+        For GUI apps, verification timeout is treated as a potential failure since
+        GUI apps should start quickly. The terminal process may have succeeded but
+        the inner command (ws/rez/app) may have failed silently.
+        """
         try:
             self.app_verification_timeout.emit(app_name)
             timestamp = datetime.now(tz=UTC).strftime("%H:%M:%S")
-            self.execution_progress.emit(
-                timestamp,
-                f"Note: Could not verify {app_name} process - may still be starting",
-            )
+
+            # For GUI apps, treat timeout as a warning (potential failure)
+            # The inner ws/rez/app command may have failed even if terminal succeeded
+            if self.is_gui_app(app_name):
+                log_hint = "~/.shotbot/logs/dispatcher.out"
+                self.execution_progress.emit(
+                    timestamp,
+                    f"Warning: {app_name} process not detected after verification timeout. "
+                    f"Check terminal window or log file ({log_hint}) for errors "
+                    "(e.g., 'command not found', rez failures, license issues).",
+                )
+                # Also show notification for GUI apps - user may have missed the error
+                NotificationManager.warning(
+                    "Launch Verification",
+                    f"{app_name} may have failed to start. "
+                    f"Check terminal or {log_hint} for errors.",
+                )
+            else:
+                self.execution_progress.emit(
+                    timestamp,
+                    f"Note: Could not verify {app_name} process - may still be starting",
+                )
         except RuntimeError:
             pass  # Object being cleaned up
 

@@ -160,15 +160,18 @@ class CommandBuilder:
         env_fixes: list[str] = []
 
         # Runtime NUKE_PATH filtering (removes problematic plugins)
+        # Uses IFS-based approach to safely handle paths with spaces
         if config.NUKE_SKIP_PROBLEMATIC_PLUGINS:
             env_fixes.append(
-                "NUKE_PATH=$(echo $NUKE_PATH | tr ':' '\\n' | "
-                "grep -v '/problematic_plugins' | tr '\\n' ':' | sed 's/:$//')"
+                'NUKE_PATH=$(IFS=":"; for p in $NUKE_PATH; do '
+                'case "$p" in */problematic_plugins*) ;; *) printf "%s:" "$p" ;; esac; '
+                'done | sed "s/:$//")'
             )
 
-        # OCIO fallback configuration
+        # OCIO fallback configuration (quote path to handle spaces/special chars)
         if config.NUKE_OCIO_FALLBACK_CONFIG:
-            env_fixes.append(f"OCIO={config.NUKE_OCIO_FALLBACK_CONFIG}")
+            quoted_ocio = shlex.quote(config.NUKE_OCIO_FALLBACK_CONFIG)
+            env_fixes.append(f"OCIO={quoted_ocio}")
 
         # Disable crash reports (always applied)
         env_fixes.append("NUKE_CRASH_REPORTS=0")

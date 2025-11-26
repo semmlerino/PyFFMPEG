@@ -9,6 +9,7 @@ from __future__ import annotations
 import shlex
 from typing import TYPE_CHECKING
 
+
 if TYPE_CHECKING:
     from launcher.models import LauncherEnvironment
 
@@ -31,7 +32,7 @@ class EnvironmentCommandBuilder:
     def build_command(
         self,
         base_command: str,
-        environment: "LauncherEnvironment",
+        environment: LauncherEnvironment,
     ) -> str:
         """Wrap command with environment configuration.
 
@@ -43,11 +44,11 @@ class EnvironmentCommandBuilder:
             Shell command string with environment setup applied.
             If no environment settings, returns base_command unchanged.
         """
-        parts: list[str] = []
-
         # 1. Source files first (sets up environment variables)
-        for source_file in environment.source_files:
-            parts.append(f"source {shlex.quote(source_file)}")
+        parts: list[str] = [
+            f"source {shlex.quote(source_file)}"
+            for source_file in environment.source_files
+        ]
 
         # 2. Command prefix (e.g., "cd /workspace" or "export VAR=value")
         if environment.command_prefix:

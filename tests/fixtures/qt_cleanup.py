@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
@@ -89,8 +90,13 @@ def qt_cleanup(qapp: QApplication) -> Iterator[None]:
         timeout = 0.5
         while threading.active_count() > 1 and (time.time() - start_time) < timeout:
             # Process Qt events instead of sleeping to prevent deadlocks
-            QCoreApplication.processEvents()
-            QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+            # Wrap in try-except to prevent crashes from deleted Qt objects
+            try:
+                QCoreApplication.processEvents()
+                QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+            except (RuntimeError, SystemError):
+                # Qt object was deleted - stop trying to process events
+                break
 
     # Wrap event processing in try-except to prevent crashes from leaked objects
     try:
