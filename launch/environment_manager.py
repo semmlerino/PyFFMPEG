@@ -132,11 +132,14 @@ class EnvironmentManager:
         if self._ws_available_cache is not None:
             return self._ws_available_cache
 
-        # Use bash login shell to check for ws - handles binaries, functions, and aliases
+        # Use bash interactive login shell to check for ws - handles binaries, functions, and aliases
         # shutil.which() only finds binaries, but ws is often a shell function in VFX studios
+        # CRITICAL: Use -ilc (interactive login) to match actual launch behavior.
+        # The ws function is defined in .bashrc which is only sourced in interactive shells.
+        # Using -lc (non-interactive login) can false-negative if .bash_profile doesn't source .bashrc.
         try:
             result = subprocess.run(
-                ["bash", "-lc", "command -v ws"],
+                ["bash", "-ilc", "command -v ws"],
                 check=False, capture_output=True,
                 text=True,
                 timeout=2,  # Reduced from 5s to avoid long UI freezes

@@ -113,6 +113,21 @@ class LauncherProcessManager(LoggingMixin, QObject):
         stderr_handle: TextIO | None = None
 
         try:
+            # Validate working directory before attempting launch
+            # Popen gives cryptic FileNotFoundError/PermissionError otherwise
+            if working_dir:
+                wd_path = Path(working_dir)
+                if not wd_path.exists():
+                    self.process_error.emit(
+                        launcher_id, f"Working directory does not exist: {working_dir}"
+                    )
+                    return None
+                if not wd_path.is_dir():
+                    self.process_error.emit(
+                        launcher_id, f"Working directory is not a directory: {working_dir}"
+                    )
+                    return None
+
             # Create log file for stderr capture (helps debug launch failures)
             log_dir = Path.home() / ".shotbot" / "logs"
             log_dir.mkdir(parents=True, exist_ok=True)
@@ -191,6 +206,21 @@ class LauncherProcessManager(LoggingMixin, QObject):
         # Initialize worker_key before try block so it's always defined for cleanup
         worker_key: str | None = None
         try:
+            # Validate working directory before attempting launch
+            # LauncherWorker passes cwd to Popen which gives cryptic errors otherwise
+            if working_dir:
+                wd_path = Path(working_dir)
+                if not wd_path.exists():
+                    self.process_error.emit(
+                        launcher_id, f"Working directory does not exist: {working_dir}"
+                    )
+                    return False
+                if not wd_path.is_dir():
+                    self.process_error.emit(
+                        launcher_id, f"Working directory is not a directory: {working_dir}"
+                    )
+                    return False
+
             # Create worker with proper Qt parent for ownership
             worker = LauncherWorker(launcher_id, command, working_dir, parent=self)
 

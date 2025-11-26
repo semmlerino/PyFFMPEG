@@ -525,3 +525,111 @@ class TestCommandLauncherSignals:
 
             # Should have called Popen
             assert mock_popen.called
+
+
+class TestVerificationTimeoutCounter:
+    """Test verification timeout counter behavior.
+
+    VFX apps can take 30-60+ seconds to boot (Rez resolution + plugin scanning).
+    A single timeout doesn't indicate failure. But repeated timeouts suggest
+    terminal detection issues, so we reset the environment cache after 3 consecutive
+    timeouts to allow fresh terminal detection on next launch.
+    """
+
+    @pytest.fixture
+    def launcher(self, monkeypatch: pytest.MonkeyPatch) -> CommandLauncher:
+        """Create CommandLauncher for verification timeout testing."""
+        import sys
+        import types
+
+        # Create mock modules
+        mock_raw_plate_finder = types.ModuleType("raw_plate_finder")
+        mock_raw_plate_finder.RawPlateFinder = TestRawPlateFinder
+        sys.modules["raw_plate_finder"] = mock_raw_plate_finder
+
+        mock_nuke_script_generator = types.ModuleType("nuke_script_generator")
+        mock_nuke_script_generator.NukeScriptGenerator = TestNukeScriptGenerator
+        sys.modules["nuke_script_generator"] = mock_nuke_script_generator
+
+        mock_threede_latest_finder = types.ModuleType("threede_latest_finder")
+        mock_threede_latest_finder.ThreeDELatestFinder = TestThreeDELatestFinder
+        sys.modules["threede_latest_finder"] = mock_threede_latest_finder
+
+        mock_maya_latest_finder = types.ModuleType("maya_latest_finder")
+        mock_maya_latest_finder.MayaLatestFinder = TestMayaLatestFinder
+        sys.modules["maya_latest_finder"] = mock_maya_latest_finder
+
+        from launch import EnvironmentManager
+        monkeypatch.setattr(EnvironmentManager, "is_ws_available", lambda _self: True)
+
+        return CommandLauncher()
+
+    def test_single_timeout_does_not_reset_cache(
+        self, launcher: CommandLauncher, qtbot: QtBot
+    ) -> None:
+        """Test that a single verification timeout does not reset the env cache."""
+        # Initialize counter
+        launcher._consecutive_timeout_count = 0
+
+        # Mock reset_cache to verify it's NOT called
+        with patch.object(launcher.env_manager, "reset_cache") as mock_reset:
+            launcher._on_app_verification_timeout("nuke")
+
+            # Counter should increment
+            assert launcher._consecutive_timeout_count == 1
+
+            # Cache should NOT be reset after single timeout
+            mock_reset.assert_not_called()
+
+    def test_three_timeouts_triggers_cache_reset(
+        self, launcher: CommandLauncher, qtbot: QtBot
+    ) -> None:
+        """Test that 3 consecutive timeouts trigger environment cache reset."""
+        launcher._consecutive_timeout_count = 0
+
+        with patch.object(launcher.env_manager, "reset_cache") as mock_reset:
+            # First two timeouts don't reset
+            launcher._on_app_verification_timeout("nuke")
+            launcher._on_app_verification_timeout("nuke")
+            assert mock_reset.call_count == 0
+            assert launcher._consecutive_timeout_count == 2
+
+            # Third timeout triggers reset
+            launcher._on_app_verification_timeout("nuke")
+            mock_reset.assert_called_once()
+            # Counter should be reset after cache reset
+            assert launcher._consecutive_timeout_count == 0
+
+    def test_successful_verification_resets_counter(
+        self, launcher: CommandLauncher, qtbot: QtBot
+    ) -> None:
+        """Test that successful app verification resets the timeout counter."""
+        # Simulate 2 prior timeouts
+        launcher._consecutive_timeout_count = 2
+
+        # Successful verification should reset counter
+        launcher._on_app_verified("nuke", 12345)
+
+        assert launcher._consecutive_timeout_count == 0
+
+    def test_successful_verification_prevents_cache_reset(
+        self, launcher: CommandLauncher, qtbot: QtBot
+    ) -> None:
+        """Test that a successful verification breaks the timeout sequence."""
+        launcher._consecutive_timeout_count = 0
+
+        with patch.object(launcher.env_manager, "reset_cache") as mock_reset:
+            # Two timeouts
+            launcher._on_app_verification_timeout("nuke")
+            launcher._on_app_verification_timeout("nuke")
+
+            # Successful launch
+            launcher._on_app_verified("nuke", 12345)
+            assert launcher._consecutive_timeout_count == 0
+
+            # Third timeout starts fresh sequence
+            launcher._on_app_verification_timeout("nuke")
+            assert launcher._consecutive_timeout_count == 1
+
+            # Cache should NOT be reset (only 1 timeout since last success)
+            mock_reset.assert_not_called()

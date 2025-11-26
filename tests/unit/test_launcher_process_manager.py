@@ -241,6 +241,61 @@ class TestSubprocessExecution:
         call_kwargs = mock_popen.call_args[1]
         assert call_kwargs["cwd"] is None
 
+    def test_execute_subprocess_with_nonexistent_working_dir(
+        self,
+        process_manager: LauncherProcessManager,
+        mock_subprocess_popen,
+        qtbot: QtBot
+    ) -> None:
+        """Test subprocess execution with non-existent working directory emits error."""
+        spy_error = QSignalSpy(process_manager.process_error)
+
+        result = process_manager.execute_with_subprocess(
+            launcher_id="test",
+            launcher_name="Test",
+            command=["echo", "test"],
+            working_dir="/nonexistent/directory/path"
+        )
+
+        # Should return None (failure)
+        assert result is None
+
+        # Should emit error signal
+        assert spy_error.count() == 1
+        signal_args = spy_error.at(0)
+        assert signal_args[0] == "test"
+        assert "does not exist" in signal_args[1]
+
+    def test_execute_subprocess_with_file_as_working_dir(
+        self,
+        process_manager: LauncherProcessManager,
+        mock_subprocess_popen,
+        tmp_path,
+        qtbot: QtBot
+    ) -> None:
+        """Test subprocess execution with file (not directory) as working_dir emits error."""
+        # Create a file instead of directory
+        test_file = tmp_path / "test_file.txt"
+        test_file.write_text("test")
+
+        spy_error = QSignalSpy(process_manager.process_error)
+
+        result = process_manager.execute_with_subprocess(
+            launcher_id="test",
+            launcher_name="Test",
+            command=["echo", "test"],
+            working_dir=str(test_file)
+        )
+
+        # Should return None (failure)
+        assert result is None
+
+        # Should emit error signal
+        assert spy_error.count() == 1
+        signal_args = spy_error.at(0)
+        assert signal_args[0] == "test"
+        assert "is not a directory" in signal_args[1]
+
 
 # ============================================================================
 # Test Worker Thread Execution
@@ -343,6 +398,61 @@ class TestWorkerExecution:
         # Verify failure
         assert result is False
         assert spy_error.count() == 1
+
+    def test_execute_worker_with_nonexistent_working_dir(
+        self,
+        process_manager: LauncherProcessManager,
+        mock_launcher_worker,
+        qtbot: QtBot
+    ) -> None:
+        """Test worker execution with non-existent working directory emits error."""
+        spy_error = QSignalSpy(process_manager.process_error)
+
+        result = process_manager.execute_with_worker(
+            launcher_id="test",
+            launcher_name="Test",
+            command="echo test",
+            working_dir="/nonexistent/directory/path"
+        )
+
+        # Should return False (failure)
+        assert result is False
+
+        # Should emit error signal
+        assert spy_error.count() == 1
+        signal_args = spy_error.at(0)
+        assert signal_args[0] == "test"
+        assert "does not exist" in signal_args[1]
+
+    def test_execute_worker_with_file_as_working_dir(
+        self,
+        process_manager: LauncherProcessManager,
+        mock_launcher_worker,
+        tmp_path,
+        qtbot: QtBot
+    ) -> None:
+        """Test worker execution with file (not directory) as working_dir emits error."""
+        # Create a file instead of directory
+        test_file = tmp_path / "test_file.txt"
+        test_file.write_text("test")
+
+        spy_error = QSignalSpy(process_manager.process_error)
+
+        result = process_manager.execute_with_worker(
+            launcher_id="test",
+            launcher_name="Test",
+            command="echo test",
+            working_dir=str(test_file)
+        )
+
+        # Should return False (failure)
+        assert result is False
+
+        # Should emit error signal
+        assert spy_error.count() == 1
+        signal_args = spy_error.at(0)
+        assert signal_args[0] == "test"
+        assert "is not a directory" in signal_args[1]
 
 
 # ============================================================================

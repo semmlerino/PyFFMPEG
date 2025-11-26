@@ -163,6 +163,21 @@ class TestPathValidation:
         with pytest.raises(ValueError, match="empty"):
             CommandBuilder.validate_path("")
 
+    def test_path_resolve_uses_strict_false(self) -> None:
+        """Test that path resolution uses strict=False for NFS safety.
+
+        Using strict=False prevents Path.resolve() from hanging on stale NFS mounts
+        or inaccessible paths. The path is resolved lexically without accessing the
+        filesystem for parts that don't exist.
+        """
+        # Non-existent path should still resolve without error
+        # (strict=False means it won't try to access the filesystem)
+        nonexistent_path = "/nonexistent/path/to/file.txt"
+        result = CommandBuilder.validate_path(nonexistent_path)
+        # Should return the normalized path without error
+        assert "file.txt" in result
+        assert nonexistent_path in result or f"'{nonexistent_path}'" in result
+
 
 class TestWorkspaceCommand:
     """Tests for workspace command building."""

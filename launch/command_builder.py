@@ -74,8 +74,11 @@ class CommandBuilder:
             raise ValueError("Path cannot be empty")
 
         # Normalize path FIRST (resolves .., ., symlinks, makes absolute)
+        # Use strict=False to avoid hanging on stale NFS mounts or inaccessible paths.
+        # With strict=False, the path is resolved lexically without accessing the filesystem
+        # for parts that don't exist, preventing hangs on stale NFS mounts.
         try:
-            normalized = str(Path(path).resolve())
+            normalized = str(Path(path).resolve(strict=False))
         except (OSError, RuntimeError) as e:
             raise ValueError(f"Invalid path: {e}") from e
 

@@ -22,7 +22,6 @@ from unittest.mock import Mock, patch
 import pytest
 from PySide6.QtTest import QSignalSpy
 
-from exceptions import SecurityError
 from launcher.worker import LauncherWorker
 from thread_safe_worker import WorkerState
 
@@ -154,11 +153,12 @@ class TestCommandSanitization:
     def test_sanitize_command_simple(
         self, qtbot: QtBot, qapp: QApplication, worker_id: str
     ) -> None:
-        """Test parsing of simple command."""
+        """Test wrapping of simple command with bash -c."""
         worker = LauncherWorker(worker_id, "nuke")
         try:
             cmd_list, use_shell = worker._sanitize_command("nuke script.nk")
-            assert cmd_list == ["nuke", "script.nk"]
+            # Now wraps with bash -c to preserve shell semantics
+            assert cmd_list == ["bash", "-c", "nuke script.nk"]
             assert use_shell is False
         finally:
             worker.safe_stop()
@@ -168,14 +168,14 @@ class TestCommandSanitization:
     def test_sanitize_command_with_path(
         self, qtbot: QtBot, qapp: QApplication, worker_id: str
     ) -> None:
-        """Test parsing of command with full path."""
+        """Test wrapping of command with full path."""
         worker = LauncherWorker(worker_id, "nuke")
         try:
             cmd_list, use_shell = worker._sanitize_command(
                 "/usr/local/bin/nuke script.nk"
             )
-            assert "nuke" in cmd_list[0]
-            assert cmd_list[1] == "script.nk"
+            # Now wraps with bash -c to preserve shell semantics
+            assert cmd_list == ["bash", "-c", "/usr/local/bin/nuke script.nk"]
             assert use_shell is False
         finally:
             worker.safe_stop()
@@ -185,11 +185,12 @@ class TestCommandSanitization:
     def test_sanitize_command_3de(
         self, qtbot: QtBot, qapp: QApplication, worker_id: str
     ) -> None:
-        """Test parsing of 3DE command."""
+        """Test wrapping of 3DE command."""
         worker = LauncherWorker(worker_id, "3de")
         try:
             cmd_list, use_shell = worker._sanitize_command("3de scene.3de")
-            assert cmd_list == ["3de", "scene.3de"]
+            # Now wraps with bash -c to preserve shell semantics
+            assert cmd_list == ["bash", "-c", "3de scene.3de"]
             assert use_shell is False
         finally:
             worker.safe_stop()
@@ -199,25 +200,32 @@ class TestCommandSanitization:
     def test_sanitize_command_maya(
         self, qtbot: QtBot, qapp: QApplication, worker_id: str
     ) -> None:
-        """Test parsing of Maya command."""
+        """Test wrapping of Maya command."""
         worker = LauncherWorker(worker_id, "maya")
         try:
             cmd_list, use_shell = worker._sanitize_command("maya -file scene.ma")
-            assert cmd_list == ["maya", "-file", "scene.ma"]
+            # Now wraps with bash -c to preserve shell semantics
+            assert cmd_list == ["bash", "-c", "maya -file scene.ma"]
             assert use_shell is False
         finally:
             worker.safe_stop()
             worker.deleteLater()
             qtbot.wait(1)  # Flush Qt event loop
 
-    def test_sanitize_rejects_malformed_command(
+    def test_sanitize_command_with_shell_operators(
         self, qtbot: QtBot, qapp: QApplication, worker_id: str
     ) -> None:
-        """Test sanitization rejects malformed command that shlex cannot parse."""
+        """Test that shell operators are preserved via bash -c wrapper.
+
+        This is the key reason for the bash -c wrapper - commands like
+        'source /env.sh && nuke' need shell semantics preserved.
+        """
         worker = LauncherWorker(worker_id, "nuke")
         try:
-            with pytest.raises(SecurityError, match="could not be parsed"):
-                worker._sanitize_command('nuke "unclosed quote')
+            cmd_list, use_shell = worker._sanitize_command("source /env.sh && nuke")
+            # bash -c wrapper preserves shell operators like &&
+            assert cmd_list == ["bash", "-c", "source /env.sh && nuke"]
+            assert use_shell is False
         finally:
             worker.safe_stop()
             worker.deleteLater()
@@ -298,8 +306,8 @@ class TestWorkerExecution:
             mock_popen.assert_called_once()
             call_args = mock_popen.call_args
 
-            # Verify command
-            assert call_args[0][0] == ["nuke", "script.nk"]
+            # Verify command is wrapped with bash -c to preserve shell semantics
+            assert call_args[0][0] == ["bash", "-c", "nuke script.nk"]
 
             # Verify kwargs
             assert call_args[1]["shell"] is False
@@ -871,20 +879,30 @@ class TestResourceCleanup:
             worker.deleteLater()
             qtbot.wait(1)  # Flush Qt event loop
 
-    def test_worker_cleans_up_after_exception(
+    def test_worker_cleans_up_after_execution(
         self,
         qtbot: QtBot,
         qapp: QApplication,
         worker_id: str,
+        mock_subprocess_popen,
+        mock_threading,
     ) -> None:
-        """Test worker cleans up resources even after exception."""
-        worker = LauncherWorker(worker_id, "invalid command")
+        """Test worker cleans up resources after execution.
+
+        Note: With bash -c wrapping, any command string is valid.
+        The worker wraps it with bash -c and lets bash handle the execution.
+        """
+        mock_popen, mock_process = mock_subprocess_popen
+        worker = LauncherWorker(worker_id, "some_command")
 
         try:
-            # This will raise SecurityError
+            # Simulate process finishing quickly
+            mock_process.wait.return_value = 0
+            mock_process.poll.return_value = 0
+
             worker.do_work()
 
-            # Should still clean up (no process created in this case)
+            # After do_work completes, process should be cleaned up
             assert worker._process is None
         finally:
             worker.safe_stop()
@@ -925,7 +943,7 @@ class TestEdgeCases:
         mock_subprocess_popen,
         mock_threading,
     ) -> None:
-        """Test worker correctly parses command with quoted arguments."""
+        """Test worker passes command with quoted arguments to bash."""
         mock_popen, mock_process = mock_subprocess_popen
         worker = LauncherWorker(worker_id, 'nuke "file with spaces.nk"')
 
@@ -936,10 +954,8 @@ class TestEdgeCases:
             worker.do_work()
 
             call_args = mock_popen.call_args
-            # shlex should properly handle the quoted filename
-            assert len(call_args[0][0]) == 2
-            assert call_args[0][0][0] == "nuke"
-            assert "spaces" in call_args[0][0][1]
+            # Command is wrapped with bash -c, preserving the original quotes
+            assert call_args[0][0] == ["bash", "-c", 'nuke "file with spaces.nk"']
         finally:
             worker.safe_stop()
             worker.deleteLater()
@@ -967,30 +983,29 @@ class TestEdgeCases:
             worker.deleteLater()
             qtbot.wait(1)  # Flush Qt event loop
 
-    def test_worker_handles_all_allowed_commands(
+    def test_worker_handles_any_command(
         self,
         qtbot: QtBot,
         qapp: QApplication,
         worker_id: str,
     ) -> None:
-        """Test worker accepts all whitelisted commands."""
-        allowed_commands = [
-            "3de", "3de4", "3dequalizer",
-            "nuke", "nuke_i", "nukex",
-            "maya", "mayapy",
-            "rv", "rvpkg",
-            "houdini", "hython",
-            "katana", "mari",
-            "publish", "publish_standalone",
-            "python", "python3",
+        """Test worker wraps any command with bash -c (no whitelisting per CLAUDE.md security posture)."""
+        # Per CLAUDE.md security posture, this is a single-user trusted tool
+        # and all commands are allowed - they're wrapped with bash -c
+        sample_commands = [
+            "3de scene.3de",
+            "nuke script.nk",
+            "maya -file scene.ma",
+            "source /env.sh && nuke",  # Shell operators work with bash -c
+            "custom_tool arg1 arg2",  # Any command is allowed
         ]
 
         worker = LauncherWorker(worker_id, "test")
         try:
-            for cmd in allowed_commands:
-                # Should not raise SecurityError
-                cmd_list, use_shell = worker._sanitize_command(f"{cmd} test.file")
-                assert cmd_list[0] == cmd
+            for cmd in sample_commands:
+                # All commands are wrapped with bash -c
+                cmd_list, use_shell = worker._sanitize_command(cmd)
+                assert cmd_list == ["bash", "-c", cmd]
                 assert use_shell is False
         finally:
             worker.safe_stop()

@@ -104,7 +104,11 @@ class Config:
 
     # Launch Verification Configuration
     LAUNCH_VERIFICATION_ENABLED: bool = True  # Enable async verification of GUI app launches
-    LAUNCH_VERIFICATION_TIMEOUT_SEC: float = 15.0  # How long to wait for app to start
+    # Timeout for app verification. VFX apps under Rez can take 30-60+ seconds to boot:
+    # - Rez package resolution: 5-15 seconds
+    # - Plugin scanning (Nuke, Maya): 10-30 seconds
+    # Previous 15s timeout caused false-positive errors and unnecessary cache resets.
+    LAUNCH_VERIFICATION_TIMEOUT_SEC: float = 60.0  # How long to wait for app to start
     LAUNCH_VERIFICATION_POLL_SEC: float = 0.5  # How often to scan for process
 
     REZ_NUKE_PACKAGES: ClassVar[list[str]] = [

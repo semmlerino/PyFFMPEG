@@ -120,6 +120,11 @@ class CommandLauncher(LoggingMixin, QObject):
                 self._on_app_verification_timeout, Qt.ConnectionType.QueuedConnection
             )
         )
+        self._signal_connections.append(
+            self.process_executor.app_verified.connect(
+                self._on_app_verified, Qt.ConnectionType.QueuedConnection
+            )
+        )
 
         # Initialize scene/file finders (created internally, not injected)
         # Local application imports
@@ -245,21 +250,48 @@ class CommandLauncher(LoggingMixin, QObject):
         """
         self._emit_error(f"[{operation}] {error_message}")
 
+    # Counter for consecutive verification timeouts (used to avoid cache reset on first timeout)
+    _consecutive_timeout_count: int = 0
+    _TIMEOUT_THRESHOLD_FOR_CACHE_RESET: int = 3
+
     def _on_app_verification_timeout(self, app_name: str) -> None:
         """Handle app verification timeout from ProcessExecutor.
 
-        When a GUI app fails to verify (process not found after timeout),
-        reset the terminal cache. The terminal may have been detected but
-        failed to work properly (e.g., X11 issues, permission problems).
-        This allows re-detection on the next launch attempt.
+        VFX apps can take 30-60+ seconds to boot (Rez resolution + plugin scanning).
+        A single timeout doesn't necessarily mean the terminal is broken - the app
+        may still be starting. Only reset cache after repeated consecutive failures.
 
         Args:
             app_name: Name of the application that failed verification
         """
-        self.env_manager.reset_cache()
-        self._emit_error(
-            f"[{app_name}] Verification timeout - terminal cache reset for next attempt"
-        )
+        self._consecutive_timeout_count += 1
+
+        if self._consecutive_timeout_count >= self._TIMEOUT_THRESHOLD_FOR_CACHE_RESET:
+            # Multiple consecutive timeouts suggest terminal detection issue
+            self.env_manager.reset_cache()
+            self._consecutive_timeout_count = 0
+            self._emit_error(
+                f"[{app_name}] Verification timeout (repeated) - terminal cache reset for next attempt"
+            )
+        else:
+            # First timeout - app may still be starting, don't reset cache
+            self._emit_error(
+                f"[{app_name}] Verification timeout - app may still be starting"
+            )
+
+    def _on_app_verified(self, app_name: str, pid: int) -> None:
+        """Handle successful app verification from ProcessExecutor.
+
+        Reset the consecutive timeout counter on successful launch, since
+        the terminal and environment are working correctly.
+
+        Args:
+            app_name: Name of the application that was verified
+            pid: Process ID of the verified application
+        """
+        # Reset timeout counter on success - terminal is working
+        self._consecutive_timeout_count = 0
+        self.logger.debug(f"App {app_name} verified with PID {pid}")
 
     # Methods removed - now using launch components:
     # - _is_rez_available() → self.env_manager.is_rez_available(Config)
@@ -501,9 +533,15 @@ class CommandLauncher(LoggingMixin, QObject):
             self._emit_error(f"Invalid workspace path: {e!s}")
             return False
 
-        # Wrap with rez environment if not already available from shell init.
-        # When REZ_ALREADY_AVAILABLE=True, shell init (setbbplatform) already set up Rez.
-        if self.env_manager.is_rez_available(Config) and not Config.REZ_ALREADY_AVAILABLE:
+        # Wrap with rez environment if:
+        # - REZ_FORCE_WRAP=True (force wrapping even in existing rez env), OR
+        # - REZ_ALREADY_AVAILABLE=False (no shell init rez setup)
+        # When REZ_FORCE_WRAP is True, we add app-specific packages (nuke-16, OCIO, etc.)
+        # on top of the base rez environment.
+        should_wrap_rez = self.env_manager.is_rez_available(Config) and (
+            Config.REZ_FORCE_WRAP or not Config.REZ_ALREADY_AVAILABLE
+        )
+        if should_wrap_rez:
             rez_packages = self.env_manager.get_rez_packages(app_name, Config)
             if rez_packages:
                 # Use CommandBuilder to wrap with rez environment
@@ -520,7 +558,7 @@ class CommandLauncher(LoggingMixin, QObject):
             # Emit visible message explaining why Rez wrapping is skipped
             # This helps users understand which app version will be used
             timestamp = self.timestamp
-            if Config.REZ_ALREADY_AVAILABLE:
+            if Config.REZ_ALREADY_AVAILABLE and not Config.REZ_FORCE_WRAP:
                 self.command_executed.emit(
                     timestamp,
                     f"Note: Rez wrap skipped - shell init already provides rez for {app_name}",
@@ -619,9 +657,13 @@ class CommandLauncher(LoggingMixin, QObject):
             self._emit_error(f"Invalid workspace path: {e!s}")
             return False
 
-        # Wrap with rez environment if not already available from shell init.
-        # When REZ_ALREADY_AVAILABLE=True, shell init (setbbplatform) already set up Rez.
-        if self.env_manager.is_rez_available(Config) and not Config.REZ_ALREADY_AVAILABLE:
+        # Wrap with rez environment if:
+        # - REZ_FORCE_WRAP=True (force wrapping even in existing rez env), OR
+        # - REZ_ALREADY_AVAILABLE=False (no shell init rez setup)
+        should_wrap_rez = self.env_manager.is_rez_available(Config) and (
+            Config.REZ_FORCE_WRAP or not Config.REZ_ALREADY_AVAILABLE
+        )
+        if should_wrap_rez:
             rez_packages = self.env_manager.get_rez_packages(app_name, Config)
             if rez_packages:
                 # Use CommandBuilder to wrap with rez environment
@@ -631,7 +673,7 @@ class CommandLauncher(LoggingMixin, QObject):
         else:
             full_command = ws_command
             # Log that Rez wrapping is skipped
-            if Config.REZ_ALREADY_AVAILABLE:
+            if Config.REZ_ALREADY_AVAILABLE and not Config.REZ_FORCE_WRAP:
                 self.logger.debug(
                     f"Rez wrapping skipped for {app_name} scene launch (REZ_ALREADY_AVAILABLE=True)"
                 )
@@ -752,9 +794,13 @@ class CommandLauncher(LoggingMixin, QObject):
             self._emit_error(f"Invalid workspace path: {e!s}")
             return False
 
-        # Wrap with rez environment if not already available from shell init.
-        # When REZ_ALREADY_AVAILABLE=True, shell init (setbbplatform) already set up Rez.
-        if self.env_manager.is_rez_available(Config) and not Config.REZ_ALREADY_AVAILABLE:
+        # Wrap with rez environment if:
+        # - REZ_FORCE_WRAP=True (force wrapping even in existing rez env), OR
+        # - REZ_ALREADY_AVAILABLE=False (no shell init rez setup)
+        should_wrap_rez = self.env_manager.is_rez_available(Config) and (
+            Config.REZ_FORCE_WRAP or not Config.REZ_ALREADY_AVAILABLE
+        )
+        if should_wrap_rez:
             rez_packages = self.env_manager.get_rez_packages(app_name, Config)
             if rez_packages:
                 # Use CommandBuilder to wrap with rez environment
@@ -769,7 +815,7 @@ class CommandLauncher(LoggingMixin, QObject):
         else:
             full_command = ws_command
             # Log that Rez wrapping is skipped
-            if Config.REZ_ALREADY_AVAILABLE:
+            if Config.REZ_ALREADY_AVAILABLE and not Config.REZ_FORCE_WRAP:
                 self.logger.debug(
                     f"Rez wrapping skipped for {app_name} scene context (REZ_ALREADY_AVAILABLE=True)"
                 )

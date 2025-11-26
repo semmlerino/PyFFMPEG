@@ -8,7 +8,6 @@ from __future__ import annotations
 
 # Standard library imports
 import os
-import shlex
 import signal
 import subprocess
 import threading
@@ -18,7 +17,6 @@ from typing import IO, final
 from PySide6.QtCore import QObject, Signal
 
 # Local application imports
-from exceptions import SecurityError
 from thread_safe_worker import ThreadSafeWorker
 from typing_compat import override
 
@@ -61,33 +59,35 @@ class LauncherWorker(ThreadSafeWorker):
         self._stderr_thread: threading.Thread | None = None
 
     def _sanitize_command(self, command: str) -> tuple[list[str], bool]:
-        """Parse command string into argument list.
+        """Wrap command with bash for proper shell semantics.
 
         Note: This is a single-user trusted tool in an isolated VFX environment.
         No whitelisting or injection detection per CLAUDE.md security posture.
 
         Args:
-            command: Command string to parse
+            command: Command string to execute
 
         Returns:
             Tuple of (command_list, use_shell) where use_shell is always False
 
-        Raises:
-            SecurityError: If command cannot be parsed
+        Why bash -c wrapper:
+            Commands passed to LauncherWorker may contain shell operators like
+            && (chaining), | (piping), > (redirection), etc. Using shlex.split()
+            would treat these as literal arguments instead of shell operators.
+
+            Example: "source /env.sh && nuke" with shlex.split becomes
+            ["source", "/env.sh", "&&", "nuke"] - treating && as a literal arg.
+
+            By wrapping with bash -c, we preserve shell semantics while avoiding
+            shell=True in Popen (which has different quoting/escaping behavior).
+
+        Note: Use bash -c (not -ilc) for worker path because:
+            - Workers run non-terminal commands (no TTY)
+            - -i (interactive) is for terminal commands needing .bashrc functions
+            - Non-terminal worker commands typically don't need ws function
         """
-        # Parse command into argument list
-        try:
-            cmd_list = shlex.split(command)
-
-            # Never use shell=True (prevents accidental complexity)
-            return cmd_list, False
-
-        except ValueError as e:
-            # If shlex.split fails, the command is malformed
-            self.logger.error(f"Failed to parse command: {command[:100]}")
-            raise SecurityError(
-                f"Command could not be parsed: {e!s}"
-            ) from e
+        # Always wrap with bash to preserve shell semantics (&&, |, >, etc.)
+        return ["bash", "-c", command], False
 
     @override
     def do_work(self) -> None:
