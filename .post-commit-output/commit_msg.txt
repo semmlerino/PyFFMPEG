@@ -1,1 +1,1 @@
-refactor: Remove backward compat properties from LauncherManager
+fix: Test utilities path resolution and configuration cleanup

@@ -143,6 +143,15 @@ class CleanupManager(QObject, LoggingMixin):
             self.logger.debug("Logging Nuke launcher usage statistics")
             self.main_window.command_launcher.nuke_handler.log_usage_stats()
 
+        # Cleanup command launcher
+        if (
+            hasattr(self.main_window, "command_launcher")
+            and self.main_window.command_launcher
+            and hasattr(self.main_window.command_launcher, "cleanup")
+        ):
+            self.logger.debug("Cleaning up command launcher")
+            self.main_window.command_launcher.cleanup()
+
         # Shutdown launcher manager to stop all worker threads
         if (
             hasattr(self.main_window, "launcher_manager")

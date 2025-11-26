@@ -216,9 +216,16 @@ class LauncherTerminal:
 
 @dataclass
 class LauncherEnvironment:
-    """Environment settings for a launcher."""
+    """Environment settings for a launcher.
 
-    type: str = "bash"  # "bash", "rez", "conda"
+    Attributes:
+        type: Environment type ("bash" or "rez")
+        packages: Rez packages to load (only used when type="rez")
+        source_files: Shell scripts to source before command
+        command_prefix: Command/env vars to prepend to the command
+    """
+
+    type: str = "bash"  # "bash" or "rez"
     packages: list[str] = field(default_factory=list)
     source_files: list[str] = field(default_factory=list)
     command_prefix: str | None = None

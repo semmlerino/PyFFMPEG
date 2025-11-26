@@ -1168,7 +1168,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # - ShotItemModel.set_show_filter(BaseShotModel, str | None)
         # - PreviousShotsItemModel.set_show_filter(PreviousShotsModel, str | None)
         # We use object types for generic handling across all tabs
-        item_model.set_show_filter(model, show_filter)  # pyright: ignore[reportAttributeAccessIssue]
+        item_model.set_show_filter(model, show_filter)  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
 
         self.logger.info(
             f"Applied {tab_name} show filter: {show if show else 'All Shows'}"

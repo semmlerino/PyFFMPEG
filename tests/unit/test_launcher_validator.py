@@ -586,23 +586,13 @@ class TestEnvironmentValidation:
             assert valid is True
             assert error == ""
 
-    def test_valid_conda_environment(self, validator: LauncherValidator) -> None:
-        """Test conda environment type is accepted."""
-        env = LauncherEnvironment(type="conda")
-        # Mock the conda check
-        with patch("launcher.validator.subprocess.run") as mock_run:
-            mock_run.return_value = Mock(returncode=0)
-            valid, error = validator.validate_environment(env)
-            assert valid is True
-            assert error == ""
-
     def test_invalid_environment_type(self, validator: LauncherValidator) -> None:
         """Test invalid environment type is rejected."""
         env = LauncherEnvironment(type="invalid_type")
         valid, error = validator.validate_environment(env)
         assert valid is False
         assert "Invalid environment type" in error
-        assert "bash, rez, conda" in error
+        assert "bash, rez" in error
 
     def test_rez_not_installed(self, validator: LauncherValidator) -> None:
         """Test rez environment fails if rez not found."""
@@ -614,16 +604,6 @@ class TestEnvironmentValidation:
             assert valid is False
             assert "rez command not found" in error
 
-    def test_conda_not_installed(self, validator: LauncherValidator) -> None:
-        """Test conda environment fails if conda not found."""
-        env = LauncherEnvironment(type="conda")
-        # Mock conda command not found
-        with patch("launcher.validator.subprocess.run") as mock_run:
-            mock_run.return_value = Mock(returncode=1)
-            valid, error = validator.validate_environment(env)
-            assert valid is False
-            assert "conda command not found" in error
-
     def test_rez_check_exception_handled(self, validator: LauncherValidator) -> None:
         """Test exception during rez check is handled gracefully."""
         env = LauncherEnvironment(type="rez", packages=["test"])
@@ -633,14 +613,6 @@ class TestEnvironmentValidation:
             assert valid is False
             assert "Could not verify rez installation" in error
 
-    def test_conda_check_exception_handled(self, validator: LauncherValidator) -> None:
-        """Test exception during conda check is handled gracefully."""
-        env = LauncherEnvironment(type="conda")
-        with patch("launcher.validator.subprocess.run") as mock_run:
-            mock_run.side_effect = Exception("Test error")
-            valid, error = validator.validate_environment(env)
-            assert valid is False
-            assert "Could not verify conda installation" in error
 
 
 # ============================================================================

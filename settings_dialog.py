@@ -841,7 +841,9 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
                 launchers: list[dict[str, object]] = []
                 if isinstance(parsed_data, list):
                     # Type guard: ensure list contains dicts
-                    for item in parsed_data:
+                    # Cast to list[object] for proper type narrowing in loop
+                    parsed_list = cast("list[object]", parsed_data)
+                    for item in parsed_list:
                         if isinstance(item, dict):
                             # Type narrowing: item is now dict
                             # Cast to dict[str, object] to resolve unknown types

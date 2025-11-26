@@ -48,6 +48,7 @@ class EnvironmentManager:
     def __init__(self) -> None:
         """Initialize EnvironmentManager with empty cache."""
         self._rez_available_cache: bool | None = None
+        self._ws_available_cache: bool | None = None
         self._available_terminal_cache: str | None = None
 
     def is_rez_available(self, config: "type[Config]") -> bool:
@@ -71,7 +72,8 @@ class EnvironmentManager:
 
         # Check for REZ_USED environment variable (indicates we're already in a rez env)
         # Don't wrap again to avoid double-wrapping and package conflicts
-        if config.REZ_AUTO_DETECT and os.environ.get("REZ_USED"):
+        # Unless REZ_FORCE_WRAP is set (for base rez envs that need app packages added)
+        if config.REZ_AUTO_DETECT and os.environ.get("REZ_USED") and not config.REZ_FORCE_WRAP:
             logger.debug("Already in rez environment (REZ_USED set), skipping rez wrapping")
             return False
 
@@ -83,6 +85,23 @@ class EnvironmentManager:
         self._rez_available_cache = shutil.which("rez") is not None
         logger.debug(f"Rez availability cached: {self._rez_available_cache}")
         return self._rez_available_cache
+
+    def is_ws_available(self) -> bool:
+        """Check if ws (workspace) command is available.
+
+        Returns:
+            True if ws command is available on PATH
+
+        Notes:
+            - Checks once and caches result
+            - Used for pre-flight validation before launching
+        """
+        if self._ws_available_cache is not None:
+            return self._ws_available_cache
+
+        self._ws_available_cache = shutil.which("ws") is not None
+        logger.debug(f"ws availability cached: {self._ws_available_cache}")
+        return self._ws_available_cache
 
     def get_rez_packages(self, app_name: str, config: "type[Config]") -> list[str]:
         """Get rez packages for the specified application.
@@ -139,5 +158,6 @@ class EnvironmentManager:
         Useful for testing or when environment changes are expected.
         """
         self._rez_available_cache = None
+        self._ws_available_cache = None
         self._available_terminal_cache = None
         logger.debug("EnvironmentManager cache reset")

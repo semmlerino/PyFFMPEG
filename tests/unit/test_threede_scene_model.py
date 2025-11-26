@@ -37,6 +37,7 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.unit
 
 
+@pytest.mark.xdist_group("serial_qt_state")
 class TestThreeDEScene:
     """Test ThreeDEScene dataclass with real files."""
 
@@ -101,23 +102,19 @@ class TestThreeDEScene:
 
         assert scene.display_name == "seq01_shot01 - artist1"
 
-    @pytest.mark.skip(
-        reason="Config.SHOWS_ROOT contamination from earlier tests. "
-        "Passes in isolation but fails in full suite (29+ test runs attempted). "
-        "Needs deeper investigation into fixture timing and Config state management. "
-        "See test runs 12-29 for fix attempts."
-    )
     def test_get_thumbnail_path_with_real_files(
         self, tmp_path: Path, monkeypatch: MonkeyPatch
     ) -> None:
         """Test get_thumbnail_path with real thumbnail files.
 
-        NOTE: This test is extremely sensitive to Config.SHOWS_ROOT contamination.
-        It sets monkeypatch early and verifies the path is correct throughout.
+        Uses xdist_group at class level to ensure isolation from Config state contamination.
         """
         # Set Config.SHOWS_ROOT FIRST, before any other operations
+        # Patch in both locations to ensure all imports see the new value
         shows_root = tmp_path / "shows"
         monkeypatch.setattr("config.Config.SHOWS_ROOT", str(shows_root))
+        monkeypatch.setattr("threede_scene_model.Config.SHOWS_ROOT", str(shows_root))
+        monkeypatch.setattr("thumbnail_finders.Config.SHOWS_ROOT", str(shows_root))
 
         # Clear all caches to ensure they use the new Config.SHOWS_ROOT
         from utils import clear_all_caches

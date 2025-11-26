@@ -114,9 +114,6 @@ Generic infrastructure:
 - LauncherManager (75%) - Mixed concerns
 - RefreshOrchestrator (70%) - Multiple models
 
-### ⚠️⚠️ Fair (<75%)
-- PersistentTerminalManager (65%) - Too many concerns
-
 **Overall SRP Adherence: 92%** ✓
 
 ---

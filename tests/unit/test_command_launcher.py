@@ -138,6 +138,10 @@ class TestCommandLauncher:
         mock_maya_latest_finder.MayaLatestFinder = TestMayaLatestFinder
         sys.modules["maya_latest_finder"] = mock_maya_latest_finder
 
+        # Mock is_ws_available to return True (ws isn't available in dev environment)
+        from launch import EnvironmentManager
+        monkeypatch.setattr(EnvironmentManager, "is_ws_available", lambda self: True)
+
         return CommandLauncher()
 
     @pytest.fixture
@@ -178,7 +182,7 @@ class TestCommandLauncher:
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
     )
     @patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False)
-    @patch("command_launcher.subprocess.Popen")
+    @patch("launch.process_executor.subprocess.Popen")
     def test_launch_nuke(
         self,
         mock_popen: MagicMock,
@@ -219,7 +223,7 @@ class TestCommandLauncher:
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
     )
     @patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False)
-    @patch("command_launcher.subprocess.Popen")
+    @patch("launch.process_executor.subprocess.Popen")
     def test_launch_nuke_with_raw_plate(
         self,
         mock_popen: MagicMock,
@@ -253,7 +257,7 @@ class TestCommandLauncher:
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
     )
     @patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False)
-    @patch("command_launcher.subprocess.Popen")
+    @patch("launch.process_executor.subprocess.Popen")
     def test_launch_3de(
         self,
         mock_popen: MagicMock,
@@ -287,7 +291,7 @@ class TestCommandLauncher:
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
     )
     @patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False)
-    @patch("command_launcher.subprocess.Popen")
+    @patch("launch.process_executor.subprocess.Popen")
     def test_launch_3de_with_scene(
         self,
         mock_popen: MagicMock,
@@ -320,7 +324,7 @@ class TestCommandLauncher:
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
     )
     @patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False)
-    @patch("command_launcher.subprocess.Popen")
+    @patch("launch.process_executor.subprocess.Popen")
     def test_launch_maya(
         self,
         mock_popen: MagicMock,
@@ -354,7 +358,7 @@ class TestCommandLauncher:
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
     )
     @patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False)
-    @patch("command_launcher.subprocess.Popen")
+    @patch("launch.process_executor.subprocess.Popen")
     def test_launch_rv(
         self,
         mock_popen: MagicMock,
@@ -398,7 +402,7 @@ class TestCommandLauncher:
         CommandLauncher, "_validate_workspace_before_launch", return_value=True
     )
     @patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False)
-    @patch("command_launcher.subprocess.Popen")
+    @patch("launch.process_executor.subprocess.Popen")
     def test_subprocess_failure(
         self,
         mock_popen: MagicMock,
@@ -425,6 +429,44 @@ class TestCommandLauncher:
 
         # Verify subprocess was attempted
         assert mock_popen.called
+
+    @patch.object(
+        CommandLauncher, "_validate_workspace_before_launch", return_value=True
+    )
+    @patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False)
+    @patch("command_launcher.EnvironmentManager.detect_terminal", return_value=None)
+    @patch("launch.process_executor.subprocess.Popen")
+    def test_launch_headless_mode_when_no_terminal(
+        self,
+        mock_popen: MagicMock,
+        mock_detect_terminal: MagicMock,
+        mock_rez: MagicMock,
+        mock_validate: MagicMock,
+        launcher: CommandLauncher,
+        test_shot: Shot,
+        qtbot: QtBot,
+    ) -> None:
+        """Test that launches succeed in headless mode when no terminal is available."""
+        launcher.set_current_shot(test_shot)
+
+        # Setup mock
+        mock_popen.return_value = MagicMock()
+
+        # Launch app - should succeed even without terminal
+        result = launcher.launch_app("nuke")
+
+        # Verify launch was successful (headless mode)
+        assert result is True
+
+        # Wait for QTimer.singleShot(100ms) callback to complete
+        process_qt_events()
+
+        # Verify subprocess was called with direct bash (headless)
+        assert mock_popen.called
+        call_args = mock_popen.call_args[0][0]
+        assert call_args[0] == "/bin/bash"
+        assert "-ilc" in call_args
+        assert "nuke" in " ".join(call_args)
 
 
 class TestCommandLauncherSignals:
@@ -454,6 +496,10 @@ class TestCommandLauncherSignals:
         mock_maya_latest_finder.MayaLatestFinder = TestMayaLatestFinder
         sys.modules["maya_latest_finder"] = mock_maya_latest_finder
 
+        # Mock is_ws_available to return True (ws isn't available in dev environment)
+        from launch import EnvironmentManager
+        monkeypatch.setattr(EnvironmentManager, "is_ws_available", lambda self: True)
+
         return CommandLauncher()
 
     def test_signal_data_format(self, launcher: CommandLauncher, qtbot: QtBot) -> None:
@@ -465,7 +511,7 @@ class TestCommandLauncherSignals:
             patch.object(
                 CommandLauncher, "_validate_workspace_before_launch", return_value=True
             ),
-            patch("command_launcher.subprocess.Popen") as mock_popen,
+            patch("launch.process_executor.subprocess.Popen") as mock_popen,
             patch("command_launcher.EnvironmentManager.is_rez_available", return_value=False),
         ):
             mock_popen.return_value = MagicMock()

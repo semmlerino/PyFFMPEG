@@ -363,7 +363,7 @@ class LauncherPanel(QtWidgetMixin, QWidget):
     """Improved launcher panel with organized app sections."""
 
     # Signals
-    app_launch_requested = Signal(str)  # app_name
+    app_launch_requested = Signal(str, object)  # app_name, shot (captured at click time)
     custom_launcher_requested = Signal(str)  # launcher_id
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -535,12 +535,18 @@ class LauncherPanel(QtWidgetMixin, QWidget):
         parent_layout.addLayout(self.custom_launcher_container)
 
     def _on_app_launch(self, app_name: str) -> None:
-        """Handle app launch request from section."""
+        """Handle app launch request from section.
+
+        Captures current shot context at click time to prevent race conditions
+        where user switches shots during the launch button reset window.
+        """
         import logging
         logger = logging.getLogger(__name__)
-        logger.info(f"📡 LauncherPanel emitting app_launch_requested for: {app_name}")
-        self.app_launch_requested.emit(app_name)
-        logger.info("✓ Signal emitted")
+        # Capture shot context NOW to prevent race condition during 3-second button reset
+        captured_shot = self._current_shot
+        logger.info(f"📡 LauncherPanel emitting app_launch_requested for: {app_name} (shot: {captured_shot.full_name if captured_shot else 'None'})")
+        self.app_launch_requested.emit(app_name, captured_shot)
+        logger.info("✓ Signal emitted with captured shot context")
 
     def set_shot(self, shot: Shot | None) -> None:
         """Update the panel for the selected shot."""

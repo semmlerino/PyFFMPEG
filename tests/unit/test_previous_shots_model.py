@@ -353,34 +353,6 @@ class TestPreviousShotsModel:
         assert not model.is_scanning()  # Should reset scanning state after error
         assert scan_finished_spy.count() == 1  # Should still emit finished signal
 
-    def test_has_changes_detection(self, model: PreviousShotsModel) -> None:
-        """Test change detection logic."""
-        # Set up existing shots
-        model._previous_shots = [
-            create_test_shot("show1", "seq1", "shot1"),
-            create_test_shot("show1", "seq1", "shot2"),
-        ]
-
-        # Test no changes
-        same_shots = [
-            create_test_shot("show1", "seq1", "shot1"),
-            create_test_shot("show1", "seq1", "shot2"),
-        ]
-        assert not model._has_changes(same_shots)
-
-        # Test different count
-        fewer_shots = [
-            create_test_shot("show1", "seq1", "shot1"),
-        ]
-        assert model._has_changes(fewer_shots)
-
-        # Test different shots
-        different_shots = [
-            create_test_shot("show1", "seq1", "shot1"),
-            create_test_shot("show1", "seq1", "shot3"),  # Different shot
-        ]
-        assert model._has_changes(different_shots)
-
     def test_get_shots_returns_copy(self, model: PreviousShotsModel) -> None:
         """Test that get_shots returns a copy, not reference."""
         original_shots = [

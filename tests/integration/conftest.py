@@ -390,53 +390,6 @@ def threede_controller_target(qtbot: Any, launcher_controller_target: Any) -> An
     return target
 
 
-@pytest.fixture(autouse=True)
-def integration_test_isolation(qapp: Any, qtbot: Any) -> Iterator[None]:
-    """Isolate integration tests by resetting all singleton state.
-
-    This fixture runs automatically for every integration test to ensure:
-    - Clean singleton state before each test
-    - Proper Qt cleanup after each test
-    - No state pollution between parallel test runs
-
-    Enables full test parallelization with pytest-xdist.
-    """
-    # Reset singletons BEFORE test
-    try:
-        from notification_manager import NotificationManager
-
-        NotificationManager.reset()
-    except Exception:
-        pass
-
-    try:
-        from progress_manager import ProgressManager
-
-        ProgressManager.reset()
-    except Exception:
-        pass
-
-    try:
-        from process_pool_manager import ProcessPoolManager
-
-        ProcessPoolManager.reset()
-    except Exception:
-        pass
-
-    try:
-        from filesystem_coordinator import FilesystemCoordinator
-
-        FilesystemCoordinator.reset()
-    except Exception:
-        pass
-
-    yield
-
-    # Cleanup AFTER test (handled by main conftest's qt_cleanup fixture)
-    # Just ensure NotificationManager references are cleared
-    try:
-        from notification_manager import NotificationManager
-
-        NotificationManager.clear_references()
-    except Exception:
-        pass
+# NOTE: Singleton isolation is now handled by the root conftest.py via
+# tests/fixtures/singleton_isolation.py (cleanup_state fixture, autouse=True)
+# The redundant integration_test_isolation fixture was removed.

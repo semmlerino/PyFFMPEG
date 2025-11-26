@@ -157,6 +157,7 @@ def reset_all_mainwindow_singletons():
         app.processEvents()
 
 
+@pytest.mark.xdist_group("serial_qt_state")
 class TestMainWindowNoHang:
     """Fixed MainWindow tests that don't hang."""
 
@@ -254,17 +255,10 @@ class TestMainWindowNoHang:
         # Shot info updated
         assert safe_main_window.shot_info_panel._current_shot == shot
 
-    @pytest.mark.skip(reason="TestProcessPool state management issues in full suite execution. The test pool outputs aren't being consumed properly due to state pollution from previous tests. See UNIFIED_TESTING_V2.MD section 6a on Shared Cache Directories for similar isolation issue pattern.")
     def test_refresh_shots_with_test_pool(self, safe_main_window) -> None:
         """Test shot refresh with test process pool.
 
-        SKIPPED: Due to TestProcessPool state management issues in full suite execution.
-        The test pool outputs aren't being consumed properly when previous tests have
-        polluted the process pool state. This is similar to the shared cache directory
-        isolation issue described in UNIFIED_TESTING_V2.MD section 6a.
-
-        The test passes reliably when run in isolation or with local group of tests,
-        but fails in full suite due to state leakage from previous tests using the pool.
+        Uses xdist_group at class level to ensure isolation from other workers.
         """
         # Use the SHOWS_ROOT that was set by the fixture via monkeypatch
         # The fixture sets Config.SHOWS_ROOT to "/shows" for test isolation

@@ -300,13 +300,6 @@ class NotificationManager(QObject):
         logger.debug("NotificationManager initialized")
 
     @classmethod
-    def _get_instance(cls) -> NotificationManager:
-        """Get the singleton instance."""
-        if cls._instance is None:
-            cls._instance = cls()
-        return cls._instance
-
-    @classmethod
     def initialize(
         cls, main_window: QMainWindow, status_bar: QStatusBar
     ) -> NotificationManager:

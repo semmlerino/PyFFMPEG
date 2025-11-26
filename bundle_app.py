@@ -153,7 +153,6 @@ class ApplicationBundler:
                 "requirements*.txt",
                 "Dockerfile",
                 ".dockerignore",
-                "terminal_dispatcher.sh",
                 "convert_exr_to_jpeg.sh",
                 "install.sh",
                 "run_debug.sh",

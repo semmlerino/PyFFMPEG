@@ -313,12 +313,18 @@ class LauncherController(LoggingMixin):
         )
         return self.window.command_launcher.launch_app(app_name, context)
 
-    def launch_app(self, app_name: str) -> None:
+    def launch_app(self, app_name: str, captured_shot: Shot | None = None) -> None:
         """Launch an application.
 
         Args:
             app_name: Name of the application to launch
+            captured_shot: Shot context captured at click time to prevent race conditions.
+                          If None, falls back to current shot (for backwards compatibility).
         """
+        # Use captured shot if provided, otherwise fall back to current shot
+        # This prevents race conditions where user switches shots during button reset window
+        effective_shot = captured_shot if captured_shot is not None else self._current_shot
+
         # Validate launch context
         if not self._validate_launch_context():
             return
@@ -341,14 +347,14 @@ class LauncherController(LoggingMixin):
             self.logger.info("Using shot context (no scene selected)")
             self._log_command("Using shot context (no scene selected)")
 
-            # Sync command_launcher context if needed
-            if not self.window.command_launcher.current_shot and self._current_shot:
+            # Sync command_launcher context with captured shot
+            if effective_shot:
                 self.logger.info(
-                    f"Re-syncing command_launcher context with {self._current_shot.full_name}"
+                    f"Using captured shot context: {effective_shot.full_name}"
                 )
-                self.window.command_launcher.set_current_shot(self._current_shot)
+                self.window.command_launcher.set_current_shot(effective_shot)
                 self._log_command(
-                    f"Re-synced shot context: {self._current_shot.full_name}"
+                    f"Set shot context: {effective_shot.full_name}"
                 )
 
             # Build and validate launch options

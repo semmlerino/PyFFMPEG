@@ -211,7 +211,7 @@ class TestCommandLauncherThreading:
 
         # Mock dependencies
         monkeypatch.setattr("config.Config.APPS", {"test_app": "test_command"})
-        monkeypatch.setattr("command_launcher.subprocess.Popen", Mock(return_value=Mock(pid=12345)))
+        monkeypatch.setattr("launch.process_executor.subprocess.Popen", Mock(return_value=Mock(pid=12345)))
         monkeypatch.setattr("command_launcher.EnvironmentManager.detect_terminal", lambda _self: "gnome-terminal")
         monkeypatch.setattr("command_launcher.EnvironmentManager.is_rez_available", lambda _self, _config: False)
 
@@ -264,9 +264,11 @@ class TestCommandLauncherThreading:
         monkeypatch.setattr("config.Config.APPS", {"test_app": "test_command"})
 
         mock_process = Mock(pid=12345, poll=Mock(return_value=None))
-        monkeypatch.setattr("command_launcher.subprocess.Popen", Mock(return_value=mock_process))
+        monkeypatch.setattr("launch.process_executor.subprocess.Popen", Mock(return_value=mock_process))
         monkeypatch.setattr("command_launcher.EnvironmentManager.detect_terminal", lambda _self: "gnome-terminal")
         monkeypatch.setattr("command_launcher.EnvironmentManager.is_rez_available", lambda _self, _config: False)
+        # CRITICAL: Mock is_ws_available - 'ws' command isn't available in dev environment
+        monkeypatch.setattr("command_launcher.EnvironmentManager.is_ws_available", lambda _self: True)
 
         # Launch app (will schedule QTimer callback)
         result = launcher.launch_app("test_app")

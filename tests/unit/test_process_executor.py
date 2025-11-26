@@ -60,6 +60,33 @@ class TestGuiAppDetection:
         assert executor.is_gui_app("bash") is False
 
 
+class TestBuildTerminalCommand:
+    """Tests for _build_terminal_command helper method."""
+
+    @pytest.mark.parametrize(
+        "terminal,expected_cmd",
+        [
+            ("gnome-terminal", ["gnome-terminal", "--", "bash", "-ilc", "cmd"]),
+            ("konsole", ["konsole", "-e", "bash", "-ilc", "cmd"]),
+            ("kitty", ["kitty", "bash", "-ilc", "cmd"]),
+            ("xterm", ["xterm", "-e", "bash", "-ilc", "cmd"]),
+            ("x-terminal-emulator", ["x-terminal-emulator", "-e", "bash", "-ilc", "cmd"]),
+            ("xfce4-terminal", ["xfce4-terminal", "-e", "bash", "-ilc", "cmd"]),
+            ("mate-terminal", ["mate-terminal", "-e", "bash", "-ilc", "cmd"]),
+            ("alacritty", ["alacritty", "-e", "bash", "-ilc", "cmd"]),
+            ("terminology", ["terminology", "-e", "bash", "-ilc", "cmd"]),
+            (None, ["/bin/bash", "-ilc", "cmd"]),  # Headless fallback
+            ("unknown-terminal", ["/bin/bash", "-ilc", "cmd"]),  # Unknown fallback
+        ],
+    )
+    def test_build_terminal_command(
+        self, executor: ProcessExecutor, terminal: str | None, expected_cmd: list[str]
+    ) -> None:
+        """Test that terminal commands are built correctly for all supported terminals."""
+        result = executor._build_terminal_command(terminal, "cmd")
+        assert result == expected_cmd
+
+
 class TestNewTerminalExecution:
     """Tests for new terminal window execution."""
 
@@ -79,7 +106,7 @@ class TestNewTerminalExecution:
 
         result = executor.execute_in_new_terminal("nuke", "nuke", "gnome-terminal")
 
-        assert result is True
+        assert result is mock_process  # Returns Popen object on success
         mock_popen.assert_called_once_with(
             ["gnome-terminal", "--", "bash", "-ilc", "nuke"]
         )
@@ -104,7 +131,7 @@ class TestNewTerminalExecution:
 
         result = executor.execute_in_new_terminal("maya", "maya", "konsole")
 
-        assert result is True
+        assert result is mock_process
         mock_popen.assert_called_once_with(["konsole", "-e", "bash", "-ilc", "maya"])
 
     @patch("subprocess.Popen")
@@ -123,18 +150,38 @@ class TestNewTerminalExecution:
 
         result = executor.execute_in_new_terminal("3de", "3de", "xterm")
 
-        assert result is True
+        assert result is mock_process
         mock_popen.assert_called_once_with(["xterm", "-e", "bash", "-ilc", "3de"])
 
     @patch("subprocess.Popen")
     @patch("launch.process_executor.QTimer")
-    def test_fallback_execution(
+    def test_headless_execution_when_terminal_is_none(
         self,
         mock_timer_class: MagicMock,
         mock_popen: MagicMock,
         executor: ProcessExecutor,
     ) -> None:
-        """Test fallback to direct bash execution."""
+        """Test headless mode when terminal is None (no terminal available)."""
+        mock_process = MagicMock()
+        mock_popen.return_value = mock_process
+        mock_timer = MagicMock()
+        mock_timer_class.return_value = mock_timer
+
+        # Pass None for terminal to trigger headless mode
+        result = executor.execute_in_new_terminal("echo test", "test_app", None)
+
+        assert result is mock_process
+        mock_popen.assert_called_once_with(["/bin/bash", "-ilc", "echo test"])
+
+    @patch("subprocess.Popen")
+    @patch("launch.process_executor.QTimer")
+    def test_fallback_execution_for_unknown_terminal(
+        self,
+        mock_timer_class: MagicMock,
+        mock_popen: MagicMock,
+        executor: ProcessExecutor,
+    ) -> None:
+        """Test fallback to direct bash execution for unknown terminal."""
         mock_process = MagicMock()
         mock_popen.return_value = mock_process
         mock_timer = MagicMock()
@@ -142,8 +189,47 @@ class TestNewTerminalExecution:
 
         result = executor.execute_in_new_terminal("unknown", "unknown", "unknown-term")
 
-        assert result is True
+        assert result is mock_process
         mock_popen.assert_called_once_with(["/bin/bash", "-ilc", "unknown"])
+
+    @patch("subprocess.Popen")
+    def test_returns_none_on_file_not_found(
+        self,
+        mock_popen: MagicMock,
+        executor: ProcessExecutor,
+    ) -> None:
+        """Test that FileNotFoundError returns None."""
+        mock_popen.side_effect = FileNotFoundError("gnome-terminal not found")
+
+        result = executor.execute_in_new_terminal("cmd", "app", "gnome-terminal")
+
+        assert result is None
+
+    @patch("subprocess.Popen")
+    def test_returns_none_on_permission_error(
+        self,
+        mock_popen: MagicMock,
+        executor: ProcessExecutor,
+    ) -> None:
+        """Test that PermissionError returns None."""
+        mock_popen.side_effect = PermissionError("Permission denied")
+
+        result = executor.execute_in_new_terminal("cmd", "app", "gnome-terminal")
+
+        assert result is None
+
+    @patch("subprocess.Popen")
+    def test_returns_none_on_os_error(
+        self,
+        mock_popen: MagicMock,
+        executor: ProcessExecutor,
+    ) -> None:
+        """Test that OSError returns None."""
+        mock_popen.side_effect = OSError("OS error")
+
+        result = executor.execute_in_new_terminal("cmd", "app", "gnome-terminal")
+
+        assert result is None
 
 
 class TestProcessVerification:
@@ -180,7 +266,12 @@ class TestProcessVerification:
         mock_process.pid = 12345
 
         # Use wait_signal instead of signal_blocker
-        with qtbot.waitSignal(executor.execution_progress, timeout=1000):
+        with qtbot.waitSignal(executor.execution_progress, timeout=1000) as blocker:
             # Call verification
             executor.verify_spawn(mock_process, "nuke")
+
+        # Verify signal was emitted successfully
+        assert blocker.signal_triggered, "execution_progress signal should be emitted"
+        # Signal was emitted, indicating verify_spawn completed without error
+        assert blocker.args is not None, "Signal should have been emitted with arguments"
 

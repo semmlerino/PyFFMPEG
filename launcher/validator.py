@@ -256,7 +256,7 @@ class LauncherValidator(LoggingMixin):
         Returns:
             Tuple of (is_valid, error_message)
         """
-        valid_env_types = ["bash", "rez", "conda"]
+        valid_env_types = ["bash", "rez"]
 
         if env.type not in valid_env_types:
             return (
@@ -277,23 +277,6 @@ class LauncherValidator(LoggingMixin):
                     return False, "Rez environment specified but rez command not found"
             except Exception:
                 return False, "Could not verify rez installation"
-
-        # Check for conda if specified
-        if env.type == "conda":
-            try:
-                result = subprocess.run(
-                    ["which", "conda"],
-                    check=False, capture_output=True,
-                    text=True,
-                    timeout=1,
-                )
-                if result.returncode != 0:
-                    return (
-                        False,
-                        "Conda environment specified but conda command not found",
-                    )
-            except Exception:
-                return False, "Could not verify conda installation"
 
         return True, ""
 

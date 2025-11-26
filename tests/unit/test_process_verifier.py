@@ -81,7 +81,7 @@ class TestProcessVerifier:
     def test_wait_for_process_timeout(
         self, mock_exists: MagicMock, mock_glob: MagicMock, verifier: ProcessVerifier
     ) -> None:
-        """Test verification timeout when PID file not found."""
+        """Test verification timeout when process not found."""
         # Setup: PID directory exists but no matching PID files
         mock_exists.return_value = True
         mock_glob.return_value = []
@@ -90,7 +90,8 @@ class TestProcessVerifier:
         success, message = verifier.wait_for_process("nuke test.nk", timeout_sec=0.1)
 
         assert success is False
-        assert "PID file not found" in message
+        # Message changed to be generic since we now try PID files + psutil scanning
+        assert "not found" in message.lower()
 
     @patch("psutil.pid_exists")
     @patch("pathlib.Path.read_text")

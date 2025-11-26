@@ -668,12 +668,14 @@ workspace /shows/test/shots/seq01/shot02""")
 
         # Use TestSubprocess to prevent actual app launch
         test_subprocess = TestSubprocess()
-        # Mock at the command_launcher module level where subprocess is imported
-        monkeypatch.setattr("command_launcher.subprocess.Popen", test_subprocess.Popen)
+        # Mock at the process_executor module level where subprocess is used
+        monkeypatch.setattr("launch.process_executor.subprocess.Popen", test_subprocess.Popen)
 
         # Mock EnvironmentManager methods to ensure launch proceeds
         monkeypatch.setattr("command_launcher.EnvironmentManager.is_rez_available", lambda _self, _config: False)
         monkeypatch.setattr("command_launcher.EnvironmentManager.detect_terminal", lambda _self: "gnome-terminal")
+        # CRITICAL: Mock is_ws_available - 'ws' command isn't available in dev environment
+        monkeypatch.setattr("command_launcher.EnvironmentManager.is_ws_available", lambda _self: True)
 
         # Create real workspace directory to pass validation
         workspace_path = tmp_path / "test_workspace"

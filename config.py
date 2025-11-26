@@ -93,6 +93,14 @@ class Config:
     # Rez Environment Configuration
     USE_REZ_ENVIRONMENT: bool = True  # Enable rez environment wrapper when available
     REZ_AUTO_DETECT: bool = True  # Automatically detect rez availability via REZ_USED env var
+    REZ_FORCE_WRAP: bool = False  # Force rez wrapping even when already in rez env (REZ_USED set)
+    WS_HANDLES_REZ: bool = True  # ws command handles rez loading internally; skip outer rez wrapper
+
+    # Launch Verification Configuration
+    LAUNCH_VERIFICATION_ENABLED: bool = True  # Enable async verification of GUI app launches
+    LAUNCH_VERIFICATION_TIMEOUT_SEC: float = 15.0  # How long to wait for app to start
+    LAUNCH_VERIFICATION_POLL_SEC: float = 0.5  # How often to scan for process
+
     REZ_NUKE_PACKAGES: ClassVar[list[str]] = [
         "nuke",
         "python-3.11",

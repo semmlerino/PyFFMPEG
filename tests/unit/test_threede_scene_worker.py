@@ -783,7 +783,7 @@ class TestWorkerInterruption:
 
             @staticmethod
             def find_all_scenes_progressive(
-                shot_tuples, excluded_users=None, batch_size=10, cancel_flag=None
+                _shot_tuples, _excluded_users=None, _batch_size=10, cancel_flag=None
             ):
                 """Generator that would run for a long time if not cancelled."""
                 # Simulate discovering many shots (would take 100 seconds without cancellation)
@@ -798,7 +798,7 @@ class TestWorkerInterruption:
                     yield [], i, 1000, f"Processing shot {i}"
 
             @staticmethod
-            def estimate_scan_size(shot_tuples, excluded_users=None):
+            def estimate_scan_size(_shot_tuples, _excluded_users=None):
                 """Return estimate."""
                 return 10, 1000
 
@@ -869,7 +869,7 @@ class TestWorkerInterruption:
 
             @staticmethod
             def find_all_scenes_progressive(
-                shot_tuples, excluded_users=None, batch_size=10, cancel_flag=None
+                _shot_tuples, _excluded_users=None, _batch_size=10, cancel_flag=None
             ):
                 """Generator that tracks how many iterations occurred."""
                 for i in range(100):
@@ -882,7 +882,7 @@ class TestWorkerInterruption:
                     yield [], i, 100, f"Shot {i}"
 
             @staticmethod
-            def estimate_scan_size(shot_tuples, excluded_users=None):
+            def estimate_scan_size(_shot_tuples, _excluded_users=None):
                 return 10, 100
 
         original_finder = threede_scene_worker.ThreeDESceneFinder

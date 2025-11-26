@@ -217,10 +217,10 @@ class ShotItemModel(BaseItemModel["Shot"]):
         # from Qt when attempting to disconnect signals that have no connections.
         # Qt's receivers() method is not properly typed in PySide6 stubs
         with contextlib.suppress(RuntimeError, TypeError, AttributeError):
-            if self.items_updated.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue]
+            if self.items_updated.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
                 _ = self.items_updated.disconnect()
         with contextlib.suppress(RuntimeError, TypeError, AttributeError):
-            if self.shots_updated.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue]
+            if self.shots_updated.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
                 _ = self.shots_updated.disconnect()
 
         self.logger.info("ShotItemModel cleanup complete")

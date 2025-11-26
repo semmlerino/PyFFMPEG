@@ -59,6 +59,9 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from typing import TYPE_CHECKING, ClassVar, final
 
+# Third-party imports
+from PySide6.QtCore import QMutex, QMutexLocker
+
 # Local application imports
 from notification_manager import NotificationManager
 
@@ -293,6 +296,7 @@ class ProgressManager:
 
     _instance: ClassVar[ProgressManager | None] = None
     _operation_stack: ClassVar[list[ProgressOperation]] = []
+    _stack_lock: ClassVar[QMutex] = QMutex()  # Thread safety for operation stack
     _status_bar: ClassVar[QStatusBar | None] = None
 
     def __new__(cls) -> ProgressManager:
@@ -412,7 +416,8 @@ class ProgressManager:
             config = ProgressConfig(title=config)
 
         operation = ProgressOperation(config)
-        instance._operation_stack.append(operation)
+        with QMutexLocker(cls._stack_lock):
+            instance._operation_stack.append(operation)
 
         # Determine progress type
         progress_type = config.progress_type
@@ -458,11 +463,11 @@ class ProgressManager:
         """
         instance = cls()
 
-        if not instance._operation_stack:
-            logger.warning("Attempted to finish operation but stack is empty")
-            return
-
-        operation = instance._operation_stack.pop()
+        with QMutexLocker(cls._stack_lock):
+            if not instance._operation_stack:
+                logger.warning("Attempted to finish operation but stack is empty")
+                return
+            operation = instance._operation_stack.pop()
 
         # Close UI elements
         if operation.progress_dialog:
@@ -497,7 +502,8 @@ class ProgressManager:
             ProgressOperation | None: Current operation or None if stack is empty
         """
         instance = cls()
-        return instance._operation_stack[-1] if instance._operation_stack else None
+        with QMutexLocker(cls._stack_lock):
+            return instance._operation_stack[-1] if instance._operation_stack else None
 
     @classmethod
     def cancel_current_operation(cls) -> bool:
@@ -520,23 +526,26 @@ class ProgressManager:
             bool: True if operations are active, False otherwise
         """
         instance = cls()
-        return len(instance._operation_stack) > 0
+        with QMutexLocker(cls._stack_lock):
+            return len(instance._operation_stack) > 0
 
     @classmethod
     def clear_all_operations(cls) -> None:
         """Clear all active operations (emergency cleanup)."""
         instance = cls()
 
-        # Cancel all operations
-        for operation in instance._operation_stack:
+        # Take snapshot and clear under lock, then operate on snapshot
+        with QMutexLocker(cls._stack_lock):
+            operations_snapshot = list(instance._operation_stack)
+            instance._operation_stack.clear()
+
+        # Cancel all operations (outside lock to avoid holding lock during callbacks)
+        for operation in operations_snapshot:
             if operation.config.cancelable:
                 operation.cancel()
 
         # Close any open dialogs
         NotificationManager.close_progress()
-
-        # Clear stack
-        instance._operation_stack.clear()
 
         logger.warning("All progress operations cleared (emergency cleanup)")
 
@@ -547,16 +556,18 @@ class ProgressManager:
         This method clears all progress state and resets the singleton instance.
         It should only be used in test cleanup to ensure test isolation.
         """
-        # Clear all active operations
+        # Take snapshot and clear under lock
+        with QMutexLocker(cls._stack_lock):
+            operations_snapshot = list(cls._operation_stack)
+            cls._operation_stack.clear()
+
+        # Clear all active operations (outside lock to avoid holding during callbacks)
         if cls._instance is not None:
-            # Cancel and close any active operations
-            for operation in cls._operation_stack:
+            for operation in operations_snapshot:
                 if operation.config.cancelable:
                     operation.cancel()
                 if operation.progress_dialog:
                     NotificationManager.close_progress()
-
-            cls._operation_stack.clear()
 
         # Reset class variables
         cls._instance = None

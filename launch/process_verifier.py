@@ -33,13 +33,13 @@ class ProcessVerificationError(Exception):
 class ProcessVerifier:
     """Verify that launched processes actually started.
 
-    This class polls for PID files written by terminal_dispatcher.sh and verifies
-    that the launched process exists using psutil.
+    This class polls for PID files and verifies that the launched process
+    exists using psutil.
 
     Attributes:
         VERIFICATION_TIMEOUT_SEC: Maximum time to wait for process to start
         POLL_INTERVAL_SEC: How often to check for PID file
-        PID_FILE_DIR: Directory where dispatcher writes PID files
+        PID_FILE_DIR: Directory where PID files are written
     """
 
     # Configuration
@@ -102,10 +102,16 @@ class ProcessVerifier:
         if not app_name:
             return True, "Could not extract app name (skipping verification)"
 
-        # Wait for PID file to appear
-        pid = self._wait_for_pid_file(app_name, timeout_sec, enqueue_time)
+        # Try PID file method first
+        pid = self._wait_for_pid_file(app_name, timeout_sec / 2, enqueue_time)
+
+        # Fallback: use psutil process scanning if PID file not found
         if pid is None:
-            msg = f"PID file not found after {timeout_sec}s"
+            self.logger.debug("PID file not found, falling back to process scanning")
+            pid = self._scan_for_process(app_name, enqueue_time, timeout_sec / 2)
+
+        if pid is None:
+            msg = f"Process not found after {timeout_sec}s"
             self.logger.warning(f"Process verification failed: {msg}")
             return False, msg
 
@@ -117,6 +123,107 @@ class ProcessVerifier:
         msg = f"Process {pid} not found (crashed immediately?)"
         self.logger.warning(f"Process verification failed: {msg}")
         return False, msg
+
+    def scan_for_process(
+        self,
+        app_name: str,
+        enqueue_time: float,
+        timeout_sec: float | None = None,
+        poll_interval_sec: float | None = None,
+    ) -> tuple[bool, int | None, str]:
+        """Scan for a running process by app name using psutil.
+
+        This is the primary verification method when PID files are not available.
+        It scans running processes and looks for ones matching the app name that
+        were started after enqueue_time.
+
+        Args:
+            app_name: Name of the application (e.g., "nuke", "maya", "3de")
+            enqueue_time: Time when command was enqueued (processes started before
+                         this time are ignored)
+            timeout_sec: How long to wait (default: VERIFICATION_TIMEOUT_SEC)
+            poll_interval_sec: How often to scan (default: POLL_INTERVAL_SEC)
+
+        Returns:
+            (success, pid, message) tuple
+            - success: True if process found, False if timeout
+            - pid: Process ID if found, None if not
+            - message: Description of result
+        """
+        if timeout_sec is None:
+            timeout_sec = self.VERIFICATION_TIMEOUT_SEC
+        if poll_interval_sec is None:
+            poll_interval_sec = self.POLL_INTERVAL_SEC
+
+        pid = self._scan_for_process(app_name, enqueue_time, timeout_sec, poll_interval_sec)
+
+        if pid is not None:
+            msg = f"{app_name} started (PID: {pid})"
+            self.logger.info(f"✓ {msg}")
+            return True, pid, msg
+        msg = f"Could not find {app_name} process after {timeout_sec}s"
+        self.logger.warning(msg)
+        return False, None, msg
+
+    def _scan_for_process(
+        self,
+        app_name: str,
+        enqueue_time: float,
+        timeout_sec: float,
+        poll_interval_sec: float | None = None,
+    ) -> int | None:
+        """Internal method to scan for process using psutil.
+
+        Args:
+            app_name: Name of app to find
+            enqueue_time: Ignore processes started before this time
+            timeout_sec: How long to wait
+            poll_interval_sec: How often to scan (default: POLL_INTERVAL_SEC)
+
+        Returns:
+            PID if found, None if timeout
+        """
+        if poll_interval_sec is None:
+            poll_interval_sec = self.POLL_INTERVAL_SEC
+
+        # Map app names to possible process names
+        # (handles cases where process name differs from command)
+        app_process_names: dict[str, list[str]] = {
+            "nuke": ["nuke", "nuke.bin", "nukex", "nukex.bin", "nukestudio"],
+            "maya": ["maya", "maya.bin", "mayapy"],
+            "3de": ["3de", "3dequalizer", "tde4"],
+            "rv": ["rv", "rv.bin", "rvio"],
+            "houdini": ["houdini", "houdinifx", "hython"],
+        }
+        search_names = app_process_names.get(app_name.lower(), [app_name.lower()])
+
+        # Allow some clock skew tolerance (process may have started slightly before enqueue)
+        clock_skew_tolerance = 2.0
+        cutoff_time = enqueue_time - clock_skew_tolerance
+
+        start_time = time.monotonic()
+        while time.monotonic() - start_time < timeout_sec:
+            for proc in psutil.process_iter(["name", "create_time", "pid"]):
+                try:
+                    proc_name = proc.info.get("name", "").lower()
+                    create_time = proc.info.get("create_time", 0)
+                    proc_pid = proc.info.get("pid", 0)
+
+                    # Check if process name matches and was created after our command
+                    if any(name in proc_name for name in search_names):
+                        if create_time >= cutoff_time:
+                            self.logger.debug(
+                                f"Found process: {proc_name} (PID: {proc_pid}, "
+                                f"created: {create_time:.1f}, cutoff: {cutoff_time:.1f})"
+                            )
+                            return proc_pid
+                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                    # Process disappeared or we can't access it - skip
+                    continue
+
+            time.sleep(poll_interval_sec)
+
+        return None
 
     def _is_gui_app(self, command: str) -> bool:
         """Check if command launches a GUI app that needs verification.

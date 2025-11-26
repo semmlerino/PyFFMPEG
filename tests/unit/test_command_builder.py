@@ -226,7 +226,8 @@ class TestRezWrapping:
         packages = ["nuke"]
         result = CommandBuilder.wrap_with_rez(command, packages)
         # shlex.quote() escapes single quotes inside the command
-        assert "It" in result and "working" in result
+        assert "It" in result
+        assert "working" in result
 
     def test_rez_wrap_handles_mixed_quotes_and_special_chars(self) -> None:
         """Test complex command with quotes, spaces, and special characters."""
@@ -430,7 +431,8 @@ class TestFullCommandAssembly:
         assert "NUKE_PATH" in result or "NUKE_CRASH_REPORTS=0" in result
 
         # 2. Workspace (may be quoted differently by shlex.quote)
-        assert "ws" in result and "workspace/path" in result
+        assert "ws" in result
+        assert "workspace/path" in result
 
         # 3. Rez wrapping
         assert "rez env nuke nuke-plugins -- bash -lc" in result
@@ -496,6 +498,8 @@ class TestFullCommandAssembly:
         # shlex.quote() wraps complex commands with special chars in single quotes
         assert result.startswith("rez env nuke -- bash -lc")
         # Then workspace
-        assert "ws" in result and "/ws" in result
+        assert "ws" in result
+        assert "/ws" in result
         # Then original command with Nuke fixes
-        assert "NUKE_CRASH_REPORTS=0" in result and "nuke" in result
+        assert "NUKE_CRASH_REPORTS=0" in result
+        assert "nuke" in result

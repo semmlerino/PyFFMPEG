@@ -9,7 +9,7 @@ from __future__ import annotations
 
 # Standard library imports
 from pathlib import Path
-from typing import TYPE_CHECKING, final
+from typing import TYPE_CHECKING, cast, final
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -193,7 +193,7 @@ class ThreeDEGridView(BaseGridView):
         """
         if isinstance(shows, list):
             # Type narrowing: shows is list[str] after isinstance check
-            shows_list: list[str] = shows
+            shows_list = cast("list[str]", shows)
             super().populate_show_filter(shows_list)
         else:
             # Type narrowing: if not list, must be ThreeDESceneModel

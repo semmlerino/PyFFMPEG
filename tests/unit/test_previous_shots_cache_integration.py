@@ -63,6 +63,7 @@ def reset_cache_flag(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(utils, "_cache_disabled", False)
 
 
+@pytest.mark.xdist_group("serial_qt_state")
 class TestPreviousShootsCacheIntegration:
     """Integration tests for Previous Shots cache functionality."""
 
@@ -304,13 +305,12 @@ class TestPreviousShootsCacheIntegration:
                 model._worker.wait(2000)
             process_qt_events()
 
-    @pytest.mark.skip_if_parallel
     def test_model_cache_integration_on_refresh(
         self, previous_shots_model, qtbot
     ) -> None:
         """Test model saves to cache after refresh.
 
-        Skipped in parallel execution due to Qt state pollution from other tests.
+        Uses xdist_group at class level to run with other Qt state-sensitive tests.
         Passes reliably in serial execution.
         """
         # Clear cache to ensure test starts clean

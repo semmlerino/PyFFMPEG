@@ -631,7 +631,7 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         # NOTE: This method should NOT be called from within _zombie_mutex critical section
         # as QMutex is NOT recursive and would cause deadlock.
         with QMutexLocker(cls._zombie_mutex):
-            zombies_to_keep = []
+            zombies_to_keep: list[ThreadSafeWorker] = []
 
             for zombie in cls._zombie_threads:
                 zombie_id = id(zombie)
@@ -704,3 +704,25 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         if cls._zombie_cleanup_timer is not None:
             cls._zombie_cleanup_timer.stop()
             cls._zombie_cleanup_timer = None
+
+    @classmethod
+    def reset(cls) -> None:
+        """Reset class-level state for testing. INTERNAL USE ONLY.
+
+        This method stops the zombie cleanup timer and clears all zombie
+        tracking data. It should only be used in test cleanup to ensure
+        test isolation.
+
+        Note: This does NOT terminate running worker instances - that must
+        be done separately by calling safe_stop() on each instance.
+
+        Thread-Safe:
+            Safe to call from any thread (uses _zombie_mutex).
+        """
+        import logging
+
+        cls.stop_zombie_cleanup_timer()
+        with QMutexLocker(cls._zombie_mutex):
+            cls._zombie_threads.clear()
+            cls._zombie_timestamps.clear()
+        logging.getLogger(__name__).debug("ThreadSafeWorker reset for testing")

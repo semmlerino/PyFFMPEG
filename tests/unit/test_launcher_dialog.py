@@ -79,17 +79,6 @@ def create_rez_launcher() -> TestLauncher:
     )
 
 
-def create_conda_launcher() -> TestLauncher:
-    """Factory for conda environment launcher."""
-    env = TestLauncherEnvironment(env_type="conda", command_prefix="vfx_env")
-    return TestLauncher(
-        launcher_id="conda_launcher",
-        name="Conda Launcher",
-        command="python script.py",
-        environment=env,
-    )
-
-
 # Test Double LauncherManager Fixture
 @pytest.fixture
 def mock_launcher_manager() -> LauncherManagerDouble:
@@ -115,7 +104,7 @@ def cleanup_qt_state(qtbot: QtBot):
 @pytest.fixture
 def sample_launchers() -> list[TestLauncher]:
     """Create sample launchers for testing."""
-    return [create_test_launcher(), create_rez_launcher(), create_conda_launcher()]
+    return [create_test_launcher(), create_rez_launcher()]
 
 
 class TestLauncherListWidget:
@@ -312,17 +301,6 @@ class TestLauncherEditDialog:
         assert dialog.env_type_combo.currentText() == launcher.environment.type
         assert dialog.env_spec_field.text() == " ".join(launcher.environment.packages)
         assert dialog.persist_terminal.isChecked() == launcher.terminal.persist
-
-    def test_conda_environment_population(
-        self, qtbot: QtBot, mock_launcher_manager: LauncherManagerDouble
-    ) -> None:
-        """Test conda environment field population."""
-        launcher = create_conda_launcher()
-        dialog = LauncherEditDialog(mock_launcher_manager, launcher)
-        qtbot.addWidget(dialog)
-
-        assert dialog.env_type_combo.currentText() == "conda"
-        assert dialog.env_spec_field.text() == launcher.environment.command_prefix
 
     def test_name_validation_empty(
         self, qtbot: QtBot, mock_launcher_manager: LauncherManagerDouble
@@ -599,25 +577,6 @@ class TestLauncherEditDialog:
             mock_launcher_manager.get_created_launcher_count() == initial_launcher_count
         )
 
-    def test_conda_environment_handling(
-        self, qtbot: QtBot, mock_launcher_manager: LauncherManagerDouble
-    ) -> None:
-        """Test conda environment configuration in save."""
-        dialog = LauncherEditDialog(mock_launcher_manager)
-        qtbot.addWidget(dialog)
-
-        dialog.name_field.setText("Conda Launcher")
-        dialog.command_field.setPlainText("python script.py")
-        dialog.env_type_combo.setCurrentText("conda")
-        dialog.env_spec_field.setText("vfx_env")
-
-        dialog._save()
-
-        # Test behavior: verify launcher was created
-        created_launcher = mock_launcher_manager.get_last_created_launcher()
-        assert created_launcher is not None
-        assert created_launcher.name == "Conda Launcher"
-        assert created_launcher.command == "python script.py"
 
 
 class TestLauncherManagerDialog:

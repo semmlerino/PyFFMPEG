@@ -399,6 +399,61 @@ def cleanup_qt_state(qtbot: QtBot):
 ~/.local/bin/uv run pytest tests/ -k "test_cache" -v
 ```
 
+### Debugging Test Failures and Crashes
+
+**CRITICAL: When debugging test failures or crashes, do NOT use lossy pipes like `grep | head`.**
+
+Hard aborts (Fatal Python error, segfaults) often don't print nice FAILED/ERROR lines, and piping throws away the diagnostic output you need.
+
+**Step 1: Run ONE diagnostic test with full output to a log file**
+```bash
+cd ~/projects/shotbot
+export PYTHONFAULTHANDLER=1 && ~/.local/bin/uv run pytest tests/unit/ \
+  -vv -x --maxfail=1 --tb=short -s \
+  --log-cli-level=DEBUG \
+  2>&1 | tee /tmp/shotbot_pytest_diag.log
+```
+
+What each flag buys you:
+- `PYTHONFAULTHANDLER=1` → stack trace even on hard aborts
+- `-vv` → show which tests are running, not just dots
+- `-x --maxfail=1` → stop on first failure/crash
+- `-s` → let prints/logging through
+- `--log-cli-level=DEBUG` → logging handlers surface
+- `tee /tmp/shotbot_pytest_diag.log` → persistent log to inspect
+
+**Step 2: Inspect the log, DON'T rerun tests**
+```bash
+# Top of run
+sed -n '1,160p' /tmp/shotbot_pytest_diag.log
+
+# Last part of run
+tail -n 120 /tmp/shotbot_pytest_diag.log
+
+# Find fatal errors / tracebacks
+grep -n "Fatal Python error" /tmp/shotbot_pytest_diag.log || true
+grep -n "Traceback" /tmp/shotbot_pytest_diag.log | tail -20
+
+# Zoom in around a line number
+sed -n '320,380p' /tmp/shotbot_pytest_diag.log
+```
+
+**Step 3: Narrow to specific file/test once crash is understood**
+```bash
+# Single file
+~/.local/bin/uv run pytest tests/unit/test_specific.py \
+  -vv -x --tb=short -s 2>&1 | tee /tmp/shotbot_pytest_diag.log
+
+# Single test
+~/.local/bin/uv run pytest tests/unit/test_specific.py::TestClass::test_method \
+  -vv --tb=short -s 2>&1 | tee /tmp/shotbot_pytest_diag.log
+```
+
+**For Qt/PySide crashes, add:**
+```bash
+QT_DEBUG_PLUGINS=1 QT_QPA_PLATFORM=offscreen ~/.local/bin/uv run pytest ...
+```
+
 ### Test Coverage
 
 ```bash

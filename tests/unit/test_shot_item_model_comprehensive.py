@@ -32,6 +32,7 @@ from base_item_model import BaseItemRole as UnifiedRole
 from shot_item_model import ShotItemModel
 from shot_model import Shot
 from tests.test_doubles_library import TestCacheManager
+from tests.test_helpers import process_qt_events
 
 
 # Backward compatibility alias
@@ -44,6 +45,7 @@ pytestmark = [
 ]
 
 
+@pytest.mark.xdist_group("serial_qt_state")
 class TestAsyncCallbackRaceConditions:
     """Test async callback race condition fixes in ShotItemModel."""
 
@@ -60,8 +62,13 @@ class TestAsyncCallbackRaceConditions:
         model = ShotItemModel(test_cache_manager)
         # Don't use qtbot.addWidget() for QAbstractItemModel (UNIFIED_TESTING_GUIDE)
         yield model
+        # Process pending Qt events to complete async callbacks before deletion
+        # This prevents "Internal C++ object already deleted" errors
+        process_qt_events()
         model.clear_thumbnail_cache()
         model.deleteLater()
+        # Process events again to execute deleteLater
+        process_qt_events()
 
     @pytest.fixture
     def test_shots(self) -> list[Shot]:
@@ -126,17 +133,21 @@ class TestAsyncCallbackRaceConditions:
         with patch.object(
             model._cache_manager, "cache_thumbnail", mock_cache_thumbnail
         ):
+            # Pre-mark items as "loading" (as documented in _load_thumbnail_async)
+            for shot in test_shots:
+                model._loading_states[shot.full_name] = "loading"
+
             # Start multiple concurrent thumbnail loads
             for i, shot in enumerate(test_shots):
                 model._load_thumbnail_async(i, shot)
 
-            # Minimal event processing
-            qtbot.wait(1)
+            # Wait for async callbacks to complete
+            qtbot.wait(50)
 
             # Verify all cache calls were made
             assert len(cache_calls) == len(test_shots)
 
-            # Verify loading states were set correctly
+            # Verify loading states were set correctly (may transition to loaded/failed)
             for shot in test_shots:
                 state = model._loading_states.get(shot.full_name)
                 assert state in ["loading", "loaded", "failed"]  # Valid states
@@ -177,7 +188,10 @@ class TestShotItemModelCore:
         """Create basic ShotItemModel."""
         model = ShotItemModel()
         yield model
+        # Process pending Qt events before deletion
+        process_qt_events()
         model.deleteLater()
+        process_qt_events()
 
     def test_model_initialization(self, model: ShotItemModel) -> None:
         """Test model initializes correctly."""

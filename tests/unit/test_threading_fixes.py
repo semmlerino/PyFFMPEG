@@ -139,7 +139,7 @@ class TestQTimerCascadePrevention:
             for _ in range(10):
                 timer = QTimer()
                 timer.setSingleShot(True)
-                timer.timeout.connect(launcher_manager._cleanup_finished_workers)
+                timer.timeout.connect(process_manager._cleanup_finished_workers)
                 test_timers.append(timer)
                 timer.start(1)
 
@@ -182,7 +182,7 @@ class TestQTimerCascadePrevention:
         with QMutexLocker(process_manager._process_lock):
             process_manager._active_workers = {"worker1": mock_worker}
 
-        launcher_manager._cleanup_finished_workers()
+        process_manager._cleanup_finished_workers()
 
         with QMutexLocker(process_manager._process_lock):
             assert len(process_manager._active_workers) == 0

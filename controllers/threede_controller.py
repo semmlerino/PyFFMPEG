@@ -203,7 +203,7 @@ class ThreeDEController(LoggingMixin):
         cached_scenes = self.window.cache_manager.get_persistent_threede_scenes()
         if cached_scenes:
             # Convert cached data to ThreeDEScene objects
-            scenes = []
+            scenes: list[ThreeDEScene] = []
             for scene_data in cached_scenes:
                 try:
                     scenes.append(ThreeDEScene.from_dict(scene_data))  # pyright: ignore[reportArgumentType]
@@ -796,7 +796,7 @@ class ThreeDEController(LoggingMixin):
         # NOTE: item_model uses object type for polymorphism across different item models
         # All item models (ShotItemModel, ThreeDEItemModel, PreviousShotsItemModel)
         # implement set_show_filter with their specific model types
-        item_model.set_show_filter(model, show_filter)  # pyright: ignore[reportAttributeAccessIssue]
+        item_model.set_show_filter(model, show_filter)  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
 
         self.logger.info(
             f"Applied {tab_name} show filter: {show if show else 'All Shows'}"

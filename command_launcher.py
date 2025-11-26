@@ -9,17 +9,15 @@ This module provides the production launcher system for Shotbot, handling:
 from __future__ import annotations
 
 # Standard library imports
-import errno
 import os
-import subprocess
+import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING, cast, final
+from typing import TYPE_CHECKING, final
 
 # Third-party imports
-from PySide6.QtCore import QMetaObject, QObject, Qt, QTimer, Signal
+from PySide6.QtCore import QMetaObject, QObject, Qt, Signal
 
 # Local application imports
 from config import Config
@@ -37,19 +35,6 @@ else:
     # Import at runtime to avoid circular imports
     # Local application imports
     pass
-
-
-def _safe_filename_str(filename: str | bytes | int | None) -> str:
-    """Safely convert exception filename attribute to string.
-
-    Exception.filename can be None, str, bytes, or int.
-    This helper ensures type-safe conversion to str for error messages.
-    """
-    if filename is None:
-        return "unknown"
-    if isinstance(filename, bytes):
-        return filename.decode("utf-8", errors="replace")
-    return str(filename)
 
 
 @dataclass(frozen=True)
@@ -263,7 +248,8 @@ class CommandLauncher(LoggingMixin, QObject):
     ) -> bool:
         """Launch command in new terminal window with full error handling.
 
-        Template method helper for new terminal window execution.
+        Delegates to ProcessExecutor for terminal spawning. Supports headless
+        mode when no terminal emulator is available.
 
         Args:
             full_command: Complete command to execute
@@ -273,97 +259,30 @@ class CommandLauncher(LoggingMixin, QObject):
         Returns:
             True if launch successful, False otherwise
         """
-        # Pre-check for available terminal
+        # Detect available terminal (None = headless mode, use direct bash)
         terminal = self.env_manager.detect_terminal()
-        if terminal is None:
-            self._emit_error(
-                "No terminal emulator found (checked: gnome-terminal, konsole, xfce4-terminal, "
-                "mate-terminal, alacritty, kitty, terminology, xterm, x-terminal-emulator)"
-            )
-            return False
 
-        try:
-            # Build command for the detected terminal
-            if terminal == "gnome-terminal":
-                term_cmd = ["gnome-terminal", "--", "bash", "-ilc", full_command]
-            elif terminal == "konsole":
-                term_cmd = ["konsole", "-e", "bash", "-ilc", full_command]
-            elif terminal == "kitty":
-                # kitty uses different syntax: kitty bash -ilc "command"
-                term_cmd = ["kitty", "bash", "-ilc", full_command]
-            elif terminal in [
-                "xterm",
-                "x-terminal-emulator",
-                "xfce4-terminal",
-                "mate-terminal",
-                "alacritty",
-                "terminology",
-            ]:
-                # These terminals all use -e flag for command execution
-                term_cmd = [terminal, "-e", "bash", "-ilc", full_command]
-            else:
-                # Fallback to direct execution
-                term_cmd = ["/bin/bash", "-ilc", full_command]
+        # Record enqueue time for process verification
+        enqueue_time = time.time()
 
-            process = subprocess.Popen(term_cmd)
+        # Delegate to ProcessExecutor for terminal spawning
+        process = self.process_executor.execute_in_new_terminal(
+            full_command, app_name, terminal
+        )
 
-            # Verify spawn after 100ms (asynchronous to avoid blocking UI) - Task 5.1
-            # Use functools.partial for safe reference capture (avoids lambda race conditions)
-            QTimer.singleShot(
-                100, partial(self.process_executor.verify_spawn, process, app_name)
-            )
-
-            return True
-
-        except FileNotFoundError as e:
-            # Type-safe: e.filename can be None, str, bytes, or int - Task 6.3
-            filename_not_found: str = _safe_filename_str(
-                cast("str | bytes | int | None", e.filename)
-            )
-            self._emit_error(
-                f"Cannot launch {app_name}{error_context}: Application or terminal not found. Details: {filename_not_found}"
-            )
-            NotificationManager.error(
-                "Launch Failed", f"{app_name} executable not found"
-            )
+        if process is None:
+            # ProcessExecutor already logged the error details
+            self._emit_error(f"Failed to launch {app_name}{error_context}")
+            NotificationManager.error("Launch Failed", f"{app_name} failed to start")
             # Clear cache on failure - terminal may have been uninstalled
             self.env_manager.reset_cache()
             return False
 
-        except PermissionError as e:
-            # Type-safe: e.filename can be None, str, bytes, or int - Task 6.3
-            filename_perm: str = _safe_filename_str(
-                cast("str | bytes | int | None", e.filename)
-            )
-            self._emit_error(
-                f"Cannot launch {app_name}{error_context}: Permission denied. Check file permissions for: {filename_perm}"
-            )
-            return False
+        # Start async app verification for GUI apps (runs in background thread)
+        # This detects if the actual application (not just terminal) launched successfully
+        self.process_executor.start_app_verification(app_name, enqueue_time)
 
-        except OSError as e:
-            # Type-safe: e.errno and e.strerror can be None - Task 6.3
-            if e.errno == errno.EACCES:
-                msg = "Permission denied - check file permissions"
-            elif e.errno == errno.ENOSPC:
-                msg = "No space left on device"
-            elif e.errno == errno.EMFILE:
-                msg = "Too many open files"
-            elif e.errno == errno.ENOMEM:
-                msg = "Out of memory"
-            else:
-                errno_str = str(e.errno) if e.errno is not None else "unknown"
-                strerror = e.strerror if e.strerror else "unknown error"
-                msg = f"{strerror} (errno {errno_str})"
-
-            self._emit_error(f"Cannot launch {app_name}{error_context}: {msg}")
-            return False
-
-        except Exception as e:
-            # Fallback for unexpected errors - Task 6.3
-            # Clear cache on failure - terminal may have been uninstalled
-            self.env_manager.reset_cache()
-            self._emit_error(f"Failed to launch {app_name}{error_context}: {e!s}")
-            return False
+        return True
 
     def _execute_launch(
         self, full_command: str, app_name: str, error_context: str = ""
@@ -519,6 +438,14 @@ class CommandLauncher(LoggingMixin, QObject):
                     "Info: No Maya scene files found in workspace",
                 )
 
+        # Pre-flight: Check if ws command is available
+        if not self.env_manager.is_ws_available():
+            self._emit_error(
+                "Workspace command 'ws' not found. "
+                "Ensure workspace tools are installed and on PATH."
+            )
+            return False
+
         # Build full command with ws (workspace setup)
         # Validate and escape workspace path to prevent injection
         try:
@@ -535,8 +462,8 @@ class CommandLauncher(LoggingMixin, QObject):
             self._emit_error(f"Invalid workspace path: {e!s}")
             return False
 
-        # Wrap with rez environment if available
-        if self.env_manager.is_rez_available(Config):
+        # Wrap with rez environment if available (skip if ws handles rez internally)
+        if self.env_manager.is_rez_available(Config) and not Config.WS_HANDLES_REZ:
             rez_packages = self.env_manager.get_rez_packages(app_name, Config)
             if rez_packages:
                 # Use CommandBuilder to wrap with rez environment
@@ -605,6 +532,14 @@ class CommandLauncher(LoggingMixin, QObject):
         if not self._validate_workspace_before_launch(scene.workspace_path, app_name):
             return False
 
+        # Pre-flight: Check if ws command is available
+        if not self.env_manager.is_ws_available():
+            self._emit_error(
+                "Workspace command 'ws' not found. "
+                "Ensure workspace tools are installed and on PATH."
+            )
+            return False
+
         # Build full command with ws (workspace setup)
         # Validate and escape workspace path to prevent injection
         try:
@@ -619,8 +554,8 @@ class CommandLauncher(LoggingMixin, QObject):
             self._emit_error(f"Invalid workspace path: {e!s}")
             return False
 
-        # Wrap with rez environment if available
-        if self.env_manager.is_rez_available(Config):
+        # Wrap with rez environment if available (skip if ws handles rez internally)
+        if self.env_manager.is_rez_available(Config) and not Config.WS_HANDLES_REZ:
             rez_packages = self.env_manager.get_rez_packages(app_name, Config)
             if rez_packages:
                 # Use CommandBuilder to wrap with rez environment
@@ -724,6 +659,14 @@ class CommandLauncher(LoggingMixin, QObject):
         if not self._validate_workspace_before_launch(scene.workspace_path, app_name):
             return False
 
+        # Pre-flight: Check if ws command is available
+        if not self.env_manager.is_ws_available():
+            self._emit_error(
+                "Workspace command 'ws' not found. "
+                "Ensure workspace tools are installed and on PATH."
+            )
+            return False
+
         # Build full command with ws (workspace setup)
         # Validate and escape workspace path to prevent injection
         try:
@@ -733,8 +676,8 @@ class CommandLauncher(LoggingMixin, QObject):
             self._emit_error(f"Invalid workspace path: {e!s}")
             return False
 
-        # Wrap with rez environment if available
-        if self.env_manager.is_rez_available(Config):
+        # Wrap with rez environment if available (skip if ws handles rez internally)
+        if self.env_manager.is_rez_available(Config) and not Config.WS_HANDLES_REZ:
             rez_packages = self.env_manager.get_rez_packages(app_name, Config)
             if rez_packages:
                 # Use CommandBuilder to wrap with rez environment

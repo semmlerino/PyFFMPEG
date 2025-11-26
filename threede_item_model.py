@@ -293,7 +293,7 @@ class ThreeDEItemModel(BaseItemModel["ThreeDEScene"]):
                 # Only disconnect if there are receivers
                 # receivers(None) returns total count of all connections
                 # Note: Qt's receivers() method is not properly typed in PySide6 stubs
-                if signal.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue]
+                if signal.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
                     _ = signal.disconnect()
             except (RuntimeError, TypeError, AttributeError):
                 pass  # Already disconnected, no connections, or object deleted

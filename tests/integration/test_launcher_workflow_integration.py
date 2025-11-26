@@ -229,7 +229,7 @@ class TestLauncherWorkflowIntegration:
             long_running_process.wait.return_value = 0
 
             # Trigger cleanup - this should always work
-            launcher_manager._cleanup_finished_workers()
+            launcher_manager._process_manager._cleanup_finished_workers()
 
             # Verify cleanup method completed (don't assert on counts which may vary)
             updated_count = launcher_manager.get_active_process_count()

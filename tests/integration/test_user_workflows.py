@@ -392,9 +392,10 @@ class TestUserWorkflows:
         # Use test subprocess for Maya launch
         with (
             patch(
-                "subprocess.Popen", return_value=self.test_processes["maya"]
+                "launch.process_executor.subprocess.Popen", return_value=self.test_processes["maya"]
             ) as mock_popen,
             patch.dict("os.environ", {"SHOTBOT_TEST_MODE": "true"}),
+            patch("command_launcher.EnvironmentManager.is_ws_available", return_value=True),
         ):
             # Create a 3DE scene object for testing
             # Local application imports

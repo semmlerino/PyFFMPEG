@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 # Standard library imports
-from collections.abc import Generator
-from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, cast, final
 
@@ -72,40 +70,6 @@ class PreviousShotsModel(LoggingMixin, QObject):
 
         self.logger.info("PreviousShotsModel initialized")
 
-    @contextmanager
-    def _scanning_lock(self) -> Generator[bool, None, None]:
-        """Context manager for scanning lock with guaranteed cleanup.
-
-        Yields:
-            True if lock acquired, False if already scanning
-
-        Usage:
-            with self._scanning_lock() as acquired:
-                if not acquired:
-                    return False
-                # ... do work ...
-            # Lock automatically released here
-
-        Note: For async operations (like refresh_shots), use manual lock management
-        with _reset_scanning_flag() for cleanup instead.
-        """
-        # Try to acquire
-        with QMutexLocker(self._scan_lock):
-            if self._is_scanning:
-                self.logger.debug("Scan lock already held")
-                yield False
-                return
-            self._is_scanning = True
-            self.logger.debug("Acquired scan lock")
-
-        try:
-            yield True
-        finally:
-            # Guaranteed cleanup even on exceptions
-            with QMutexLocker(self._scan_lock):
-                self._is_scanning = False
-                self.logger.debug("Released scan lock")
-
     def _reset_scanning_flag(self) -> None:
         """Reset the scanning flag with proper locking.
 
@@ -154,15 +118,15 @@ class PreviousShotsModel(LoggingMixin, QObject):
                 # from Qt when attempting to disconnect signals that have no connections.
                 # Qt's receivers() method is not properly typed in PySide6 stubs
                 try:
-                    if worker.scan_finished.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue]
+                    if worker.scan_finished.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
                         _ = worker.scan_finished.disconnect()
-                    if worker.error_occurred.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue]
+                    if worker.error_occurred.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
                         _ = worker.error_occurred.disconnect()
                     # PreviousShotsWorker uses scan_progress, not progress
                     # ThreeDESceneWorker uses progress signal
                     # Runtime hasattr check handles polymorphism - attribute may not exist
-                    if hasattr(worker, "progress") and worker.progress.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue]
-                        worker.progress.disconnect()  # pyright: ignore[reportAttributeAccessIssue]
+                    if hasattr(worker, "progress") and worker.progress.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
+                        worker.progress.disconnect()  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
                 except (RuntimeError, TypeError, AttributeError):
                     pass  # Already disconnected or no connections
 
@@ -302,24 +266,6 @@ class PreviousShotsModel(LoggingMixin, QObject):
         self._cleanup_worker_safely()
         self.scan_finished.emit()
 
-    def _has_changes(self, new_shots: list[Shot]) -> bool:
-        """Check if the shot list has changed.
-
-        Args:
-            new_shots: New list of shots to compare.
-
-        Returns:
-            True if there are changes, False otherwise.
-        """
-        if len(new_shots) != len(self._previous_shots):
-            return True
-
-        # Create sets for comparison
-        current_ids = {(s.show, s.sequence, s.shot) for s in self._previous_shots}
-        new_ids = {(s.show, s.sequence, s.shot) for s in new_shots}
-
-        return current_ids != new_ids
-
     def get_shots(self) -> list[Shot]:
         """Get the list of previous/approved shots.
 
@@ -425,8 +371,11 @@ class PreviousShotsModel(LoggingMixin, QObject):
         """
         try:
             # Load both sources (persistent - no TTL expiration)
-            # Type annotation helps type checker infer correct types downstream
-            scanned_data: list[ShotDict] = self._cache_manager.get_persistent_previous_shots() or []  # type: ignore[attr-defined]
+            # Cast required because get_persistent_previous_shots is dynamically added
+            scanned_data = cast(
+                "list[ShotDict]",
+                self._cache_manager.get_persistent_previous_shots() or [],  # type: ignore[attr-defined]
+            )
             migrated_data: list[ShotDict] = self._cache_manager.get_migrated_shots() or []
 
             # Merge with deduplication using composite key
@@ -489,38 +438,6 @@ class PreviousShotsModel(LoggingMixin, QObject):
             self.logger.info("Cleared previous shots cache")
         except Exception as e:
             self.logger.error(f"Error clearing previous shots cache: {e}")
-
-    def _clear_caches_for_refresh(self) -> None:
-        """Clear all relevant caches for manual refresh.
-
-        This method clears directory caches, path caches, and filesystem caches
-        to ensure fresh data when manually refreshing.
-        """
-        try:
-            # Clear our own cache
-            self.clear_cache()
-
-            # Clear directory cache in 3DE scene finder
-            # Local application imports
-            from threede_scene_finder_optimized import (
-                OptimizedThreeDESceneFinder as ThreeDESceneFinder,
-            )
-
-            if hasattr(ThreeDESceneFinder, "refresh_cache"):
-                cleared_count = ThreeDESceneFinder.refresh_cache()
-                self.logger.debug(f"Cleared {cleared_count} directory cache entries")
-
-            # Clear path cache in utils
-            # Local application imports
-            from utils import clear_all_caches
-
-            clear_all_caches()
-            self.logger.debug("Cleared path validation caches")
-
-            self.logger.info("Successfully cleared all caches for manual refresh")
-
-        except Exception as e:
-            self.logger.error(f"Error clearing caches for refresh: {e}")
 
     def cleanup(self) -> None:
         """Clean up resources and stop worker thread."""

@@ -158,6 +158,8 @@ class LauncherProcessManager(LoggingMixin, QObject):
         Returns:
             True if worker started successfully, False otherwise
         """
+        # Initialize worker_key before try block so it's always defined for cleanup
+        worker_key: str | None = None
         try:
             # Create worker with proper Qt parent for ownership
             worker = LauncherWorker(launcher_id, command, working_dir, parent=self)
@@ -208,6 +210,12 @@ class LauncherProcessManager(LoggingMixin, QObject):
             return True
 
         except Exception as e:
+            # CRITICAL: Remove worker from tracking on failure to prevent memory leak
+            # Worker was added at line 203 before start() was called
+            # Only cleanup if worker_key was assigned (exception could occur before)
+            if worker_key is not None:
+                with QMutexLocker(self._process_lock):
+                    _ = self._active_workers.pop(worker_key, None)
             self.logger.error(f"Failed to start worker thread: {e}")
             self.process_error.emit(launcher_id, str(e))
             return False
@@ -361,59 +369,67 @@ class LauncherProcessManager(LoggingMixin, QObject):
         Returns:
             True if process was terminated, False otherwise
         """
-        # Check if it's a subprocess
+        # Get process/worker reference under lock, then release before blocking operations
+        process_info = None
+        worker = None
+
         with QMutexLocker(self._process_lock):
             if process_key in self._active_processes:
                 process_info = self._active_processes[process_key]
-                try:
-                    if force:
-                        process_info.process.kill()
-                    else:
-                        process_info.process.terminate()
-
-                    # Wait briefly for termination
-                    try:
-                        _ = process_info.process.wait(timeout=5)
-                    except subprocess.TimeoutExpired:
-                        if not force:
-                            # Try force kill as fallback
-                            process_info.process.kill()
-                            _ = process_info.process.wait(timeout=2)
-
-                    # Remove from tracking
-                    del self._active_processes[process_key]
-                    self.logger.info(f"Terminated process {process_key}")
-                    return True
-
-                except Exception as e:
-                    self.logger.error(f"Failed to terminate process {process_key}: {e}")
-                    return False
-
-            # Check if it's a worker thread
+                # Remove from tracking immediately to prevent double-termination
+                del self._active_processes[process_key]
             elif process_key in self._active_workers:
                 worker = self._active_workers[process_key]
+                # Remove from tracking immediately
+                del self._active_workers[process_key]
+
+        # Now do blocking operations OUTSIDE the lock to prevent UI freezes
+        if process_info is not None:
+            try:
+                if force:
+                    process_info.process.kill()
+                else:
+                    process_info.process.terminate()
+
+                # Wait briefly for termination (no longer holding lock)
                 try:
-                    _ = worker.request_stop()
-                    if not worker.wait(5000):  # Wait 5 seconds
-                        self.logger.warning(
-                            f"Worker {process_key} did not stop gracefully"
-                        )
+                    _ = process_info.process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    if not force:
+                        # Try force kill as fallback
+                        process_info.process.kill()
+                        _ = process_info.process.wait(timeout=2)
 
-                    # Disconnect signals to prevent warnings
-                    try:
-                        _ = worker.command_started.disconnect()
-                        _ = worker.command_finished.disconnect()
-                        _ = worker.command_error.disconnect()
-                    except (RuntimeError, TypeError):
-                        # Signals may already be disconnected
-                        pass
+                self.logger.info(f"Terminated process {process_key}")
+                return True
 
-                    del self._active_workers[process_key]
-                    self.worker_removed.emit(process_key)
-                    return True
-                except Exception as e:
-                    self.logger.error(f"Failed to stop worker {process_key}: {e}")
-                    return False
+            except Exception as e:
+                self.logger.error(f"Failed to terminate process {process_key}: {e}")
+                return False
+
+        if worker is not None:
+            try:
+                _ = worker.request_stop()
+                # Wait outside lock to prevent blocking other operations
+                if not worker.wait(5000):  # Wait 5 seconds
+                    self.logger.warning(
+                        f"Worker {process_key} did not stop gracefully"
+                    )
+
+                # Disconnect signals to prevent warnings
+                try:
+                    _ = worker.command_started.disconnect()
+                    _ = worker.command_finished.disconnect()
+                    _ = worker.command_error.disconnect()
+                except (RuntimeError, TypeError):
+                    # Signals may already be disconnected
+                    pass
+
+                self.worker_removed.emit(process_key)
+                return True
+            except Exception as e:
+                self.logger.error(f"Failed to stop worker {process_key}: {e}")
+                return False
 
         self.logger.warning(f"Process/worker {process_key} not found")
         return False
@@ -554,6 +570,7 @@ class LauncherProcessManager(LoggingMixin, QObject):
         # Clear all tracking
         with QMutexLocker(self._process_lock):
             self._active_workers.clear()
+            self._active_processes.clear()
 
         self.logger.info("All workers and processes stopped")
 

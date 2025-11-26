@@ -17,6 +17,7 @@ from PySide6.QtCore import QObject, Signal
 
 # Local application imports
 from config import ThreadingConfig
+from launch.environment_builder import EnvironmentCommandBuilder
 from launcher.config_manager import LauncherConfigManager
 from launcher.models import (
     CustomLauncher,
@@ -115,12 +116,6 @@ class LauncherManager(LoggingMixin, QObject):
         self.logger.info(
             f"LauncherManager initialized with {self._repository.count()} launchers"
         )
-
-    # ==================== Delegation Methods ====================
-
-    def _cleanup_finished_workers(self) -> None:
-        """Clean up finished workers by delegating to process manager."""
-        return self._process_manager._cleanup_finished_workers()  # pyright: ignore[reportPrivateUsage]
 
     # ==================== CRUD Operations ====================
 
@@ -391,6 +386,21 @@ class LauncherManager(LoggingMixin, QObject):
 
     # ==================== Execution ====================
 
+    def _build_environment_command(
+        self, launcher: CustomLauncher, base_command: str
+    ) -> str:
+        """Build command with environment settings applied.
+
+        Args:
+            launcher: The launcher containing environment config
+            base_command: Command after variable substitution
+
+        Returns:
+            Full command string with environment wrapping applied
+        """
+        builder = EnvironmentCommandBuilder()
+        return builder.build_command(base_command, launcher.environment)
+
     def execute_launcher(
         self,
         launcher_id: str,
@@ -427,9 +437,12 @@ class LauncherManager(LoggingMixin, QObject):
 
         # Substitute variables
         merged_vars = {**launcher.variables, **(custom_vars or {})}
-        command = self._validator.substitute_variables(
+        base_command = self._validator.substitute_variables(
             launcher.command, None, merged_vars
         )
+
+        # Apply environment settings (source files, prefix, rez wrapping)
+        command = self._build_environment_command(launcher, base_command)
 
         if dry_run:
             self.logger.info(f"DRY RUN - Would execute: {command}")
@@ -455,10 +468,8 @@ class LauncherManager(LoggingMixin, QObject):
             )
         else:
             # Use subprocess for terminal commands
-            # Standard library imports
-            import shlex
-
-            cmd_list = shlex.split(command)
+            # Use bash -c to preserve shell semantics (&&, pipes, etc.)
+            cmd_list = ["bash", "-c", command]
             process_key = self._process_manager.execute_with_subprocess(
                 launcher_id,
                 launcher.name,

@@ -545,7 +545,9 @@ class CacheManager(LoggingMixin, QObject):
                 # Assume Shot object with to_dict method - TYPE_CHECKING import prevents runtime check
                 shot_dicts.append(shot.to_dict())
 
-        _ = self._write_json_cache(self.shots_cache_file, shot_dicts)
+        success = self._write_json_cache(self.shots_cache_file, shot_dicts)
+        if not success:
+            self.logger.warning("Failed to write shots cache - data may not persist across restarts")
         self.cache_updated.emit()
 
     def get_persistent_shots(self) -> list[ShotDict] | None:
@@ -1055,7 +1057,7 @@ class CacheManager(LoggingMixin, QObject):
                     return None
 
             # Read JSON - returns JSONValue which we validate at runtime
-            with Path(cache_file).open() as f:
+            with Path(cache_file).open(encoding="utf-8") as f:
                 raw_data: JSONValue = cast("JSONValue", json.load(f))
 
             # Validate structure through runtime checks and type narrowing
@@ -1122,7 +1124,7 @@ class CacheManager(LoggingMixin, QObject):
                 dir=cache_file.parent, prefix=f".{cache_file.name}.", suffix=".tmp"
             )
             try:
-                with os.fdopen(fd, "w") as f:
+                with os.fdopen(fd, "w", encoding="utf-8") as f:
                     json.dump(cache_data, f)  # No indent for 25-30% faster serialization
                     f.flush()  # Flush to OS buffer (atomic rename ensures readers see complete data)
 

@@ -32,6 +32,7 @@ from cache_manager import CacheManager
 from shot_info_panel import ShotInfoPanel
 from shot_item_model import ShotItemModel
 from shot_model import Shot
+from tests.test_helpers import process_qt_events
 
 
 pytestmark = [
@@ -41,6 +42,7 @@ pytestmark = [
 ]
 
 
+@pytest.mark.xdist_group("serial_qt_state")
 class TestAsyncWorkflowIntegration:
     """Test async workflows across multiple components."""
 
@@ -48,7 +50,7 @@ class TestAsyncWorkflowIntegration:
     def cleanup_qt_state(self, qtbot: QtBot) -> Any:
         """Autouse fixture to ensure Qt state is cleaned up after each test."""
         yield
-        qtbot.wait(1)  # Process pending Qt events
+        process_qt_events()  # Process pending Qt events
 
     @pytest.fixture
     def temp_setup(self, tmp_path: Path) -> tuple[Path, list[Path]]:
@@ -223,6 +225,13 @@ class TestAsyncWorkflowIntegration:
         assert item_model.rowCount() == 1
         assert info_panel._current_shot is not None
 
+        # Cleanup - process events and delete components
+        process_qt_events()
+        item_model.clear_thumbnail_cache()
+        item_model.deleteLater()
+        info_panel.deleteLater()
+        process_qt_events()
+
     def test_cache_coherence_across_components(
         self,
         integration_components: Callable[[], tuple[ShotItemModel, ShotInfoPanel, CacheManager]],
@@ -383,6 +392,7 @@ class TestAsyncWorkflowIntegration:
         assert item_model.rowCount() >= 0
 
 
+@pytest.mark.xdist_group("serial_qt_state")
 class TestAsyncCallbackIntegration:
     """Test async callback integration scenarios."""
 
@@ -390,7 +400,7 @@ class TestAsyncCallbackIntegration:
     def cleanup_qt_state(self, qtbot: QtBot) -> Any:
         """Autouse fixture to ensure Qt state is cleaned up after each test."""
         yield
-        qtbot.wait(1)  # Process pending Qt events
+        process_qt_events()  # Process pending Qt events
 
     def test_model_reset_during_async_callbacks(
         self, qtbot: QtBot, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
