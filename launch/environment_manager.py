@@ -171,6 +171,7 @@ class EnvironmentManager:
             "nuke": config.REZ_NUKE_PACKAGES,
             "maya": config.REZ_MAYA_PACKAGES,
             "3de": config.REZ_3DE_PACKAGES,
+            "publish": config.REZ_PUBLISH_PACKAGES,
         }
         packages = package_map.get(app_name, [])
         logger.debug(f"Rez packages for {app_name}: {packages}")

@@ -117,6 +117,7 @@ class Config:
     ]  # Default rez packages for Nuke with Python 3.11 compatibility
     REZ_MAYA_PACKAGES: ClassVar[list[str]] = ["maya"]  # Default rez packages for Maya
     REZ_3DE_PACKAGES: ClassVar[list[str]] = ["3de"]  # Default rez packages for 3DE
+    REZ_PUBLISH_PACKAGES: ClassVar[list[str]] = ["publish_standalone"]  # Rez packages for publish tool
 
     NUKE_FIX_OCIO_CRASH: bool = (
         False  # Whether to apply environment fixes to prevent OCIO plugin crashes
