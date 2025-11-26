@@ -48,6 +48,18 @@ class EnvironmentManager:
         "x-terminal-emulator",
     ]
 
+    # X11-based terminals that require DISPLAY environment variable
+    # These will fail on headless/WSL systems without X11 forwarding
+    X11_TERMINALS: Final[set[str]] = {
+        "gnome-terminal",
+        "konsole",
+        "xfce4-terminal",
+        "mate-terminal",
+        "terminology",
+        "xterm",
+        "x-terminal-emulator",
+    }
+
     # Cache TTL for terminal detection (5 minutes)
     TERMINAL_CACHE_TTL_SEC: Final[float] = 300.0
 
@@ -59,20 +71,26 @@ class EnvironmentManager:
         self._terminal_cache_time: float = 0.0
 
     def is_rez_available(self, config: "type[Config]") -> bool:
-        """Check if rez environment is available and should be used for wrapping.
+        """Check if rez wrapping should be applied to commands.
 
         Args:
             config: Application configuration
 
         Returns:
-            True if rez is available and should be used for wrapping commands
+            True if rez wrapping should be applied, False to skip wrapping
 
-        Notes:
-            - Checks config.USE_REZ_ENVIRONMENT first
-            - If REZ_AUTO_DETECT enabled and REZ_USED is set, returns False
-              (already in a rez context, don't double-wrap)
-            - Otherwise checks if 'rez' command is available
-            - Caches result for performance
+        Returns False (skip wrapping) when:
+            - config.USE_REZ_ENVIRONMENT is False
+            - REZ_AUTO_DETECT enabled AND REZ_USED env var is set
+              (indicates shell init already set up Rez - don't double-wrap)
+            - 'rez' command not found on PATH
+
+        Note:
+            In BlueBolt's VFX environment, Rez is initialized by shell startup
+            (setbbplatform in bashrc.env), NOT by the ws command. The ws command
+            only sets workspace context variables (SHOW, SEQUENCE, SHOT).
+            When REZ_USED is set, we're already in a rez context and should not
+            wrap again to avoid package conflicts.
         """
         if not config.USE_REZ_ENVIRONMENT:
             return False
@@ -97,13 +115,19 @@ class EnvironmentManager:
         """Check if ws (workspace) command is available.
 
         Returns:
-            True if ws command is available (binary, function, or alias)
+            True if ws command is available (shell function, alias, or binary)
 
-        Notes:
-            - Uses bash login shell to detect shell functions/aliases
-              (shutil.which only finds binaries, not shell functions)
-            - Checks once and caches result
-            - Used for pre-flight validation before launching
+        The ws command is a BlueBolt VFX facility shell function that:
+            - Is an alias to 'workspace' function defined in interactive shell
+            - Takes a workspace path as argument (e.g., ws /shows/show/shots/seq/shot)
+            - Generates and sources a temporary file that sets:
+              SHOW, SEQUENCE, SHOT, WORKSPACE_PATH variables
+            - Sources hierarchical env.sh files for show/sequence/shot config
+            - Does NOT handle Rez (Rez is set up by shell init before ws runs)
+
+        Detection uses bash -lc because ws is a shell function defined
+        in the interactive shell profile (.bashrc), not a binary on PATH.
+        shutil.which() only finds binaries, so we need bash to detect the function.
         """
         if self._ws_available_cache is not None:
             return self._ws_available_cache
@@ -159,6 +183,7 @@ class EnvironmentManager:
             - Checks terminals in preference order
             - Caches result for performance with 5-minute TTL
             - Preference: gnome-terminal > konsole > xterm > x-terminal-emulator
+            - Skips X11 terminals when DISPLAY is not set (headless/WSL)
         """
         # Return cached result if not expired (cache_time > 0 means detection was performed)
         current_time = time.monotonic()
@@ -168,9 +193,21 @@ class EnvironmentManager:
         ):
             return self._available_terminal_cache
 
+        # Check if X11 display is available
+        display = os.environ.get("DISPLAY")
+        has_display = bool(display)
+
+        if not has_display:
+            logger.debug("No DISPLAY set - X11 terminals will be skipped")
+
         # Check terminals in order of preference
         for term in self.TERMINAL_PREFERENCE:
             if shutil.which(term) is not None:
+                # Skip X11 terminals if no DISPLAY (prevents infinite failure loop)
+                if term in self.X11_TERMINALS and not has_display:
+                    logger.debug(f"Skipping {term}: requires DISPLAY (not set)")
+                    continue
+
                 self._available_terminal_cache = term
                 self._terminal_cache_time = current_time
                 logger.info(f"Detected terminal: {term}")

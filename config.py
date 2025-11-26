@@ -94,7 +94,13 @@ class Config:
     USE_REZ_ENVIRONMENT: bool = True  # Enable rez environment wrapper when available
     REZ_AUTO_DETECT: bool = True  # Automatically detect rez availability via REZ_USED env var
     REZ_FORCE_WRAP: bool = False  # Force rez wrapping even when already in rez env (REZ_USED set)
-    WS_HANDLES_REZ: bool = True  # ws command handles rez loading internally; skip outer rez wrapper
+    # Rez Environment Strategy: Skip outer rez wrapping when Rez is already available.
+    # In BlueBolt's VFX environment, the shell initialization chain sets up Rez:
+    #   ~/.bashrc → /etc/bashrc → bashrc.env → setbbplatform (REZ_USED set here)
+    # The 'ws' command only sets workspace context (SHOW, SEQUENCE, SHOT), NOT Rez.
+    # When True: Skip rez wrapping because shell init already provides rez context.
+    # When False: Apply rez wrapping (for environments that don't init Rez at startup).
+    REZ_ALREADY_AVAILABLE: bool = True
 
     # Launch Verification Configuration
     LAUNCH_VERIFICATION_ENABLED: bool = True  # Enable async verification of GUI app launches

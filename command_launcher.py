@@ -11,6 +11,8 @@ from __future__ import annotations
 # Standard library imports
 import os
 import time
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeoutError
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -111,6 +113,11 @@ class CommandLauncher(LoggingMixin, QObject):
         self._signal_connections.append(
             self.process_executor.execution_error.connect(
                 self._on_execution_error, Qt.ConnectionType.QueuedConnection
+            )
+        )
+        self._signal_connections.append(
+            self.process_executor.app_verification_timeout.connect(
+                self._on_app_verification_timeout, Qt.ConnectionType.QueuedConnection
             )
         )
 
@@ -238,6 +245,22 @@ class CommandLauncher(LoggingMixin, QObject):
         """
         self._emit_error(f"[{operation}] {error_message}")
 
+    def _on_app_verification_timeout(self, app_name: str) -> None:
+        """Handle app verification timeout from ProcessExecutor.
+
+        When a GUI app fails to verify (process not found after timeout),
+        reset the terminal cache. The terminal may have been detected but
+        failed to work properly (e.g., X11 issues, permission problems).
+        This allows re-detection on the next launch attempt.
+
+        Args:
+            app_name: Name of the application that failed verification
+        """
+        self.env_manager.reset_cache()
+        self._emit_error(
+            f"[{app_name}] Verification timeout - terminal cache reset for next attempt"
+        )
+
     # Methods removed - now using launch components:
     # - _is_rez_available() → self.env_manager.is_rez_available(Config)
     # - _get_rez_packages_for_app() → self.env_manager.get_rez_packages(app_name, Config)
@@ -260,6 +283,16 @@ class CommandLauncher(LoggingMixin, QObject):
         Returns:
             True if launch successful, False otherwise
         """
+        # Validate command length to prevent silent truncation
+        cmd_length = len(full_command)
+        if cmd_length > self.MAX_COMMAND_LENGTH:
+            self._emit_error(
+                f"Cannot launch {app_name}: Command too long "
+                f"({cmd_length} chars, max {self.MAX_COMMAND_LENGTH}). "
+                "Try shorter paths or fewer rez packages."
+            )
+            return False
+
         # Detect available terminal (None = headless mode, use direct bash)
         terminal = self.env_manager.detect_terminal()
 
@@ -468,8 +501,9 @@ class CommandLauncher(LoggingMixin, QObject):
             self._emit_error(f"Invalid workspace path: {e!s}")
             return False
 
-        # Wrap with rez environment if available (skip if ws handles rez internally)
-        if self.env_manager.is_rez_available(Config) and not Config.WS_HANDLES_REZ:
+        # Wrap with rez environment if not already available from shell init.
+        # When REZ_ALREADY_AVAILABLE=True, shell init (setbbplatform) already set up Rez.
+        if self.env_manager.is_rez_available(Config) and not Config.REZ_ALREADY_AVAILABLE:
             rez_packages = self.env_manager.get_rez_packages(app_name, Config)
             if rez_packages:
                 # Use CommandBuilder to wrap with rez environment
@@ -483,23 +517,30 @@ class CommandLauncher(LoggingMixin, QObject):
                 full_command = ws_command
         else:
             full_command = ws_command
-            # Emit visible warning that Rez wrapping is skipped - app version depends on ws/PATH
+            # Emit visible message explaining why Rez wrapping is skipped
+            # This helps users understand which app version will be used
             timestamp = self.timestamp
-            if Config.WS_HANDLES_REZ:
+            if Config.REZ_ALREADY_AVAILABLE:
                 self.command_executed.emit(
                     timestamp,
-                    f"Note: Rez skipped - workspace handles {app_name} environment",
+                    f"Note: Rez wrap skipped - shell init already provides rez for {app_name}",
                 )
             elif os.environ.get("REZ_USED"):
                 self.command_executed.emit(
                     timestamp,
                     f"Note: Already in rez environment - skipping rez wrap for {app_name}",
                 )
-            else:
-                # Rez not available but expected - warn user
+            elif not Config.USE_REZ_ENVIRONMENT:
+                # Rez explicitly disabled by configuration
                 self.command_executed.emit(
                     timestamp,
-                    f"Warning: Rez not available - {app_name} will use system PATH version",
+                    f"Note: Rez disabled by config - {app_name} will use system PATH version",
+                )
+            else:
+                # Rez enabled but command not found on system
+                self.command_executed.emit(
+                    timestamp,
+                    f"Warning: Rez command not found - {app_name} will use system PATH version",
                 )
 
         # Add logging redirection for debugging
@@ -578,8 +619,9 @@ class CommandLauncher(LoggingMixin, QObject):
             self._emit_error(f"Invalid workspace path: {e!s}")
             return False
 
-        # Wrap with rez environment if available (skip if ws handles rez internally)
-        if self.env_manager.is_rez_available(Config) and not Config.WS_HANDLES_REZ:
+        # Wrap with rez environment if not already available from shell init.
+        # When REZ_ALREADY_AVAILABLE=True, shell init (setbbplatform) already set up Rez.
+        if self.env_manager.is_rez_available(Config) and not Config.REZ_ALREADY_AVAILABLE:
             rez_packages = self.env_manager.get_rez_packages(app_name, Config)
             if rez_packages:
                 # Use CommandBuilder to wrap with rez environment
@@ -589,9 +631,9 @@ class CommandLauncher(LoggingMixin, QObject):
         else:
             full_command = ws_command
             # Log that Rez wrapping is skipped
-            if Config.WS_HANDLES_REZ:
+            if Config.REZ_ALREADY_AVAILABLE:
                 self.logger.debug(
-                    f"Rez wrapping skipped for {app_name} scene launch (WS_HANDLES_REZ=True)"
+                    f"Rez wrapping skipped for {app_name} scene launch (REZ_ALREADY_AVAILABLE=True)"
                 )
 
         # Add logging redirection for debugging
@@ -710,8 +752,9 @@ class CommandLauncher(LoggingMixin, QObject):
             self._emit_error(f"Invalid workspace path: {e!s}")
             return False
 
-        # Wrap with rez environment if available (skip if ws handles rez internally)
-        if self.env_manager.is_rez_available(Config) and not Config.WS_HANDLES_REZ:
+        # Wrap with rez environment if not already available from shell init.
+        # When REZ_ALREADY_AVAILABLE=True, shell init (setbbplatform) already set up Rez.
+        if self.env_manager.is_rez_available(Config) and not Config.REZ_ALREADY_AVAILABLE:
             rez_packages = self.env_manager.get_rez_packages(app_name, Config)
             if rez_packages:
                 # Use CommandBuilder to wrap with rez environment
@@ -726,9 +769,9 @@ class CommandLauncher(LoggingMixin, QObject):
         else:
             full_command = ws_command
             # Log that Rez wrapping is skipped
-            if Config.WS_HANDLES_REZ:
+            if Config.REZ_ALREADY_AVAILABLE:
                 self.logger.debug(
-                    f"Rez wrapping skipped for {app_name} scene context (WS_HANDLES_REZ=True)"
+                    f"Rez wrapping skipped for {app_name} scene context (REZ_ALREADY_AVAILABLE=True)"
                 )
 
         # Add logging redirection for debugging
@@ -754,16 +797,30 @@ class CommandLauncher(LoggingMixin, QObject):
     # Minimum disk space required (MB)
     MIN_DISK_SPACE_MB: int = 100
 
+    # Timeout for disk space check (seconds) - prevents blocking on NFS hangs
+    DISK_CHECK_TIMEOUT_SEC: float = 2.0
+
+    # Maximum command length (bytes) - gnome-terminal buffer is ~8KB, be conservative
+    # Linux ARG_MAX is ~131KB but terminal emulators have smaller buffers
+    MAX_COMMAND_LENGTH: int = 8000
+
     def _validate_workspace_before_launch(
         self, workspace_path: str, app_name: str
     ) -> bool:
         """Validate workspace is accessible before launching application.
 
-        Performs critical checks:
+        Performs pre-flight checks (advisory):
         1. Workspace directory exists
         2. User has read and execute permissions
         3. User has write permission (for apps that need it)
         4. Sufficient disk space available
+
+        Note:
+            Permission checks are advisory only due to TOCTOU (time-of-check to
+            time-of-use) race conditions. Permissions could change between check
+            and actual use. These checks provide early user feedback but don't
+            guarantee success. The application may still fail if permissions
+            change after validation.
 
         Args:
             workspace_path: Path to the workspace directory
@@ -802,9 +859,12 @@ class CommandLauncher(LoggingMixin, QObject):
                 )
                 return False
 
-        # Check disk space availability
+        # Check disk space availability with timeout (prevents NFS hang blocking UI)
         try:
-            stat = os.statvfs(workspace_path)
+            # Run statvfs in a thread with timeout - NFS mounts can block indefinitely
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(os.statvfs, workspace_path)
+                stat = future.result(timeout=self.DISK_CHECK_TIMEOUT_SEC)
             available_mb = (stat.f_bavail * stat.f_frsize) / (1024 * 1024)
             if available_mb < self.MIN_DISK_SPACE_MB:
                 self._emit_error(
@@ -812,6 +872,12 @@ class CommandLauncher(LoggingMixin, QObject):
                     f"({available_mb:.0f}MB available, {self.MIN_DISK_SPACE_MB}MB required)"
                 )
                 return False
+        except FutureTimeoutError:
+            # Disk space check timed out (likely NFS hang) - log warning but proceed
+            self.logger.warning(
+                f"Disk space check timed out for {workspace_path} "
+                f"(may be slow NFS mount) - proceeding with launch"
+            )
         except OSError as e:
             # Log warning but don't block launch if we can't check disk space
             self.logger.warning(f"Could not check disk space for {workspace_path}: {e}")
