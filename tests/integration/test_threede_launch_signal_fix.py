@@ -131,11 +131,13 @@ class MockLauncherTargetForIntegration(QObject):
         self.command_launcher = TestCommandLauncherWithSceneSupport()
         self.launcher_manager = None
 
-        # Create mock launcher panel with proper app_sections support
-        self.launcher_panel = Mock()
-        mock_nuke_section = Mock()
-        mock_nuke_section.get_selected_plate.return_value = None  # No plate selected by default
-        self.launcher_panel.app_sections = {"nuke": mock_nuke_section}
+        # Create mock right_panel with get_dcc_options support
+        self.right_panel = Mock()
+        self.right_panel.get_dcc_options = Mock(return_value={
+            "open_latest_scene": True,
+            "include_raw_plate": False,
+            "selected_plate": None,
+        })
 
         self.log_viewer = Mock()
         self.status_bar = Mock()

@@ -31,8 +31,8 @@ if TYPE_CHECKING:
     from launcher.models import CustomLauncher
     from launcher_dialog import LauncherManagerDialog
     from launcher_manager import LauncherManager
-    from launcher_panel import LauncherPanel
     from log_viewer import LogViewer
+    from right_panel import RightPanelWidget
     from shot_model import Shot
     from threede_scene_model import ThreeDEScene
 
@@ -51,7 +51,7 @@ class LauncherTarget(Protocol):
 
     command_launcher: CommandLauncher
     launcher_manager: LauncherManager | None
-    launcher_panel: LauncherPanel
+    right_panel: RightPanelWidget
     log_viewer: LogViewer
     status_bar: QStatusBar
     custom_launcher_menu: QMenu
@@ -104,13 +104,16 @@ class LauncherController(LoggingMixin):
 
     def _setup_signals(self) -> None:
         """Setup signal connections for launcher functionality."""
-        # Connect launcher panel signals
-        self.logger.info(f"🔌 Connecting app_launch_requested signal (controller id={id(self)})")
-        _ = self.window.launcher_panel.app_launch_requested.connect(self.launch_app)
-        self.logger.info(f"✓ app_launch_requested connected to {id(self)}.launch_app")
-        _ = self.window.launcher_panel.custom_launcher_requested.connect(
-            self.execute_custom_launcher
+        # Connect right panel signals
+        # Note: launch_requested emits (app_name: str, options: dict) but launch_app
+        # expects (app_name: str, captured_shot: Shot | None). We discard options here
+        # because launch_app retrieves them via right_panel.get_dcc_options().
+        self.logger.info(f"🔌 Connecting launch_requested signal (controller id={id(self)})")
+        _ = self.window.right_panel.launch_requested.connect(
+            lambda app_name, _options: self.launch_app(app_name)
         )
+        self.logger.info(f"✓ launch_requested connected to {id(self)}.launch_app")
+        # Note: Custom launchers not yet implemented in new right panel
 
         # Connect command launcher signals
         _ = self.window.command_launcher.command_executed.connect(
@@ -195,23 +198,16 @@ class LauncherController(LoggingMixin):
         Returns:
             Dictionary of option names to boolean values
         """
-        # Configuration mapping app names to their available options
-        app_options: dict[str, list[str]] = {
-            "nuke": [
-                "include_raw_plate",
-                "open_latest_scene",
-                "create_new_file",
-            ],
-            "3de": ["open_latest_threede"],
-            "maya": ["open_latest_maya"],
-        }
+        # Get options directly from right panel
+        dcc_options = self.window.right_panel.get_dcc_options(app_name)
+        if dcc_options is None:
+            return {}
 
-        # Get options for this app and check their states
+        # Filter to only include boolean options (exclude selected_plate)
         options: dict[str, bool] = {}
-        for option in app_options.get(app_name, []):
-            options[option] = self.window.launcher_panel.get_checkbox_state(
-                app_name, option
-            )
+        for key, value in dcc_options.items():
+            if isinstance(value, bool):
+                options[key] = value
 
         return options
 
@@ -267,7 +263,8 @@ class LauncherController(LoggingMixin):
         # Get and validate selected plate for Nuke (if applicable)
         selected_plate = None
         if app_name == "nuke":
-            selected_plate = self.window.launcher_panel.app_sections["nuke"].get_selected_plate()
+            nuke_options = self.window.right_panel.get_dcc_options("nuke")
+            selected_plate = nuke_options.get("selected_plate") if nuke_options else None
 
             # Validate plate selection for workspace operations
             if (open_latest_scene or create_new_file) and not selected_plate:
@@ -408,12 +405,12 @@ class LauncherController(LoggingMixin):
             True if launch was successful, False otherwise
         """
         # Check if we should include raw plate for Nuke
-        include_raw_plate = (
-            app_name == "nuke"
-            and self.window.launcher_panel.get_checkbox_state(
-                "nuke", "include_raw_plate"
+        include_raw_plate = False
+        if app_name == "nuke":
+            nuke_options = self.window.right_panel.get_dcc_options("nuke")
+            include_raw_plate = bool(
+                nuke_options and nuke_options.get("include_raw_plate", False)
             )
-        )
 
         # Launch with scene context
         return self.window.command_launcher.launch_app_with_scene_context(
@@ -474,15 +471,18 @@ class LauncherController(LoggingMixin):
             )
 
     def update_custom_launcher_buttons(self) -> None:
-        """Update the custom launcher buttons in the launcher panel."""
+        """Update the custom launcher buttons in the launcher panel.
+
+        Note: Custom launchers not yet implemented in new right panel.
+        """
         # Skip if using simplified launcher
         if not self.window.launcher_manager:
             return
 
-        # Get all launchers
-        launchers = self.window.launcher_manager.list_launchers()
-        launcher_list = [(launcher.id, launcher.name) for launcher in launchers]
-        self.window.launcher_panel.update_custom_launchers(launcher_list)
+        # Note: Custom launchers UI not yet implemented in RightPanelWidget
+        # Get all launchers (for potential future use)
+        _launchers = self.window.launcher_manager.list_launchers()
+        self.logger.debug(f"Custom launchers available: {len(_launchers)}")
 
     def enable_custom_launcher_buttons(self, _enabled: bool) -> None:
         """Enable or disable all custom launcher buttons.

@@ -352,7 +352,12 @@ def launcher_controller_target(qtbot: Any) -> Any:
     target = Mock()
     target.command_launcher = Mock()
     target.launcher_manager = None
-    target.launcher_panel = Mock()
+    # right_panel replaces launcher_panel in the new UI
+    target.right_panel = Mock()
+    target.right_panel.get_dcc_options = Mock(return_value={
+        "open_latest_scene": True,
+        "include_raw_plate": False,
+    })
     target.log_viewer = Mock()
     target.status_bar = QStatusBar(parent=None)
     target.custom_launcher_menu = QMenu(parent=None)
@@ -374,8 +379,13 @@ def threede_controller_target(qtbot: Any, launcher_controller_target: Any) -> An
 
     # Widget references
     target.threede_shot_grid = Mock()
-    target.shot_info_panel = Mock()
-    target.launcher_panel = Mock()
+    target.shot_info_panel = Mock()  # Legacy - some tests may still reference this
+    # right_panel replaces launcher_panel in new UI
+    target.right_panel = Mock()
+    target.right_panel.get_dcc_options = Mock(return_value={
+        "open_latest_scene": True,
+        "include_raw_plate": False,
+    })
     target.status_bar = QStatusBar(parent=None)
 
     # Model references

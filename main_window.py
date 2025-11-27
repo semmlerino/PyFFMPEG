@@ -100,7 +100,6 @@ from controllers.threede_controller import (
     ThreeDEController,  # Refactored 3DE scene management
 )
 from launcher_manager import LauncherManager  # Need at runtime
-from launcher_panel import LauncherPanel  # Improved launcher UI
 from log_viewer import LogViewer
 from logging_mixin import LoggingMixin, get_module_logger
 from notification_manager import NotificationManager
@@ -111,9 +110,9 @@ from process_pool_manager import ProcessPoolManager
 from progress_manager import ProgressManager
 from qt_widget_mixin import QtWidgetMixin
 from refresh_orchestrator import RefreshOrchestrator  # Extracted refresh logic
+from right_panel import RightPanelWidget  # New redesigned right panel
 from settings_manager import SettingsManager
 from shot_grid_view import ShotGridView  # Model/View implementation
-from shot_info_panel import ShotInfoPanel
 from shot_item_model import ShotItemModel
 from shot_model import Shot, ShotModel
 from thread_safe_worker import ThreadSafeWorker
@@ -408,29 +407,16 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         _ = self.tab_widget.currentChanged.connect(self._update_tab_accent_color)
         self._update_tab_accent_color(0)  # Initialize with first tab color
 
-        # Right side - Controls and log
+        # Right side - New redesigned panel
         right_widget = QWidget()
         right_layout = QVBoxLayout(right_widget)
         right_layout.setContentsMargins(0, 0, 0, 0)
+        right_layout.setSpacing(0)
 
-        # Shot info panel
-        self.shot_info_panel = ShotInfoPanel(self.cache_manager)
-        right_layout.addWidget(self.shot_info_panel)
-
-        # App launcher panel (improved UI)
-        self.launcher_panel = LauncherPanel()
+        # Redesigned right panel (combines shot info, quick launch, DCC accordion, files)
+        self.right_panel = RightPanelWidget()
         # Signal connections handled by LauncherController
-        self.launcher_panel.setMinimumHeight(400)  # Ensure adequate space
-        right_layout.addWidget(self.launcher_panel)
-
-        # Keep references to checkboxes for backward compatibility
-        # (These are now managed by the launcher_panel)
-        self.raw_plate_checkbox = (
-            None  # Will access via launcher_panel.get_checkbox_state
-        )
-        self.open_latest_threede_checkbox = (
-            None  # Will access via launcher_panel.get_checkbox_state
-        )
+        right_layout.addWidget(self.right_panel, stretch=1)
 
         # Log viewer (collapsible, starts collapsed)
         log_group = QGroupBox("Command Log")
@@ -641,8 +627,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self._on_shot_recover_crashes_requested
         )
 
-        # Shot info panel - file open requests
-        _ = self.shot_info_panel.file_open_requested.connect(
+        # Right panel signals - file open requests
+        _ = self.right_panel.file_open_requested.connect(
             self._on_file_open_requested
         )
 
@@ -900,9 +886,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         """
         # Update empty message based on tab context
         if index == 1:  # Other 3DE scenes tab
-            self.shot_info_panel.set_empty_message("No Scene Selected")
+            self.right_panel.set_empty_message("No Scene Selected")
         else:  # My Shots or Previous Shots tabs
-            self.shot_info_panel.set_empty_message("No Shot Selected")
+            self.right_panel.set_empty_message("No Shot Selected")
 
         # Scene/shot context is automatically cleared by launcher_controller when switching contexts
 
@@ -926,8 +912,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             else:
                 # Clear selection
                 self.launcher_controller.set_current_shot(None)
-                self.shot_info_panel.set_shot(None)
-                self.launcher_panel.set_shot(None)
+                self.right_panel.set_shot(None)
                 self.launcher_controller.update_launcher_menu_availability(False)
 
         elif index == 2:  # Previous Shots tab
@@ -1083,15 +1068,10 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         if shot is None:
             # Handle deselection
             self.launcher_controller.set_current_shot(None)
-            self.shot_info_panel.set_shot(None)
+            self.right_panel.set_shot(None)
 
-            # Update launcher panel to disable buttons
-            self.launcher_panel.set_shot(None)
-
-            # Clear plate selectors for all apps
-            for app_name in ["nuke", "maya", "3de", "rv"]:
-                if app_name in self.launcher_panel.app_sections:
-                    self.launcher_panel.app_sections[app_name].set_available_plates([])
+            # Clear plate selectors
+            self.right_panel.set_available_plates([])
 
             # Update custom launcher menu availability
             self.launcher_controller.update_launcher_menu_availability(False)
@@ -1109,28 +1089,15 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             # Handle selection - use launcher controller
             self.launcher_controller.set_current_shot(shot)
 
-            # Update shot info panel
-            self.shot_info_panel.set_shot(shot)
+            # Update right panel (also discovers and displays files)
+            self.right_panel.set_shot(shot)
 
-            # Update launcher panel to enable buttons
-            self.launcher_panel.set_shot(shot)
-
-            # Update plate selectors for all apps
+            # Update plate selectors
             # Local application imports
             from plate_discovery import PlateDiscovery
 
             available_plates = PlateDiscovery.get_available_plates(shot.workspace_path)
-            for app_name in ["nuke", "maya", "3de", "rv"]:
-                if app_name in self.launcher_panel.app_sections:
-                    app_section = self.launcher_panel.app_sections[app_name]
-                    app_section.set_available_plates(available_plates)
-
-                    # Auto-select first plate if available (prevents validation errors)
-                    if available_plates and app_section.plate_selector:
-                        app_section.plate_selector.setCurrentIndex(0)
-                        self.logger.debug(
-                            f"Auto-selected first plate '{available_plates[0]}' for {app_name}"
-                        )
+            self.right_panel.set_available_plates(available_plates)
 
             # Update custom launcher menu availability
             self.launcher_controller.update_launcher_menu_availability(True)

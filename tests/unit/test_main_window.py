@@ -81,7 +81,7 @@ class TestMainWindowInitialization:
         assert main_window.shot_grid is not None
         assert main_window.threede_shot_grid is not None
         assert main_window.previous_shots_grid is not None
-        assert main_window.shot_info_panel is not None
+        assert main_window.right_panel is not None
 
     def test_main_window_with_custom_cache_manager(
         self, qtbot: QtBot, tmp_path: Path
@@ -144,9 +144,9 @@ class TestShotSelection:
         main_window = MainWindow(cache_manager=cache_manager)
         qtbot.addWidget(main_window)
 
-        # Initially launcher panel's app buttons should be disabled
-        for section in main_window.launcher_panel.app_sections.values():
-            assert not section.launch_button.isEnabled()
+        # Initially quick launch buttons should be disabled
+        for btn in main_window.right_panel._quick_launch._buttons.values():
+            assert not btn.isEnabled()
 
         # Create a test shot
         shows_root = Config.SHOWS_ROOT
@@ -156,12 +156,11 @@ class TestShotSelection:
         main_window._on_shot_selected(shot)
 
         # Now buttons should be enabled
-        for section in main_window.launcher_panel.app_sections.values():
-            assert section.launch_button.isEnabled()
+        for btn in main_window.right_panel._quick_launch._buttons.values():
+            assert btn.isEnabled()
 
-        # Shot info panel should be updated with the shot
-        # Test behavior: info panel should show shot information
-        assert main_window.shot_info_panel is not None
+        # Right panel should be updated with the shot
+        assert main_window.right_panel is not None
 
     def test_shot_deselection_disables_app_buttons(
         self, qtbot: QtBot, tmp_path: Path
@@ -177,15 +176,15 @@ class TestShotSelection:
         main_window._on_shot_selected(shot)
 
         # Verify buttons are enabled
-        for section in main_window.launcher_panel.app_sections.values():
-            assert section.launch_button.isEnabled()
+        for btn in main_window.right_panel._quick_launch._buttons.values():
+            assert btn.isEnabled()
 
         # Deselect shot
         main_window._on_shot_selected(None)
 
         # Buttons should be disabled again
-        for section in main_window.launcher_panel.app_sections.values():
-            assert not section.launch_button.isEnabled()
+        for btn in main_window.right_panel._quick_launch._buttons.values():
+            assert not btn.isEnabled()
 
 
 class TestShotRefresh:
@@ -315,8 +314,8 @@ class TestApplicationLaunching:
         main_window._on_shot_selected(shot)
 
         # Verify buttons enabled (test behavior)
-        assert "nuke" in main_window.launcher_panel.app_sections
-        assert main_window.launcher_panel.app_sections["nuke"].launch_button.isEnabled()
+        assert "nuke" in main_window.right_panel._quick_launch._buttons
+        assert main_window.right_panel._quick_launch._buttons["nuke"].isEnabled()
 
         # Test complete workflow - just verify the app launch doesn't crash
         # The subprocess call is already mocked by our autouse fixture (no real process spawned)
@@ -451,8 +450,8 @@ class TestMainWindowIntegration:
         main_window._on_shot_selected(shot)
 
         # Verify buttons enabled (test behavior)
-        assert "nuke" in main_window.launcher_panel.app_sections
-        assert main_window.launcher_panel.app_sections["nuke"].launch_button.isEnabled()
+        assert "nuke" in main_window.right_panel._quick_launch._buttons
+        assert main_window.right_panel._quick_launch._buttons["nuke"].isEnabled()
 
         # Test complete workflow - just verify the app launch doesn't crash
         # The subprocess call is already mocked by our autouse fixture (no real process spawned)

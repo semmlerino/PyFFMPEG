@@ -236,8 +236,8 @@ class TestCrossTabSynchronization:
         window._on_shot_selected(first_shot)
 
         # Verify info panel shows the selected shot
-        assert window.shot_info_panel._current_shot == first_shot
-        assert first_shot.shot in window.shot_info_panel.shot_name_label.text()
+        assert window.right_panel._current_shot == first_shot
+        assert first_shot.shot in window.right_panel._shot_header._shot_name_label.text()
 
         # Tab 2: Switch to 3DE tab
         window.tab_widget.setCurrentIndex(1)  # Other 3DE scenes tab
@@ -266,14 +266,14 @@ class TestCrossTabSynchronization:
                 shot=scene.shot,
                 workspace_path=scene.workspace_path,
             )
-            window.shot_info_panel.set_shot(shot)
+            window.right_panel.set_shot(shot)
 
         # Verify info panel updated to show the 3DE scene
-        current_shot = window.shot_info_panel._current_shot
+        current_shot = window.right_panel._current_shot
         assert current_shot is not None
         assert current_shot.shot == "0030"
         assert current_shot.sequence == "seq02"
-        assert "0030" in window.shot_info_panel.shot_name_label.text()
+        assert "0030" in window.right_panel._shot_header._shot_name_label.text()
 
         # Tab 3: Switch to Previous Shots tab
         window.tab_widget.setCurrentIndex(2)  # Previous shots tab
@@ -281,7 +281,7 @@ class TestCrossTabSynchronization:
 
         # The info panel should be cleared since Previous Shots tab has no selection
         # (Tab switching calls _on_shot_selected(None) when new tab has no selection)
-        assert window.shot_info_panel._current_shot is None
+        assert window.right_panel._current_shot is None
 
         # Go back to My Shots and verify it also clears since no selection
         # (Each tab maintains its own selection state independently)
@@ -289,20 +289,20 @@ class TestCrossTabSynchronization:
         qtbot.wait(1)  # Minimal event processing for tab switch
 
         # Info panel should be cleared because My Shots tab has no current selection
-        assert window.shot_info_panel._current_shot is None
+        assert window.right_panel._current_shot is None
 
         # Select a different shot if available, or deselect/reselect the first
         if len(shots) > 1:
             second_shot = shots[1]
             window._on_shot_selected(second_shot)
-            assert window.shot_info_panel._current_shot == second_shot
-            assert second_shot.shot in window.shot_info_panel.shot_name_label.text()
+            assert window.right_panel._current_shot == second_shot
+            assert second_shot.shot in window.right_panel._shot_header._shot_name_label.text()
         else:
             # Only one shot available, test deselect/reselect
             window._on_shot_selected(None)
-            assert window.shot_info_panel._current_shot is None
+            assert window.right_panel._current_shot is None
             window._on_shot_selected(first_shot)
-            assert window.shot_info_panel._current_shot == first_shot
+            assert window.right_panel._current_shot == first_shot
 
     def test_show_filter_affects_all_tabs(
         self, qapp: QApplication, qtbot: QtBot, tmp_path: Path

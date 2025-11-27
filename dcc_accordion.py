@@ -1,0 +1,208 @@
+"""DCC accordion widget containing collapsible DCC launch sections.
+
+Provides a vertical stack of DCCSection widgets, each representing a
+different DCC application (3DEqualizer, Nuke, Maya, RV). Supports
+user-controlled expansion where multiple sections can be open simultaneously.
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, final
+
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import (
+    QVBoxLayout,
+    QWidget,
+)
+
+from dcc_section import DEFAULT_DCC_CONFIGS, DCCConfig, DCCSection
+from qt_widget_mixin import QtWidgetMixin
+
+
+if TYPE_CHECKING:
+    from shot_model import Shot
+
+
+@final
+class DCCAccordion(QtWidgetMixin, QWidget):
+    """Accordion container for DCC launch sections.
+
+    Contains multiple DCCSection widgets stacked vertically. Supports
+    user-controlled expansion (multiple sections can be open at once).
+
+    Attributes:
+        launch_requested: Signal(str, dict) - app_name, options dict
+        section_expanded: Signal(str, bool) - app_name, is_expanded
+    """
+
+    launch_requested = Signal(str, dict)  # app_name, options
+    section_expanded = Signal(str, bool)  # app_name, is_expanded
+
+    def __init__(
+        self,
+        configs: list[DCCConfig] | None = None,
+        parent: QWidget | None = None,
+    ) -> None:
+        """Initialize the DCC accordion.
+
+        Args:
+            configs: List of DCC configurations. Uses defaults if None.
+            parent: Optional parent widget.
+        """
+        super().__init__(parent)
+        self._configs = configs or DEFAULT_DCC_CONFIGS
+        self._sections: dict[str, DCCSection] = {}
+        self._current_shot: Shot | None = None
+
+        self._setup_ui()
+
+    def _setup_ui(self) -> None:
+        """Set up the accordion UI."""
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(4)
+
+        # Create a section for each DCC
+        for config in self._configs:
+            section = DCCSection(config, parent=self)
+            # Sections start disabled (via set_enabled) until shot is set
+
+            # Forward signals
+            _ = section.launch_requested.connect(self._on_section_launch)
+            _ = section.expanded_changed.connect(self._on_section_expanded)
+
+            layout.addWidget(section)
+            self._sections[config.name] = section
+
+        layout.addStretch()
+
+    def _on_section_launch(
+        self, app_name: str, options: dict[str, bool | str | None]
+    ) -> None:
+        """Handle launch request from a section.
+
+        Args:
+            app_name: Name of the app to launch
+            options: Launch options dict
+        """
+        self.launch_requested.emit(app_name, options)
+
+    def _on_section_expanded(self, app_name: str, is_expanded: bool) -> None:
+        """Handle section expansion change.
+
+        Args:
+            app_name: Name of the app section
+            is_expanded: Whether section is now expanded
+        """
+        self.section_expanded.emit(app_name, is_expanded)
+
+    def set_shot(self, shot: Shot | None) -> None:
+        """Update for the selected shot.
+
+        Enables/disables all sections based on whether a shot is selected.
+
+        Args:
+            shot: Currently selected shot, or None
+        """
+        self._current_shot = shot
+        enabled = shot is not None
+
+        for section in self._sections.values():
+            section.set_enabled(enabled)
+
+    def set_enabled(self, enabled: bool) -> None:
+        """Enable or disable all sections.
+
+        Args:
+            enabled: True to enable, False to disable
+        """
+        for section in self._sections.values():
+            section.set_enabled(enabled)
+
+    def set_available_plates(self, plates: list[str]) -> None:
+        """Update plate selector in all sections.
+
+        Args:
+            plates: List of plate names (e.g., ['FG01', 'BG01'])
+        """
+        for section in self._sections.values():
+            section.set_available_plates(plates)
+
+    def set_version_info(
+        self,
+        app_name: str,
+        version: str | None,
+        age: str | None = None,
+    ) -> None:
+        """Set version info for a specific DCC section.
+
+        Args:
+            app_name: App name (e.g., "3de", "nuke")
+            version: Version string (e.g., "v005") or None
+            age: Age string (e.g., "21m ago") or None
+        """
+        section = self._sections.get(app_name)
+        if section:
+            section.set_version_info(version, age)
+
+    def clear_version_info(self) -> None:
+        """Clear version info from all sections."""
+        for section in self._sections.values():
+            section.set_version_info(None, None)
+
+    def get_section(self, app_name: str) -> DCCSection | None:
+        """Get a specific DCC section by app name.
+
+        Args:
+            app_name: App name (e.g., "3de", "nuke")
+
+        Returns:
+            The DCCSection or None if not found
+        """
+        return self._sections.get(app_name)
+
+    def set_section_expanded(self, app_name: str, expanded: bool) -> None:
+        """Set expansion state of a specific section.
+
+        Args:
+            app_name: App name (e.g., "3de", "nuke")
+            expanded: True to expand, False to collapse
+        """
+        section = self._sections.get(app_name)
+        if section:
+            section.set_expanded(expanded)
+
+    def expand_all(self) -> None:
+        """Expand all sections."""
+        for section in self._sections.values():
+            section.set_expanded(True)
+
+    def collapse_all(self) -> None:
+        """Collapse all sections."""
+        for section in self._sections.values():
+            section.set_expanded(False)
+
+    def get_expanded_sections(self) -> list[str]:
+        """Get names of currently expanded sections.
+
+        Returns:
+            List of app names that are currently expanded
+        """
+        return [
+            name for name, section in self._sections.items()
+            if section.is_expanded()
+        ]
+
+    def get_options(self, app_name: str) -> dict[str, bool | str | None] | None:
+        """Get launch options for a specific DCC.
+
+        Args:
+            app_name: App name (e.g., "3de", "nuke")
+
+        Returns:
+            Options dict or None if section not found
+        """
+        section = self._sections.get(app_name)
+        if section:
+            return section.get_options()
+        return None

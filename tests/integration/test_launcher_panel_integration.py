@@ -12,9 +12,19 @@ Tests cover:
 - Signal propagation through the application
 - Application launching with proper context
 - Error handling in integrated scenarios
-"""
 
+NOTE: This module is DEPRECATED - MainWindow now uses RightPanelWidget instead
+of LauncherPanel. These tests are skipped pending migration or removal.
+See tests/unit/test_right_panel.py for the new right panel tests.
+"""
 from __future__ import annotations
+
+import pytest
+
+# Skip entire module - MainWindow no longer uses LauncherPanel
+pytestmark = pytest.mark.skip(
+    reason="MainWindow now uses RightPanelWidget instead of LauncherPanel"
+)
 
 # Standard library imports
 import contextlib

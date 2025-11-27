@@ -439,11 +439,11 @@ class TestMainWindowUICoordination:
         assert window.threede_shot_grid is not None
         assert window.previous_shots_grid is not None
 
-        # Verify app launcher sections created in launcher panel
-        assert window.launcher_panel is not None
-        assert len(window.launcher_panel.app_sections) > 0
-        assert "3de" in window.launcher_panel.app_sections
-        assert "nuke" in window.launcher_panel.app_sections
+        # Verify right panel created (replaces old launcher_panel)
+        assert window.right_panel is not None
+        assert len(window.right_panel._quick_launch._buttons) > 0
+        assert "3de" in window.right_panel._quick_launch._buttons
+        assert "nuke" in window.right_panel._quick_launch._buttons
 
     def test_shot_selection_enables_launchers(
         self, main_window_with_real_components: Any, qtbot: Any
@@ -452,8 +452,8 @@ class TestMainWindowUICoordination:
         window = main_window_with_real_components
 
         # Initially buttons should be disabled
-        for section in window.launcher_panel.app_sections.values():
-            assert not section.launch_button.isEnabled()
+        for btn in window.right_panel._quick_launch._buttons.values():
+            assert not btn.isEnabled()
 
         # Create and select a test shot
         test_shot = Shot("testshow", "seq01", "shot01", "/test/workspace")
@@ -466,8 +466,8 @@ class TestMainWindowUICoordination:
         qtbot.wait(1)  # Minimal event processing
 
         # Buttons should now be enabled
-        for section in window.launcher_panel.app_sections.values():
-            assert section.launch_button.isEnabled()
+        for btn in window.right_panel._quick_launch._buttons.values():
+            assert btn.isEnabled()
 
     def test_tab_switching_updates_context(
         self, main_window_with_real_components: Any, qtbot: Any
@@ -566,10 +566,9 @@ workspace /shows/test/shots/seq01/shot02""")
         # Process events
         qtbot.wait(1)  # Minimal event processing
 
-        # Click 3de button
-        section_3de = window.launcher_panel.app_sections.get("3de")
-        assert section_3de is not None
-        button_3de = section_3de.launch_button
+        # Click 3de quick launch button
+        button_3de = window.right_panel._quick_launch._buttons.get("3de")
+        assert button_3de is not None
         assert button_3de.isEnabled()
 
         # Simulate button click

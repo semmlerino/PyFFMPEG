@@ -125,7 +125,7 @@ class TestMainWindowNoHang:
         assert safe_main_window.shot_grid is not None
         assert safe_main_window.threede_shot_grid is not None
         assert safe_main_window.previous_shots_grid is not None
-        assert safe_main_window.shot_info_panel is not None
+        assert safe_main_window.right_panel is not None
 
         # Test tabs
         assert safe_main_window.tab_widget.count() == 3
@@ -136,8 +136,8 @@ class TestMainWindowNoHang:
     def test_shot_selection_enables_buttons(self, safe_main_window, tmp_path) -> None:
         """Test that selecting a shot enables application launcher buttons."""
         # Initially disabled
-        for section in safe_main_window.launcher_panel.app_sections.values():
-            assert not section.launch_button.isEnabled()
+        for btn in safe_main_window.right_panel._quick_launch._buttons.values():
+            assert not btn.isEnabled()
 
         # Select shot with tmp_path as workspace
         workspace_path = str(tmp_path / "test_workspace")
@@ -145,11 +145,11 @@ class TestMainWindowNoHang:
         safe_main_window._on_shot_selected(shot)
 
         # Now enabled
-        for section in safe_main_window.launcher_panel.app_sections.values():
-            assert section.launch_button.isEnabled()
+        for btn in safe_main_window.right_panel._quick_launch._buttons.values():
+            assert btn.isEnabled()
 
-        # Shot info updated
-        assert safe_main_window.shot_info_panel._current_shot == shot
+        # Right panel updated with shot
+        assert safe_main_window.right_panel._current_shot == shot
 
     def test_refresh_shots_with_test_pool(self, safe_main_window) -> None:
         """Test shot refresh with test process pool.
@@ -308,10 +308,10 @@ class TestApplicationLaunchingNoHang:
             main_window._refresh_timer.stop()
 
         # No shot selected - buttons should be disabled
-        assert "nuke" in main_window.launcher_panel.app_sections
-        assert not main_window.launcher_panel.app_sections[
+        assert "nuke" in main_window.right_panel._quick_launch._buttons
+        assert not main_window.right_panel._quick_launch._buttons[
             "nuke"
-        ].launch_button.isEnabled()
+        ].isEnabled()
 
         # Try to launch without shot - button is disabled so can't be clicked
         # This is the correct behavior - UI prevents invalid operations
