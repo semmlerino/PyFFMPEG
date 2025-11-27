@@ -31,13 +31,17 @@ import pytest
 
 # Local application imports
 from config import Config
+
+# Import _path_cache from path_validators directly (canonical source)
+# to avoid issues with module reloads breaking re-exports
+import path_validators
+
 from utils import (
     FileUtils,
     ImageUtils,
     PathUtils,
     ValidationUtils,
     VersionUtils,
-    _path_cache,  # For cache cleanup tests only
     clear_all_caches,
     get_cache_stats,
 )
@@ -152,10 +156,10 @@ class TestPathUtils:
 
         # Second call should use cache (verify cache is populated)
         path_str = str(test_file)
-        assert path_str in _path_cache
+        assert path_str in path_validators._path_cache
 
         # Verify cache entry structure
-        exists, timestamp = _path_cache[path_str]
+        exists, timestamp = path_validators._path_cache[path_str]
         assert exists is True
         assert isinstance(timestamp, float)
 
@@ -182,7 +186,7 @@ class TestPathUtils:
 
         # Verify cache entry was created
         path_str = str(test_file)
-        assert path_str in _path_cache
+        assert path_str in path_validators._path_cache
 
         # With TTL = 0 (manual refresh mode), cache entry should not expire automatically
         # Delete the file, but cache should still return the cached result
@@ -271,7 +275,7 @@ class TestPathUtils:
         # Create many temporary paths to force cleanup
         for i in range(100):  # OPTIMIZED: Reduced from 5100 to 100
             fake_path = f"/fake/path/{i}"
-            _path_cache[fake_path] = (False, time.time())
+            path_validators._path_cache[fake_path] = (False, time.time())
 
         # Trigger cleanup by calling validate_path_exists
         test_file = tmp_path / "cleanup_test.txt"
@@ -279,7 +283,7 @@ class TestPathUtils:
         PathUtils.validate_path_exists(test_file, "Cleanup trigger")
 
         # Cache should be cleaned down to reasonable size
-        assert len(_path_cache) <= 2500
+        assert len(path_validators._path_cache) <= 2500
 
     def test_discover_plate_directories(self, tmp_path: Path) -> None:
         """Test plate directory discovery with priority ordering."""

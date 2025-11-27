@@ -10,6 +10,8 @@ prevent can cascade through the entire test suite.
 Fixtures:
     suppress_qmessagebox: Auto-dismiss modal dialogs (autouse), returns DialogRecorder
     prevent_qapp_exit: Prevent QApplication exit/quit calls (autouse)
+    expect_no_dialogs: Assert no dialogs shown during test (opt-in)
+    expect_dialog: Assert at least one dialog shown (opt-in)
 """
 
 from __future__ import annotations
@@ -173,3 +175,54 @@ def prevent_qapp_exit(monkeypatch: pytest.MonkeyPatch, qapp: QApplication) -> No
     # Also patch QCoreApplication (some code paths use this)
     monkeypatch.setattr(QCoreApplication, "exit", _noop)
     monkeypatch.setattr(QCoreApplication, "quit", _noop)
+
+
+# ==============================================================================
+# OPT-IN DIALOG ASSERTION FIXTURES
+# ==============================================================================
+# Use these fixtures when you need to explicitly verify dialog behavior
+
+
+@pytest.fixture
+def expect_no_dialogs(suppress_qmessagebox: DialogRecorder):
+    """Assert no dialogs shown during test - auto-checks after test.
+
+    This convenience fixture wraps suppress_qmessagebox and automatically
+    calls assert_not_shown() after the test completes. Use this for tests
+    where showing any dialog would be unexpected behavior.
+
+    Example:
+        def test_quiet_operation(expect_no_dialogs):
+            perform_operation()
+            # No need to manually assert - fixture checks on teardown
+
+        # If a dialog IS shown, test fails with:
+        # AssertionError: Unexpected dialogs: [{'method': 'warning', ...}]
+    """
+    yield suppress_qmessagebox
+    suppress_qmessagebox.assert_not_shown()
+
+
+@pytest.fixture
+def expect_dialog(suppress_qmessagebox: DialogRecorder):
+    """Assert at least one dialog shown - auto-checks after test.
+
+    This convenience fixture wraps suppress_qmessagebox and automatically
+    verifies at least one dialog was shown. Use for tests that must trigger
+    user-facing dialogs (error messages, confirmations, etc.).
+
+    The fixture yields the DialogRecorder, so you can also use assert_shown()
+    for more specific assertions about which dialog appeared.
+
+    Example:
+        def test_error_shows_message(expect_dialog):
+            trigger_error()
+            # Fixture ensures at least one dialog shown
+            # Optionally verify specific dialog:
+            expect_dialog.assert_shown("critical", "Error occurred")
+
+        # If NO dialog shown, test fails with:
+        # AssertionError: Expected at least one dialog but none were shown
+    """
+    yield suppress_qmessagebox
+    assert suppress_qmessagebox.calls, "Expected at least one dialog but none were shown"

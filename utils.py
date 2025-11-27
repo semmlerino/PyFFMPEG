@@ -68,7 +68,7 @@ def clear_all_caches() -> None:
     VersionUtils.clear_version_cache()
     # Clear lru_cache decorated functions
     VersionUtils.extract_version_from_path.cache_clear()
-    logger.info("Cleared all utility caches")
+    logger.debug("Cleared all utility caches")  # DEBUG to reduce test log noise
 
 
 def disable_caching() -> None:

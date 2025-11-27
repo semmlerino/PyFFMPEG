@@ -4,17 +4,20 @@ This module provides fixtures for tests that need to:
 - Test with caching explicitly enabled (for cache behavior tests)
 - Test with caching explicitly disabled (for isolation)
 - Use isolated cache directories
+- Ensure clean (empty) disk cache state
 
 Fixtures:
     caching_enabled: Enable caching with isolated temp directory
     caching_disabled: Explicitly disable caching for a test
     isolated_cache_manager: CacheManager with isolated temp directory
+    clean_disk_cache: Guaranteed empty disk cache for test
 """
 
 from __future__ import annotations
 
 import logging
 import os
+import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -151,3 +154,53 @@ def isolated_cache_manager(tmp_path: Path) -> Iterator[CacheManager]:
         manager.shutdown()
     except Exception as e:
         _logger.debug("CacheManager shutdown exception: %s", e)
+
+
+@pytest.fixture
+def clean_disk_cache(tmp_path: Path) -> Iterator[Path]:
+    """Guaranteed empty disk cache for test - prevents cache leakage.
+
+    This fixture:
+    - Creates a fresh, empty cache directory per test
+    - Sets SHOTBOT_TEST_CACHE_DIR to the new directory
+    - Ensures no stale cache data from previous tests
+    - Completely removes the directory after test
+
+    Use this when tests need guaranteed empty cache state, such as:
+    - Testing cold start behavior
+    - Verifying cache miss scenarios
+    - Ensuring no leakage from previous tests
+
+    Yields:
+        Path to the clean, empty cache directory
+
+    Example:
+        def test_cold_start_loads_from_filesystem(clean_disk_cache):
+            cache_dir = clean_disk_cache
+            assert not list(cache_dir.iterdir())  # Empty!
+            # Test behavior with empty cache
+    """
+    cache_dir = tmp_path / "clean_cache"
+    cache_dir.mkdir(exist_ok=True)
+
+    # Save original env var
+    original_cache_dir = os.environ.get("SHOTBOT_TEST_CACHE_DIR")
+
+    # Set new clean cache directory
+    os.environ["SHOTBOT_TEST_CACHE_DIR"] = str(cache_dir)
+
+    _logger.debug("Clean disk cache created: %s", cache_dir)
+
+    yield cache_dir
+
+    # Complete cleanup: remove directory entirely
+    try:
+        shutil.rmtree(cache_dir, ignore_errors=True)
+    except Exception as e:
+        _logger.debug("clean_disk_cache cleanup exception: %s", e)
+
+    # Restore original env var
+    if original_cache_dir is not None:
+        os.environ["SHOTBOT_TEST_CACHE_DIR"] = original_cache_dir
+    else:
+        os.environ.pop("SHOTBOT_TEST_CACHE_DIR", None)

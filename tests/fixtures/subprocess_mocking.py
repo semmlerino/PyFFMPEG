@@ -80,6 +80,9 @@ def mock_subprocess_popen(
     launcher/worker.py directly calls subprocess.Popen (not through ProcessPoolManager),
     which causes parallel test crashes. This fixture mocks Popen globally.
 
+    This mock respects the `text=True` argument: when text mode is requested,
+    it returns StringIO objects and strings; otherwise BytesIO and bytes.
+
     Args:
         request: Pytest request for marker checking
         monkeypatch: Pytest monkeypatch fixture
@@ -90,16 +93,34 @@ def mock_subprocess_popen(
     if "real_subprocess" in [m.name for m in request.node.iter_markers()]:
         return  # Skip mock for this test
 
-    mock_popen = MagicMock()
-    mock_process = mock_popen.return_value
-    mock_process.pid = 12345
-    mock_process.poll.return_value = 0  # Process finished
-    mock_process.wait.return_value = 0  # Exit code 0
-    mock_process.returncode = 0
-    # Use real file-like objects instead of None (Qt threading requires real file objects)
-    mock_process.stdout = io.BytesIO(b"")
-    mock_process.stderr = io.BytesIO(b"")
-    mock_process.communicate.return_value = (b"", b"")
+    def _create_mock_popen(*args: object, **kwargs: object) -> MagicMock:
+        """Create Popen mock that respects text mode."""
+        # Check if text mode requested (text=True, encoding=..., or universal_newlines=True)
+        text_mode = (
+            kwargs.get("text", False)
+            or kwargs.get("encoding") is not None
+            or kwargs.get("universal_newlines", False)
+        )
+
+        mock_process = MagicMock()
+        mock_process.pid = 12345
+        mock_process.poll.return_value = 0  # Process finished
+        mock_process.wait.return_value = 0  # Exit code 0
+        mock_process.returncode = 0
+
+        # Return appropriate types based on text mode
+        if text_mode:
+            mock_process.stdout = io.StringIO("")
+            mock_process.stderr = io.StringIO("")
+            mock_process.communicate.return_value = ("", "")
+        else:
+            mock_process.stdout = io.BytesIO(b"")
+            mock_process.stderr = io.BytesIO(b"")
+            mock_process.communicate.return_value = (b"", b"")
+
+        return mock_process
+
+    mock_popen = MagicMock(side_effect=_create_mock_popen)
 
     # Patch in launcher.worker module namespace (uses `import subprocess`)
     monkeypatch.setattr("launcher.worker.subprocess.Popen", mock_popen)
@@ -137,14 +158,32 @@ class SubprocessMock:
             if self._should_raise:
                 raise self._should_raise
             self._calls.append(list(args) if isinstance(args, (list, tuple)) else [str(args)])
+
+            # Check if text mode requested (text=True, encoding=..., or universal_newlines=True)
+            text_mode = (
+                kwargs.get("text", False)
+                or kwargs.get("encoding") is not None
+                or kwargs.get("universal_newlines", False)
+            )
+
             process = MagicMock()
             process.pid = 99999
             process.poll.return_value = self._returncode
             process.wait.return_value = self._returncode
             process.returncode = self._returncode
-            process.stdout = io.BytesIO(self._stdout)
-            process.stderr = io.BytesIO(self._stderr)
-            process.communicate.return_value = (self._stdout, self._stderr)
+
+            # Return appropriate types based on text mode
+            if text_mode:
+                stdout_str = self._stdout.decode("utf-8")
+                stderr_str = self._stderr.decode("utf-8")
+                process.stdout = io.StringIO(stdout_str)
+                process.stderr = io.StringIO(stderr_str)
+                process.communicate.return_value = (stdout_str, stderr_str)
+            else:
+                process.stdout = io.BytesIO(self._stdout)
+                process.stderr = io.BytesIO(self._stderr)
+                process.communicate.return_value = (self._stdout, self._stderr)
+
             return process
 
         self._mock.side_effect = popen_side_effect
