@@ -414,7 +414,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         right_layout.setSpacing(0)
 
         # Redesigned right panel (combines shot info, quick launch, DCC accordion, files)
-        self.right_panel = RightPanelWidget()
+        self.right_panel = RightPanelWidget(settings_manager=self.settings_manager)
         # Signal connections handled by LauncherController
         right_layout.addWidget(self.right_panel, stretch=1)
 

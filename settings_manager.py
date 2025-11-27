@@ -173,6 +173,13 @@ class SettingsManager(LoggingMixin, QObject):
                 "thumbnail_spacing": Config.THUMBNAIL_SPACING,
                 "selection_highlight": True,
                 "hover_effects": True,
+                "expanded_sections": {
+                    "files": False,  # Files section default collapsed
+                    "3de": True,  # DCC sections default expanded
+                    "nuke": True,
+                    "maya": True,
+                    "rv": True,
+                },
             },
             "advanced": {
                 "debug_mode": False,
@@ -505,6 +512,43 @@ class SettingsManager(LoggingMixin, QObject):
     # UI Settings
     # Dead settings removed: grid_columns, show_tooltips, dark_theme
     # These were never applied by settings_controller.py
+
+    def get_expanded_sections(self) -> dict[str, bool]:
+        """Get expanded state for all sections."""
+        default_sections = {
+            "files": False,
+            "3de": True,
+            "nuke": True,
+            "maya": True,
+            "rv": True,
+        }
+        stored_value = self.settings.value(
+            "ui/expanded_sections", default_sections, type=dict
+        )
+        if isinstance(stored_value, dict):
+            typed_dict = cast("dict[object, object]", stored_value)
+            return {str(k): bool(v) for k, v in typed_dict.items()}
+        return default_sections
+
+    def set_section_expanded(self, section_id: str, expanded: bool) -> None:
+        """Set expanded state for a single section."""
+        sections = self.get_expanded_sections()
+        sections[section_id] = expanded
+        self.settings.setValue("ui/expanded_sections", sections)
+        self.settings_changed.emit("ui/expanded_sections", sections)
+
+    def is_section_expanded(self, section_id: str) -> bool:
+        """Check if a section is expanded.
+
+        Args:
+            section_id: Section identifier (e.g., "files", "3de", "nuke")
+
+        Returns:
+            True if section is expanded, False otherwise
+        """
+        sections = self.get_expanded_sections()
+        # Default to False for unknown sections
+        return sections.get(section_id, False)
 
     # Advanced Settings
     def get_debug_mode(self) -> bool:

@@ -7,6 +7,7 @@ user-controlled expansion where multiple sections can be open simultaneously.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import TYPE_CHECKING, final
 
 from PySide6.QtCore import Signal
@@ -20,6 +21,7 @@ from qt_widget_mixin import QtWidgetMixin
 
 
 if TYPE_CHECKING:
+    from settings_manager import SettingsManager
     from shot_model import Shot
 
 
@@ -41,16 +43,19 @@ class DCCAccordion(QtWidgetMixin, QWidget):
     def __init__(
         self,
         configs: list[DCCConfig] | None = None,
+        settings_manager: SettingsManager | None = None,
         parent: QWidget | None = None,
     ) -> None:
         """Initialize the DCC accordion.
 
         Args:
             configs: List of DCC configurations. Uses defaults if None.
+            settings_manager: Optional settings manager for persisting UI state.
             parent: Optional parent widget.
         """
         super().__init__(parent)
         self._configs = configs or DEFAULT_DCC_CONFIGS
+        self._settings_manager = settings_manager
         self._sections: dict[str, DCCSection] = {}
         self._current_shot: Shot | None = None
 
@@ -70,6 +75,25 @@ class DCCAccordion(QtWidgetMixin, QWidget):
             # Forward signals
             _ = section.launch_requested.connect(self._on_section_launch)
             _ = section.expanded_changed.connect(self._on_section_expanded)
+
+            # Restore expanded state from settings if available
+            if self._settings_manager is not None:
+                expanded = self._settings_manager.is_section_expanded(config.name)
+                section.set_expanded(expanded)
+
+                # Save expanded state changes to settings
+                settings = self._settings_manager  # Capture for closure
+                section_name = config.name  # Capture name for closure
+
+                def make_save_handler(
+                    name: str,
+                ) -> Callable[[str, bool], None]:
+                    def save_expanded(_app_name: str, is_expanded: bool) -> None:
+                        settings.set_section_expanded(name, is_expanded)
+
+                    return save_expanded
+
+                _ = section.expanded_changed.connect(make_save_handler(section_name))
 
             layout.addWidget(section)
             self._sections[config.name] = section

@@ -31,6 +31,7 @@ from shot_header import ShotHeader
 
 
 if TYPE_CHECKING:
+    from settings_manager import SettingsManager
     from shot_model import Shot
 
 
@@ -54,13 +55,19 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
     file_open_requested = Signal(object)  # SceneFile
     path_copy_requested = Signal()
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        settings_manager: SettingsManager | None = None,
+        parent: QWidget | None = None,
+    ) -> None:
         """Initialize the right panel widget.
 
         Args:
+            settings_manager: Optional settings manager for persisting UI state
             parent: Optional parent widget
         """
         super().__init__(parent)
+        self._settings_manager = settings_manager
         self._current_shot: Shot | None = None
         self._file_finder = ShotFileFinder()
 
@@ -116,13 +123,19 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
         content_layout.addWidget(self._quick_launch)
 
         # 3. DCC Accordion
-        self._dcc_accordion = DCCAccordion(parent=self)
+        self._dcc_accordion = DCCAccordion(
+            settings_manager=self._settings_manager,
+            parent=self,
+        )
         content_layout.addWidget(self._dcc_accordion)
 
-        # 4. Files Section (collapsed by default)
+        # 4. Files Section (restore expanded state from settings if available)
+        files_expanded = False
+        if self._settings_manager is not None:
+            files_expanded = self._settings_manager.is_section_expanded("files")
         self._files_section = FilesSection(
             title="Files",
-            expanded=False,
+            expanded=files_expanded,
             parent=self,
         )
         content_layout.addWidget(self._files_section)
@@ -154,6 +167,15 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
 
         # Files section signals
         _ = self._files_section.file_open_requested.connect(self.file_open_requested)
+
+        # Save Files section expanded state to settings
+        if self._settings_manager is not None:
+            settings = self._settings_manager  # Capture for lambda
+
+            def save_files_expanded(expanded: bool) -> None:
+                settings.set_section_expanded("files", expanded)
+
+            _ = self._files_section.expanded_changed.connect(save_files_expanded)
 
     def _on_quick_launch(self, app_name: str) -> None:
         """Handle quick launch request.
