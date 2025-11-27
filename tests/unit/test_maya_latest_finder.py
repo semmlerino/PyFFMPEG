@@ -42,7 +42,7 @@ class TestFindLatestMayaScene:
         """Test finding latest from multiple versioned files."""
         # Create workspace structure
         workspace = tmp_path / "workspace"
-        maya_scenes = workspace / "user" / "john" / "maya" / "scenes"
+        maya_scenes = workspace / "user" / "john" / "mm" / "maya" / "scenes"
         maya_scenes.mkdir(parents=True)
 
         # Create versioned Maya files
@@ -63,12 +63,12 @@ class TestFindLatestMayaScene:
         workspace = tmp_path / "workspace"
 
         # Create files for user1
-        user1_scenes = workspace / "user" / "alice" / "maya" / "scenes"
+        user1_scenes = workspace / "user" / "alice" / "mm" / "maya" / "scenes"
         user1_scenes.mkdir(parents=True)
         (user1_scenes / "shot_v002.ma").touch()
 
         # Create files for user2
-        user2_scenes = workspace / "user" / "bob" / "maya" / "scenes"
+        user2_scenes = workspace / "user" / "bob" / "mm" / "maya" / "scenes"
         user2_scenes.mkdir(parents=True)
         (user2_scenes / "shot_v004.ma").touch()
         (user2_scenes / "shot_v001.ma").touch()
@@ -83,7 +83,7 @@ class TestFindLatestMayaScene:
     def test_find_latest_mixed_extensions(self, tmp_path: Path) -> None:
         """Test handling of mixed .ma and .mb files."""
         workspace = tmp_path / "workspace"
-        maya_scenes = workspace / "user" / "artist" / "maya" / "scenes"
+        maya_scenes = workspace / "user" / "artist" / "mm" / "maya" / "scenes"
         maya_scenes.mkdir(parents=True)
 
         # Mix of ASCII and Binary files
@@ -135,7 +135,7 @@ class TestFindLatestMayaScene:
     def test_no_versioned_files(self, tmp_path: Path) -> None:
         """Test directory with no versioned Maya files."""
         workspace = tmp_path / "workspace"
-        maya_scenes = workspace / "user" / "john" / "maya" / "scenes"
+        maya_scenes = workspace / "user" / "john" / "mm" / "maya" / "scenes"
         maya_scenes.mkdir(parents=True)
 
         # Create unversioned files
@@ -171,7 +171,7 @@ class TestFindLatestMayaScene:
     def test_with_shot_name_in_logging(self, tmp_path: Path) -> None:
         """Test that shot name is used in logging."""
         workspace = tmp_path / "workspace"
-        maya_scenes = workspace / "user" / "john" / "maya" / "scenes"
+        maya_scenes = workspace / "user" / "john" / "mm" / "maya" / "scenes"
         maya_scenes.mkdir(parents=True)
         (maya_scenes / "anim_v001.ma").touch()
 
@@ -187,7 +187,7 @@ class TestFindLatestMayaScene:
     def test_logging_for_found_files(self, tmp_path: Path) -> None:
         """Test debug logging for found files."""
         workspace = tmp_path / "workspace"
-        maya_scenes = workspace / "user" / "john" / "maya" / "scenes"
+        maya_scenes = workspace / "user" / "john" / "mm" / "maya" / "scenes"
         maya_scenes.mkdir(parents=True)
         (maya_scenes / "scene_v001.ma").touch()
         (maya_scenes / "scene_v002.mb").touch()
@@ -213,7 +213,7 @@ class TestFindAllMayaScenes:
     def test_find_all_basic(self, tmp_path: Path) -> None:
         """Test finding all Maya scene files."""
         workspace = tmp_path / "workspace"
-        maya_scenes = workspace / "user" / "artist" / "maya" / "scenes"
+        maya_scenes = workspace / "user" / "artist" / "mm" / "maya" / "scenes"
         maya_scenes.mkdir(parents=True)
 
         # Create various Maya files
@@ -231,12 +231,12 @@ class TestFindAllMayaScenes:
         workspace = tmp_path / "workspace"
 
         # User 1
-        user1_scenes = workspace / "user" / "alice" / "maya" / "scenes"
+        user1_scenes = workspace / "user" / "alice" / "mm" / "maya" / "scenes"
         user1_scenes.mkdir(parents=True)
         (user1_scenes / "alice_scene.ma").touch()
 
         # User 2
-        user2_scenes = workspace / "user" / "bob" / "maya" / "scenes"
+        user2_scenes = workspace / "user" / "bob" / "mm" / "maya" / "scenes"
         user2_scenes.mkdir(parents=True)
         (user2_scenes / "bob_scene.ma").touch()
         (user2_scenes / "bob_model.mb").touch()
@@ -253,7 +253,7 @@ class TestFindAllMayaScenes:
     def test_exclude_autosave_by_default(self, tmp_path: Path) -> None:
         """Test that autosave files are excluded by default."""
         workspace = tmp_path / "workspace"
-        maya_scenes = workspace / "user" / "john" / "maya" / "scenes"
+        maya_scenes = workspace / "user" / "john" / "mm" / "maya" / "scenes"
         maya_scenes.mkdir(parents=True)
 
         # Create regular and autosave files
@@ -269,7 +269,7 @@ class TestFindAllMayaScenes:
     def test_include_autosave_when_requested(self, tmp_path: Path) -> None:
         """Test that autosave files are always excluded (no include_autosave param)."""
         workspace = tmp_path / "workspace"
-        maya_scenes = workspace / "user" / "john" / "maya" / "scenes"
+        maya_scenes = workspace / "user" / "john" / "mm" / "maya" / "scenes"
         maya_scenes.mkdir(parents=True)
 
         # Create regular and autosave files
@@ -371,7 +371,7 @@ class TestEdgeCases:
     def test_symlinks_handling(self, tmp_path: Path) -> None:
         """Test handling of symlinks in directory structure."""
         workspace = tmp_path / "workspace"
-        real_scenes = workspace / "user" / "john" / "maya" / "scenes"
+        real_scenes = workspace / "user" / "john" / "mm" / "maya" / "scenes"
         real_scenes.mkdir(parents=True)
         (real_scenes / "scene_v001.ma").touch()
 
@@ -390,7 +390,7 @@ class TestEdgeCases:
     def test_hidden_files_ignored(self, tmp_path: Path) -> None:
         """Test that hidden files are handled appropriately."""
         workspace = tmp_path / "workspace"
-        maya_scenes = workspace / "user" / "john" / "maya" / "scenes"
+        maya_scenes = workspace / "user" / "john" / "mm" / "maya" / "scenes"
         maya_scenes.mkdir(parents=True)
 
         # Create hidden and regular files
@@ -408,7 +408,7 @@ class TestEdgeCases:
     def test_special_characters_in_paths(self, tmp_path: Path) -> None:
         """Test handling of special characters in file names."""
         workspace = tmp_path / "workspace"
-        maya_scenes = workspace / "user" / "john-doe" / "maya" / "scenes"
+        maya_scenes = workspace / "user" / "john-doe" / "mm" / "maya" / "scenes"
         maya_scenes.mkdir(parents=True)
 
         # Files with special characters (but valid version pattern)
@@ -428,7 +428,7 @@ class TestEdgeCases:
         # Create multiple user directories with Maya scenes
         users = ["alice", "bob", "charlie", "diana"]
         for i, user in enumerate(users):
-            scenes = workspace / "user" / user / "maya" / "scenes"
+            scenes = workspace / "user" / user / "mm" / "maya" / "scenes"
             scenes.mkdir(parents=True)
             (scenes / f"scene_v{i + 1:03d}.ma").touch()
 
@@ -465,7 +465,7 @@ class TestPerformance:
         import time
 
         workspace = tmp_path / "workspace"
-        maya_scenes = workspace / "user" / "john" / "maya" / "scenes"
+        maya_scenes = workspace / "user" / "john" / "mm" / "maya" / "scenes"
         maya_scenes.mkdir(parents=True)
 
         # Create many versioned files
@@ -492,7 +492,7 @@ class TestPerformance:
 
         # Create many users with files
         for i in range(20):
-            user_scenes = workspace / "user" / f"user{i:02d}" / "maya" / "scenes"
+            user_scenes = workspace / "user" / f"user{i:02d}" / "mm" / "maya" / "scenes"
             user_scenes.mkdir(parents=True)
             (user_scenes / f"scene_v{i + 1:03d}.ma").touch()
 

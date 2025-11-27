@@ -31,8 +31,8 @@ class MayaLatestFinder(VersionHandlingMixin):
         """Find the latest Maya scene file in a workspace.
 
         Searches for Maya files (.ma and .mb) in the standard VFX directory structure:
-        /shows/{show}/shots/{sequence}/{shot}/user/*/maya/scenes/*.ma
-        /shows/{show}/shots/{sequence}/{shot}/user/*/maya/scenes/*.mb
+        /shows/{show}/shots/{sequence}/{shot}/user/*/mm/maya/scenes/**/*.ma
+        /shows/{show}/shots/{sequence}/{shot}/user/*/mm/maya/scenes/**/*.mb
 
         Args:
             workspace_path: Full path to the shot workspace
@@ -50,7 +50,6 @@ class MayaLatestFinder(VersionHandlingMixin):
             self.logger.debug(f"Workspace does not exist: {workspace_path}")
             return None
 
-        # Search pattern: user/*/maya/scenes/*.ma or *.mb
         maya_files: list[tuple[Path, int]] = []
 
         # Search in all user directories
@@ -60,17 +59,19 @@ class MayaLatestFinder(VersionHandlingMixin):
             return None
 
         # Find all Maya files
+        # Search pattern: user/*/mm/maya/scenes/**/*.ma or *.mb
+        # The mm/ prefix is the matchmove department directory
         for user_dir in user_base.iterdir():
             if not user_dir.is_dir():
                 continue
 
-            # Check for maya directory structure
-            maya_scenes = user_dir / "maya" / "scenes"
+            # Check for maya directory structure (with mm/ department prefix)
+            maya_scenes = user_dir / "mm" / "maya" / "scenes"
             if not maya_scenes.exists():
                 continue
 
-            # Search for .ma and .mb files
-            for maya_file in maya_scenes.glob("*.ma"):
+            # Search recursively for .ma and .mb files (scenes are in subdirs)
+            for maya_file in maya_scenes.glob("**/*.ma"):
                 version = self._extract_version(maya_file)
                 if version is not None:
                     maya_files.append((maya_file, version))
@@ -78,7 +79,7 @@ class MayaLatestFinder(VersionHandlingMixin):
                         f"Found Maya ASCII file: {maya_file.name} (v{version:03d})"
                     )
 
-            for maya_file in maya_scenes.glob("*.mb"):
+            for maya_file in maya_scenes.glob("**/*.mb"):
                 version = self._extract_version(maya_file)
                 if version is not None:
                     maya_files.append((maya_file, version))
@@ -135,18 +136,19 @@ class MayaLatestFinder(VersionHandlingMixin):
             if not user_dir.is_dir():
                 continue
 
-            maya_scenes = user_dir / "maya" / "scenes"
+            # Check for maya directory structure (with mm/ department prefix)
+            maya_scenes = user_dir / "mm" / "maya" / "scenes"
             if not maya_scenes.exists():
                 continue
 
-            # Get all .ma and .mb files
-            for maya_file in maya_scenes.glob("*.ma"):
+            # Get all .ma and .mb files recursively
+            for maya_file in maya_scenes.glob("**/*.ma"):
                 # Skip autosave files unless requested
                 if not include_autosave and ".autosave" in maya_file.name:
                     continue
                 maya_files.append(maya_file)
 
-            for maya_file in maya_scenes.glob("*.mb"):
+            for maya_file in maya_scenes.glob("**/*.mb"):
                 # Skip autosave files unless requested
                 if not include_autosave and ".autosave" in maya_file.name:
                     continue
