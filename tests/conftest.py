@@ -118,10 +118,32 @@ def qapp() -> Iterator[QApplication]:
 def _patch_qtbot_short_waits() -> Iterator[None]:
     """Intercept qtbot.wait for tiny delays to avoid pytest-qt re-entrancy crashes.
 
+    DESIGN PHILOSOPHY:
+    This is a SAFETY mechanism that prevents pytest-qt from entering nested
+    event loops when qtbot.wait() is called with very short timeouts (≤5ms).
+    These short waits typically indicate the intent to process pending events,
+    not to actually wait for time to pass.
+
+    BEHAVIOR:
+    - qtbot.wait(0) through qtbot.wait(5): Replaced with process_qt_events()
+    - qtbot.wait(6+): Original wait behavior preserved
+
+    RECOMMENDED PATTERN:
+    Use process_qt_events() directly instead of qtbot.wait(1) for clarity:
+        from tests.test_helpers import process_qt_events
+        process_qt_events()  # Clear and explicit intent
+
+    OPT-OUT:
+    Set SHOTBOT_TEST_NO_WAIT_PATCH=1 to disable this patch entirely.
+    This is useful for:
+    - Timing diagnostics where real millisecond delays matter
+    - Debugging tests that behave differently with/without the patch
+
+    DIAGNOSTICS:
+    Set SHOTBOT_TEST_WAIT_DIAG=1 to log when short waits are intercepted.
+
     IMPORTANT: This fixture MUST be in conftest.py (not a pytest_plugins module)
     to ensure it's registered at the same time as qapp and runs at session scope.
-
-    Set SHOTBOT_TEST_NO_WAIT_PATCH=1 to disable this patch for timing diagnostics.
     """
     # Allow opt-out for timing diagnostics
     if os.environ.get("SHOTBOT_TEST_NO_WAIT_PATCH", "0") == "1":
@@ -170,6 +192,7 @@ pytest_plugins = [
     "tests.fixtures.qt_safety",
     "tests.fixtures.qt_cleanup",
     "tests.fixtures.singleton_isolation",
+    "tests.fixtures.caching",
     "tests.fixtures.data_factories",
 ]
 
@@ -186,9 +209,19 @@ _QT_FIXTURES = frozenset({"qtbot", "cleanup_qt_state", "qt_cleanup", "qapp"})
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     """Group Qt-using tests and auto-enable fixtures based on markers.
 
-    1. Groups Qt tests onto a single xdist worker for stable teardown
-    2. Auto-applies heavy cleanup fixtures (qt_cleanup, cleanup_state_heavy) to Qt tests
-    3. Auto-enables fixtures based on markers (e.g., enforce_unique_connections)
+    GROUPING STRATEGY:
+    - Qt tests are grouped by module (e.g., qt_test_shot_model, qt_test_launcher)
+    - Tests in the same module share a worker for stable module-level Qt state
+    - Different modules can run in parallel on different workers
+    - This balances stability (module isolation) with parallelism (multiple workers)
+
+    AUTO-FIXTURES:
+    - qt_cleanup: Handles Qt widget/state cleanup between tests
+    - cleanup_state_heavy: Handles singleton reset between tests
+
+    MARKERS:
+    - @pytest.mark.qt_heavy: Forces test onto single "qt_heavy" worker group
+    - @pytest.mark.enforce_unique_connections: Enforces UniqueConnection for signals
     """
     for item in items:
         # Determine if this is a Qt test
@@ -196,8 +229,19 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
         is_qt_test = item.get_closest_marker("qt") or fixtures.intersection(_QT_FIXTURES)
 
         if is_qt_test:
-            # Group Qt tests onto a single xdist worker for stable teardown
-            item.add_marker(pytest.mark.xdist_group(name="qt"))
+            # Check for qt_heavy marker - these tests need extra isolation
+            if item.get_closest_marker("qt_heavy"):
+                # Heavy Qt tests go to dedicated worker for stability
+                item.add_marker(pytest.mark.xdist_group(name="qt_heavy"))
+            else:
+                # Module-based grouping: tests in same module share a worker
+                # This allows parallelism across modules while keeping
+                # module-level Qt state stable
+                module_name = item.module.__name__ if item.module else "unknown"
+                # Extract just the test file name for the group
+                group_name = f"qt_{module_name.split('.')[-1]}"
+                item.add_marker(pytest.mark.xdist_group(name=group_name))
+
             # Auto-apply heavy cleanup fixtures to Qt tests
             # (qt_cleanup handles Qt state, cleanup_state_heavy handles singletons)
             item.add_marker(pytest.mark.usefixtures("qt_cleanup", "cleanup_state_heavy"))
@@ -329,6 +373,20 @@ def pytest_configure(config: pytest.Config) -> None:
         "markers",
         "real_subprocess: execute test with real subprocess (bypasses autouse mocks)",
     )
+
+    # Verify all registered singletons have reset() methods
+    # This catches cases where new singletons are added without proper reset support
+    import warnings
+
+    from tests.fixtures.singleton_registry import SingletonRegistry
+
+    missing = SingletonRegistry.verify_all_have_reset()
+    if missing:
+        warnings.warn(
+            f"Singletons registered in SingletonRegistry but missing reset() method: {missing}. "
+            "Add a reset() classmethod to each singleton for proper test isolation.",
+            stacklevel=1,
+        )
 
 
 def pytest_runtest_setup(item: pytest.Item) -> None:

@@ -48,11 +48,13 @@ def cleanup_state_lite() -> Iterator[None]:
 
     For heavy cleanup (Qt, singletons, threads), see cleanup_state_heavy fixture.
     """
-    from utils import clear_all_caches, disable_caching
+    from utils import clear_all_caches
 
     # ===== BEFORE TEST: Lightweight setup =====
+    # Clear caches but DON'T disable them - tests should run with caching enabled
+    # unless explicitly disabled. The old behavior disabled caching without re-enabling,
+    # which meant production code paths with caching were never tested.
     clear_all_caches()
-    disable_caching()
 
     # Reset Config.SHOWS_ROOT
     try:
@@ -77,8 +79,8 @@ def cleanup_state_lite() -> Iterator[None]:
     yield
 
     # ===== AFTER TEST: Lightweight cleanup =====
+    # Just clear caches, don't disable them
     clear_all_caches()
-    disable_caching()
 
     # Reset Config.SHOWS_ROOT
     try:
@@ -102,44 +104,24 @@ def cleanup_state_heavy() -> Iterator[None]:
     or are marked with @pytest.mark.qt.
 
     Before test:
-    - Reset NotificationManager and ProgressManager singletons
-    - Reset FilesystemCoordinator
+    - Reset all registered singletons via SingletonRegistry
 
     After test:
     - Process pending Qt events
-    - Reset all singletons (ProcessPoolManager, QRunnableTracker, ThreadSafeWorker)
+    - Reset all registered singletons via SingletonRegistry
+
+    Cleanup order is managed centrally by SingletonRegistry:
+    - Qt UI singletons first (NotificationManager, ProgressManager)
+    - Worker tracking (QRunnableTracker, ThreadSafeWorker)
+    - Process pools (ProcessPoolManager)
+    - Infrastructure (FilesystemCoordinator)
     """
-    from notification_manager import NotificationManager
-    from progress_manager import ProgressManager
+    from tests.fixtures.singleton_registry import SingletonRegistry
 
-    # ===== BEFORE TEST: Reset singletons =====
-
-    # Reset all singleton managers using their reset() methods
-    # Order matters: NotificationManager FIRST (closes Qt widgets that ProgressManager may reference)
-    try:
-        NotificationManager.reset()
-    except (RuntimeError, AttributeError) as e:
-        _logger.debug("NotificationManager.reset() before-test exception: %s", e)
-        if STRICT_CLEANUP:
-            raise
-
-    # THEN reset ProgressManager (now safe to clear widget references)
-    try:
-        ProgressManager.reset()
-    except (RuntimeError, AttributeError) as e:
-        _logger.debug("ProgressManager.reset() before-test exception: %s", e)
-        if STRICT_CLEANUP:
-            raise
-
-    # Reset FilesystemCoordinator
-    try:
-        from filesystem_coordinator import FilesystemCoordinator
-
-        FilesystemCoordinator.reset()
-    except (RuntimeError, AttributeError, ImportError) as e:
-        _logger.debug("FilesystemCoordinator.reset() before-test exception: %s", e)
-        if STRICT_CLEANUP:
-            raise
+    # ===== BEFORE TEST: Reset all singletons =====
+    errors = SingletonRegistry.reset_all(strict=STRICT_CLEANUP)
+    for path, exc in errors:
+        _logger.debug("Singleton reset before-test failed: %s: %s", path, exc)
 
     yield
 
@@ -157,60 +139,10 @@ def cleanup_state_heavy() -> Iterator[None]:
         if STRICT_CLEANUP:
             raise
 
-    # Reset all singleton managers
-    try:
-        NotificationManager.reset()
-    except (RuntimeError, AttributeError) as e:
-        _logger.debug("NotificationManager.reset() after-test exception: %s", e)
-        if STRICT_CLEANUP:
-            raise
-
-    try:
-        ProgressManager.reset()
-    except (RuntimeError, AttributeError) as e:
-        _logger.debug("ProgressManager.reset() after-test exception: %s", e)
-        if STRICT_CLEANUP:
-            raise
-
-    # QRunnableTracker Cleanup
-    from runnable_tracker import QRunnableTracker
-
-    try:
-        QRunnableTracker.reset()
-    except Exception as e:
-        _logger.debug("QRunnableTracker.reset() exception: %s", e)
-        if STRICT_CLEANUP:
-            raise
-
-    # ProcessPoolManager Cleanup
-    from process_pool_manager import ProcessPoolManager
-
-    try:
-        ProcessPoolManager.reset()
-    except Exception as e:
-        _logger.debug("ProcessPoolManager.reset() exception: %s", e)
-        if STRICT_CLEANUP:
-            raise
-
-    # FilesystemCoordinator Cleanup
-    from filesystem_coordinator import FilesystemCoordinator
-
-    try:
-        FilesystemCoordinator.reset()
-    except Exception as e:
-        _logger.debug("FilesystemCoordinator.reset() after-test exception: %s", e)
-        if STRICT_CLEANUP:
-            raise
-
-    # ThreadSafeWorker Zombie Cleanup
-    from thread_safe_worker import ThreadSafeWorker
-
-    try:
-        ThreadSafeWorker.reset()
-    except Exception as e:
-        _logger.debug("ThreadSafeWorker.reset() exception: %s", e)
-        if STRICT_CLEANUP:
-            raise
+    # Reset all singletons via registry
+    errors = SingletonRegistry.reset_all(strict=STRICT_CLEANUP)
+    for path, exc in errors:
+        _logger.debug("Singleton reset after-test failed: %s: %s", path, exc)
 
 
 # Backward compatibility alias - some tests may reference cleanup_state directly

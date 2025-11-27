@@ -1,22 +1,26 @@
 """Subprocess mocking fixtures for parallel test execution.
 
-This module provides autouse fixtures that mock subprocess execution to prevent
-crashes in parallel test execution. Without these mocks, multiple workers running
-"ws -sg" commands or spawning Popen processes crash at the C level.
+This module provides fixtures for mocking subprocess execution. The default
+behavior prevents subprocess crashes in parallel test execution while allowing
+tests to opt into real subprocess execution or controlled error scenarios.
 
-EXCEPTION TO UNIFIED_TESTING_V2.MD GUIDANCE:
-- Normally subprocess mocking should NOT be autouse
-- But ProcessPoolManager is a singleton used throughout the codebase
-- Without global mocking, tests crash in parallel when multiple workers
-  try to execute real "ws -sg" commands (C-level subprocess crash)
-- This is the pragmatic choice for a singleton dependency
+DESIGN PHILOSOPHY:
+- Autouse mocks provide SAFETY (prevent C-level crashes in parallel execution)
+- Opt-in mocks provide CONTROL (test error handling, verify commands, etc.)
+- Tests needing real subprocess use @pytest.mark.real_subprocess
 
-OPT-OUT: Use @pytest.mark.real_subprocess to skip these mocks for tests that
+Fixture Types:
+    AUTOUSE (safety):
+        mock_process_pool_manager: Patches ProcessPoolManager singleton
+        mock_subprocess_popen: Patches subprocess.Popen globally
+
+    OPT-IN (control):
+        subprocess_mock: Controllable mock for testing command execution
+        subprocess_error_mock: Pre-configured for error scenarios
+        subprocess_timeout_mock: Simulates timeout/hanging processes
+
+OPT-OUT: Use @pytest.mark.real_subprocess to skip autouse mocks for tests that
 need real subprocess behavior.
-
-Fixtures:
-    mock_process_pool_manager: Patches ProcessPoolManager singleton (autouse)
-    mock_subprocess_popen: Patches subprocess.Popen globally (autouse)
 """
 
 from __future__ import annotations
@@ -199,6 +203,76 @@ def subprocess_mock(monkeypatch: pytest.MonkeyPatch) -> SubprocessMock:
             assert ["ws", "-sg"] in subprocess_mock.calls
     """
     mock = SubprocessMock()
+    monkeypatch.setattr("subprocess.Popen", mock.mock)
+    monkeypatch.setattr("launcher.worker.subprocess.Popen", mock.mock)
+    return mock
+
+
+# ==============================================================================
+# OPT-IN ERROR FIXTURES
+# ==============================================================================
+# These fixtures are NOT autouse - use them explicitly when testing error paths
+
+
+@pytest.fixture
+def subprocess_error_mock(monkeypatch: pytest.MonkeyPatch) -> SubprocessMock:
+    """Provide subprocess mock pre-configured for error scenarios.
+
+    This fixture returns a SubprocessMock that fails by default (return code 1).
+    Use this when testing error handling paths in code that calls subprocess.
+
+    Example:
+        def test_launcher_handles_failure(subprocess_error_mock):
+            subprocess_error_mock.set_output("", stderr="Command not found")
+            result = my_launcher.run_command()
+            assert result.success is False
+    """
+    mock = SubprocessMock()
+    mock.set_return_code(1)  # Default to failure
+    mock.set_output("", stderr="Command failed")
+    monkeypatch.setattr("subprocess.Popen", mock.mock)
+    monkeypatch.setattr("launcher.worker.subprocess.Popen", mock.mock)
+    return mock
+
+
+@pytest.fixture
+def subprocess_timeout_mock(monkeypatch: pytest.MonkeyPatch) -> SubprocessMock:
+    """Provide subprocess mock that simulates timeout/hanging processes.
+
+    This fixture creates a subprocess mock that never returns when polled,
+    useful for testing timeout handling logic.
+
+    Example:
+        def test_launcher_timeout(subprocess_timeout_mock):
+            with pytest.raises(TimeoutError):
+                my_launcher.run_command(timeout=1)
+    """
+    mock = SubprocessMock()
+    # Configure to never complete (poll returns None)
+    mock._mock.return_value.poll.return_value = None
+    mock._mock.return_value.returncode = None
+    monkeypatch.setattr("subprocess.Popen", mock.mock)
+    monkeypatch.setattr("launcher.worker.subprocess.Popen", mock.mock)
+    return mock
+
+
+@pytest.fixture
+def subprocess_exception_mock(monkeypatch: pytest.MonkeyPatch) -> SubprocessMock:
+    """Provide subprocess mock that raises OSError on Popen.
+
+    This fixture simulates the case where the subprocess cannot be started
+    at all (e.g., command not found, permission denied).
+
+    Example:
+        def test_launcher_handles_missing_command(subprocess_exception_mock):
+            subprocess_exception_mock.set_exception(
+                FileNotFoundError("[Errno 2] No such file or directory: 'missing_cmd'")
+            )
+            result = my_launcher.run_command("missing_cmd")
+            assert result.error_type == "FileNotFoundError"
+    """
+    mock = SubprocessMock()
+    mock.set_exception(FileNotFoundError("[Errno 2] No such file or directory"))
     monkeypatch.setattr("subprocess.Popen", mock.mock)
     monkeypatch.setattr("launcher.worker.subprocess.Popen", mock.mock)
     return mock
