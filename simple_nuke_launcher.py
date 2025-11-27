@@ -59,6 +59,8 @@ class SimpleNukeLauncher(LoggingMixin):
             / "mm"
             / "nuke"
             / "scripts"
+            / "mm-default"
+            / "scene"
             / plate
         )
 
@@ -221,6 +223,8 @@ print(f"Context: SHOW={{os.environ['SHOW']}} SHOT={{os.environ['SHOT_NAME']}} PL
             / "mm"
             / "nuke"
             / "scripts"
+            / "mm-default"
+            / "scene"
             / plate
         )
 

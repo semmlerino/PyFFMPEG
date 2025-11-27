@@ -185,7 +185,7 @@ class TestScriptVersionDetection:
         plate_name = "FG01"
 
         # Create workspace script directory (NEW: user workspace, not plate media directory)
-        script_dir = workspace_path / "user" / "testuser" / "mm" / "nuke" / "scripts" / plate_name
+        script_dir = workspace_path / "user" / "testuser" / "mm" / "nuke" / "scripts" / "mm-default" / "scene" / plate_name
         script_dir.mkdir(parents=True, exist_ok=True)
 
         # Create test scripts
@@ -211,7 +211,7 @@ class TestScriptVersionDetection:
         shot_name = "TEST_0010"
         plate_name = "FG01"
 
-        script_dir = workspace_path / "user" / "testuser" / "mm" / "nuke" / "scripts" / plate_name
+        script_dir = workspace_path / "user" / "testuser" / "mm" / "nuke" / "scripts" / "mm-default" / "scene" / plate_name
         script_dir.mkdir(parents=True, exist_ok=True)
 
         # Create scripts in non-sequential order
@@ -231,7 +231,7 @@ class TestScriptVersionDetection:
         shot_name = "TEST_0010"
         plate_name = "FG01"
 
-        script_dir = workspace_path / "user" / "testuser" / "mm" / "nuke" / "scripts" / plate_name
+        script_dir = workspace_path / "user" / "testuser" / "mm" / "nuke" / "scripts" / "mm-default" / "scene" / plate_name
         script_dir.mkdir(parents=True, exist_ok=True)
 
         # Create v001
@@ -249,7 +249,7 @@ class TestScriptVersionDetection:
         shot_name = "TEST_0010"
         plate_name = "FG01"
 
-        script_dir = workspace_path / "user" / "testuser" / "mm" / "nuke" / "scripts" / plate_name
+        script_dir = workspace_path / "user" / "testuser" / "mm" / "nuke" / "scripts" / "mm-default" / "scene" / plate_name
         script_dir.mkdir(parents=True, exist_ok=True)
 
         # Create v001 and v003 (skip v002)
@@ -269,7 +269,7 @@ class TestScriptVersionDetection:
         plate_name = "FG01"
 
         # Create empty script directory
-        script_dir = workspace_path / "user" / "testuser" / "mm" / "nuke" / "scripts" / plate_name
+        script_dir = workspace_path / "user" / "testuser" / "mm" / "nuke" / "scripts" / "mm-default" / "scene" / plate_name
         script_dir.mkdir(parents=True, exist_ok=True)
 
         result = PlateDiscovery.get_next_script_version(str(workspace_path), shot_name, plate_name)
@@ -307,7 +307,7 @@ class TestScriptPathConstruction:
         shot_name = "TEST_0010"
         plate_name = "FG01"
 
-        script_dir = workspace_path / "user" / "testuser" / "mm" / "nuke" / "scripts" / plate_name
+        script_dir = workspace_path / "user" / "testuser" / "mm" / "nuke" / "scripts" / "mm-default" / "scene" / plate_name
         script_dir.mkdir(parents=True, exist_ok=True)
 
         # Create a script with correct naming
@@ -330,7 +330,7 @@ class TestScriptPathConstruction:
         shot_name = "BRX_170_0100"
         plate_name = "PL01"
 
-        script_dir = workspace_path / "user" / "testuser" / "mm" / "nuke" / "scripts" / plate_name
+        script_dir = workspace_path / "user" / "testuser" / "mm" / "nuke" / "scripts" / "mm-default" / "scene" / plate_name
         script_dir.mkdir(parents=True, exist_ok=True)
 
         # Test the expected naming pattern
@@ -356,7 +356,7 @@ class TestScriptPathConstruction:
         shot_name = "TEST_0010"
         plate_name = "FG01"
 
-        script_dir = workspace_path / "user" / "testuser" / "mm" / "nuke" / "scripts" / plate_name
+        script_dir = workspace_path / "user" / "testuser" / "mm" / "nuke" / "scripts" / "mm-default" / "scene" / plate_name
         script_dir.mkdir(parents=True, exist_ok=True)
 
         # Create scripts with various version numbers
@@ -400,7 +400,7 @@ class TestEdgeCases:
         plate_name = "FG01"
 
         # Create empty script directory
-        script_dir = workspace_path / "user" / "testuser" / "mm" / "nuke" / "scripts" / plate_name
+        script_dir = workspace_path / "user" / "testuser" / "mm" / "nuke" / "scripts" / "mm-default" / "scene" / plate_name
         script_dir.mkdir(parents=True, exist_ok=True)
 
         result = PlateDiscovery.find_existing_scripts(str(workspace_path), shot_name, plate_name)
@@ -415,7 +415,7 @@ class TestEdgeCases:
         shot_name = "TEST_0010"
         plate_name = "FG01"
 
-        script_dir = workspace_path / "user" / "testuser" / "mm" / "nuke" / "scripts" / plate_name
+        script_dir = workspace_path / "user" / "testuser" / "mm" / "nuke" / "scripts" / "mm-default" / "scene" / plate_name
         script_dir.mkdir(parents=True, exist_ok=True)
 
         # Create malformed filenames
@@ -450,7 +450,7 @@ class TestEdgeCases:
         workspace_path = tmp_path / "workspace"
         plate_name = "FG01"
 
-        script_dir = workspace_path / "user" / "testuser" / "mm" / "nuke" / "scripts" / plate_name
+        script_dir = workspace_path / "user" / "testuser" / "mm" / "nuke" / "scripts" / "mm-default" / "scene" / plate_name
         script_dir.mkdir(parents=True, exist_ok=True)
 
         # Test with empty shot name

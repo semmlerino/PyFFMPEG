@@ -175,7 +175,7 @@ class PlateDiscovery:
         This is the correct location for script storage, independent of plate media versions.
         Scripts saved here persist across plate version updates and support "open latest" workflow.
 
-        Path format: {workspace}/user/{user}/mm/nuke/scripts/{plate_name}/
+        Path format: {workspace}/user/{user}/mm/nuke/scripts/mm-default/scene/{plate_name}/
 
         Args:
             workspace_path: Shot workspace path
@@ -192,9 +192,9 @@ class PlateDiscovery:
         if user is None:
             user = os.environ.get("USER", "gabriel-h")
 
-        # Build path: {workspace}/user/{user}/mm/nuke/scripts/{plate_name}/
+        # Build path: {workspace}/user/{user}/mm/nuke/scripts/mm-default/scene/{plate_name}/
         script_dir = (
-            Path(workspace_path) / "user" / user / "mm" / "nuke" / "scripts" / plate_name
+            Path(workspace_path) / "user" / user / "mm" / "nuke" / "scripts" / "mm-default" / "scene" / plate_name
         )
 
         # Create directory if it doesn't exist
@@ -213,7 +213,7 @@ class PlateDiscovery:
     ) -> list[tuple[Path, int]]:
         """Find existing Nuke scripts for a plate in workspace directory.
 
-        Searches in: {workspace}/user/{user}/mm/nuke/scripts/{plate_name}/
+        Searches in: {workspace}/user/{user}/mm/nuke/scripts/mm-default/scene/{plate_name}/
 
         Args:
             workspace_path: Shot workspace path
