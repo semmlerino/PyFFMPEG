@@ -73,7 +73,7 @@ class SceneFile:
 
         Returns a user-friendly string describing when the file was last modified.
         """
-        now = datetime.now()
+        now = datetime.now()  # noqa: DTZ005 - Comparing with naive local time from filesystem
         delta = now - self.modified_time
 
         seconds = int(delta.total_seconds())
@@ -86,23 +86,22 @@ class SceneFile:
 
         if seconds < 60:
             return "just now"
-        elif minutes < 60:
+        if minutes < 60:
             return f"{minutes} minute{'s' if minutes != 1 else ''} ago"
-        elif hours < 24:
+        if hours < 24:
             return f"{hours} hour{'s' if hours != 1 else ''} ago"
-        elif days == 1:
+        if days == 1:
             return "yesterday"
-        elif days < 7:
+        if days < 7:
             return f"{days} days ago"
-        elif days < 30:
+        if days < 30:
             weeks = days // 7
             return f"{weeks} week{'s' if weeks != 1 else ''} ago"
-        elif days < 365:
+        if days < 365:
             months = days // 30
             return f"{months} month{'s' if months != 1 else ''} ago"
-        else:
-            years = days // 365
-            return f"{years} year{'s' if years != 1 else ''} ago"
+        years = days // 365
+        return f"{years} year{'s' if years != 1 else ''} ago"
 
     @property
     def formatted_time(self) -> str:

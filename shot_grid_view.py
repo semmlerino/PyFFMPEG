@@ -20,6 +20,7 @@ from PySide6.QtCore import (
 )
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QApplication,
     QHBoxLayout,
     QMenu,
     QPushButton,
@@ -101,11 +102,11 @@ class ShotGridView(BaseGridView):
         return ShotGridDelegate(self)
 
     @override
-    def _customize_size_layout(self, layout: QHBoxLayout) -> None:
-        """Add recovery button to size layout.
+    def _add_toolbar_widgets(self, layout: QHBoxLayout) -> None:
+        """Add recovery button to toolbar.
 
         Args:
-            layout: The size control horizontal layout
+            layout: The toolbar horizontal layout
         """
         # Recovery button for 3DE crash files
         self.recover_button = QPushButton("Recover Crashes...")
@@ -116,6 +117,9 @@ class ShotGridView(BaseGridView):
             lambda: self.recover_crashes_requested.emit()
         )
         layout.addWidget(self.recover_button)
+
+        # Push button to the right
+        layout.addStretch()
 
     @property
     def model(self) -> ShotItemModel | None:
@@ -364,9 +368,34 @@ class ShotGridView(BaseGridView):
         # Create context menu
         menu = QMenu(self)
 
-        # Add "Open Shot Folder" action
+        # Primary action: Open Shot Folder
         open_folder_action = menu.addAction("Open Shot Folder")
         _ = open_folder_action.triggered.connect(lambda: self._open_shot_folder(shot))
+
+        _ = menu.addSeparator()
+
+        # Launch Application submenu (with keyboard shortcuts visible)
+        launch_menu = menu.addMenu("Launch Application")
+        launch_apps = [
+            ("3DEqualizer", "3", "3de"),
+            ("Nuke", "N", "nuke"),
+            ("Maya", "M", "maya"),
+            ("RV", "R", "rv"),
+        ]
+        for label, shortcut, app_id in launch_apps:
+            action = launch_menu.addAction(f"{label}  ({shortcut})")
+            # Use default parameter to capture app_id correctly in lambda
+            _ = action.triggered.connect(
+                lambda checked=False, a=app_id: self.app_launch_requested.emit(a)  # noqa: ARG005
+            )
+
+        _ = menu.addSeparator()
+
+        # Copy Shot Path action
+        copy_path_action = menu.addAction("Copy Shot Path")
+        _ = copy_path_action.triggered.connect(
+            lambda: self._copy_path_to_clipboard(shot.workspace_path)
+        )
 
         # Show menu at cursor position
         _ = menu.exec(event.globalPos())
@@ -414,6 +443,17 @@ class ShotGridView(BaseGridView):
     def _on_folder_open_success(self) -> None:
         """Handle successful folder opening."""
         self.logger.debug("Folder opened successfully")
+
+    def _copy_path_to_clipboard(self, path: str) -> None:
+        """Copy a path to the system clipboard.
+
+        Args:
+            path: The path string to copy
+        """
+        clipboard = QApplication.clipboard()
+        if clipboard:
+            clipboard.setText(path)
+            self.logger.debug(f"Copied path to clipboard: {path}")
 
 
 # Example usage

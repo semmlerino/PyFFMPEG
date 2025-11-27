@@ -115,6 +115,23 @@ class AppLauncherSection(QtWidgetMixin, QWidget):
         header_layout.addWidget(name_label)
         header_layout.addStretch()
 
+        # Keyboard shortcut badge (if shortcut configured)
+        if self.config.shortcut:
+            shortcut_badge = QLabel(self.config.shortcut.upper())
+            shortcut_badge.setStyleSheet("""
+                QLabel {
+                    background-color: #333;
+                    color: #888;
+                    font-size: 9px;
+                    font-weight: bold;
+                    padding: 2px 5px;
+                    border-radius: 3px;
+                    border: 1px solid #444;
+                }
+            """)
+            shortcut_badge.setToolTip(f"Press '{self.config.shortcut.upper()}' to launch")
+            header_layout.addWidget(shortcut_badge)
+
         # Expand/collapse button for options
         self.expand_button = QToolButton()
         self.expand_button.setArrowType(
@@ -137,7 +154,7 @@ class AppLauncherSection(QtWidgetMixin, QWidget):
         layout.addLayout(header_layout)
 
         # Launch button (always visible)
-        self.launch_button = QPushButton(f"Launch")
+        self.launch_button = QPushButton("Launch")
         self.launch_button.setObjectName(f"launch_{self.config.name}")
         _ = self.launch_button.clicked.connect(self._on_launch_clicked)
         self.launch_button.setEnabled(False)
@@ -158,8 +175,9 @@ class AppLauncherSection(QtWidgetMixin, QWidget):
                 background-color: {self._darken_color(self.config.color)};
             }}
             QPushButton:disabled {{
-                background-color: #1e2a35;
-                color: #666;
+                background-color: #2a2a2a;
+                color: #888;
+                border: 1px dashed #444;
             }}
         """)
 
@@ -209,21 +227,21 @@ class AppLauncherSection(QtWidgetMixin, QWidget):
             self.plate_selector.setEnabled(False)
             self.plate_selector.setPlaceholderText("Select...")
             self.plate_selector.setMinimumWidth(80)
-            self.plate_selector.setStyleSheet(f"""
-                QComboBox {{
+            self.plate_selector.setStyleSheet("""
+                QComboBox {
                     background-color: #2a2a2a;
                     color: #ecf0f1;
                     border: 1px solid #444;
                     border-radius: 3px;
                     padding: 2px 4px;
                     font-size: 10px;
-                }}
-                QComboBox:disabled {{
+                }
+                QComboBox:disabled {
                     background-color: #1e1e1e;
                     color: #666;
-                }}
-                QComboBox::drop-down {{ border: none; }}
-                QComboBox::down-arrow {{ image: none; }}
+                }
+                QComboBox::drop-down { border: none; }
+                QComboBox::down-arrow { image: none; }
             """)
             plate_layout.addWidget(self.plate_selector)
             plate_layout.addStretch()
@@ -420,6 +438,16 @@ class LauncherPanel(QtWidgetMixin, QWidget):
         )
         group_layout.addWidget(self.info_label)
 
+        # Hint for discoverability
+        self.hint_label = QLabel(
+            "Tip: Double-click a scene or use shortcuts (3, N, M, R, P)"
+        )
+        self.hint_label.setWordWrap(True)
+        self.hint_label.setStyleSheet(
+            "QLabel { color: #666; font-size: 10px; padding: 2px 10px; }"
+        )
+        group_layout.addWidget(self.hint_label)
+
         # === FAST-PATH BAR ===
         quick_bar = QWidget()
         quick_layout = QHBoxLayout(quick_bar)
@@ -458,7 +486,7 @@ class LauncherPanel(QtWidgetMixin, QWidget):
             """)
             btn.setEnabled(False)
             _ = btn.clicked.connect(
-                lambda checked, a=app_name: self._on_quick_launch(a)  # type: ignore[arg-type]
+                lambda checked, a=app_name: self._on_quick_launch(a)  # noqa: ARG005 # type: ignore[arg-type]
             )
             quick_layout.addWidget(btn)
             self._quick_buttons[app_name] = btn

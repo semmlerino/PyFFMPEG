@@ -86,8 +86,11 @@ class ThreeDEGridView(BaseGridView):
         self.count_label: QLabel
         self.recover_button: QPushButton
 
-        # Initialize base class (this calls _add_top_widgets and _customize_size_layout)
+        # Initialize base class (this calls _add_top_widgets and _add_toolbar_widgets)
         super().__init__(parent)
+
+        # Update text filter placeholder for 3DE context
+        self.text_filter_input.setPlaceholderText("Filter scenes...")
 
         # ThreeDEGridView-specific attributes
         self._selected_scene = None
@@ -131,11 +134,11 @@ class ThreeDEGridView(BaseGridView):
         layout.addLayout(loading_layout)
 
     @override
-    def _customize_size_layout(self, layout: QHBoxLayout) -> None:
-        """Add scene count label and recovery button to size layout.
+    def _add_toolbar_widgets(self, layout: QHBoxLayout) -> None:
+        """Add scene count label and recovery button to toolbar.
 
         Args:
-            layout: The size control horizontal layout
+            layout: The toolbar horizontal layout
         """
         # Recovery button
         self.recover_button = QPushButton("Recover Crashes...")
@@ -147,8 +150,10 @@ class ThreeDEGridView(BaseGridView):
         )
         layout.addWidget(self.recover_button)
 
-        # Scene count label
+        # Push count label to far right
         layout.addStretch()
+
+        # Scene count label
         self.count_label = QLabel("0 scenes")
         layout.addWidget(self.count_label)
 

@@ -333,10 +333,19 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
         placeholder_color = QColor("#1a1a1a")
         painter.fillRect(rect, placeholder_color)
 
-        # Draw placeholder text
-        painter.setPen(QPen(QColor("#666")))
+        # Draw camera icon in center
+        painter.setPen(QPen(QColor("#444")))
+        icon_font = QFont()
+        icon_font.setPointSize(24)
+        painter.setFont(icon_font)
+        icon_rect = QRect(rect.x(), rect.y(), rect.width(), rect.height() - 20)
+        _ = painter.drawText(icon_rect, Qt.AlignmentFlag.AlignCenter, "📷")
+
+        # Draw "No Preview" text below icon
+        painter.setPen(QPen(QColor("#555")))
         painter.setFont(self._info_font)
-        _ = painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, "No Thumbnail")
+        text_rect = QRect(rect.x(), rect.bottom() - 20, rect.width(), 20)
+        _ = painter.drawText(text_rect, Qt.AlignmentFlag.AlignCenter, "No Preview")
 
     def _draw_failed_placeholder(self, painter: QPainter, rect: QRect) -> None:
         """Draw a placeholder when thumbnail loading failed."""

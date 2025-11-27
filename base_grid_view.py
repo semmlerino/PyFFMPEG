@@ -21,6 +21,7 @@ from PySide6.QtCore import (
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QComboBox,
+    QFrame,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -114,52 +115,55 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
         # Allow subclasses to add top widgets (like loading indicators)
         self._add_top_widgets(layout)
 
-        # Size control slider
-        size_layout = QHBoxLayout()
-        size_layout.addWidget(QLabel("Thumbnail Size:"))
+        # === COMPACT UNIFIED TOOLBAR ===
+        toolbar_layout = QHBoxLayout()
+        toolbar_layout.setContentsMargins(5, 5, 5, 5)
+        toolbar_layout.setSpacing(8)
 
+        # Size slider (compact, no label)
         self.size_slider: QSlider = QSlider(Qt.Orientation.Horizontal)
         self.size_slider.setMinimum(Config.MIN_THUMBNAIL_SIZE)
         self.size_slider.setMaximum(Config.MAX_THUMBNAIL_SIZE)
         self.size_slider.setValue(self._thumbnail_size)
-        self.size_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
-        self.size_slider.setTickInterval(50)
+        self.size_slider.setFixedWidth(120)
+        self.size_slider.setToolTip("Thumbnail size")
         _ = self.size_slider.valueChanged.connect(self._on_size_changed)
-        size_layout.addWidget(self.size_slider)
+        toolbar_layout.addWidget(self.size_slider)
 
+        # Compact size label (just "Npx")
         self.size_label: QLabel = QLabel(f"{self._thumbnail_size}px")
-        self.size_label.setMinimumWidth(50)
-        size_layout.addWidget(self.size_label)
+        self.size_label.setFixedWidth(45)
+        self.size_label.setStyleSheet("color: #888;")
+        toolbar_layout.addWidget(self.size_label)
 
-        # Allow subclasses to add to size layout (like count label)
-        self._customize_size_layout(size_layout)
+        # Vertical separator
+        separator = QFrame()
+        separator.setFrameShape(QFrame.Shape.VLine)
+        separator.setStyleSheet("color: #444;")
+        toolbar_layout.addWidget(separator)
 
-        layout.addLayout(size_layout)
-
-        # Show filter controls
-        filter_layout = QHBoxLayout()
-        filter_layout.addWidget(QLabel("Show:"))
-
+        # Show filter (compact)
         self.show_combo: QComboBox = QComboBox()
         self.show_combo.addItem("All Shows")
+        self.show_combo.setFixedWidth(120)
+        self.show_combo.setToolTip("Filter by show")
         _ = self.show_combo.currentTextChanged.connect(self._on_show_filter_changed)
-        filter_layout.addWidget(self.show_combo)
+        toolbar_layout.addWidget(self.show_combo)
 
-        filter_layout.addStretch()
-        layout.addLayout(filter_layout)
-
-        # Text filter controls
-        text_filter_layout = QHBoxLayout()
-        text_filter_layout.addWidget(QLabel("Filter:"))
-
+        # Text filter (compact with placeholder)
         self.text_filter_input: QLineEdit = QLineEdit()
-        self.text_filter_input.setPlaceholderText("Type to filter shots...")
-        self.text_filter_input.setClearButtonEnabled(True)  # Built-in clear button
+        self.text_filter_input.setPlaceholderText("Filter...")
+        self.text_filter_input.setClearButtonEnabled(True)
+        self.text_filter_input.setFixedWidth(150)
+        self.text_filter_input.setToolTip("Filter by name")
         _ = self.text_filter_input.textChanged.connect(self._on_text_filter_changed)
-        text_filter_layout.addWidget(self.text_filter_input)
+        toolbar_layout.addWidget(self.text_filter_input)
 
-        text_filter_layout.addStretch()
-        layout.addLayout(text_filter_layout)
+        # Allow subclasses to add additional toolbar widgets (buttons, count labels, etc.)
+        # Subclasses should add stretch themselves if they need items pushed to the right
+        self._add_toolbar_widgets(toolbar_layout)
+
+        layout.addLayout(toolbar_layout)
 
         # Create QListView with grid mode
         self.list_view: QListView = QListView()
@@ -222,13 +226,13 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
             layout: The main vertical layout
         """
 
-    def _customize_size_layout(self, _layout: QHBoxLayout) -> None:
-        """Customize the size control layout.
+    def _add_toolbar_widgets(self, _layout: QHBoxLayout) -> None:
+        """Add additional widgets to the toolbar.
 
-        Override in subclasses to add additional widgets.
+        Override in subclasses to add buttons, labels, etc.
 
         Args:
-            layout: The size control horizontal layout
+            layout: The toolbar horizontal layout
         """
 
     def _create_delegate(self) -> BaseThumbnailDelegate:

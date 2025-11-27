@@ -345,10 +345,8 @@ class TestBaseGridViewTextFilterUI:
         """Test that text filter QLineEdit exists."""
         assert hasattr(shot_grid_view, "text_filter_input")
         assert isinstance(shot_grid_view.text_filter_input, QLineEdit)
-        assert (
-            shot_grid_view.text_filter_input.placeholderText()
-            == "Type to filter shots..."
-        )
+        # Compact toolbar uses shorter placeholder "Filter..."
+        assert shot_grid_view.text_filter_input.placeholderText() == "Filter..."
         assert shot_grid_view.text_filter_input.isClearButtonEnabled()
 
     def test_text_filter_signal_emission(self, shot_grid_view: ShotGridView, qtbot: QtBot) -> None:

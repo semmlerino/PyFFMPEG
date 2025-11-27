@@ -1,20 +1,14 @@
 """Tests for shot_file_finder module."""
+# ruff: noqa: DTZ005  # Tests use naive local time to match production behavior
 
 from __future__ import annotations
 
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 from scene_file import FileType, SceneFile
 from shot_file_finder import ShotFileFinder
-
-
-if TYPE_CHECKING:
-    from type_definitions import Shot
 
 
 class TestSceneFile:

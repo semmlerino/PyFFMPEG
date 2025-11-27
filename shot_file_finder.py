@@ -131,7 +131,7 @@ class ShotFileFinder(LoggingMixin):
         for path in paths:
             try:
                 stat = path.stat()
-                mtime = datetime.fromtimestamp(stat.st_mtime)
+                mtime = datetime.fromtimestamp(stat.st_mtime)  # noqa: DTZ006 - Local time from filesystem
                 user = self._extract_user_from_path(path)
                 version = self._extract_version(path)
 

@@ -80,6 +80,7 @@ if TYPE_CHECKING:
     from launcher_dialog import LauncherManagerDialog
     from launcher_manager import LauncherManager
     from protocols import ProcessPoolInterface
+    from scene_file import SceneFile
     from settings_dialog import SettingsDialog
     from type_definitions import ShotDict
 
@@ -112,7 +113,6 @@ from qt_widget_mixin import QtWidgetMixin
 from refresh_orchestrator import RefreshOrchestrator  # Extracted refresh logic
 from settings_manager import SettingsManager
 from shot_grid_view import ShotGridView  # Model/View implementation
-from scene_file import SceneFile
 from shot_info_panel import ShotInfoPanel
 from shot_item_model import ShotItemModel
 from shot_model import Shot, ShotModel
@@ -432,11 +432,15 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             None  # Will access via launcher_panel.get_checkbox_state
         )
 
-        # Log viewer
+        # Log viewer (collapsible, starts collapsed)
         log_group = QGroupBox("Command Log")
+        log_group.setCheckable(True)
+        log_group.setChecked(False)  # Start collapsed
         log_layout = QVBoxLayout(log_group)
         self.log_viewer = LogViewer()
         log_layout.addWidget(self.log_viewer)
+        _ = log_group.toggled.connect(self.log_viewer.setVisible)
+        self.log_viewer.setVisible(False)  # Match initial collapsed state
 
         right_layout.addWidget(log_group)
 
@@ -894,6 +898,12 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         Args:
             index: Index of the newly selected tab
         """
+        # Update empty message based on tab context
+        if index == 1:  # Other 3DE scenes tab
+            self.shot_info_panel.set_empty_message("No Scene Selected")
+        else:  # My Shots or Previous Shots tabs
+            self.shot_info_panel.set_empty_message("No Shot Selected")
+
         # Scene/shot context is automatically cleared by launcher_controller when switching contexts
 
         if index == 0:  # My Shots tab

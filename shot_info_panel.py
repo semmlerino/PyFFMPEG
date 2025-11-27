@@ -99,6 +99,7 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
 
         super().__init__(parent)
         self._current_shot: Shot | None = None
+        self._empty_message: str = "No Shot Selected"
         self.cache_manager: CacheManager = cache_manager or CacheManager()  # Make public
         self._setup_ui()
 
@@ -212,6 +213,16 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
         # Update files panel
         self._files_panel.set_shot(shot)
 
+    def set_empty_message(self, message: str) -> None:
+        """Set the message shown when no shot/scene is selected.
+
+        Args:
+            message: The empty state message (e.g., "No Shot Selected" or "No Scene Selected")
+        """
+        self._empty_message = message
+        if self._current_shot is None:
+            self.shot_name_label.setText(self._empty_message)
+
     def _copy_path_to_clipboard(self) -> None:
         """Copy current shot workspace path to clipboard."""
         if self._current_shot and self._current_shot.workspace_path:
@@ -233,7 +244,7 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
             self._load_thumbnail()
         else:
             # Clear display
-            self.shot_name_label.setText("No Shot Selected")
+            self.shot_name_label.setText(self._empty_message)
             self.show_sequence_label.setText("")
             self.path_label.setText("")
             self._set_placeholder_thumbnail()
