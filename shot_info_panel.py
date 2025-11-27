@@ -19,8 +19,10 @@ from PySide6.QtCore import (
 )
 from PySide6.QtGui import QFont, QImage, QPixmap
 from PySide6.QtWidgets import (
+    QApplication,
     QHBoxLayout,
     QLabel,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -48,6 +50,7 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
 
     # Instance attributes
     _files_panel: ShotFilesPanel
+    _copy_path_btn: QToolButton
 
     def __init__(
         self,
@@ -100,21 +103,75 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
         self._setup_ui()
 
     def _setup_ui(self) -> None:
-        """Set up the UI."""
+        """Set up the UI with redesigned header layout."""
         # Main vertical layout
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(10, 10, 10, 10)
-        main_layout.setSpacing(10)
+        main_layout.setSpacing(8)
 
-        # Top section: thumbnail + info (horizontal)
-        top_widget = QWidget()
-        top_layout = QHBoxLayout(top_widget)
-        top_layout.setContentsMargins(0, 0, 0, 0)
-        top_layout.setSpacing(15)
+        # === HEADER SECTION (full width) ===
+        header_widget = QWidget()
+        header_layout = QVBoxLayout(header_widget)
+        header_layout.setContentsMargins(0, 0, 0, 0)
+        header_layout.setSpacing(4)
 
-        # Thumbnail preview
+        # Shot name (large, full width) - 24px bold
+        self.shot_name_label: QLabel = QLabel("No Shot Selected")
+        shot_font = QFont()
+        shot_font.setPointSize(20)
+        shot_font.setWeight(QFont.Weight.Bold)
+        self.shot_name_label.setFont(shot_font)
+        self.shot_name_label.setStyleSheet("color: #14ffec;")
+        header_layout.addWidget(self.shot_name_label)
+
+        # Show | Sequence (smaller, muted) - 14px
+        self.show_sequence_label: QLabel = QLabel("")
+        show_font = QFont()
+        show_font.setPointSize(12)
+        self.show_sequence_label.setFont(show_font)
+        self.show_sequence_label.setStyleSheet("color: #aaa;")
+        header_layout.addWidget(self.show_sequence_label)
+
+        # Path row with copy button
+        path_row = QHBoxLayout()
+        path_row.setSpacing(8)
+
+        self.path_label: QLabel = QLabel("")
+        path_font = QFont()
+        path_font.setPointSize(10)
+        self.path_label.setFont(path_font)
+        self.path_label.setStyleSheet("color: #666;")
+        self.path_label.setWordWrap(True)
+        path_row.addWidget(self.path_label, 1)
+
+        # Copy path button
+        self._copy_path_btn = QToolButton()
+        self._copy_path_btn.setText("📋")
+        self._copy_path_btn.setToolTip("Copy path to clipboard")
+        self._copy_path_btn.setStyleSheet("""
+            QToolButton {
+                background-color: transparent;
+                border: none;
+                font-size: 14px;
+                padding: 2px;
+            }
+            QToolButton:hover {
+                background-color: #333;
+                border-radius: 4px;
+            }
+        """)
+        _ = self._copy_path_btn.clicked.connect(self._copy_path_to_clipboard)
+        path_row.addWidget(self._copy_path_btn)
+
+        header_layout.addLayout(path_row)
+        main_layout.addWidget(header_widget)
+
+        # === THUMBNAIL ROW (smaller, 96x96) ===
+        thumb_row = QHBoxLayout()
+        thumb_row.setContentsMargins(0, 5, 0, 5)
+
         self.thumbnail_label: QLabel = QLabel()
-        self.thumbnail_label.setFixedSize(128, 128)
+        self.thumbnail_label.setFixedSize(96, 96)
         self.thumbnail_label.setScaledContents(True)
         self.thumbnail_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.thumbnail_label.setStyleSheet("""
@@ -124,44 +181,12 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
                 border-radius: 4px;
             }
         """)
-        top_layout.addWidget(self.thumbnail_label)
+        thumb_row.addWidget(self.thumbnail_label)
+        thumb_row.addStretch()
 
-        # Info section
-        info_layout = QVBoxLayout()
-        info_layout.setSpacing(5)
+        main_layout.addLayout(thumb_row)
 
-        # Shot name (large)
-        self.shot_name_label: QLabel = QLabel("No Shot Selected")
-        shot_font = QFont()
-        shot_font.setPointSize(18)
-        shot_font.setWeight(QFont.Weight.Bold)
-        self.shot_name_label.setFont(shot_font)
-        self.shot_name_label.setStyleSheet("color: #14ffec;")
-        info_layout.addWidget(self.shot_name_label)
-
-        # Show and sequence
-        self.show_sequence_label: QLabel = QLabel("")
-        show_font = QFont()
-        show_font.setPointSize(12)
-        self.show_sequence_label.setFont(show_font)
-        self.show_sequence_label.setStyleSheet("color: #aaa;")
-        info_layout.addWidget(self.show_sequence_label)
-
-        # Workspace path
-        self.path_label: QLabel = QLabel("")
-        path_font = QFont()
-        path_font.setPointSize(9)
-        self.path_label.setFont(path_font)
-        self.path_label.setStyleSheet("color: #777;")
-        self.path_label.setWordWrap(True)
-        info_layout.addWidget(self.path_label)
-
-        info_layout.addStretch()
-        top_layout.addLayout(info_layout, 1)
-
-        main_layout.addWidget(top_widget)
-
-        # Files panel (collapsible sections for 3DE, Maya, Nuke)
+        # === FILES PANEL ===
         self._files_panel = ShotFilesPanel(parent=self)
         _ = self._files_panel.file_open_requested.connect(
             self.file_open_requested.emit
@@ -177,7 +202,7 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
             }
         """)
 
-        # Set minimum height (increased to accommodate files panel)
+        # Set minimum height
         self.setMinimumHeight(200)
 
     def set_shot(self, shot: Shot | None) -> None:
@@ -186,6 +211,13 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
         self._update_display()
         # Update files panel
         self._files_panel.set_shot(shot)
+
+    def _copy_path_to_clipboard(self) -> None:
+        """Copy current shot workspace path to clipboard."""
+        if self._current_shot and self._current_shot.workspace_path:
+            clipboard = QApplication.clipboard()
+            if clipboard:
+                clipboard.setText(self._current_shot.workspace_path)
 
     def _update_display(self) -> None:
         """Update the display with current shot info."""

@@ -12,7 +12,8 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QMenu,
-    QToolButton,
+    QPushButton,
+    QScrollArea,
     QVBoxLayout,
     QWidget,
 )
@@ -157,57 +158,47 @@ class FileTypeSection(QtWidgetMixin, QWidget):
         """
         super().__init__(parent)
         self._file_type = file_type
-        self._is_expanded = True
+        self._is_expanded = False  # Collapsed by default (chip style)
         self._files: list[SceneFile] = []
+        self._chip_button: QPushButton  # Chip button for expand/collapse
         self._setup_ui()
 
     def _setup_ui(self) -> None:
-        """Set up the UI."""
+        """Set up the UI with chip-style button."""
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 5)
-        layout.setSpacing(3)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
 
-        # Header with expand/collapse button
-        header_layout = QHBoxLayout()
-        header_layout.setContentsMargins(0, 0, 0, 0)
-        header_layout.setSpacing(5)
-
-        # Expand/collapse button
-        self._expand_button = QToolButton()
-        self._expand_button.setArrowType(Qt.ArrowType.DownArrow)
-        _ = self._expand_button.clicked.connect(self._toggle_expanded)
-        self._expand_button.setMaximumSize(20, 20)
-        self._expand_button.setStyleSheet("""
-            QToolButton {
-                border: none;
-                background: transparent;
-            }
-            QToolButton:hover {
-                background-color: #333;
-                border-radius: 2px;
-            }
-        """)
-        header_layout.addWidget(self._expand_button)
-
-        # Type label with count
+        # Chip button (replaces expand arrow + header label)
         color = FILE_TYPE_COLORS[self._file_type]
-        self._header_label = QLabel(self._get_header_text(0))
-        self._header_label.setStyleSheet(f"""
-            QLabel {{
-                font-weight: bold;
+        self._chip_button = QPushButton(self._get_header_text(0))
+        self._chip_button.setCheckable(True)
+        self._chip_button.setChecked(False)
+        _ = self._chip_button.clicked.connect(self._toggle_expanded)
+        self._chip_button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {color};
+                color: #eee;
+                border-radius: 12px;
+                padding: 4px 12px;
                 font-size: 11px;
-                color: {color};
+                font-weight: bold;
+                border: 2px solid transparent;
+            }}
+            QPushButton:checked {{
+                border: 2px solid #fff;
+            }}
+            QPushButton:hover {{
+                background-color: {self._lighten_color(color, 20)};
             }}
         """)
-        header_layout.addWidget(self._header_label)
-        header_layout.addStretch()
+        layout.addWidget(self._chip_button)
 
-        layout.addLayout(header_layout)
-
-        # Content container for file list
+        # Content container for file list (hidden by default)
         self._content_widget = QWidget()
+        self._content_widget.setVisible(False)
         content_layout = QVBoxLayout(self._content_widget)
-        content_layout.setContentsMargins(20, 0, 0, 0)  # Indent content
+        content_layout.setContentsMargins(0, 5, 0, 0)
         content_layout.setSpacing(2)
 
         # Placeholder for file items
@@ -232,12 +223,32 @@ class FileTypeSection(QtWidgetMixin, QWidget):
         name = type_names[self._file_type]
         return f"{name} ({count})"
 
+    def _lighten_color(self, hex_color: str, percent: int) -> str:
+        """Lighten a hex color by a percentage.
+
+        Args:
+            hex_color: Hex color like '#c0392b'
+            percent: Percentage to lighten (0-100)
+
+        Returns:
+            Lightened hex color
+        """
+        hex_color = hex_color.lstrip("#")
+        r = int(hex_color[0:2], 16)
+        g = int(hex_color[2:4], 16)
+        b = int(hex_color[4:6], 16)
+
+        # Lighten
+        r = min(255, r + int((255 - r) * percent / 100))
+        g = min(255, g + int((255 - g) * percent / 100))
+        b = min(255, b + int((255 - b) * percent / 100))
+
+        return f"#{r:02x}{g:02x}{b:02x}"
+
     def _toggle_expanded(self) -> None:
         """Toggle expanded/collapsed state."""
         self._is_expanded = not self._is_expanded
-        self._expand_button.setArrowType(
-            Qt.ArrowType.DownArrow if self._is_expanded else Qt.ArrowType.RightArrow
-        )
+        self._chip_button.setChecked(self._is_expanded)
         self._content_widget.setVisible(self._is_expanded)
 
     def set_files(self, files: list[SceneFile]) -> None:
@@ -255,8 +266,8 @@ class FileTypeSection(QtWidgetMixin, QWidget):
             if widget:
                 widget.deleteLater()
 
-        # Update header
-        self._header_label.setText(self._get_header_text(len(files)))
+        # Update chip text
+        self._chip_button.setText(self._get_header_text(len(files)))
 
         # Add file items
         for scene_file in files:
@@ -297,7 +308,7 @@ class ShotFilesPanel(QtWidgetMixin, QWidget):
         self._setup_ui()
 
     def _setup_ui(self) -> None:
-        """Set up the UI."""
+        """Set up the UI with horizontal chip layout."""
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 10, 0, 0)
         layout.setSpacing(5)
@@ -314,13 +325,44 @@ class ShotFilesPanel(QtWidgetMixin, QWidget):
         """)
         layout.addWidget(header)
 
+        # Horizontal chip row
+        chip_row = QHBoxLayout()
+        chip_row.setSpacing(8)
+        chip_row.setContentsMargins(0, 0, 0, 0)
+
         # Create sections for each file type
         self._sections: dict[FileType, FileTypeSection] = {}
         for file_type in FileType:
             section = FileTypeSection(file_type, parent=self)
             _ = section.file_open_requested.connect(self.file_open_requested.emit)
-            layout.addWidget(section)
+            chip_row.addWidget(section)
             self._sections[file_type] = section
+
+        chip_row.addStretch()
+        layout.addLayout(chip_row)
+
+        # Scrollable expansion area for file lists
+        self._scroll_area = QScrollArea()
+        self._scroll_area.setWidgetResizable(True)
+        self._scroll_area.setMaximumHeight(150)
+        self._scroll_area.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        self._scroll_area.setStyleSheet("""
+            QScrollArea {
+                border: none;
+                background-color: transparent;
+            }
+        """)
+
+        # Container for expanded file lists
+        self._expansion_container = QWidget()
+        expansion_layout = QVBoxLayout(self._expansion_container)
+        expansion_layout.setContentsMargins(0, 5, 0, 0)
+        expansion_layout.setSpacing(2)
+
+        self._scroll_area.setWidget(self._expansion_container)
+        layout.addWidget(self._scroll_area)
 
         # Add stretch at bottom
         layout.addStretch()

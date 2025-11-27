@@ -12,10 +12,12 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QFrame,
+    QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QPushButton,
+    QScrollArea,
     QToolButton,
     QVBoxLayout,
     QWidget,
@@ -78,65 +80,79 @@ class AppLauncherSection(QtWidgetMixin, QWidget):
         self._setup_ui()
 
     def _setup_ui(self) -> None:
-        """Set up the section UI."""
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 10)
-        layout.setSpacing(5)
+        """Set up the section UI as a card with expandable options."""
+        # Fixed width for grid layout
+        self.setFixedWidth(210)
 
-        # Header with expand/collapse button and app name
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(4)
+
+        # Card background with colored left border
+        self.setStyleSheet(f"""
+            AppLauncherSection {{
+                background-color: #252525;
+                border: 1px solid #333;
+                border-left: 3px solid {self.config.color};
+                border-radius: 6px;
+            }}
+        """)
+
+        # Compact header (icon + name + expand button)
         header_layout = QHBoxLayout()
         header_layout.setContentsMargins(0, 0, 0, 0)
-
-        # Expand/collapse button
-        self.expand_button = QToolButton()
-        self.expand_button.setArrowType(
-            Qt.ArrowType.DownArrow if self.is_expanded else Qt.ArrowType.RightArrow
-        )
-        _ = self.expand_button.clicked.connect(self._toggle_expanded)
-        self.expand_button.setMaximumSize(20, 20)
-        header_layout.addWidget(self.expand_button)
+        header_layout.setSpacing(4)
 
         # App icon and name
         name_label = QLabel(f"{self.config.icon} {self.config.name.upper()}")
         name_label.setStyleSheet(f"""
             QLabel {{
                 font-weight: bold;
-                font-size: 12px;
+                font-size: 11px;
                 color: {self.config.color};
             }}
         """)
         header_layout.addWidget(name_label)
         header_layout.addStretch()
 
+        # Expand/collapse button for options
+        self.expand_button = QToolButton()
+        self.expand_button.setArrowType(
+            Qt.ArrowType.DownArrow if self.is_expanded else Qt.ArrowType.RightArrow
+        )
+        _ = self.expand_button.clicked.connect(self._toggle_expanded)
+        self.expand_button.setMaximumSize(18, 18)
+        self.expand_button.setStyleSheet("""
+            QToolButton {
+                border: none;
+                background: transparent;
+            }
+            QToolButton:hover {
+                background-color: #333;
+                border-radius: 2px;
+            }
+        """)
+        header_layout.addWidget(self.expand_button)
+
         layout.addLayout(header_layout)
 
-        # Content container (button and checkboxes)
-        self.content_widget = QWidget()
-        content_layout = QVBoxLayout(self.content_widget)
-        content_layout.setContentsMargins(25, 5, 0, 0)  # Indent content
-        content_layout.setSpacing(5)
-
-        # Launch button
-        self.launch_button = QPushButton(f"Launch {self.config.name}")
+        # Launch button (always visible)
+        self.launch_button = QPushButton(f"Launch")
         self.launch_button.setObjectName(f"launch_{self.config.name}")
         _ = self.launch_button.clicked.connect(self._on_launch_clicked)
-        self.launch_button.setEnabled(False)  # Disabled until shot selected
+        self.launch_button.setEnabled(False)
 
-        # Apply button styling with app color
         self.launch_button.setStyleSheet(f"""
             QPushButton {{
                 background-color: {self.config.color};
                 color: #ecf0f1;
-                border: 1px solid #34495e;
+                border: none;
                 border-radius: 4px;
-                padding: 8px;
+                padding: 6px;
                 font-weight: bold;
-                text-align: left;
-                padding-left: 12px;
             }}
             QPushButton:hover {{
                 background-color: {self._lighten_color(self.config.color)};
-                border-color: #4e6d8c;
             }}
             QPushButton:pressed {{
                 background-color: {self._darken_color(self.config.color)};
@@ -144,17 +160,22 @@ class AppLauncherSection(QtWidgetMixin, QWidget):
             QPushButton:disabled {{
                 background-color: #1e2a35;
                 color: #666;
-                border-color: #1e2a35;
             }}
         """)
 
-        # Set tooltip with shortcut
         tooltip = self.config.tooltip or f"Launch {self.config.name}"
         if self.config.shortcut:
             tooltip += f" (Shortcut: {self.config.shortcut})"
         self.launch_button.setToolTip(tooltip)
 
-        content_layout.addWidget(self.launch_button)
+        layout.addWidget(self.launch_button)
+
+        # Content widget (checkboxes - hidden by default)
+        self.content_widget = QWidget()
+        self.content_widget.setVisible(self.is_expanded)
+        content_layout = QVBoxLayout(self.content_widget)
+        content_layout.setContentsMargins(0, 4, 0, 0)
+        content_layout.setSpacing(2)
 
         # Add checkboxes if configured
         if self.config.checkboxes:
@@ -164,8 +185,8 @@ class AppLauncherSection(QtWidgetMixin, QWidget):
                 checkbox.setChecked(checkbox_config.default)
                 checkbox.setStyleSheet("""
                     QCheckBox {
-                        margin-left: 10px;
                         color: #aaa;
+                        font-size: 10px;
                     }
                     QCheckBox:hover {
                         color: #ccc;
@@ -176,39 +197,33 @@ class AppLauncherSection(QtWidgetMixin, QWidget):
 
         # Add plate selector for apps that work with plates
         if self.config.name in ["nuke", "maya", "3de", "rv"]:
-            # Create plate selector with label
             plate_layout = QHBoxLayout()
-            plate_layout.setContentsMargins(10, 5, 0, 0)
+            plate_layout.setContentsMargins(0, 2, 0, 0)
+            plate_layout.setSpacing(4)
 
             plate_label = QLabel("Plate:")
-            plate_label.setStyleSheet("QLabel { color: #aaa; font-size: 11px; }")
+            plate_label.setStyleSheet("QLabel { color: #888; font-size: 10px; }")
             plate_layout.addWidget(plate_label)
 
             self.plate_selector = QComboBox()
             self.plate_selector.setEnabled(False)
-            self.plate_selector.setPlaceholderText("Select plate space...")
-            self.plate_selector.setMinimumWidth(120)
+            self.plate_selector.setPlaceholderText("Select...")
+            self.plate_selector.setMinimumWidth(80)
             self.plate_selector.setStyleSheet(f"""
                 QComboBox {{
                     background-color: #2a2a2a;
                     color: #ecf0f1;
-                    border: 1px solid {self.config.color};
+                    border: 1px solid #444;
                     border-radius: 3px;
-                    padding: 4px 8px;
-                    font-size: 11px;
+                    padding: 2px 4px;
+                    font-size: 10px;
                 }}
                 QComboBox:disabled {{
                     background-color: #1e1e1e;
                     color: #666;
-                    border-color: #333;
                 }}
-                QComboBox::drop-down {{
-                    border: none;
-                }}
-                QComboBox::down-arrow {{
-                    image: none;
-                    border: none;
-                }}
+                QComboBox::drop-down {{ border: none; }}
+                QComboBox::down-arrow {{ image: none; }}
             """)
             plate_layout.addWidget(self.plate_selector)
             plate_layout.addStretch()
@@ -216,13 +231,6 @@ class AppLauncherSection(QtWidgetMixin, QWidget):
             content_layout.addLayout(plate_layout)
 
         layout.addWidget(self.content_widget)
-
-        # Add separator line
-        separator = QFrame()
-        separator.setFrameShape(QFrame.Shape.HLine)
-        separator.setFrameShadow(QFrame.Shadow.Sunken)
-        separator.setStyleSheet("QFrame { color: #333; margin: 5px 0; }")
-        layout.addWidget(separator)
 
     def _toggle_expanded(self) -> None:
         """Toggle expanded/collapsed state."""
@@ -372,11 +380,12 @@ class LauncherPanel(QtWidgetMixin, QWidget):
         super().__init__(parent)
         self.app_sections: dict[str, AppLauncherSection] = {}
         self.custom_launcher_buttons: dict[str, QPushButton] = {}
+        self._quick_buttons: dict[str, QPushButton] = {}  # Fast-path launch buttons
         self._current_shot: Shot | None = None
         self._setup_ui()
 
     def _setup_ui(self) -> None:
-        """Set up the launcher panel UI."""
+        """Set up the launcher panel UI with fast-path bar and grid."""
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
@@ -401,7 +410,7 @@ class LauncherPanel(QtWidgetMixin, QWidget):
         """)
 
         group_layout = QVBoxLayout(self.group_box)
-        group_layout.setSpacing(0)
+        group_layout.setSpacing(8)
 
         # Info label
         self.info_label = QLabel("Select a shot to enable app launching")
@@ -411,13 +420,59 @@ class LauncherPanel(QtWidgetMixin, QWidget):
         )
         group_layout.addWidget(self.info_label)
 
-        # App configurations
+        # === FAST-PATH BAR ===
+        quick_bar = QWidget()
+        quick_layout = QHBoxLayout(quick_bar)
+        quick_layout.setContentsMargins(10, 5, 10, 10)
+        quick_layout.setSpacing(8)
+
+        quick_label = QLabel("Quick:")
+        quick_label.setStyleSheet("color: #888; font-size: 11px;")
+        quick_layout.addWidget(quick_label)
+
+        # Quick launch buttons
+        quick_apps = [
+            ("3de", "🎬", "#2b4d6f"),
+            ("nuke", "🎨", "#5d4d2b"),
+            ("maya", "🎭", "#4d2b5d"),
+            ("rv", "📽️", "#2b5d4d"),
+        ]
+        for app_name, icon, color in quick_apps:
+            btn = QPushButton(icon)
+            btn.setFixedSize(32, 32)
+            btn.setToolTip(f"Quick launch {app_name.upper()}")
+            btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {color};
+                    border-radius: 4px;
+                    font-size: 16px;
+                    border: none;
+                }}
+                QPushButton:hover {{
+                    background-color: {self._lighten_color(color)};
+                }}
+                QPushButton:disabled {{
+                    background-color: #222;
+                    color: #666;
+                }}
+            """)
+            btn.setEnabled(False)
+            _ = btn.clicked.connect(
+                lambda checked, a=app_name: self._on_quick_launch(a)  # type: ignore[arg-type]
+            )
+            quick_layout.addWidget(btn)
+            self._quick_buttons[app_name] = btn
+
+        quick_layout.addStretch()
+        group_layout.addWidget(quick_bar)
+
+        # === APP CONFIGURATIONS ===
         app_configs = [
             AppConfig(
                 name="3de",
                 command="3de",
                 icon="🎬",
-                color="#2b4d6f",  # Blue
+                color="#2b4d6f",
                 tooltip="Launch 3DE for matchmove/tracking",
                 shortcut="3",
                 checkboxes=[
@@ -433,13 +488,13 @@ class LauncherPanel(QtWidgetMixin, QWidget):
                 name="nuke",
                 command="nuke",
                 icon="🎨",
-                color="#5d4d2b",  # Orange/brown
+                color="#5d4d2b",
                 tooltip="Launch Nuke for compositing",
                 shortcut="N",
                 checkboxes=[
                     CheckboxConfig(
                         label="Open latest scene",
-                        tooltip="Open the most recent Nuke script from workspace (creates v001 if none exist)",
+                        tooltip="Open the most recent Nuke script from workspace",
                         key="open_latest_scene",
                         default=True,
                     ),
@@ -461,7 +516,7 @@ class LauncherPanel(QtWidgetMixin, QWidget):
                 name="maya",
                 command="maya",
                 icon="🎭",
-                color="#4d2b5d",  # Purple
+                color="#4d2b5d",
                 tooltip="Launch Maya for 3D work",
                 shortcut="M",
                 checkboxes=[
@@ -477,7 +532,7 @@ class LauncherPanel(QtWidgetMixin, QWidget):
                 name="rv",
                 command="rv",
                 icon="📽️",
-                color="#2b5d4d",  # Teal
+                color="#2b5d4d",
                 tooltip="Launch RV for playback and review",
                 shortcut="R",
             ),
@@ -485,18 +540,40 @@ class LauncherPanel(QtWidgetMixin, QWidget):
                 name="publish",
                 command="publish_standalone",
                 icon="📦",
-                color="#5d2b2b",  # Red
+                color="#5d2b2b",
                 tooltip="Launch publish tool",
                 shortcut="P",
             ),
         ]
 
-        # Create app sections
-        for config in app_configs:
+        # === SCROLLABLE GRID AREA ===
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setMaximumHeight(300)
+        scroll.setStyleSheet("""
+            QScrollArea {
+                border: none;
+                background-color: transparent;
+            }
+        """)
+
+        grid_widget = QWidget()
+        grid_layout = QGridLayout(grid_widget)
+        grid_layout.setSpacing(8)
+        grid_layout.setContentsMargins(5, 5, 5, 5)
+
+        # Create app sections in 2-column grid
+        for i, config in enumerate(app_configs):
+            row = i // 2
+            col = i % 2
             section = AppLauncherSection(config)
             _ = section.launch_requested.connect(self._on_app_launch)
-            group_layout.addWidget(section)
+            grid_layout.addWidget(section, row, col)
             self.app_sections[config.name] = section
+
+        scroll.setWidget(grid_widget)
+        group_layout.addWidget(scroll)
 
         # Custom launchers section
         self._add_custom_launchers_section(group_layout)
@@ -564,6 +641,10 @@ class LauncherPanel(QtWidgetMixin, QWidget):
                 "QLabel { color: #888; font-style: italic; padding: 5px 10px; font-size: 11px; }"
             )
 
+        # Enable/disable quick buttons
+        for btn in self._quick_buttons.values():
+            btn.setEnabled(shot is not None)
+
         # Enable/disable all app sections
         for section in self.app_sections.values():
             section.set_enabled(shot is not None)
@@ -571,6 +652,36 @@ class LauncherPanel(QtWidgetMixin, QWidget):
         # Enable/disable custom launcher buttons
         for button in self.custom_launcher_buttons.values():
             button.setEnabled(shot is not None)
+
+    def _on_quick_launch(self, app_name: str) -> None:
+        """Handle quick launch button click.
+
+        Launches the app with default options from the section's checkboxes.
+
+        Args:
+            app_name: Name of the app to launch
+        """
+        if self._current_shot:
+            self.app_launch_requested.emit(app_name, self._current_shot)
+
+    def _lighten_color(self, color: str) -> str:
+        """Lighten a hex color for hover effect.
+
+        Args:
+            color: Hex color like '#2b4d6f'
+
+        Returns:
+            Lightened hex color
+        """
+        if color.startswith("#"):
+            r = int(color[1:3], 16)
+            g = int(color[3:5], 16)
+            b = int(color[5:7], 16)
+            r = min(255, int(r * 1.2))
+            g = min(255, int(g * 1.2))
+            b = min(255, int(b * 1.2))
+            return f"#{r:02x}{g:02x}{b:02x}"
+        return color
 
     def get_checkbox_state(self, app: str, key: str) -> bool:
         """Get the state of a specific checkbox."""

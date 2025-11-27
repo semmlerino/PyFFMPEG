@@ -442,8 +442,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         self.splitter.addWidget(right_widget)
 
-        # Set splitter sizes (70/30 split)
-        self.splitter.setSizes([840, 360])
+        # Set splitter sizes (wider right panel for better visibility)
+        self.splitter.setSizes([750, 450])
 
         # Status bar
         self.status_bar = QStatusBar()

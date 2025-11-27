@@ -121,9 +121,9 @@ class TestAppLauncherSection:
 
         # Test initialization state
         assert section.config == config
-        assert section.is_expanded is True
+        assert section.is_expanded is True  # Options expanded by default
         assert section.launch_button is not None
-        assert section.launch_button.text() == "Launch nuke"
+        assert section.launch_button.text() == "Launch"  # Card style: just "Launch"
         assert not section.launch_button.isEnabled()  # Disabled until shot selected
 
     def test_initialization_with_checkboxes(
