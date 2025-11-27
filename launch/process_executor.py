@@ -88,7 +88,7 @@ class ProcessExecutor(QObject):
         self._spawned_processes: list[subprocess.Popen[bytes]] = []
 
         # Periodic timer to reap finished processes
-        self._reap_timer = QTimer(self)
+        self._reap_timer: QTimer = QTimer(self)
         self._reap_timer.setInterval(self.REAP_INTERVAL_MS)
         _ = self._reap_timer.timeout.connect(self._reap_zombie_processes)
         self._reap_timer.start()
@@ -96,7 +96,7 @@ class ProcessExecutor(QObject):
         # Shutdown flag for daemon thread safety
         # Daemon threads check this before emitting signals to avoid
         # "Signal source deleted" errors when ProcessExecutor is cleaned up
-        self._shutdown_flag = threading.Event()
+        self._shutdown_flag: threading.Event = threading.Event()
 
     def is_gui_app(self, app_name: str) -> bool:
         """Check if an application is a GUI application.
