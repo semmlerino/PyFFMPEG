@@ -72,6 +72,21 @@ DEFAULT_DCC_CONFIGS = [
         ],
     ),
     DCCConfig(
+        name="maya",
+        display_name="Maya",
+        color="#4d2b5d",
+        shortcut="M",
+        tooltip="Launch Maya for 3D work",
+        checkboxes=[
+            CheckboxConfig(
+                label="Open latest Maya scene (when available)",
+                tooltip="Automatically open the latest scene file from the workspace",
+                key="open_latest_maya",
+                default=True,
+            )
+        ],
+    ),
+    DCCConfig(
         name="nuke",
         display_name="Nuke",
         color="#5d4d2b",
@@ -96,21 +111,6 @@ DEFAULT_DCC_CONFIGS = [
                 key="include_raw_plate",
                 default=False,
             ),
-        ],
-    ),
-    DCCConfig(
-        name="maya",
-        display_name="Maya",
-        color="#4d2b5d",
-        shortcut="M",
-        tooltip="Launch Maya for 3D work",
-        checkboxes=[
-            CheckboxConfig(
-                label="Open latest Maya scene (when available)",
-                tooltip="Automatically open the latest scene file from the workspace",
-                key="open_latest_maya",
-                default=True,
-            )
         ],
     ),
     DCCConfig(
