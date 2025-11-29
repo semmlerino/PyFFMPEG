@@ -103,19 +103,37 @@ select = [
     "B",   # flake8-bugbear
     "C4",  # flake8-comprehensions
     "SIM", # flake8-simplify
+    "PT",  # flake8-pytest-style
+    "RUF", # Ruff-specific rules
+    "TCH", # flake8-type-checking
+    "A",   # flake8-builtins (prevent shadowing builtins)
+    "PIE", # flake8-pie (misc lints)
+    "RET", # flake8-return
+    "PLC", # Pylint conventions
+    "PLE", # Pylint errors
+    "PLW", # Pylint warnings
 ]
 ignore = [
-    "E501",  # Line too long (handled by formatter)
-    "B008",  # Function calls in argument defaults
-    "N802",  # Function name should be lowercase (Qt uses camelCase)
-    "N803",  # Argument name should be lowercase (Qt uses camelCase)
-    "N806",  # Variable in function should be lowercase (Qt uses camelCase)
+    "E501",    # Line too long (handled by formatter)
+    "B008",    # Function calls in argument defaults
+    "N802",    # Function name should be lowercase (Qt uses camelCase)
+    "N803",    # Argument name should be lowercase (Qt uses camelCase)
+    "N806",    # Variable in function should be lowercase (Qt uses camelCase)
+    "RET504",  # Unnecessary assignment before return (sometimes clearer)
+    "PLW0603", # Global statement (sometimes needed for caching)
+    "PLC0415", # Import not at top-level (intentional lazy imports to avoid circular deps)
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]  # Unused imports in __init__.py
-"PyMPEG.py" = ["E", "W", "F", "N", "UP", "B", "C4", "SIM"]  # Ignore legacy file
-"tests/**/*.py" = ["N802", "N803"]  # Test functions can have any name style
+"PyMPEG.py" = ["ALL"]  # Ignore legacy file completely
+"tests/**/*.py" = [
+    "N802", "N803",  # Test functions can have any name style
+    "PLR2004",  # Magic values OK in tests
+    "PT004",  # Fixtures don't always return
+    "PT011",  # pytest.raises too broad is OK in tests
+    "A001", "A002",  # Shadowing builtins OK in test fixtures
+]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -136,6 +154,8 @@ include = [
     "file_list_widget.py",
     "config.py",
     "logging_config.py",
+    "output_buffer.py",
+    "ui_update_manager.py",
 ]
 exclude = [
     "**/__pycache__",
@@ -145,14 +165,28 @@ exclude = [
     "PyMPEG.py",  # Exclude legacy monolithic file
     "BB/",  # Exclude shotbot subdirectory
 ]
-typeCheckingMode = "basic"
+typeCheckingMode = "standard"  # Upgraded from "basic"
+pythonVersion = "3.8"
+pythonPlatform = "Linux"
+
+# Error reporting - stricter settings
 reportMissingImports = true
-reportMissingTypeStubs = false
+reportMissingTypeStubs = false  # Too noisy for Qt
 reportUnusedImport = true
 reportUnusedVariable = true
 reportDuplicateImport = true
-pythonVersion = "3.8"
-pythonPlatform = "Linux"
+reportIncompatibleMethodOverride = true
+reportIncompatibleVariableOverride = true
+reportUntypedFunctionDecorator = false  # Qt decorators often untyped
+reportUntypedClassDecorator = false
+reportPrivateUsage = true
+reportConstantRedefinition = true
+reportUnnecessaryIsInstance = true
+reportUnnecessaryCast = true
+reportUnnecessaryComparison = true
+reportAssertAlwaysTrue = true
+reportSelfClsParameterName = true
+reportImplicitStringConcatenation = false  # Common in Qt stylesheets
 
 # Coverage Configuration
 [tool.coverage.run]

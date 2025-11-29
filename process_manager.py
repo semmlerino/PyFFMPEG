@@ -7,13 +7,13 @@ Handles the creation, management, and monitoring of FFmpeg processes
 import os
 import subprocess
 from collections import deque
-from typing import Dict, List, Tuple, Any, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
-from PySide6.QtCore import QProcess, QObject, Signal
+from PySide6.QtCore import QObject, QProcess, Signal
 
-from progress_tracker import ProcessProgressTracker
 from config import ProcessConfig
 from logging_config import get_logger
+from progress_tracker import ProcessProgressTracker
 
 
 class ProcessManager(QObject):
@@ -322,7 +322,7 @@ class ProcessManager(QObject):
             try:
                 result = subprocess.run(
                     [cmd, "-version"],
-                    capture_output=True,
+                    check=False, capture_output=True,
                     timeout=2,  # Reduced timeout
                 )
                 if result.returncode == 0:
@@ -388,9 +388,8 @@ class ProcessManager(QObject):
                     ffmpeg_cmd = self._get_ffmpeg_command()
                     if ffmpeg_cmd:
                         test_result = subprocess.run(
-                            [ffmpeg_cmd]
-                            + arguments[:5],  # Test with just first few args
-                            capture_output=True,
+                            [ffmpeg_cmd, *arguments[:5]],  # Test with just first few args
+                            check=False, capture_output=True,
                             text=True,
                             timeout=2,
                         )
@@ -414,7 +413,9 @@ class ProcessManager(QObject):
         process_id = self._get_process_id(process)
         return self.progress_tracker.get_process_progress(process_id)
 
-    def mark_process_finished(self, process: QProcess, process_path: str, exit_code: int) -> None:
+    def mark_process_finished(
+        self, process: QProcess, process_path: str, exit_code: int
+    ) -> None:
         """Mark process as finished, update tracker, and emit finished signal."""
         process_id = self._get_process_id(process)
 

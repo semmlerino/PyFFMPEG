@@ -5,12 +5,14 @@ A custom QListWidget with drag & drop support for TS files
 """
 
 import os
-import sys
 import subprocess
+import sys
 from typing import Dict, Optional
-from PySide6.QtCore import Qt, QFileInfo, QSize, Signal, QThreadPool, QRunnable, QObject
-from PySide6.QtWidgets import QListWidget, QListWidgetItem, QAbstractItemView, QMenu
-from PySide6.QtGui import QCursor, QColor
+
+from PySide6.QtCore import QFileInfo, QObject, QRunnable, QSize, Qt, QThreadPool, Signal
+from PySide6.QtGui import QColor, QCursor
+from PySide6.QtWidgets import QAbstractItemView, QListWidget, QListWidgetItem, QMenu
+
 from codec_helpers import CodecHelpers
 
 
@@ -99,12 +101,15 @@ class FileListWidget(QListWidget):
         else:
             super().dragEnterEvent(event)
 
+    # Supported video extensions (aligned with main_window file dialog)
+    SUPPORTED_EXTENSIONS = (".ts", ".mp4", ".m4v", ".mov", ".avi", ".mkv")
+
     def dropEvent(self, event):
         if event.mimeData().hasUrls():
             # External file drop - add new files
             for url in event.mimeData().urls():
                 path = url.toLocalFile()
-                if path.lower().endswith(".ts") and os.path.isfile(path):
+                if path.lower().endswith(self.SUPPORTED_EXTENSIONS) and os.path.isfile(path):
                     self.add_path(path)
             event.acceptProposedAction()
         else:
@@ -181,7 +186,7 @@ class FileListWidget(QListWidget):
             event.accept()
             return
         # Ctrl+Down - Move selected items down
-        elif (
+        if (
             event.modifiers() == Qt.KeyboardModifier.ControlModifier
             and event.key() == Qt.Key.Key_Down
         ):
@@ -189,7 +194,7 @@ class FileListWidget(QListWidget):
             event.accept()
             return
         # Delete - Remove selected items
-        elif event.key() == Qt.Key.Key_Delete:
+        if event.key() == Qt.Key.Key_Delete:
             self.remove_selected()
             event.accept()
             return
@@ -326,7 +331,7 @@ class FileListWidget(QListWidget):
 
         return removed_count
 
-    def get_file_paths_in_order(self) -> list[str]:
+    def get_file_paths_in_order(self) -> "list[str]":
         """Get all file paths in current display order"""
         paths = []
         for i in range(self.count()):
@@ -337,7 +342,7 @@ class FileListWidget(QListWidget):
                     paths.append(path)
         return paths
 
-    def get_pending_files_in_order(self) -> list[str]:
+    def get_pending_files_in_order(self) -> "list[str]":
         """Get only pending file paths in current display order"""
         paths = []
         for i in range(self.count()):
@@ -568,18 +573,18 @@ class FileListWidget(QListWidget):
         if count == 0:
             return "Calculating..."
 
-        return CodecHelpers._format_file_size(total_bytes)
+        return CodecHelpers.format_file_size(total_bytes)
 
     def _parse_size_to_bytes(self, size_str: str) -> float:
         """Parse a size string back to bytes"""
         size_str = size_str.strip()
         if size_str.endswith(" GB"):
             return float(size_str[:-3]) * 1024 * 1024 * 1024
-        elif size_str.endswith(" MB"):
+        if size_str.endswith(" MB"):
             return float(size_str[:-3]) * 1024 * 1024
-        elif size_str.endswith(" KB"):
+        if size_str.endswith(" KB"):
             return float(size_str[:-3]) * 1024
-        elif size_str.endswith(" B"):
+        if size_str.endswith(" B"):
             return float(size_str[:-2])
         return 0
 
@@ -630,7 +635,7 @@ class FileListWidget(QListWidget):
 
         return len(failed_paths)
 
-    def get_files_by_status(self, status: str) -> list[str]:
+    def get_files_by_status(self, status: str) -> "list[str]":
         """Get all file paths with the specified status"""
         files = []
         for path, item in self.path_items.items():
@@ -655,7 +660,7 @@ class FileListWidget(QListWidget):
         # Ensure drag-and-drop settings are properly enabled
         self.setAcceptDrops(True)
         self.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
-        
+
         # Clear any potential focus issues that might interfere with drag-and-drop
         self.clearFocus()
         self.setFocus()

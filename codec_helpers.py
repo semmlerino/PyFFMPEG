@@ -5,12 +5,13 @@ Provides utility functions for codec selection, hardware acceleration detection,
 and encoder configuration to reduce duplication in the main application.
 """
 
+import contextlib
+import json
 import os
 import subprocess
-import json
 from typing import Dict, Optional
 
-from config import ProcessConfig, HardwareConfig, EncodingConfig, FileConfig
+from config import EncodingConfig, FileConfig, HardwareConfig, ProcessConfig
 
 
 class CodecHelpers:
@@ -26,7 +27,7 @@ class CodecHelpers:
         """Determine output file extension based on codec index"""
         if codec_idx in [0, 1, 2, 3, 5, 6]:  # H.264, HEVC, AV1, QSV, VAAPI
             return ".mp4"
-        elif codec_idx == 4:  # ProRes
+        if codec_idx == 4:  # ProRes
             return ".mov"
         return ".mp4"  # Default
 
@@ -97,7 +98,7 @@ class CodecHelpers:
                     "default=nokey=1:noprint_wrappers=1",
                     path,
                 ],
-                text=True,
+                check=False, text=True,
                 capture_output=True,
                 timeout=ProcessConfig.SUBPROCESS_TIMEOUT,
             )
@@ -145,6 +146,7 @@ class CodecHelpers:
         crf_value,
         hevc_10bit=False,
         nvenc_settings=None,
+        preset_idx: int = 0,
     ):
         """Get encoder configuration arguments based on codec index
         Returns a tuple of (args_list, message_for_log)
@@ -157,9 +159,23 @@ class CodecHelpers:
         4 = ProRes CPU
         5 = H.264 QSV
         6 = H.264 VAAPI
+
+        Preset mapping (preset_idx from UI):
+        0 = Standard, 1 = High Quality, 2 = Fast, 3 = Ultra Fast
         """
         args = []
         message = ""
+
+        # Map UI preset index to NVENC presets (p1=fastest, p7=highest quality)
+        nvenc_presets = {0: "p5", 1: "p7", 2: "p3", 3: "p1"}
+        # Map UI preset index to x264/software presets
+        x264_presets = {0: "medium", 1: "slow", 2: "fast", 3: "ultrafast"}
+        # Map UI preset index to QSV presets
+        qsv_presets = {0: "medium", 1: "slow", 2: "fast", 3: "veryfast"}
+
+        nvenc_preset = nvenc_presets.get(preset_idx, "p5")
+        x264_preset = x264_presets.get(preset_idx, "medium")
+        qsv_preset = qsv_presets.get(preset_idx, "medium")
 
         try:
             # Get cached or detect available encoders
@@ -172,7 +188,7 @@ class CodecHelpers:
                         "-c:v",
                         "h264_nvenc",
                         "-preset",
-                        "p7",  # High quality preset
+                        nvenc_preset,
                         "-profile:v",
                         "high",
                         "-rc",
@@ -202,7 +218,7 @@ class CodecHelpers:
                         "-c:v",
                         "hevc_nvenc",
                         "-preset",
-                        "p7",
+                        nvenc_preset,
                         "-profile:v",
                         "main10" if hevc_10bit else "main",
                         "-rc",
@@ -234,7 +250,7 @@ class CodecHelpers:
                         "-c:v",
                         "av1_nvenc",
                         "-preset",
-                        "p7",
+                        nvenc_preset,
                         "-rc",
                         "vbr",  # AV1 NVENC uses 'vbr' not 'vbr_hq'
                         "-cq",
@@ -262,7 +278,7 @@ class CodecHelpers:
                         "-crf",
                         str(crf_value),
                         "-preset",
-                        "medium",
+                        x264_preset,
                         "-pix_fmt",
                         "yuv420p",
                     ]
@@ -296,7 +312,7 @@ class CodecHelpers:
                         "-c:v",
                         "h264_qsv",
                         "-preset",
-                        "medium",
+                        qsv_preset,
                         "-global_quality",
                         str(crf_value),
                     ]
@@ -470,7 +486,7 @@ class CodecHelpers:
 
             result = subprocess.run(
                 cmd,
-                capture_output=True,
+                check=False, capture_output=True,
                 text=True,
                 timeout=ProcessConfig.SUBPROCESS_TIMEOUT,
             )
@@ -510,16 +526,12 @@ class CodecHelpers:
             # Calculate bitrate
             bitrate_bps = None
             if "bit_rate" in video_stream:
-                try:
+                with contextlib.suppress(ValueError, TypeError):
                     bitrate_bps = int(video_stream["bit_rate"])
-                except (ValueError, TypeError):
-                    pass
 
             if not bitrate_bps and "bit_rate" in format_info:
-                try:
+                with contextlib.suppress(ValueError, TypeError):
                     bitrate_bps = int(format_info["bit_rate"])
-                except (ValueError, TypeError):
-                    pass
 
             bitrate_formatted = (
                 CodecHelpers._format_bitrate(bitrate_bps) if bitrate_bps else "Unknown"
@@ -568,12 +580,11 @@ class CodecHelpers:
 
         if mbps >= 1000:
             return f"{mbps / 1000:.1f} Gbps"
-        elif mbps >= 1:
+        if mbps >= 1:
             return f"{mbps:.1f} Mbps"
-        else:
-            # Convert to Kbps
-            kbps = bitrate_bps / 1000
-            return f"{kbps:.0f} Kbps"
+        # Convert to Kbps
+        kbps = bitrate_bps / 1000
+        return f"{kbps:.0f} Kbps"
 
     @staticmethod
     def estimate_output_size(
@@ -625,18 +636,17 @@ class CodecHelpers:
         duration_minutes = duration_seconds / 60
         estimated_mb = duration_minutes * base_factor * quality_multiplier
 
-        return CodecHelpers._format_file_size(
+        return CodecHelpers.format_file_size(
             estimated_mb * 1_000_000
         )  # Convert to bytes
 
     @staticmethod
-    def _format_file_size(size_bytes: float) -> str:
+    def format_file_size(size_bytes: float) -> str:
         """Format file size in bytes to human readable"""
         if size_bytes < 1024:
             return f"{size_bytes:.0f} B"
-        elif size_bytes < 1024 * 1024:
+        if size_bytes < 1024 * 1024:
             return f"{size_bytes / 1024:.1f} KB"
-        elif size_bytes < 1024 * 1024 * 1024:
+        if size_bytes < 1024 * 1024 * 1024:
             return f"{size_bytes / (1024 * 1024):.0f} MB"
-        else:
-            return f"{size_bytes / (1024 * 1024 * 1024):.1f} GB"
+        return f"{size_bytes / (1024 * 1024 * 1024):.1f} GB"

@@ -6,21 +6,22 @@ Handles process widget creation, monitoring, and progress display
 
 import os
 import time
-from typing import Dict, Any
-from PySide6.QtCore import QObject, Signal, QProcess, QTimer
+from typing import Any, Dict
+
+from PySide6.QtCore import QObject, QProcess, QTimer, Signal
 from PySide6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
+    QFrame,
     QHBoxLayout,
     QLabel,
     QProgressBar,
     QScrollArea,
-    QFrame,
+    QVBoxLayout,
+    QWidget,
 )
 
-from process_manager import ProcessManager
 from config import UIConfig
 from logging_config import get_logger
+from process_manager import ProcessManager
 
 
 class ProcessMonitor(QObject):
@@ -268,7 +269,7 @@ class ProcessMonitor(QObject):
     def _add_widget_to_scroll_area(self, widget: QWidget) -> None:
         """Add a widget to the scroll area"""
         scroll_widget = self.scroll_area.widget()
-        if scroll_widget is None:
+        if scroll_widget is None:  # pyright: ignore[reportUnnecessaryComparison] - Qt stubs incomplete
             # Create scroll widget if it doesn't exist
             scroll_widget = QWidget()
             scroll_layout = QVBoxLayout(scroll_widget)
@@ -336,8 +337,10 @@ class ProcessMonitor(QObject):
             if layout is not None:
                 while layout.count() > 1:  # Keep the stretch
                     item = layout.takeAt(0)
-                    if item and item.widget():
-                        item.widget().deleteLater()
+                    if item:
+                        widget = item.widget()
+                        if widget:
+                            widget.deleteLater()
 
     def get_active_widget_count(self) -> int:
         """Get the number of active process widgets"""

@@ -7,12 +7,13 @@ Handles the core conversion logic, process management, and conversion workflow
 import os
 import time
 from typing import Dict, List, Optional
-from PySide6.QtCore import QObject, Signal, QProcess
 
-from process_manager import ProcessManager
+from PySide6.QtCore import QObject, QProcess, Signal
+
 from codec_helpers import CodecHelpers
 from config import EncodingConfig
 from logging_config import get_logger
+from process_manager import ProcessManager
 
 
 class ConversionController(QObject):
@@ -62,6 +63,7 @@ class ConversionController(QObject):
         max_parallel: int,
         delete_source: bool,
         overwrite_mode: bool,
+        preset_idx: int = 0,
     ) -> bool:
         """Start the conversion process with given parameters"""
         if self.is_converting:
@@ -91,6 +93,7 @@ class ConversionController(QObject):
         self.max_parallel = max_parallel
         self.delete_source = delete_source
         self.overwrite_mode = overwrite_mode
+        self.preset_idx = preset_idx
 
         self.log_message.emit(f"🚀 Starting conversion of {len(file_paths)} files...")
         self.conversion_started.emit()
@@ -121,19 +124,19 @@ class ConversionController(QObject):
             return
 
         # For parallel processing, process multiple files up to the limit
-        while self.queue and getattr(self, 'parallel_enabled', False):
+        while self.queue and getattr(self, "parallel_enabled", False):
             # Check if we can start more processes
             active_count = len(self.process_manager.processes)
-            if active_count >= getattr(self, 'max_parallel', 1):
+            if active_count >= getattr(self, "max_parallel", 1):
                 break  # Wait for a process to finish
 
             # Process one file
             self._process_single_file()
 
         # For non-parallel processing, process just one file
-        if not getattr(self, 'parallel_enabled', False) and self.queue:
+        if not getattr(self, "parallel_enabled", False) and self.queue:
             active_count = len(self.process_manager.processes)
-            if active_count < getattr(self, 'max_parallel', 1):
+            if active_count < getattr(self, "max_parallel", 1):
                 self._process_single_file()
 
     def _process_single_file(self) -> None:
@@ -190,7 +193,8 @@ class ConversionController(QObject):
         # Get video encoder configuration
         thread_count = self._optimize_threads_for_codec(codec_idx)
         encoder_args, encoder_message = CodecHelpers.get_encoder_configuration(
-            codec_idx, thread_count, self.parallel_enabled, self.crf_value
+            codec_idx, thread_count, self.parallel_enabled, self.crf_value,
+            preset_idx=self.preset_idx
         )
         args.extend(encoder_args)
         if encoder_message:
@@ -222,23 +226,40 @@ class ConversionController(QObject):
         )
 
     def _auto_balance_workload(self, file_paths: List[str], default_codec: int) -> None:
-        """Auto-balance workload between GPU and CPU encoders"""
+        """Auto-balance workload between GPU and CPU encoders
+
+        Uses the user's selected codec as a base:
+        - If user selected a GPU codec (NVENC/QSV/VAAPI), GPU files use that codec
+        - CPU files always use x264 (codec index 3) for software encoding
+        """
         self.log_message.emit("⚖️ Auto-balancing workload between GPU and CPU...")
 
         total_files = len(file_paths)
         gpu_count = int(total_files * EncodingConfig.GPU_RATIO_DEFAULT)
         cpu_count = total_files - gpu_count
 
-        # Assign GPU encoding to first N files
+        # Determine GPU codec based on user's selection
+        # GPU codecs: 0=H.264 NVENC, 1=HEVC NVENC, 2=AV1 NVENC, 5=H.264 QSV, 6=H.264 VAAPI
+        # CPU codecs: 3=x264, 4=ProRes
+        gpu_codec_indices = (0, 1, 2, 5, 6)
+        # Use user's GPU codec if selected, otherwise fallback to H.264 NVENC
+        gpu_codec = default_codec if default_codec in gpu_codec_indices else 0
+
+        # Assign codecs based on position in queue
         for i, path in enumerate(file_paths):
             if i < gpu_count:
-                # Use NVENC H.264 for GPU (codec index 0)
-                self.file_codec_assignments[path] = 0
+                # Use user's selected GPU codec
+                self.file_codec_assignments[path] = gpu_codec
             else:
                 # Use software x264 for CPU (codec index 3)
                 self.file_codec_assignments[path] = 3
 
-        self.log_message.emit(f"📊 Balanced: {gpu_count} GPU, {cpu_count} CPU")
+        codec_names = {
+            0: "H.264 NVENC", 1: "HEVC NVENC", 2: "AV1 NVENC",
+            5: "H.264 QSV", 6: "H.264 VAAPI"
+        }
+        gpu_name = codec_names.get(gpu_codec, "GPU")
+        self.log_message.emit(f"📊 Balanced: {gpu_count} {gpu_name}, {cpu_count} x264 CPU")
 
     def _on_process_finished(
         self, process: QProcess, exit_code: int, process_path: str
@@ -272,9 +293,7 @@ class ConversionController(QObject):
                 self.file_list_widget.set_status(process_path, "failed")
 
         # Continue with next file if parallel processing
-        if self.parallel_enabled and self.queue:
-            self._process_next()
-        elif not self.parallel_enabled:
+        if (self.parallel_enabled and self.queue) or not self.parallel_enabled:
             self._process_next()
 
     def _finish_conversion(self) -> None:

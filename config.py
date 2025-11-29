@@ -116,7 +116,7 @@ class HardwareConfig:
     HIGH_END_CPU_CORES = 24  # CPU cores to consider "high-end" - matches i9-14900HX
 
     # RTX GPU models that support AV1 NVENC
-    RTX40_MODELS = ["RTX 40", "4090", "4080", "4070"]
+    RTX40_MODELS = ("RTX 40", "4090", "4080", "4070")  # Tuple for immutability
 
     # Hardware acceleration timeout
     GPU_DETECTION_TIMEOUT = 10  # Seconds to wait for GPU detection
@@ -127,7 +127,7 @@ class FileConfig:
     """File handling and path constants"""
 
     # Supported file extensions
-    SUPPORTED_VIDEO_EXTENSIONS = [".ts", ".mp4", ".m4v", ".mov"]
+    SUPPORTED_VIDEO_EXTENSIONS = (".ts", ".mp4", ".m4v", ".mov")  # Tuple for immutability
 
     # Output file suffix
     OUTPUT_SUFFIX = "_RC"  # Suffix added to converted files

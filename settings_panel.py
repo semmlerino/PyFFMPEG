@@ -4,21 +4,22 @@ Settings Panel Module for PyMPEG
 Handles all UI controls and settings management
 """
 
-from typing import Dict, Any, Optional
-from PySide6.QtCore import QObject, Signal, QSettings
+from typing import Any, Dict, Optional
+
+from PySide6.QtCore import QObject, QSettings, Signal
 from PySide6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-    QGroupBox,
-    QLabel,
-    QComboBox,
-    QSpinBox,
     QCheckBox,
+    QComboBox,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
     QPushButton,
+    QSpinBox,
+    QVBoxLayout,
+    QWidget,
 )
 
-from config import ProcessConfig, EncodingConfig, AppConfig
+from config import AppConfig, EncodingConfig, ProcessConfig
 
 
 class SettingsPanel(QObject):
@@ -350,14 +351,33 @@ class SettingsPanel(QObject):
         assert self.crf_spinbox is not None
 
         def update_crf_visibility():
-            # CRF is only relevant for x264 CPU (index 3)
+            # CRF/CQ is relevant for all codecs except ProRes (index 4)
+            # NVENC uses -cq, x264 uses -crf, QSV uses -global_quality, VAAPI uses -qp
             assert self.codec_combo is not None
             assert self.crf_label is not None
             assert self.crf_spinbox is not None
 
-            is_x264 = self.codec_combo.currentIndex() == 3
-            self.crf_label.setVisible(is_x264)
-            self.crf_spinbox.setVisible(is_x264)
+            codec_idx = self.codec_combo.currentIndex()
+            is_prores = codec_idx == 4  # ProRes doesn't use quality value
+            self.crf_label.setVisible(not is_prores)
+            self.crf_spinbox.setVisible(not is_prores)
+
+            # Update label text based on codec type
+            if codec_idx in (0, 1, 2):  # NVENC codecs
+                self.crf_label.setText("CQ (Quality):")
+                self.crf_spinbox.setToolTip(
+                    "NVENC Constant Quality (lower = better, 18 recommended)"
+                )
+            elif codec_idx in (5, 6):  # QSV/VAAPI
+                self.crf_label.setText("QP (Quality):")
+                self.crf_spinbox.setToolTip(
+                    "Quality Parameter (lower = better, 18-23 recommended)"
+                )
+            else:  # x264
+                self.crf_label.setText("CRF (Quality):")
+                self.crf_spinbox.setToolTip(
+                    "Constant Rate Factor (lower = better, 18-23 recommended)"
+                )
 
         # Connect codec change to visibility update
         self.codec_combo.currentIndexChanged.connect(update_crf_visibility)
@@ -634,12 +654,12 @@ class SettingsPanel(QObject):
             return self.create_settings_widget()
         return self._widget
 
-    def validate_settings(self) -> tuple[bool, str]:
+    def validate_settings(self) -> "tuple[bool, str]":
         """Validate current settings and return (is_valid, error_message)"""
         settings = self.get_current_settings()
 
         # Check if AV1 is selected on non-RTX 40 systems
-        if settings.get("codec_idx") == 3:  # AV1 NVENC
+        if settings.get("codec_idx") == 2:  # AV1 NVENC (index 2)
             # This would require hardware detection, for now just warn
             return True, "⚠️ AV1 NVENC requires RTX 40 series GPU"
 
