@@ -569,10 +569,13 @@ class ProgressManager:
                 if operation.progress_dialog:
                     NotificationManager.close_progress()
 
-        # Reset class variables
-        cls._instance = None
-        cls._operation_stack = []
-        cls._status_bar = None
+        # Reset class variables (under lock to prevent race with start_operation)
+        with QMutexLocker(cls._stack_lock):
+            cls._instance = None
+            # Use clear() again instead of reassignment to avoid orphaning
+            # any operations added between first lock release and now
+            cls._operation_stack.clear()
+            cls._status_bar = None
 
         logger.debug("ProgressManager reset for testing")
 

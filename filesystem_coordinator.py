@@ -238,12 +238,11 @@ class FilesystemCoordinator(LoggingMixin):
         This method clears all filesystem cache state and resets the singleton instance.
         It should only be used in test cleanup to ensure test isolation.
         """
-        # Clear cache if instance exists
-        if cls._instance is not None:
-            cls._instance.invalidate_all()
-
-        # Reset singleton state
+        # Reset singleton state under lock to prevent race with __new__
         with cls._lock:
+            # Clear cache if instance exists (inside lock to prevent orphaned references)
+            if cls._instance is not None:
+                cls._instance.invalidate_all()
             cls._instance = None
 
         # Don't need to reset _lock since it's a class variable that should persist
