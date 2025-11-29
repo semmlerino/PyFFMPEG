@@ -55,12 +55,18 @@ class UserSequenceFinder:
         if username is None:
             username = cls.get_current_username()
 
+        logger.info(
+            f"Searching Maya playblasts for user '{username}' in workspace: {workspace_path}"
+        )
+
         base_path = (
             Path(workspace_path) / "user" / username / "mm" / "maya" / "playblast"
         )
         if not base_path.exists():
-            logger.debug(f"Maya playblast path does not exist: {base_path}")
+            logger.info(f"Maya playblast path does not exist: {base_path}")
             return []
+
+        logger.info(f"Found playblast directory, scanning: {base_path}")
 
         sequences: dict[str, ImageSequence] = {}  # type -> latest sequence
 
@@ -86,7 +92,9 @@ class UserSequenceFinder:
             return []
 
         # Sort by modified time (newest first)
-        return sorted(sequences.values(), key=lambda s: s.modified_time, reverse=True)
+        result = sorted(sequences.values(), key=lambda s: s.modified_time, reverse=True)
+        logger.info(f"Found {len(result)} Maya playblast sequence(s)")
+        return result
 
     @classmethod
     def find_nuke_renders(
@@ -109,10 +117,16 @@ class UserSequenceFinder:
         if username is None:
             username = cls.get_current_username()
 
+        logger.info(
+            f"Searching Nuke renders for user '{username}' in workspace: {workspace_path}"
+        )
+
         base_path = Path(workspace_path) / "user" / username / "mm" / "nuke" / "outputs"
         if not base_path.exists():
-            logger.debug(f"Nuke outputs path does not exist: {base_path}")
+            logger.info(f"Nuke outputs path does not exist: {base_path}")
             return []
+
+        logger.info(f"Found Nuke outputs directory, scanning: {base_path}")
 
         sequences: dict[str, ImageSequence] = {}  # unique_key -> latest
 
@@ -147,7 +161,9 @@ class UserSequenceFinder:
             logger.warning(f"Error scanning Nuke renders at {base_path}: {e}")
             return []
 
-        return sorted(sequences.values(), key=lambda s: s.modified_time, reverse=True)
+        result = sorted(sequences.values(), key=lambda s: s.modified_time, reverse=True)
+        logger.info(f"Found {len(result)} Nuke render sequence(s)")
+        return result
 
     @classmethod
     def _find_latest_version_sequence(

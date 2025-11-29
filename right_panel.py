@@ -265,7 +265,10 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
 
             rv_section = self._dcc_accordion.get_section("rv")
             if rv_section is None:
+                self.logger.warning("RV section not found - cannot display sequences")
                 return
+
+            self.logger.info(f"Discovering RV sequences for shot: {shot.workspace_path}")
 
             # Discover sequences for current user
             playblasts = UserSequenceFinder.find_maya_playblasts(shot.workspace_path)
@@ -275,12 +278,12 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
             rv_section.set_playblast_sequences(playblasts)
             rv_section.set_render_sequences(renders)
 
-            self.logger.debug(
-                f"Found {len(playblasts)} playblasts and {len(renders)} renders for RV"
+            self.logger.info(
+                f"RV discovery complete: {len(playblasts)} playblast(s), {len(renders)} render(s)"
             )
 
         except Exception as e:
-            self.logger.error(f"Error discovering sequences for RV: {e}")
+            self.logger.error(f"Error discovering sequences for RV: {e}", exc_info=True)
 
     def _clear_rv_sequences(self) -> None:
         """Clear sequences from RV section."""
