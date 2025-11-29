@@ -16,6 +16,7 @@ from PySide6.QtCore import (
     QMutexLocker,
     QObject,
     QThread,
+    QTimer,
     Signal,
 )
 
@@ -68,6 +69,9 @@ class ThreadingManager(QObject):
         self._workers: dict[str, QThread] = {}
         self._mutex = QMutex()
 
+        # Zombie worker tracking - workers that failed to stop gracefully
+        self._zombie_workers: list[QThread] = []
+
         # Current 3DE worker tracking
         self._current_threede_worker: ThreeDESceneWorker | None = None
         self._threede_discovery_active = False
@@ -88,77 +92,101 @@ class ThreadingManager(QObject):
         Returns:
             True if discovery started, False if already running
         """
-        # Phase 1: Check state and grab old worker reference under lock
+        # Phase 1: Check state, claim ownership, and grab old worker reference
         old_worker: ThreeDESceneWorker | None = None
         with QMutexLocker(self._mutex):
             if self._threede_discovery_active:
                 logger.warning("3DE discovery already in progress")
                 return False
 
+            # Claim ownership IMMEDIATELY (prevents TOCTOU race condition)
+            self._threede_discovery_active = True
+
             # Grab reference to old worker for cleanup outside lock
             old_worker = self._current_threede_worker
             self._current_threede_worker = None
             _ = self._workers.pop("threede_discovery", None)
 
-        # Phase 2: Wait for old worker OUTSIDE lock (avoids 5-second UI freeze)
+        # Phase 2: Stop old worker OUTSIDE lock (non-blocking via QTimer)
         if old_worker is not None:
-            if old_worker.isRunning():
+            worker_to_cleanup = old_worker  # Capture for lambda (typed narrowing)
+            if worker_to_cleanup.isRunning():
                 logger.debug("Stopping existing 3DE worker")
-                old_worker.stop()
-                if not old_worker.wait(5000):  # 5 second timeout
-                    logger.warning("3DE worker did not stop gracefully")
-            old_worker.deleteLater()
+                worker_to_cleanup.stop()
+                # Defer blocking wait to event loop - avoids UI freeze
+                QTimer.singleShot(
+                    0, lambda: self._wait_and_cleanup_worker(worker_to_cleanup)
+                )
+            else:
+                worker_to_cleanup.deleteLater()
 
         # Phase 3: Create new worker under lock
-        with QMutexLocker(self._mutex):
-            # Re-check in case another thread started discovery while we waited
-            if self._threede_discovery_active:
-                logger.warning("3DE discovery started by another thread")
-                return False
+        try:
+            with QMutexLocker(self._mutex):
+                # Import here to avoid circular imports
+                # Local application imports
+                from threede_scene_worker import ThreeDESceneWorker
 
-            # Import here to avoid circular imports
-            # Local application imports
-            from threede_scene_worker import ThreeDESceneWorker
+                # Create new worker
+                worker_name = "threede_discovery"
+                self._current_threede_worker = ThreeDESceneWorker(
+                    shots=shot_model.get_shots(),
+                    excluded_users=None,  # Use default excluded users
+                )
 
-            # Create new worker
-            worker_name = "threede_discovery"
-            self._current_threede_worker = ThreeDESceneWorker(
-                shots=shot_model.get_shots(),
-                excluded_users=None,  # Use default excluded users
-            )
+                # Connect worker signals to our consolidated signals
+                _ = self._current_threede_worker.started.connect(
+                    self.threede_discovery_started.emit
+                )
+                # ThreeDESceneWorker has 'progress' signal (int, int, float, str, str)
+                # We map it to our threede_discovery_progress (int, int, str) by using a slot
+                # The progress_update signal doesn't exist on ThreeDESceneWorker
+                # Instead, connect the 'progress' signal directly
+                _ = self._current_threede_worker.progress.connect(
+                    self._on_progress_update
+                )
+                _ = self._current_threede_worker.batch_ready.connect(
+                    self.threede_discovery_batch_ready.emit
+                )
+                # Signal is defined as Signal(list) without type parameter
+                # Our slot is properly typed as list[ThreeDEScene], runtime is correct
+                _ = self._current_threede_worker.finished.connect(
+                    self._on_threede_discovery_finished
+                )
+                _ = self._current_threede_worker.error.connect(
+                    self._on_threede_discovery_error
+                )
+                _ = self._current_threede_worker.paused.connect(
+                    self.threede_discovery_paused.emit
+                )
+                _ = self._current_threede_worker.resumed.connect(
+                    self.threede_discovery_resumed.emit
+                )
 
-            # Connect worker signals to our consolidated signals
-            _ = self._current_threede_worker.started.connect(
-                self.threede_discovery_started.emit
-            )
-            # ThreeDESceneWorker has 'progress' signal (int, int, float, str, str)
-            # We map it to our threede_discovery_progress (int, int, str) by using a slot
-            # The progress_update signal doesn't exist on ThreeDESceneWorker
-            # Instead, connect the 'progress' signal directly
-            _ = self._current_threede_worker.progress.connect(self._on_progress_update)
-            _ = self._current_threede_worker.batch_ready.connect(
-                self.threede_discovery_batch_ready.emit
-            )
-            # Signal is defined as Signal(list) without type parameter, causing Unknown inference
-            # Our slot is properly typed as list[ThreeDEScene], runtime behavior is correct
-            _ = self._current_threede_worker.finished.connect(
-                self._on_threede_discovery_finished
-            )
-            _ = self._current_threede_worker.error.connect(self._on_threede_discovery_error)
-            _ = self._current_threede_worker.paused.connect(
-                self.threede_discovery_paused.emit
-            )
-            _ = self._current_threede_worker.resumed.connect(
-                self.threede_discovery_resumed.emit
-            )
+                # Start worker thread
+                self._current_threede_worker.start()
+                self._workers[worker_name] = self._current_threede_worker
 
-            # Start worker thread
-            self._current_threede_worker.start()
-            self._workers[worker_name] = self._current_threede_worker
-            self._threede_discovery_active = True
+                logger.info("Started 3DE scene discovery thread")
+                return True
+        except Exception as e:
+            # Reset flag on failure so discovery can be retried
+            with QMutexLocker(self._mutex):
+                self._threede_discovery_active = False
+            logger.error(f"Failed to start 3DE discovery: {e}")
+            return False
 
-            logger.info("Started 3DE scene discovery thread")
-            return True
+    def _wait_and_cleanup_worker(self, worker: QThread) -> None:
+        """Wait for worker to stop and clean up.
+
+        Called via QTimer.singleShot to avoid blocking the UI thread.
+
+        Args:
+            worker: The worker thread to wait for and clean up
+        """
+        if not worker.wait(5000):  # 5 second timeout
+            logger.warning("3DE worker did not stop gracefully within timeout")
+        worker.deleteLater()
 
     def _on_progress_update(
         self,
@@ -338,6 +366,17 @@ class ThreadingManager(QObject):
             # Schedule for deletion
             worker.deleteLater()
 
+        # Phase 3: Force-cleanup any zombie workers from previous operations
+        if self._zombie_workers:
+            logger.info(f"Cleaning up {len(self._zombie_workers)} zombie worker(s)")
+            for zombie in self._zombie_workers:
+                if zombie.isRunning():
+                    logger.warning("Force-terminating zombie worker")
+                    zombie.terminate()
+                    _ = zombie.wait(1000)  # Brief wait after terminate
+                zombie.deleteLater()
+            self._zombie_workers.clear()
+
         logger.info("All worker threads shutdown complete")
 
     def add_custom_worker(self, name: str, worker: QThread) -> bool:
@@ -363,42 +402,48 @@ class ThreadingManager(QObject):
     def remove_worker(self, name: str) -> bool:
         """Remove and cleanup a specific worker.
 
+        Uses two-phase pattern to avoid holding mutex during blocking wait().
+
         Args:
             name: Name of worker to remove
 
         Returns:
             True if removed successfully, False if not found
         """
+        # Phase 1: Grab reference and remove from dict under lock
+        worker: QThread | None = None
+        is_threede = name == "threede_discovery"
+
         with QMutexLocker(self._mutex):
             worker = self._workers.get(name)
             if not worker:
                 return False
 
-            # Stop if running - use Protocol for type safety
-            if worker.isRunning():
-                # Try to stop the worker using known patterns
-                # Cast through object to Protocol for type-safe attribute access
-                if hasattr(worker, "request_stop"):
-                    worker_with_stop = cast(
-                        "WorkerWithStopProtocol", cast("object", worker)
-                    )
-                    worker_with_stop.request_stop()
-                elif hasattr(worker, "stop"):
-                    worker_with_stop = cast(
-                        "WorkerWithStopProtocol", cast("object", worker)
-                    )
-                    worker_with_stop.stop()
-                if not worker.wait(2000):
-                    logger.warning(f"Worker {name} did not stop gracefully")
-
-            # Clean up
-            worker.deleteLater()
+            # Remove from dict and update state while we have the lock
             del self._workers[name]
-
-            # Special handling for 3DE worker
-            if name == "threede_discovery":
+            if is_threede:
                 self._current_threede_worker = None
                 self._threede_discovery_active = False
 
-            logger.debug(f"Removed worker: {name}")
-            return True
+        # Phase 2: Stop and wait OUTSIDE lock (avoids UI freeze)
+        if worker.isRunning():
+            # Try to stop the worker using known patterns
+            if hasattr(worker, "request_stop"):
+                worker_with_stop = cast(
+                    "WorkerWithStopProtocol", cast("object", worker)
+                )
+                worker_with_stop.request_stop()
+            elif hasattr(worker, "stop"):
+                worker_with_stop = cast(
+                    "WorkerWithStopProtocol", cast("object", worker)
+                )
+                worker_with_stop.stop()
+
+            if not worker.wait(2000):
+                logger.warning(f"Worker {name} did not stop gracefully - tracking as zombie")
+                self._zombie_workers.append(worker)
+
+        # Schedule for deletion (safe even if still running - Qt handles it)
+        worker.deleteLater()
+        logger.debug(f"Removed worker: {name}")
+        return True

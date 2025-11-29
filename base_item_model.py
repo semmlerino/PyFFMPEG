@@ -520,7 +520,8 @@ class BaseItemModel(
 
                 # Store runnable reference to prevent deletion before callback
                 # (Required because setAutoDelete(False) - we manage lifetime)
-                self._active_runnables[item.full_name] = runnable
+                with QMutexLocker(self._pending_loads_mutex):
+                    self._active_runnables[item.full_name] = runnable
 
                 # Connect signals with QueuedConnection for thread safety
                 # Use typed closures to capture row value at connection time
@@ -601,11 +602,9 @@ class BaseItemModel(
             cached_path: Path to the cached thumbnail file
             row: Original row index (may be stale if items changed)
         """
-        # Clean up runnable reference (prevents memory leak)
-        _ = self._active_runnables.pop(full_name, None)
-
-        # Remove from pending loads
+        # Clean up runnable reference and pending loads (prevents memory leak)
         with QMutexLocker(self._pending_loads_mutex):
+            _ = self._active_runnables.pop(full_name, None)
             self._pending_loads.discard(full_name)
 
         # Verify row is still valid and item matches (data may have changed)
@@ -637,11 +636,9 @@ class BaseItemModel(
             full_name: Unique identifier for the item
             row: Original row index (may be stale if items changed)
         """
-        # Clean up runnable reference (prevents memory leak)
-        _ = self._active_runnables.pop(full_name, None)
-
-        # Remove from pending loads
+        # Clean up runnable reference and pending loads (prevents memory leak)
         with QMutexLocker(self._pending_loads_mutex):
+            _ = self._active_runnables.pop(full_name, None)
             self._pending_loads.discard(full_name)
 
         # Update loading state

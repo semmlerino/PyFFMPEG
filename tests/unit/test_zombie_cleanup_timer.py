@@ -73,27 +73,34 @@ class TestZombieCleanupTimer:
 
         worker = QuickWorker()
 
-        # Start worker and wait for it to finish using Qt's native wait
-        # (safer than wait_signal for instant-finishing threads)
-        worker.start()
-        finished = worker.wait(2000)  # Use Qt's native wait
-        assert finished, "Worker did not finish in time"
+        try:
+            # Start worker and wait for it to finish using Qt's native wait
+            # (safer than wait_signal for instant-finishing threads)
+            worker.start()
+            finished = worker.wait(2000)  # Use Qt's native wait
+            assert finished, "Worker did not finish in time"
 
-        # Worker should be finished now
-        assert not worker.isRunning()
+            # Worker should be finished now
+            assert not worker.isRunning()
 
-        # Now manually zombify it (simulate safe_terminate path)
-        ThreadSafeWorker._zombie_threads.append(worker)
-        ThreadSafeWorker._zombie_timestamps[id(worker)] = time.time() - 61  # Old zombie
+            # Now manually zombify it (simulate safe_terminate path)
+            ThreadSafeWorker._zombie_threads.append(worker)
+            ThreadSafeWorker._zombie_timestamps[id(worker)] = time.time() - 61  # Old zombie
 
-        assert len(ThreadSafeWorker._zombie_threads) == 1
+            assert len(ThreadSafeWorker._zombie_threads) == 1
 
-        # Manually trigger cleanup (instead of waiting 60s for timer)
-        cleaned = ThreadSafeWorker.cleanup_old_zombies()
+            # Manually trigger cleanup (instead of waiting 60s for timer)
+            cleaned = ThreadSafeWorker.cleanup_old_zombies()
 
-        # Should have cleaned up the finished worker
-        assert cleaned == 1
-        assert len(ThreadSafeWorker._zombie_threads) == 0
+            # Should have cleaned up the finished worker
+            assert cleaned == 1
+            assert len(ThreadSafeWorker._zombie_threads) == 0
+        finally:
+            # Ensure QThread cleanup even if assertions fail
+            if worker.isRunning():
+                worker.request_stop()
+                worker.wait(1000)
+            worker.deleteLater()
 
     def test_timer_doesnt_clean_young_zombies(self, qtbot: QtBot) -> None:
         """Test that timer doesn't clean up recently added zombies."""
@@ -105,23 +112,31 @@ class TestZombieCleanupTimer:
                 pass
 
         worker = QuickWorker()
-        worker.start()
-        assert worker.wait(1000)
 
-        # Add as fresh zombie (age = 0)
-        ThreadSafeWorker._zombie_threads.append(worker)
-        ThreadSafeWorker._zombie_timestamps[id(worker)] = time.time()
+        try:
+            worker.start()
+            assert worker.wait(1000)
 
-        assert len(ThreadSafeWorker._zombie_threads) == 1
+            # Add as fresh zombie (age = 0)
+            ThreadSafeWorker._zombie_threads.append(worker)
+            ThreadSafeWorker._zombie_timestamps[id(worker)] = time.time()
 
-        # Try cleanup - should NOT remove (too young)
-        cleaned = ThreadSafeWorker.cleanup_old_zombies()
-        assert cleaned == 0
-        assert len(ThreadSafeWorker._zombie_threads) == 1
+            assert len(ThreadSafeWorker._zombie_threads) == 1
 
-        # Cleanup manually
-        ThreadSafeWorker._zombie_threads.clear()
-        ThreadSafeWorker._zombie_timestamps.clear()
+            # Try cleanup - should NOT remove (too young)
+            cleaned = ThreadSafeWorker.cleanup_old_zombies()
+            assert cleaned == 0
+            assert len(ThreadSafeWorker._zombie_threads) == 1
+
+            # Cleanup manually
+            ThreadSafeWorker._zombie_threads.clear()
+            ThreadSafeWorker._zombie_timestamps.clear()
+        finally:
+            # Ensure QThread cleanup even if assertions fail
+            if worker.isRunning():
+                worker.request_stop()
+                worker.wait(1000)
+            worker.deleteLater()
 
     def test_stop_timer_when_not_running(self, qtbot: QtBot) -> None:
         """Test that stopping non-running timer is safe."""

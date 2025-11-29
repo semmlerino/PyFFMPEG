@@ -189,12 +189,21 @@ class TestQtThreadSafety:
         worker.finished.connect(thread.quit)
 
         thread.started.connect(worker.run)
-        thread.start()
 
-        qtbot.waitUntil(lambda: "done" in finished, timeout=2000)
-        thread.wait(1000)
+        try:
+            thread.start()
 
-        assert not thread.isRunning()
+            qtbot.waitUntil(lambda: "done" in finished, timeout=2000)
+            thread.wait(1000)
+
+            assert not thread.isRunning()
+        finally:
+            # Ensure QThread cleanup even if assertions fail
+            if thread.isRunning():
+                thread.quit()
+                thread.wait(1000)
+            thread.deleteLater()
+            worker.deleteLater()
 
     def test_cross_thread_signal(self, qtbot: QtBot) -> None:
         """Signals work across threads via queued connections."""
@@ -218,9 +227,18 @@ class TestQtThreadSafety:
 
         thread.started.connect(worker.work)
         worker.result.connect(thread.quit)
-        thread.start()
 
-        qtbot.waitUntil(lambda: len(results) > 0, timeout=2000)
-        thread.wait(1000)
+        try:
+            thread.start()
 
-        assert results == ["from worker thread"]
+            qtbot.waitUntil(lambda: len(results) > 0, timeout=2000)
+            thread.wait(1000)
+
+            assert results == ["from worker thread"]
+        finally:
+            # Ensure QThread cleanup even if assertions fail
+            if thread.isRunning():
+                thread.quit()
+                thread.wait(1000)
+            thread.deleteLater()
+            worker.deleteLater()

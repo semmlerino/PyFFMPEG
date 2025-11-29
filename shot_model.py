@@ -167,6 +167,7 @@ class ShotModel(BaseShotModel):
     # Additional signals beyond BaseShotModel
     background_load_started: Signal = Signal()
     background_load_finished: Signal = Signal()
+    data_recovery_occurred: Signal = Signal(str, str)  # (title, details)
 
     def __init__(
         self,
@@ -346,6 +347,12 @@ class ShotModel(BaseShotModel):
                 removed_shots=[],
                 has_changes=True,
             )
+            self.data_recovery_occurred.emit(
+                "Cache Recovery",
+                f"Cache corruption detected during merge.\n"
+                f"Using fresh workspace data only.\n\n"
+                f"Technical details: {e}",
+            )
 
         # Log statistics
         self.logger.info(
@@ -411,6 +418,12 @@ class ShotModel(BaseShotModel):
                 new_shots=[],
                 removed_shots=[],
                 has_changes=False,
+            )
+            self.data_recovery_occurred.emit(
+                "Shot Data Recovery",
+                f"Cache corruption detected. Using fresh data only.\n"
+                f"Previous shot history may be incomplete.\n\n"
+                f"Technical details: {e}",
             )
 
         # Check if data actually changed (including metadata)
@@ -690,6 +703,12 @@ class ShotModel(BaseShotModel):
                     new_shots=[],
                     removed_shots=[],
                     has_changes=False,
+                )
+                self.data_recovery_occurred.emit(
+                    "Shot Data Recovery",
+                    f"Cache corruption detected. Using fresh data only.\n"
+                    f"Previous shot history may be incomplete.\n\n"
+                    f"Technical details: {e}",
                 )
 
             # Check if data actually changed (including metadata)

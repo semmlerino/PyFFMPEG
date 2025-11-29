@@ -88,52 +88,56 @@ class PreviousShotsModel(LoggingMixin, QObject):
     def _cleanup_worker_safely(self) -> None:
         """Centralized worker cleanup to prevent race conditions and crashes.
 
+        Uses two-phase pattern to avoid holding lock during blocking wait().
+
         This method ensures proper cleanup sequence:
-        1. Request stop first
-        2. Wait with timeout to prevent hanging
-        3. Clear reference before deletion
-        4. Disconnect signals to prevent late emissions
-        5. Schedule deletion on event loop
+        1. Grab reference and clear under lock (fast)
+        2. Request stop, wait, and cleanup OUTSIDE lock (may block)
         """
+        # Phase 1: Grab reference and clear under lock (fast, non-blocking)
+        worker: PreviousShotsWorker | None = None
         with QMutexLocker(self._scan_lock):
             if self._worker is not None:
-                self.logger.debug("Safely cleaning up worker thread")
-
-                # 1. Request stop first
-                self._worker.stop()
-
-                # 2. Wait with timeout (prevent hanging)
-                if not self._worker.wait(2000):
-                    self.logger.warning("Worker did not stop gracefully within 2s")
-                    # Force termination if necessary
-                    if self._worker.isRunning():
-                        self._worker.terminate()
-                        _ = self._worker.wait(1000)
-
-                # 3. Clear reference BEFORE scheduling deletion
                 worker = self._worker
-                self._worker = None
+                self._worker = None  # Clear immediately to prevent double-cleanup
 
-                # 4. Disconnect all signals to prevent late emissions
-                # Note: We check receivers() before disconnecting to avoid RuntimeWarnings
-                # from Qt when attempting to disconnect signals that have no connections.
-                # Qt's receivers() method is not properly typed in PySide6 stubs
-                try:
-                    if worker.scan_finished.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
-                        _ = worker.scan_finished.disconnect()
-                    if worker.error_occurred.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
-                        _ = worker.error_occurred.disconnect()
-                    # PreviousShotsWorker uses scan_progress, not progress
-                    # ThreeDESceneWorker uses progress signal
-                    # Runtime hasattr check handles polymorphism - attribute may not exist
-                    if hasattr(worker, "progress") and worker.progress.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
-                        worker.progress.disconnect()  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
-                except (RuntimeError, TypeError, AttributeError):
-                    pass  # Already disconnected or no connections
+        if worker is None:
+            return
 
-                # 5. Schedule deletion on event loop
-                worker.deleteLater()
-                self.logger.debug("Worker thread cleanup completed")
+        # Phase 2: Stop, wait, and cleanup OUTSIDE lock (avoids UI freeze)
+        self.logger.debug("Safely cleaning up worker thread")
+
+        # Request stop
+        worker.stop()
+
+        # Wait with timeout (prevent hanging)
+        if not worker.wait(2000):
+            self.logger.warning("Worker did not stop gracefully within 2s")
+            # Force termination if necessary
+            if worker.isRunning():
+                worker.terminate()
+                _ = worker.wait(1000)
+
+        # Disconnect all signals to prevent late emissions
+        # Note: We check receivers() before disconnecting to avoid RuntimeWarnings
+        # from Qt when attempting to disconnect signals that have no connections.
+        # Qt's receivers() method is not properly typed in PySide6 stubs
+        try:
+            if worker.scan_finished.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
+                _ = worker.scan_finished.disconnect()
+            if worker.error_occurred.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
+                _ = worker.error_occurred.disconnect()
+            # PreviousShotsWorker uses scan_progress, not progress
+            # ThreeDESceneWorker uses progress signal
+            # Runtime hasattr check handles polymorphism - attribute may not exist
+            if hasattr(worker, "progress") and worker.progress.receivers(None) > 0:  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
+                worker.progress.disconnect()  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
+        except (RuntimeError, TypeError, AttributeError):
+            pass  # Already disconnected or no connections
+
+        # Schedule deletion on event loop
+        worker.deleteLater()
+        self.logger.debug("Worker thread cleanup completed")
 
     def refresh_shots(self) -> bool:
         """Refresh the list of previous shots using a background worker thread.

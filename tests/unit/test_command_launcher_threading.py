@@ -123,13 +123,20 @@ class TestCommandLauncherThreading:
         # Create worker thread
         worker = WorkerThread(launcher, mock_shot)
 
-        # Start worker and wait for completion
-        with qtbot.waitSignal(worker.finished_signal, timeout=1000):
-            worker.start()
+        try:
+            # Start worker and wait for completion
+            with qtbot.waitSignal(worker.finished_signal, timeout=1000):
+                worker.start()
 
-        # Verify shot was set correctly
-        assert launcher.current_shot == mock_shot
-        assert launcher.current_shot.full_name == "TEST_SHOT_0010"
+            # Verify shot was set correctly
+            assert launcher.current_shot == mock_shot
+            assert launcher.current_shot.full_name == "TEST_SHOT_0010"
+        finally:
+            # Ensure QThread cleanup even if assertions fail
+            if worker.isRunning():
+                worker.requestInterruption()
+                worker.wait(1000)
+            worker.deleteLater()
 
     def test_signal_emission_from_gui_thread(
         self, qtbot: "QtBot", launcher: CommandLauncher

@@ -13,6 +13,7 @@ from unittest.mock import Mock, patch
 import pytest
 from PySide6.QtCore import QThread, Signal
 
+from tests.test_helpers import process_qt_events
 from threading_manager import ThreadingManager
 
 
@@ -645,6 +646,9 @@ class TestCleanupAndShutdown:
                 mock_threede_model, mock_shot_model
             )
 
+        # Process Qt events to execute QTimer.singleShot cleanup callback
+        process_qt_events()
+
         # Verify first worker was cleaned up
         first_worker.stop.assert_called()
         first_worker.wait.assert_called()
@@ -698,6 +702,9 @@ class TestCleanupAndShutdown:
             threading_manager.start_threede_discovery(
                 mock_threede_model, mock_shot_model
             )
+
+        # Process Qt events to execute QTimer.singleShot cleanup callback
+        process_qt_events()
 
         # Verify first worker was cleaned up despite timeout
         first_worker.deleteLater.assert_called()
@@ -897,9 +904,12 @@ class TestEdgeCasesAndErrorHandling:
                 mock_threede_model, mock_shot_model
             )
 
-            # Old worker should be cleaned up
-            old_worker.stop.assert_called_once()
-            old_worker.deleteLater.assert_called_once()
+        # Process Qt events to execute QTimer.singleShot cleanup callback
+        process_qt_events()
+
+        # Old worker should be cleaned up
+        old_worker.stop.assert_called_once()
+        old_worker.deleteLater.assert_called_once()
 
     def test_shutdown_with_no_workers(
         self, threading_manager: ThreadingManager

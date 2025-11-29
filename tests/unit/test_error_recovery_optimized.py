@@ -162,16 +162,23 @@ class TestErrorRecovery:
         )
         # Note: AsyncShotLoader is a QThread, not a QWidget, so no addWidget needed
 
-        error_spy = QSignalSpy(loader.load_failed)
-        success_spy = QSignalSpy(loader.shots_loaded)
+        try:
+            error_spy = QSignalSpy(loader.load_failed)
+            success_spy = QSignalSpy(loader.shots_loaded)
 
-        loader.start()
-        assert loader.wait(3000)
+            loader.start()
+            assert loader.wait(3000)
 
-        # Error signal should be emitted, not success
-        assert error_spy.count() == 1
-        assert success_spy.count() == 0
-        assert "Critical error" in error_spy.at(0)[0]
+            # Error signal should be emitted, not success
+            assert error_spy.count() == 1
+            assert success_spy.count() == 0
+            assert "Critical error" in error_spy.at(0)[0]
+        finally:
+            # Ensure QThread cleanup even if assertions fail
+            if loader.isRunning():
+                loader.requestInterruption()
+                loader.wait(1000)
+            loader.deleteLater()
 
     def test_partial_data_handling(self, tmp_path) -> None:
         """Test handling of partial or malformed workspace data."""

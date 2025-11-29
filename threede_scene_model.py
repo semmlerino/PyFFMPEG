@@ -173,7 +173,7 @@ class ThreeDESceneModel:
                     self.scenes.append(ThreeDEScene.from_dict(scene_data))  # pyright: ignore[reportArgumentType]
                 except (KeyError, TypeError, ValueError) as e:
                     # Skip invalid cached entry
-                    print(f"Skipping invalid cached 3DE scene: {e}")
+                    logger.warning(f"Skipping invalid cached 3DE scene: {e}")
                     continue
             return len(self.scenes) > 0
         return False

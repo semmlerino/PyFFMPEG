@@ -683,6 +683,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         _ = self.shot_model.error_occurred.connect(self._on_shot_error)
         # Note: shot_model.shot_selected signal removed (vestigial - only logged, no action)
         _ = self.shot_model.cache_updated.connect(self._on_cache_updated)
+        _ = self.shot_model.data_recovery_occurred.connect(self._on_data_recovery)
 
         # Connect to cache manager for migration events
         _ = self.cache_manager.shots_migrated.connect(
@@ -942,6 +943,18 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         """
         self.logger.error(f"Shot model error: {error_msg}")
         self._update_status(f"Error: {error_msg}")
+
+    def _on_data_recovery(self, title: str, details: str) -> None:
+        """Handle data recovery notification from model.
+
+        Shows a warning dialog to inform the user about cache corruption recovery.
+
+        Args:
+            title: The dialog title
+            details: Detailed message about the recovery
+        """
+        self.logger.warning(f"Data recovery: {title} - {details}")
+        NotificationManager.warning(title, details)
 
     def _trigger_previous_shots_refresh(self, shots: list[Shot]) -> None:
         """Trigger previous shots refresh only after shots are loaded.

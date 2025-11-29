@@ -10,7 +10,7 @@ from __future__ import annotations
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal, Protocol, TypedDict, TypeVar, cast
+from typing import Literal, NotRequired, Protocol, TypedDict, TypeVar, cast
 
 # Third-party imports
 from PySide6.QtCore import Signal
@@ -167,6 +167,7 @@ class ThreeDESceneDict(TypedDict):
     filename: str
     modified_time: float
     workspace_path: str
+    last_seen: NotRequired[float]  # Timestamp when scene was last discovered (for pruning)
 
 
 class LauncherDict(TypedDict, total=False):
