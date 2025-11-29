@@ -165,7 +165,7 @@ exclude = [
     "PyMPEG.py",  # Exclude legacy monolithic file
     "BB/",  # Exclude shotbot subdirectory
 ]
-typeCheckingMode = "standard"  # Upgraded from "basic"
+typeCheckingMode = "recommended"  # Upgraded from "standard"
 pythonVersion = "3.8"
 pythonPlatform = "Linux"
 

@@ -661,13 +661,12 @@ class SettingsPanel(QObject):
         settings = self.get_current_settings()
 
         # Check if AV1 is selected on non-RTX 40 systems
-        if settings.get("codec_idx") == 2:  # AV1 NVENC (index 2)
-            if not CodecHelpers.detect_rtx40_series():
-                return (
-                    False,
-                    "AV1 NVENC requires RTX 40 series GPU. "
-                    "Please select a different codec or use an RTX 40 series GPU.",
-                )
+        if settings.get("codec_idx") == 2 and not CodecHelpers.detect_rtx40_series():
+            return (
+                False,
+                "AV1 NVENC requires RTX 40 series GPU. "
+                "Please select a different codec or use an RTX 40 series GPU.",
+            )
 
         # Check parallel processing limits
         if (

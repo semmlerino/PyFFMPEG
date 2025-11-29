@@ -4,12 +4,13 @@ Unit tests for ConversionController class
 Tests conversion workflow orchestration, auto-balance logic, and process coordination
 """
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 from PySide6.QtCore import QProcess
 
-from conversion_controller import ConversionController
 from config import EncodingConfig
+from conversion_controller import ConversionController
 from tests.fixtures.mocks import create_mock_process_manager
 
 
@@ -262,7 +263,9 @@ class TestFFmpegArgumentBuilding:
 
         input_path = "/test/input.ts"
 
-        with patch("codec_helpers.CodecHelpers.get_output_extension", return_value=".mp4"):
+        with patch(
+            "codec_helpers.CodecHelpers.get_output_extension", return_value=".mp4"
+        ):
             args = self.controller._build_ffmpeg_args(input_path, 0)  # H.264 NVENC
 
         # Verify basic structure
@@ -303,7 +306,9 @@ class TestFFmpegArgumentBuilding:
 
         input_path = "/test/input.ts"
 
-        with patch("codec_helpers.CodecHelpers.get_output_extension", return_value=".mp4"):
+        with patch(
+            "codec_helpers.CodecHelpers.get_output_extension", return_value=".mp4"
+        ):
             args = self.controller._build_ffmpeg_args(input_path, 3)  # x264 CPU
 
         # Verify x264 specific args
@@ -318,7 +323,9 @@ class TestFFmpegArgumentBuilding:
         """Test output path generation in FFmpeg args"""
         input_path = "/test/input.ts"
 
-        with patch("codec_helpers.CodecHelpers.get_output_extension", return_value=".mp4"):
+        with patch(
+            "codec_helpers.CodecHelpers.get_output_extension", return_value=".mp4"
+        ):
             # Output path is generated within _build_ffmpeg_args
             args = self.controller._build_ffmpeg_args(input_path, 0)
 
@@ -361,7 +368,7 @@ class TestProcessManagement:
 
         # Mock process manager to show no active processes
         self.mock_process_manager.processes = []
-        
+
         # Mock the start_process to return a mock QProcess
         mock_process = Mock()
         mock_process.state.return_value = QProcess.ProcessState.Running
@@ -371,11 +378,10 @@ class TestProcessManagement:
             self.controller,
             "_build_ffmpeg_args",
             return_value=["-i", "input.ts", "output.mp4"],
-        ) as mock_build_args:
-            with patch.object(
-                self.controller, "_get_codec_for_path", return_value=0
-            ) as mock_get_codec:
-                self.controller._process_next()
+        ) as mock_build_args, patch.object(
+            self.controller, "_get_codec_for_path", return_value=0
+        ) as mock_get_codec:
+            self.controller._process_next()
 
         # With parallel processing enabled and 2 files in queue,
         # it should process both files (recursive call)
@@ -473,7 +479,7 @@ class TestThreadOptimization:
     def test_optimize_threads_nvenc(self, mock_optimize):
         """Test thread optimization for NVENC"""
         mock_optimize.return_value = 2
-        
+
         # Set required attributes
         self.controller.parallel_enabled = False
         self.controller.file_codec_assignments = {}
@@ -512,7 +518,9 @@ class TestConversionFinalization:
         mock_process = Mock()
 
         with patch.object(self.controller, "_process_next") as mock_process_next:
-            self.controller._on_process_finished(mock_process, 0, "/test/video.ts")  # Success
+            self.controller._on_process_finished(
+                mock_process, 0, "/test/video.ts"
+            )  # Success
 
         # Should continue processing next file
         mock_process_next.assert_called_once()
@@ -561,7 +569,7 @@ class TestSourceFileDeletion:
         """Test successful source file deletion in process finished handler"""
         file_path = "/test/video.ts"
         mock_process = Mock()
-        
+
         # Simulate successful conversion with delete_source enabled
         self.controller.delete_source = True
         self.controller.parallel_enabled = False  # Set required attribute
@@ -577,45 +585,45 @@ class TestSourceFileDeletion:
         """Test source file deletion when file doesn't exist"""
         # os.remove will raise FileNotFoundError if file doesn't exist
         mock_remove.side_effect = FileNotFoundError("File not found")
-        
+
         file_path = "/test/video.ts"
         mock_process = Mock()
-        
+
         # Set required attributes
         self.controller.delete_source = True
         self.controller.parallel_enabled = False
         self.controller.queue = []
         self.controller.file_list_widget = None
-        
+
         # Should handle the exception gracefully
         self.controller._on_process_finished(mock_process, 0, file_path)
-        
+
         mock_remove.assert_called_once_with(file_path)
 
     @patch("os.remove")
     def test_delete_source_file_permission_error(self, mock_remove):
         """Test source file deletion with permission error"""
         mock_remove.side_effect = PermissionError("Access denied")
-        
+
         file_path = "/test/video.ts"
         mock_process = Mock()
-        
+
         # Set required attributes
         self.controller.delete_source = True
         self.controller.parallel_enabled = False
         self.controller.queue = []
         self.controller.file_list_widget = None
-        
+
         # Should handle exception gracefully
         self.controller._on_process_finished(mock_process, 0, file_path)
-        
+
         mock_remove.assert_called_once_with(file_path)
 
     def test_delete_source_disabled(self):
         """Test behavior when source deletion is disabled"""
         file_path = "/test/video.ts"
         mock_process = Mock()
-        
+
         # Disable source deletion
         self.controller.delete_source = False
         self.controller.parallel_enabled = False
@@ -679,7 +687,7 @@ class TestConversionSignals:
         """Test conversion stopped signal emission"""
         # Start conversion first
         self.controller.is_converting = True
-        
+
         # Mock stop_all_processes to return a list
         self.mock_process_manager.stop_all_processes.return_value = []
 
@@ -892,7 +900,7 @@ class TestConversionControllerIntegration:
         mock_extension.return_value = ".mp4"
 
         file_paths = ["/test/video1.ts", "/test/video2.ts"]
-        
+
         # Mock stop_all_processes to return a list
         self.mock_process_manager.stop_all_processes.return_value = []
 

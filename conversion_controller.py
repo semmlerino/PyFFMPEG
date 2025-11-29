@@ -44,7 +44,7 @@ class ConversionController(QObject):
         # Conversion settings (set when conversion starts)
         self.codec_idx: int = 0
         self.hwdecode_idx: int = 0
-        self.crf_value: int = EncodingConfig.DEFAULT_CRF
+        self.crf_value: int = EncodingConfig.DEFAULT_CRF_H264
         self.parallel_enabled: bool = False
         self.max_parallel: int = 1
         self.delete_source: bool = False
@@ -241,6 +241,7 @@ class ConversionController(QObject):
         Uses the user's selected codec as a base:
         - If user selected a GPU codec (NVENC/QSV/VAAPI), GPU files use that codec
         - CPU files always use x264 (codec index 3) for software encoding
+        - AV1 NVENC (codec 2) requires RTX 40 series; falls back to H.264 NVENC if unavailable
         """
         self.log_message.emit("⚖️ Auto-balancing workload between GPU and CPU...")
 
@@ -254,6 +255,13 @@ class ConversionController(QObject):
         gpu_codec_indices = (0, 1, 2, 5, 6)
         # Use user's GPU codec if selected, otherwise fallback to H.264 NVENC
         gpu_codec = default_codec if default_codec in gpu_codec_indices else 0
+
+        # AV1 NVENC (codec 2) requires RTX 40 series GPU
+        if gpu_codec == 2 and not CodecHelpers.detect_rtx40_series():
+            self.log_message.emit(
+                "⚠️ AV1 NVENC requires RTX 40 series - falling back to H.264 NVENC"
+            )
+            gpu_codec = 0  # Fallback to H.264 NVENC
 
         # Assign codecs based on position in queue
         for i, path in enumerate(file_paths):
@@ -304,8 +312,8 @@ class ConversionController(QObject):
 
         # Continue processing (handles both parallel and sequential modes)
         # Always call _process_next() to properly detect conversion completion
-        if self.is_converting:
-            self._process_next()
+        # and handle cleanup even if conversion was stopped mid-process
+        self._process_next()
 
     def _finish_conversion(self) -> None:
         """Finish the conversion process"""

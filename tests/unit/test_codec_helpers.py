@@ -4,15 +4,16 @@ Unit tests for CodecHelpers class
 Tests hardware detection, encoder configuration, and fallback logic
 """
 
-import pytest
 import subprocess
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
+
+import pytest
 
 from codec_helpers import CodecHelpers
-from config import ProcessConfig, EncodingConfig
+from config import EncodingConfig, ProcessConfig
 from tests.fixtures.mocks import (
-    MockGPUDetection,
     MockEncoderDetection,
+    MockGPUDetection,
     create_hardware_test_matrix,
 )
 
@@ -65,7 +66,7 @@ class TestHardwareAcceleration:
         """Test auto hardware acceleration with NVIDIA GPU"""
         # Clear the GPU info cache first
         CodecHelpers._gpu_info_cache = None
-        
+
         mock_subprocess.return_value = MockGPUDetection.rtx4090_detected().encode()
 
         args, message = CodecHelpers.get_hardware_acceleration_args(0)  # Auto
@@ -80,7 +81,7 @@ class TestHardwareAcceleration:
         """Test auto hardware acceleration fallback when no GPU"""
         # Clear the GPU info cache first
         CodecHelpers._gpu_info_cache = None
-        
+
         mock_subprocess.side_effect = subprocess.CalledProcessError(1, "nvidia-smi")
 
         args, message = CodecHelpers.get_hardware_acceleration_args(0)  # Auto
@@ -127,7 +128,7 @@ class TestHardwareAcceleration:
         """Test hardware acceleration with subprocess timeout"""
         # Clear the GPU info cache first
         CodecHelpers._gpu_info_cache = None
-        
+
         mock_subprocess.side_effect = subprocess.TimeoutExpired("nvidia-smi", 10)
 
         args, message = CodecHelpers.get_hardware_acceleration_args(0)  # Auto
@@ -269,7 +270,7 @@ class TestEncoderConfiguration:
 
     def test_x264_parallel_no_threads(self):
         """Test x264 in parallel mode doesn't set threads"""
-        args, message = CodecHelpers.get_encoder_configuration(
+        args, _message = CodecHelpers.get_encoder_configuration(
             3, 0, True, 18
         )  # x264, thread_count=0 (means auto-detect)
 
@@ -434,7 +435,7 @@ class TestRTX40Detection:
     """Test RTX 40 series detection for AV1 support"""
 
     @pytest.mark.parametrize(
-        "gpu_model,expected",
+        ("gpu_model", "expected"),
         [
             ("RTX 4090", True),
             ("RTX 4080", True),
@@ -453,7 +454,7 @@ class TestRTX40Detection:
         # Clear cache before test
         CodecHelpers._gpu_info_cache = None
         CodecHelpers._rtx40_detection_cache = None
-        
+
         gpu_info = f"GPU 0: NVIDIA GeForce {gpu_model}"
         mock_subprocess.return_value = gpu_info.encode()
 
@@ -466,7 +467,7 @@ class TestRTX40Detection:
         # Clear cache before test
         CodecHelpers._gpu_info_cache = None
         CodecHelpers._rtx40_detection_cache = None
-        
+
         mock_subprocess.side_effect = subprocess.CalledProcessError(1, "nvidia-smi")
 
         result = CodecHelpers.detect_rtx40_series()
@@ -481,11 +482,11 @@ class TestHardwareTestMatrix:
         """Test various hardware configurations"""
         # Clear cache before each test configuration
         CodecHelpers.clear_cache()
-        
+
         with patch("subprocess.check_output") as mock_subprocess:
             # Configure mocks based on test scenario
             encoder_result = hardware_config["encoder_detection"]()
-            
+
             # Handle GPU detection - some scenarios raise exceptions
             try:
                 gpu_result = hardware_config["gpu_detection"]()
@@ -493,7 +494,7 @@ class TestHardwareTestMatrix:
                     gpu_result = gpu_result.encode()
             except subprocess.CalledProcessError as e:
                 gpu_result = e
-                
+
             mock_subprocess.side_effect = [encoder_result, gpu_result]
 
             # Test encoder availability
@@ -525,7 +526,7 @@ class TestCodecHelpersEdgeCases:
         """Test CRF value is passed through without clamping"""
         # Clear cache before test
         CodecHelpers.clear_cache()
-        
+
         with patch(
             "subprocess.check_output",
             return_value=MockEncoderDetection.full_nvenc_support(),
@@ -541,7 +542,7 @@ class TestCodecHelpersEdgeCases:
         """Test handling of empty encoder detection output"""
         # Clear cache first
         CodecHelpers._encoder_cache = None
-        
+
         with patch("subprocess.check_output", return_value=""):
             encoders = CodecHelpers._get_available_encoders()
             # Empty output is still cached and returned as empty string
@@ -557,7 +558,7 @@ class TestCodecHelpersEdgeCases:
         # Clear cache first
         CodecHelpers._gpu_info_cache = None
         CodecHelpers._rtx40_detection_cache = None
-        
+
         with patch("subprocess.check_output", return_value=b"malformed gpu output"):
             result = CodecHelpers.detect_rtx40_series()
             assert not result

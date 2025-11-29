@@ -5,9 +5,10 @@ Implements efficient UI updates with dirty flags and batching
 """
 
 import time
-from typing import Dict, Any, Optional
-from PySide6.QtCore import QTimer, QObject, Signal
 from collections import defaultdict
+from typing import Any, Dict, Optional
+
+from PySide6.QtCore import QObject, QTimer, Signal
 
 
 class UIUpdateManager(QObject):
@@ -167,7 +168,7 @@ class UIUpdateManager(QObject):
         """Force immediate update of component(s)"""
         if component:
             # Force update specific component
-            if component in self.dirty_flags and self.dirty_flags[component]:
+            if self.dirty_flags.get(component):
                 self.last_update_time[component] = 0
         else:
             # Force update all dirty components

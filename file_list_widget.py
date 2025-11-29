@@ -312,7 +312,7 @@ class FileListWidget(QListWidget):
 
         return self.path_items[path].data(Qt.ItemDataRole.UserRole + 1) or ""
 
-    def add_files(self, file_paths: list[str]) -> None:
+    def add_files(self, file_paths: "list[str]") -> None:
         """Add multiple files to the list"""
         for path in file_paths:
             self.add_path(path)
@@ -414,7 +414,7 @@ class FileListWidget(QListWidget):
         # Emit order changed signal
         self.order_changed.emit()
 
-    def get_file_paths(self) -> list[str]:
+    def get_file_paths(self) -> "list[str]":
         """Get all file paths in the list"""
         return list(self.path_items.keys())
 

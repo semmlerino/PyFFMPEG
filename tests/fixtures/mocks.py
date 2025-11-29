@@ -4,16 +4,17 @@ Mock objects and utilities for PyFFMPEG testing
 Provides specialized mocks for hardware detection, FFmpeg processes, and Qt components
 """
 
-from unittest.mock import Mock
-from typing import Dict, List
-from PySide6.QtCore import QProcess
+import os
 import subprocess
 
 # Import the function from conftest
 import sys
-import os
+from typing import Dict, List
+from unittest.mock import Mock
+
+from PySide6.QtCore import QProcess
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-from tests.conftest import create_mock_process_manager
 
 
 class MockFFmpegProcess:
@@ -55,7 +56,7 @@ class MockFFmpegProcess:
         ]
 
         # Generate progress updates every 10% of completion
-        for i in range(0, 11):
+        for i in range(11):
             frame_number = int((i / 10.0) * self.max_frames)
             if frame_number > 0:
                 output_lines.append(self.get_progress_output(frame_number))
@@ -272,3 +273,33 @@ def create_hardware_test_matrix():
             "expected_primary_codec": "libx264",
         },
     ]
+
+
+def create_mock_process_manager():
+    """
+    Factory function to create a mock ProcessManager for testing.
+    Returns a Mock object configured with all necessary ProcessManager attributes and signals.
+    """
+    mock_manager = Mock()
+
+    # Add required signals (as Mock objects that can emit/connect)
+    mock_manager.output_ready = Mock()
+    mock_manager.process_finished = Mock()
+    mock_manager.update_progress = Mock()
+
+    # Add signal connection methods
+    mock_manager.output_ready.connect = Mock()
+    mock_manager.process_finished.connect = Mock()
+    mock_manager.update_progress.connect = Mock()
+
+    # Add common ProcessManager methods
+    mock_manager.start_process = Mock(return_value=Mock(spec=QProcess))
+    mock_manager.stop_all_processes = Mock()
+    mock_manager.get_active_process_count = Mock(return_value=0)
+    mock_manager.is_ffmpeg_available = Mock(return_value=True)
+
+    # Initialize process tracking attributes
+    mock_manager.processes = []
+    mock_manager.process_widgets = {}
+
+    return mock_manager

@@ -4,13 +4,12 @@ Unit tests for SettingsPanel class
 Tests codec configuration, hardware acceleration settings, and signal emission
 """
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
-from PySide6.QtCore import Qt, QSettings
-from PySide6.QtWidgets import QComboBox, QSpinBox, QCheckBox, QLabel
+from unittest.mock import Mock, patch
 
+import pytest
+
+from config import ProcessConfig
 from settings_panel import SettingsPanel
-from config import EncodingConfig, ProcessConfig
 
 
 class TestSettingsPanel:
@@ -21,11 +20,13 @@ class TestSettingsPanel:
         """Create SettingsPanel instance for each test"""
         # Create a mock QSettings that returns the defaults when value() is called
         mock_settings = Mock()
+
         # Make value() return the default parameter (second arg)
         def mock_value(key, default=None, type=None):
             return default
+
         mock_settings.value.side_effect = mock_value
-        
+
         with patch("settings_panel.QSettings", return_value=mock_settings):
             self.panel = SettingsPanel()
             # SettingsPanel is a QObject that creates a widget
@@ -59,9 +60,9 @@ class TestSettingsPanel:
         self.panel.overwrite_checkbox.setChecked(False)
         self.panel.auto_balance_checkbox.setChecked(True)
         self.panel.smart_buffer_checkbox.setChecked(True)
-        
+
         settings = self.panel.get_current_settings()
-        
+
         assert settings["codec_idx"] == 2
         assert settings["hwdecode_idx"] == 1
         assert settings["crf_value"] == 20
@@ -83,19 +84,23 @@ class TestSettingsPanel:
         with self.qtbot.waitSignal(self.panel.settings_changed, timeout=100):
             # Change CRF
             self.panel.crf_spinbox.setValue(25)
-        
-        # CRF label is static, not dynamic
-        assert self.panel.crf_label.text() == "CRF (Quality):"
+
+        # CRF label text is dynamic based on codec:
+        # - NVENC codecs (0, 1, 2) use "CQ (Quality):"
+        # - AV1/HEVC software codecs use "QP (Quality):"
+        # - x264 (codec 3) uses "CRF (Quality):"
+        # Default is codec 0 (H.264 NVENC), so expect CQ
+        assert self.panel.crf_label.text() == "CQ (Quality):"
 
     def test_parallel_checkbox_enables_spinbox(self):
         """Test parallel checkbox controls max parallel spinbox"""
         # Initially parallel is checked, spinbox should be enabled
         assert self.panel.max_parallel_spinbox.isEnabled() is True
-        
+
         # Uncheck parallel
         self.panel.parallel_checkbox.setChecked(False)
         assert self.panel.max_parallel_spinbox.isEnabled() is False
-        
+
         # Check again
         self.panel.parallel_checkbox.setChecked(True)
         assert self.panel.max_parallel_spinbox.isEnabled() is True
@@ -104,14 +109,18 @@ class TestSettingsPanel:
         """Test auto-balance toggle emits specific signal"""
         # Get initial state and toggle from it
         initial_state = self.panel.auto_balance_checkbox.isChecked()
-        
+
         # Toggle to opposite of initial state
-        with self.qtbot.waitSignal(self.panel.auto_balance_toggled, timeout=100) as blocker:
+        with self.qtbot.waitSignal(
+            self.panel.auto_balance_toggled, timeout=100
+        ) as blocker:
             self.panel.auto_balance_checkbox.setChecked(not initial_state)
         assert blocker.args[0] == (not initial_state)
-        
+
         # Toggle back
-        with self.qtbot.waitSignal(self.panel.auto_balance_toggled, timeout=100) as blocker:
+        with self.qtbot.waitSignal(
+            self.panel.auto_balance_toggled, timeout=100
+        ) as blocker:
             self.panel.auto_balance_checkbox.setChecked(initial_state)
         assert blocker.args[0] == initial_state
 
@@ -130,17 +139,17 @@ class TestSettingsPanel:
             "overwrite": False,
             "smart_buffer": True,
             "auto_balance": True,
-            "priority_idx": 0
+            "priority_idx": 0,
         }
-        
+
         def mock_value(key, default=None, type=None):
             return values.get(key, default)
-        
+
         self.mock_settings.value.side_effect = mock_value
-        
+
         # Restore settings
         self.panel._restore_settings()
-        
+
         assert self.panel.codec_combo.currentIndex() == 2
         assert self.panel.hwdecode_combo.currentIndex() == 1
         assert self.panel.crf_spinbox.value() == 25
@@ -157,10 +166,10 @@ class TestSettingsPanel:
         self.panel.codec_combo.setCurrentIndex(1)
         self.panel.crf_spinbox.setValue(22)
         self.panel.delete_source_checkbox.setChecked(True)
-        
+
         # Call save settings
         self.panel._save_settings()
-        
+
         # Check setValue was called with correct values on the mock settings object
         self.mock_settings.setValue.assert_any_call("codec_idx", 1)
         self.mock_settings.setValue.assert_any_call("crf", 22)
@@ -170,40 +179,41 @@ class TestSettingsPanel:
         """Test that signals work properly after setup"""
         # Count signals during normal operation
         signal_count = 0
+
         def count_signal(settings_dict):
             nonlocal signal_count
             signal_count += 1
-        
+
         self.panel.settings_changed.connect(count_signal)
-        
+
         # Reset count since setup may have triggered signals
         signal_count = 0
-        
+
         # Manually change a value to ensure signal works
         self.panel.crf_spinbox.setValue(30)
-        
+
         # Should have at least one signal from manual change
         assert signal_count >= 1
 
     def test_codec_combo_items(self):
         """Test codec combo box has expected items"""
         combo = self.panel.codec_combo
-        
+
         # Check codec options exist
         assert combo.count() > 0
-        
+
         # Check specific codecs
         codec_texts = [combo.itemText(i) for i in range(combo.count())]
         assert any("H.264" in text for text in codec_texts)
         assert any("HEVC" in text for text in codec_texts)
-        
+
         # NVENC codecs should already be in the list (H.264 NVENC, HEVC NVENC, AV1 NVENC)
         assert any("NVENC" in text for text in codec_texts)
 
     def test_hwdecode_combo_items(self):
         """Test hardware decode combo box has expected items"""
         combo = self.panel.hwdecode_combo
-        
+
         # Check basic options
         assert combo.count() == 4  # Auto, NVIDIA, Intel, AMD/Intel
         assert combo.itemText(0) == "Auto"
@@ -222,10 +232,17 @@ class TestSettingsPanel:
     def test_max_parallel_spinbox_range(self):
         """Test max parallel spinbox has correct range"""
         assert self.panel.max_parallel_spinbox.minimum() == 1
-        assert self.panel.max_parallel_spinbox.maximum() == ProcessConfig.MAX_PARALLEL_HIGH_END
+        assert (
+            self.panel.max_parallel_spinbox.maximum()
+            == ProcessConfig.MAX_PARALLEL_HIGH_END
+        )
         # Value might be set from defaults during restore_settings
         # Just check it's within valid range
-        assert 1 <= self.panel.max_parallel_spinbox.value() <= ProcessConfig.MAX_PARALLEL_HIGH_END
+        assert (
+            1
+            <= self.panel.max_parallel_spinbox.value()
+            <= ProcessConfig.MAX_PARALLEL_HIGH_END
+        )
 
     def test_tooltip_text(self):
         """Test tooltips are set for user guidance"""
@@ -242,7 +259,7 @@ class TestSettingsPanel:
         # The actual visibility update happens in the signal handler
         # For unit test, we just verify the checkbox exists and can be toggled
         assert hasattr(self.panel, "auto_balance_checkbox")
-        
+
         # When parallel is disabled, auto-balance might be hidden (implementation dependent)
         self.panel.parallel_checkbox.setChecked(False)
         # The visibility logic would be in the actual implementation
@@ -251,29 +268,29 @@ class TestSettingsPanel:
         """Test getting codec information for current selection"""
         # Set to a known codec
         self.panel.codec_combo.setCurrentIndex(0)
-        
+
         # Get codec text
         codec_text = self.panel.codec_combo.currentText()
-        
+
         # Should have a codec selected
         assert codec_text == "H.264 NVENC"
 
     def test_settings_dict_completeness(self):
         """Test get_settings returns all required keys"""
         settings = self.panel.get_current_settings()
-        
+
         required_keys = [
             "codec_idx",
-            "hwdecode_idx", 
+            "hwdecode_idx",
             "crf_value",
             "parallel_enabled",
             "max_parallel",
             "delete_source",
             "overwrite_mode",
             "auto_balance",
-            "smart_buffer"
+            "smart_buffer",
         ]
-        
+
         for key in required_keys:
             assert key in settings, f"Missing required key: {key}"
 
@@ -281,5 +298,11 @@ class TestSettingsPanel:
         """Test CRF label exists and has correct text"""
         # Check CRF label exists
         assert self.panel.crf_label is not None
-        assert "CRF" in self.panel.crf_label.text()
+        # Label text varies by codec: CRF, CQ, or QP - all contain "Quality"
         assert "Quality" in self.panel.crf_label.text()
+        # For default NVENC codec, label should be "CQ (Quality):"
+        assert self.panel.crf_label.text() in [
+            "CRF (Quality):",
+            "CQ (Quality):",
+            "QP (Quality):",
+        ]

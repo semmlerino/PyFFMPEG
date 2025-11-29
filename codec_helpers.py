@@ -9,7 +9,7 @@ import contextlib
 import json
 import os
 import subprocess
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 from config import EncodingConfig, FileConfig, HardwareConfig, ProcessConfig
 
@@ -465,7 +465,7 @@ class CodecHelpers:
         CodecHelpers._rtx40_detection_cache = None
 
     @staticmethod
-    def extract_video_metadata(file_path: str) -> Optional[Dict]:
+    def extract_video_metadata(file_path: str) -> Optional[Dict[str, Any]]:
         """Extract video metadata using ffprobe
 
         Returns:
@@ -588,7 +588,7 @@ class CodecHelpers:
 
     @staticmethod
     def estimate_output_size(
-        input_metadata: Dict, codec_idx: int, crf_value: int
+        input_metadata: Dict[str, Any], codec_idx: int, crf_value: int
     ) -> Optional[str]:
         """Estimate output file size based on input metadata and encoding settings
 

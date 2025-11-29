@@ -4,21 +4,22 @@ Unit tests for the logging system
 Tests the structured logging, performance metrics, and user-friendly error messages
 """
 
-import pytest
-import tempfile
 import os
+import tempfile
 import time
-from unittest.mock import Mock, patch
 from pathlib import Path
+from unittest.mock import Mock, patch
+
+import pytest
 
 from logging_config import (
-    PyFFMPEGLogger,
     PerformanceMetrics,
+    PyFFMPEGLogger,
     UserFriendlyFormatter,
     get_logger,
-    setup_logging,
-    log_startup,
     log_shutdown,
+    log_startup,
+    setup_logging,
 )
 
 
@@ -107,7 +108,7 @@ class TestUserFriendlyFormatter:
         )
 
         formatted = self.formatter.format(record)
-        assert "ℹ️" in formatted or "INFO" in formatted
+        assert "i" in formatted or "INFO" in formatted
         assert "Test message" in formatted
 
     def test_error_with_suggestion(self):
@@ -377,6 +378,7 @@ class TestIntegrationWithExistingModules:
     def test_progress_tracker_timeout_logging(self, mock_subprocess):
         """Test that ProgressTracker logs timeout correctly"""
         import subprocess
+
         from progress_tracker import ProcessProgressTracker
 
         mock_subprocess.side_effect = subprocess.TimeoutExpired("ffprobe", 30)

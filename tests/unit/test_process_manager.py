@@ -4,14 +4,15 @@ Unit tests for ProcessManager class
 Tests QProcess lifecycle management, queue management, and timer coordination
 """
 
-import pytest
 import time
 from collections import deque
 from unittest.mock import Mock, patch
 
-from PySide6.QtCore import QProcess, QTimer
+import pytest
+from PySide6.QtCore import QProcess
+
+from config import ProcessConfig
 from process_manager import ProcessManager
-from config import ProcessConfig, UIConfig
 
 
 class TestProcessManager:
@@ -221,29 +222,33 @@ class TestProcessOutput:
         """Test handling of process output"""
         # Use real QProcess to avoid segfault with signals
         process = QProcess()
-        
+
         # Mock only the specific methods we need
         process.waitForStarted = Mock(return_value=True)
         process.bytesAvailable = Mock(return_value=20)
-        
+
         # Mock readAllStandardOutput to return QByteArray-like object
         mock_data = Mock()
         mock_data.data.return_value = b"test ffmpeg output\n"
         process.readAllStandardOutput = Mock(return_value=mock_data)
-        
+
         # Add process to manager's tracking structures
         file_path = "/test/video.ts"
         self.manager.processes.append((process, file_path))
-        self.manager.process_outputs[process] = deque(maxlen=self.manager._current_max_log_lines)
-        self.manager.process_logs[process] = deque(maxlen=self.manager._current_max_log_lines)
-        
+        self.manager.process_outputs[process] = deque(
+            maxlen=self.manager._current_max_log_lines
+        )
+        self.manager.process_logs[process] = deque(
+            maxlen=self.manager._current_max_log_lines
+        )
+
         # Register process with progress tracker
         process_id = str(id(process))
         self.manager.progress_tracker.register_process(process_id, file_path, 60.0)
-        
+
         # Call _handle_process_output
         self.manager._handle_process_output(process)
-        
+
         # Verify output is stored
         assert process in self.manager.process_outputs
         assert len(self.manager.process_outputs[process]) > 0
@@ -255,29 +260,33 @@ class TestProcessOutput:
         process = QProcess()
         process.waitForStarted = Mock(return_value=True)
         process.bytesAvailable = Mock(return_value=10)
-        
+
         # Add process to manager's tracking structures
         file_path = "/test/video.ts"
         self.manager.processes.append((process, file_path))
-        self.manager.process_outputs[process] = deque(maxlen=self.manager._current_max_log_lines)
-        self.manager.process_logs[process] = deque(maxlen=self.manager._current_max_log_lines)
-        
+        self.manager.process_outputs[process] = deque(
+            maxlen=self.manager._current_max_log_lines
+        )
+        self.manager.process_logs[process] = deque(
+            maxlen=self.manager._current_max_log_lines
+        )
+
         # Register with progress tracker
         process_id = str(id(process))
         self.manager.progress_tracker.register_process(process_id, file_path, 60.0)
-        
+
         # Simulate multiple output chunks
         output_chunks = [b"chunk1\n", b"chunk2\n", b"chunk3\n"]
 
         # Mock the progress tracker to avoid signal emissions
         mock_progress_data = {"current_pct": 0, "fps": 0}
         self.manager.progress_tracker.process_output.return_value = mock_progress_data
-        
+
         # Mock signals to prevent segfault
-        with patch.object(self.manager, "update_progress"):
-            with patch.object(self.manager, "output_ready"):
-                for chunk in output_chunks:
-                    # Mock readAllStandardOutput to return QByteArray  
+        with patch.object(self.manager, "update_progress"), \
+                patch.object(self.manager, "output_ready"):
+            for chunk in output_chunks:
+                    # Mock readAllStandardOutput to return QByteArray
                     mock_data = Mock()
                     mock_data.data.return_value = chunk
                     process.readAllStandardOutput = Mock(return_value=mock_data)
@@ -299,7 +308,7 @@ class TestProcessOutput:
         file_path = "/test/video.ts"
         self.manager.start_process(file_path, ["-i", file_path, "output.mp4"])
 
-        # Simulate empty output - with bytesAvailable() = 0, 
+        # Simulate empty output - with bytesAvailable() = 0,
         # _handle_process_output should exit early
         self.manager._handle_process_output(mock_process)
 
@@ -321,7 +330,7 @@ class TestProcessTermination:
         """Test stopping all running processes"""
         # Create multiple mock processes
         mock_processes = []
-        for i in range(3):
+        for _ in range(3):
             mock_process = Mock(spec=QProcess)
             mock_process.waitForStarted.return_value = True
             mock_process.state.return_value = QProcess.ProcessState.Running
@@ -411,7 +420,7 @@ class TestResourceCleanup:
         """Test comprehensive resource cleanup"""
         # Create mock processes
         mock_processes = []
-        for i in range(2):
+        for _ in range(2):
             mock_process = Mock(spec=QProcess)
             mock_process.waitForStarted.return_value = True
             mock_process.state.return_value = QProcess.ProcessState.Running
@@ -446,7 +455,7 @@ class TestResourceCleanup:
         # Process logs are now deques with automatic size limits
         # The manager uses circular buffers (deques) which auto-limit size
         self.manager.process_logs[mock_process] = deque(maxlen=100)
-        
+
         # Add many log entries - deque will automatically limit
         for i in range(200):
             self.manager.process_logs[mock_process].append(f"log entry {i}")
@@ -461,10 +470,12 @@ class TestResourceCleanup:
 
         # Process outputs are now deques with automatic size limits
         self.manager.process_outputs[mock_process] = deque(maxlen=50)
-        
+
         # Add many output chunks - deque will automatically limit
         for i in range(100):
-            self.manager.process_outputs[mock_process].append(f"output chunk {i}".encode())
+            self.manager.process_outputs[mock_process].append(
+                f"output chunk {i}".encode()
+            )
 
         # Deque automatically maintains size limit
         assert len(self.manager.process_outputs[mock_process]) == 50
@@ -474,10 +485,10 @@ class TestResourceCleanup:
         # Create mock processes
         mock_processes = [(Mock(), f"/test/video{i}.ts") for i in range(10)]
         self.manager.processes = mock_processes
-        
+
         # Trigger buffer size adjustment
         self.manager._adjust_buffer_sizes()
-        
+
         # With 10 processes, should use smaller buffer
         assert self.manager._current_max_log_lines == 100
 
@@ -521,7 +532,7 @@ class TestProcessWidgetManagement:
         # The ProcessManager doesn't have a _cleanup_finished_process_widgets method
         # Widget cleanup is handled by the process monitor
         assert mock_process in self.manager.process_widgets
-        
+
         # Test manual widget cleanup since cleanup_all_resources doesn't clear widgets
         # Clear it manually
         self.manager.process_widgets.clear()
@@ -581,7 +592,7 @@ class TestConcurrentProcessing:
         """Test parallel process limit enforcement"""
         # Setup multiple mock processes
         mock_processes = []
-        for i in range(5):
+        for _ in range(5):
             mock_process = Mock(spec=QProcess)
             mock_process.waitForStarted.return_value = True
             mock_processes.append(mock_process)
@@ -654,10 +665,10 @@ class TestProcessManagerEdgeCases:
     @patch("process_manager.QProcess")
     def test_process_creation_failure(self, mock_qprocess_class):
         """Test handling of process creation failure"""
-        mock_qprocess_class.side_effect = Exception("Process creation failed")
+        mock_qprocess_class.side_effect = RuntimeError("Process creation failed")
 
         # Should handle process creation failure gracefully
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError, match="Process creation failed"):
             self.manager.start_process(
                 "/test/video.ts", ["-i", "input.ts", "output.mp4"]
             )
@@ -675,11 +686,11 @@ class TestProcessManagerEdgeCases:
         # The progress tracker is mocked, so we need to configure it
         self.manager.progress_tracker.get_overall_progress.return_value = {}
         self.manager.progress_tracker.get_codec_distribution.return_value = {}
-        
+
         # Should handle gracefully without errors
         progress = self.manager.get_overall_progress()
         assert isinstance(progress, dict)
-        
+
         codec_dist = self.manager.get_codec_distribution()
         assert isinstance(codec_dist, dict)
 
@@ -750,18 +761,20 @@ class TestProcessManagerIntegration:
         self.manager.start_process(file_path, ["-i", file_path, "output.mp4"])
 
         # Mock signals to prevent segfault
-        with patch.object(self.manager, "update_progress") as mock_update_signal:
-            with patch.object(self.manager, "process_finished") as mock_finished_signal:
-                # Call mark_process_finished directly with exit code 0 (success)
-                self.manager.mark_process_finished(mock_process, file_path, 0)
+        with patch.object(self.manager, "update_progress") as mock_update_signal, \
+                patch.object(self.manager, "process_finished") as mock_finished_signal:
+            # Call mark_process_finished directly with exit code 0 (success)
+            self.manager.mark_process_finished(mock_process, file_path, 0)
 
-                # Verify progress tracker interactions
-                self.mock_tracker.force_progress_to_100.assert_called_once()
-                self.mock_tracker.complete_process.assert_called_once()
-                
-                # Verify signals were emitted
-                mock_update_signal.emit.assert_called_once()
-                mock_finished_signal.emit.assert_called_once_with(mock_process, 0, file_path)
+            # Verify progress tracker interactions
+            self.mock_tracker.force_progress_to_100.assert_called_once()
+            self.mock_tracker.complete_process.assert_called_once()
+
+            # Verify signals were emitted
+            mock_update_signal.emit.assert_called_once()
+            mock_finished_signal.emit.assert_called_once_with(
+                mock_process, 0, file_path
+            )
 
         # Verify process was cleaned up
         assert len(self.manager.processes) == 0
@@ -784,20 +797,22 @@ class TestProcessManagerIntegration:
         self.manager.start_process(file_path, ["-i", file_path, "output.mp4"])
 
         # Mock signals to prevent segfault
-        with patch.object(self.manager, "update_progress") as mock_update_signal:
-            with patch.object(self.manager, "process_finished") as mock_finished_signal:
-                # Call mark_process_finished directly with exit code 1 (failure)
-                self.manager.mark_process_finished(mock_process, file_path, 1)
+        with patch.object(self.manager, "update_progress") as mock_update_signal, \
+                patch.object(self.manager, "process_finished") as mock_finished_signal:
+            # Call mark_process_finished directly with exit code 1 (failure)
+            self.manager.mark_process_finished(mock_process, file_path, 1)
 
-                # Verify progress tracker interactions
-                # force_progress_to_100 should NOT be called for failed processes
-                self.mock_tracker.force_progress_to_100.assert_not_called()
-                self.mock_tracker.complete_process.assert_called_once()
-                
-                # update_progress should NOT be emitted for failed processes
-                mock_update_signal.emit.assert_not_called()
-                # But process_finished should still be emitted
-                mock_finished_signal.emit.assert_called_once_with(mock_process, 1, file_path)
+            # Verify progress tracker interactions
+            # force_progress_to_100 should NOT be called for failed processes
+            self.mock_tracker.force_progress_to_100.assert_not_called()
+            self.mock_tracker.complete_process.assert_called_once()
+
+            # update_progress should NOT be emitted for failed processes
+            mock_update_signal.emit.assert_not_called()
+            # But process_finished should still be emitted
+            mock_finished_signal.emit.assert_called_once_with(
+                mock_process, 1, file_path
+            )
 
         # Verify process was cleaned up even on failure
         assert len(self.manager.processes) == 0

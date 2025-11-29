@@ -7,7 +7,7 @@ Uses focused classes for better separation of concerns
 import os
 import shutil
 import sys
-from typing import Optional
+from typing import Any, Optional
 
 from PySide6.QtCore import QSettings, Qt
 from PySide6.QtGui import QAction, QIcon
@@ -596,7 +596,7 @@ class MainWindow(QMainWindow):
                         self.file_list.set_status(path, "processing")
                     self.file_list.update_progress(path, progress_pct)
 
-    def _handle_ui_updates(self, updates: dict):
+    def _handle_ui_updates(self, updates: "dict[str, Any]"):
         """Handle batched UI updates from the update manager"""
         # Update progress bar
         if "progress_bar" in updates and self.overall_progress_bar:
@@ -619,7 +619,7 @@ class MainWindow(QMainWindow):
 
                 self.status_bar.showMessage(status_msg)
 
-    def _on_settings_changed(self, settings: dict):
+    def _on_settings_changed(self, settings: "dict[str, Any]"):
         """Handle settings changes and update file size estimates"""
         if self.file_list is None or self.status_bar is None:
             return

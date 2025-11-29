@@ -5,21 +5,21 @@ Implements efficient batch processing and ring buffer for performance
 """
 
 import re
-from collections import deque
-from typing import Dict, List, Tuple, Optional, Pattern, Any
 import threading
 import time
+from collections import deque
+from typing import Any, Dict, List, Optional, Pattern, Tuple
 
 
 class OutputBuffer:
     """High-performance output buffer with batch regex processing"""
 
     # Compiled regex patterns for better performance
-    TIME_PATTERN: Pattern = re.compile(
+    TIME_PATTERN: Pattern[str] = re.compile(
         r"time=(\d{2}):(\d{2}):(\d{2}\.\d{2})", re.MULTILINE
     )
-    FPS_PATTERN: Pattern = re.compile(r"fps=\s*(\d+)", re.MULTILINE)
-    FRAME_PATTERN: Pattern = re.compile(r"frame=\s*(\d+)", re.MULTILINE)
+    FPS_PATTERN: Pattern[str] = re.compile(r"fps=\s*(\d+)", re.MULTILINE)
+    FRAME_PATTERN: Pattern[str] = re.compile(r"frame=\s*(\d+)", re.MULTILINE)
 
     def __init__(self, max_size: int = 1000, batch_interval: float = 0.1):
         """
@@ -29,7 +29,7 @@ class OutputBuffer:
             max_size: Maximum number of lines to keep in buffer
             batch_interval: Time interval for batch processing (seconds)
         """
-        self.buffer: deque = deque(maxlen=max_size)
+        self.buffer: deque[str] = deque(maxlen=max_size)
         self.pending_lines: List[str] = []
         self.batch_interval = batch_interval
         self.last_batch_time = time.time()

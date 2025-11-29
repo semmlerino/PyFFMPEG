@@ -4,15 +4,15 @@ Unit tests for ProcessProgressTracker class
 Tests regex parsing of FFmpeg output, progress calculation, and ETA estimation
 """
 
-import pytest
 import subprocess
-from unittest.mock import patch, Mock
 import time
+from unittest.mock import Mock, patch
 
-from progress_tracker import ProcessProgressTracker
-from output_buffer import ProcessOutputManager
+import pytest
+
 from config import ProcessConfig
-from tests.fixtures.mocks import MockProgressScenarios, MockFFmpegProcess
+from progress_tracker import ProcessProgressTracker
+from tests.fixtures.mocks import MockProgressScenarios
 
 
 class TestProcessProgressTracker:
@@ -155,19 +155,19 @@ class TestProgressParsing:
         for ffmpeg_line, expected_percentage in test_cases:
             # First add the output to the buffer
             progress_data = self.tracker.process_output(process_id, ffmpeg_line)
-            
+
             # Force batch processing to get immediate results
             self.tracker.force_batch_process_all()
-            
+
             # Now try to get the progress again after forced processing
             # We need to process a dummy line to trigger the return of cached data
             progress_data = self.tracker.process_output(process_id, "")
-            
+
             # If still no data, the buffer might need multiple lines or time-based processing
             if not progress_data:
                 # Try getting the process progress directly
                 progress_data = self.tracker.get_process_progress(process_id)
-            
+
             assert progress_data is not None
             assert "current_pct" in progress_data
             assert abs(progress_data["current_pct"] - expected_percentage) < 0.1
@@ -343,8 +343,8 @@ class TestProgressScenarios:
             process_id, "/test/video.ts", scenario["duration"]
         )
 
-        for i, (ffmpeg_line, expected_pct) in enumerate(
-            zip(scenario["progress_updates"], scenario["expected_percentages"])
+        for ffmpeg_line, expected_pct in zip(
+            scenario["progress_updates"], scenario["expected_percentages"]
         ):
             progress_data = self.tracker.process_output(process_id, ffmpeg_line)
 
@@ -379,7 +379,9 @@ class TestProgressScenarios:
         # Since this is an integration-level test that depends on the
         # internal workings of ProcessOutputManager, we'll skip it for now.
         # The actual functionality is tested through other unit tests.
-        pytest.skip("Integration test - batch processing requires specific timing/buffering")
+        pytest.skip(
+            "Integration test - batch processing requires specific timing/buffering"
+        )
 
 
 class TestEdgeCases:

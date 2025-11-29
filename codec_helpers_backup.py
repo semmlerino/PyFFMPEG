@@ -8,7 +8,7 @@ and encoder configuration to reduce duplication in the main application.
 import os
 import subprocess
 
-from config import ProcessConfig, HardwareConfig, EncodingConfig
+from config import EncodingConfig, HardwareConfig, ProcessConfig
 
 
 class CodecHelpers:
@@ -24,7 +24,7 @@ class CodecHelpers:
         """Determine output file extension based on codec index"""
         if codec_idx in [0, 1, 2, 3, 5, 6]:  # H.264, HEVC, AV1, QSV, VAAPI
             return ".mp4"
-        elif codec_idx == 4:  # ProRes
+        if codec_idx == 4:  # ProRes
             return ".mov"
         return ".mp4"  # Default
 
@@ -95,7 +95,7 @@ class CodecHelpers:
                     "default=nokey=1:noprint_wrappers=1",
                     path,
                 ],
-                text=True,
+                check=False, text=True,
                 capture_output=True,
                 timeout=ProcessConfig.SUBPROCESS_TIMEOUT,
             )

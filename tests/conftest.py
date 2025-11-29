@@ -4,15 +4,17 @@ pytest configuration and fixtures for PyFFMPEG tests
 Provides common test fixtures and utilities for unit and integration tests
 """
 
-import pytest
-import tempfile
+import contextlib
 import os
+import sys
+import tempfile
 from unittest.mock import Mock, patch
+
+import pytest
+from PySide6.QtCore import QProcess
 
 # Import Qt for GUI testing
 from PySide6.QtWidgets import QApplication
-from PySide6.QtCore import QProcess
-import sys
 
 # Import project modules for testing
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
@@ -26,7 +28,7 @@ def qapp():
     app = QApplication.instance()
     if app is None:
         app = QApplication([])
-    yield app
+    return app
     # Don't quit app as it may be used by other tests
 
 
@@ -41,10 +43,8 @@ def temp_video_file():
     yield temp_path
 
     # Cleanup
-    try:
+    with contextlib.suppress(FileNotFoundError):
         os.unlink(temp_path)
-    except FileNotFoundError:
-        pass
 
 
 @pytest.fixture
@@ -57,11 +57,11 @@ def temp_output_dir():
 @pytest.fixture
 def mock_ffmpeg_subprocess():
     """Mock subprocess calls for FFmpeg operations"""
-    with (
-        patch("subprocess.run") as mock_run,
-        patch("subprocess.check_output") as mock_check_output,
-        patch("subprocess.Popen") as mock_popen,
-    ):
+    with contextlib.ExitStack() as stack:
+        mock_run = stack.enter_context(patch("subprocess.run"))
+        mock_check_output = stack.enter_context(patch("subprocess.check_output"))
+        mock_popen = stack.enter_context(patch("subprocess.Popen"))
+
         # Default successful FFmpeg responses
         mock_run.return_value = Mock(returncode=0, stdout="ffmpeg output", stderr="")
 

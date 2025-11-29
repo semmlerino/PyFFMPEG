@@ -9,11 +9,12 @@ import logging.handlers
 import os
 import sys
 import time
-from typing import Dict, Any, Optional
 from pathlib import Path
+from typing import Any, ClassVar, Dict, Optional
+
 from PySide6.QtCore import QObject, Signal
 
-from config import LogConfig, AppConfig
+from config import AppConfig, LogConfig
 
 
 class PerformanceMetrics:
@@ -62,7 +63,7 @@ class UserFriendlyFormatter(logging.Formatter):
     """Custom formatter for user-friendly log messages"""
 
     # Color codes for different log levels
-    COLORS = {
+    COLORS: ClassVar[Dict[str, str]] = {
         "DEBUG": "\033[36m",  # Cyan
         "INFO": "\033[32m",  # Green
         "WARNING": "\033[33m",  # Yellow
@@ -72,9 +73,9 @@ class UserFriendlyFormatter(logging.Formatter):
     }
 
     # User-friendly prefixes
-    PREFIXES = {
+    PREFIXES: ClassVar[Dict[str, str]] = {
         "DEBUG": "🔍",
-        "INFO": "ℹ️",
+        "INFO": "i",
         "WARNING": "⚠️",
         "ERROR": "❌",
         "CRITICAL": "🚨",
@@ -82,7 +83,7 @@ class UserFriendlyFormatter(logging.Formatter):
 
     def format(self, record):
         # Add color and emoji prefix
-        if hasattr(record, "no_color") and record.no_color:
+        if getattr(record, "no_color", False):
             record.levelname = f"[{record.levelname}]"
         else:
             color = self.COLORS.get(record.levelname, "")
@@ -94,8 +95,9 @@ class UserFriendlyFormatter(logging.Formatter):
         formatted = super().format(record)
 
         # Add actionable suggestions for errors
-        if record.levelno >= logging.ERROR and hasattr(record, "suggestion"):
-            formatted += f"\n💡 Suggestion: {record.suggestion}"
+        suggestion = getattr(record, "suggestion", None)
+        if record.levelno >= logging.ERROR and suggestion:
+            formatted += f"\n💡 Suggestion: {suggestion}"
 
         return formatted
 
@@ -174,7 +176,7 @@ class PyFFMPEGLogger(QObject):
         self.logger.info(message, extra=kwargs)
         self.log_message.emit(message, "INFO")
 
-    def warning(self, message: str, suggestion: str = None, **kwargs) -> None:
+    def warning(self, message: str, suggestion: Optional[str] = None, **kwargs) -> None:
         """Log warning message with optional suggestion"""
         extra = kwargs.copy()
         if suggestion:
@@ -182,7 +184,7 @@ class PyFFMPEGLogger(QObject):
         self.logger.warning(message, extra=extra)
         self.log_message.emit(message, "WARNING")
 
-    def error(self, message: str, suggestion: str = None, **kwargs) -> None:
+    def error(self, message: str, suggestion: Optional[str] = None, **kwargs) -> None:
         """Log error message with optional suggestion"""
         extra = kwargs.copy()
         if suggestion:
@@ -194,7 +196,7 @@ class PyFFMPEGLogger(QObject):
         )
         self.metrics.record_error("general")
 
-    def critical(self, message: str, suggestion: str = None, **kwargs) -> None:
+    def critical(self, message: str, suggestion: Optional[str] = None, **kwargs) -> None:
         """Log critical message with optional suggestion"""
         extra = kwargs.copy()
         if suggestion:
@@ -209,7 +211,7 @@ class PyFFMPEGLogger(QObject):
         self.metrics.record_error("critical")
 
     def log_performance(
-        self, operation: str, duration: float, details: Dict[str, Any] = None
+        self, operation: str, duration: float, details: Optional[Dict[str, Any]] = None
     ) -> None:
         """Log performance metrics"""
         details = details or {}
@@ -233,7 +235,7 @@ class PyFFMPEGLogger(QObject):
         }
         self.performance_update.emit(perf_data)
 
-    def log_ffmpeg_start(self, file_path: str, args: list) -> None:
+    def log_ffmpeg_start(self, file_path: str, args: "list[str]") -> None:
         """Log FFmpeg process start"""
         self.info(f"🚀 Starting FFmpeg conversion: {os.path.basename(file_path)}")
         self.debug(f"FFmpeg args: {' '.join(args)}")
@@ -265,7 +267,7 @@ class PyFFMPEGLogger(QObject):
         self.info(f"✅ Conversion completed: {os.path.basename(file_path)}")
         self.metrics.finish_conversion(file_path, file_size_mb)
 
-    def log_hardware_detection(self, gpu_info: str, encoders: list) -> None:
+    def log_hardware_detection(self, gpu_info: str, encoders: "list[str]") -> None:
         """Log hardware detection results"""
         if gpu_info:
             self.info(
