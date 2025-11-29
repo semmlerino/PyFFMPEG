@@ -66,15 +66,16 @@ class TestBuildTerminalCommand:
     @pytest.mark.parametrize(
         ("terminal", "expected_cmd"),
         [
-            ("gnome-terminal", ["gnome-terminal", "--", "bash", "-ilc", "cmd"]),
-            ("konsole", ["konsole", "-e", "bash", "-ilc", "cmd"]),
-            ("kitty", ["kitty", "bash", "-ilc", "cmd"]),
-            ("xterm", ["xterm", "-e", "bash", "-ilc", "cmd"]),
-            ("x-terminal-emulator", ["x-terminal-emulator", "-e", "bash", "-ilc", "cmd"]),
-            ("xfce4-terminal", ["xfce4-terminal", "-e", "bash", "-ilc", "cmd"]),
-            ("mate-terminal", ["mate-terminal", "-e", "bash", "-ilc", "cmd"]),
-            ("alacritty", ["alacritty", "-e", "bash", "-ilc", "cmd"]),
-            ("terminology", ["terminology", "-e", "bash", "-ilc", "cmd"]),
+            # Now uses /bin/bash for explicit path
+            ("gnome-terminal", ["gnome-terminal", "--", "/bin/bash", "-ilc", "cmd"]),
+            ("konsole", ["konsole", "-e", "/bin/bash", "-ilc", "cmd"]),
+            ("kitty", ["kitty", "/bin/bash", "-ilc", "cmd"]),
+            ("xterm", ["xterm", "-e", "/bin/bash", "-ilc", "cmd"]),
+            ("x-terminal-emulator", ["x-terminal-emulator", "-e", "/bin/bash", "-ilc", "cmd"]),
+            ("xfce4-terminal", ["xfce4-terminal", "-e", "/bin/bash", "-ilc", "cmd"]),
+            ("mate-terminal", ["mate-terminal", "-e", "/bin/bash", "-ilc", "cmd"]),
+            ("alacritty", ["alacritty", "-e", "/bin/bash", "-ilc", "cmd"]),
+            ("terminology", ["terminology", "-e", "/bin/bash", "-ilc", "cmd"]),
             (None, ["/bin/bash", "-ilc", "cmd"]),  # Headless fallback
             ("unknown-terminal", ["/bin/bash", "-ilc", "cmd"]),  # Unknown fallback
         ],
@@ -108,7 +109,7 @@ class TestNewTerminalExecution:
 
         assert result is mock_process  # Returns Popen object on success
         mock_popen.assert_called_once_with(
-            ["gnome-terminal", "--", "bash", "-ilc", "nuke"]
+            ["gnome-terminal", "--", "/bin/bash", "-ilc", "nuke"]
         )
         # Verify process verification timer was created and started
         mock_timer.setSingleShot.assert_called_once_with(True)
@@ -132,7 +133,7 @@ class TestNewTerminalExecution:
         result = executor.execute_in_new_terminal("maya", "maya", "konsole")
 
         assert result is mock_process
-        mock_popen.assert_called_once_with(["konsole", "-e", "bash", "-ilc", "maya"])
+        mock_popen.assert_called_once_with(["konsole", "-e", "/bin/bash", "-ilc", "maya"])
 
     @patch("subprocess.Popen")
     @patch("launch.process_executor.QTimer")
@@ -151,7 +152,7 @@ class TestNewTerminalExecution:
         result = executor.execute_in_new_terminal("3de", "3de", "xterm")
 
         assert result is mock_process
-        mock_popen.assert_called_once_with(["xterm", "-e", "bash", "-ilc", "3de"])
+        mock_popen.assert_called_once_with(["xterm", "-e", "/bin/bash", "-ilc", "3de"])
 
     @patch("subprocess.Popen")
     @patch("launch.process_executor.QTimer")

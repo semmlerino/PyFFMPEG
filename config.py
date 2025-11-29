@@ -52,8 +52,27 @@ Thread Safety:
 # Standard library imports
 import multiprocessing
 import os
+from enum import Enum, auto
 from pathlib import Path
 from typing import ClassVar
+
+
+class RezMode(Enum):
+    """Rez environment wrapping mode.
+
+    Determines when and how rez wrapping is applied to launched commands.
+    """
+
+    DISABLED = auto()
+    """Never wrap with rez. Use this when rez is not available or not wanted."""
+
+    AUTO = auto()
+    """Skip wrapping if REZ_USED env var is set (shell init provides rez).
+    This is the default for BlueBolt environment where shell init handles rez."""
+
+    FORCE = auto()
+    """Always wrap with app-specific rez packages. Use when you need explicit
+    rez package resolution regardless of current environment state."""
 
 
 class Config:
@@ -91,16 +110,18 @@ class Config:
     DEFAULT_APP: str = "nuke"
 
     # Rez Environment Configuration
-    USE_REZ_ENVIRONMENT: bool = True  # Enable rez environment wrapper when available
-    REZ_AUTO_DETECT: bool = True  # Automatically detect rez availability via REZ_USED env var
-    REZ_FORCE_WRAP: bool = False  # Force rez wrapping even when already in rez env (REZ_USED set)
-    # Rez Environment Strategy: Skip outer rez wrapping when Rez is already available.
-    # In BlueBolt's VFX environment, the shell initialization chain sets up Rez:
-    #   ~/.bashrc → /etc/bashrc → bashrc.env → setbbplatform (REZ_USED set here)
-    # The 'ws' command only sets workspace context (SHOW, SEQUENCE, SHOT), NOT Rez.
-    # When True: Skip rez wrapping because shell init already provides rez context.
-    # When False: Apply rez wrapping (for environments that don't init Rez at startup).
-    REZ_ALREADY_AVAILABLE: bool = True
+    # The new RezMode enum replaces the legacy boolean flags below.
+    # - DISABLED: Never wrap with rez
+    # - AUTO: Skip if REZ_USED is set (shell init provides rez) - BlueBolt default
+    # - FORCE: Always wrap with app-specific packages
+    REZ_MODE: RezMode = RezMode.AUTO
+
+    # Legacy flags (deprecated - use REZ_MODE instead)
+    # Kept for backward compatibility during migration
+    USE_REZ_ENVIRONMENT: bool = True  # Deprecated: Use REZ_MODE.DISABLED instead
+    REZ_AUTO_DETECT: bool = True  # Deprecated: Behavior now part of RezMode.AUTO
+    REZ_FORCE_WRAP: bool = False  # Deprecated: Use REZ_MODE.FORCE instead
+    REZ_ALREADY_AVAILABLE: bool = True  # Deprecated: No longer used
 
     # Launch Verification Configuration
     LAUNCH_VERIFICATION_ENABLED: bool = True  # Enable async verification of GUI app launches

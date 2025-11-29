@@ -363,13 +363,14 @@ class TestLoggingRedirection:
     def test_logging_added_successfully(
         self, mock_home: MagicMock, mock_mkdir: MagicMock
     ) -> None:
-        """Test that logging redirection is added successfully."""
+        """Test that logging redirection is added successfully with pipefail."""
         mock_home.return_value = Path("/home/user")
         command = "nuke"
 
         result = CommandBuilder.add_logging(command)
 
-        assert result.startswith("nuke 2>&1 | tee -a ")
+        # Result should include pipefail for exit code preservation
+        assert result.startswith("set -o pipefail; nuke 2>&1 | tee -a ")
         assert ".shotbot/logs/dispatcher.out" in result
         mock_mkdir.assert_called_once()
 

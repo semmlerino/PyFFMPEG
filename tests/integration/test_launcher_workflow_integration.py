@@ -10,7 +10,6 @@ from __future__ import annotations
 
 # Standard library imports
 import json
-from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -443,6 +442,6 @@ if __name__ == "__main__":
 
     result = subprocess.run(
         [sys.executable, "-m", "pytest", __file__, "-v", "--tb=short"],
-        cwd="/home/gabrielh/projects/shotbot",
+        check=False, cwd="/home/gabrielh/projects/shotbot",
     )
     sys.exit(result.returncode)

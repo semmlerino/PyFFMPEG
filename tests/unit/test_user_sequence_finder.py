@@ -7,9 +7,6 @@ from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
-from scene_file import ImageSequence
 from user_sequence_finder import UserSequenceFinder
 
 
@@ -26,10 +23,12 @@ class TestGetCurrentUsername:
         """Test fallback to getpass when USER not set."""
         env = os.environ.copy()
         env.pop("USER", None)
-        with patch.dict(os.environ, env, clear=True):
-            with patch("getpass.getuser", return_value="getpass-user"):
-                username = UserSequenceFinder.get_current_username()
-                assert username == "getpass-user"
+        with (
+            patch.dict(os.environ, env, clear=True),
+            patch("getpass.getuser", return_value="getpass-user"),
+        ):
+            username = UserSequenceFinder.get_current_username()
+            assert username == "getpass-user"
 
 
 class TestFindMayaPlayblasts:
@@ -368,7 +367,7 @@ class TestFindLatestVersionSequence:
         for v in [1, 2, 5, 3]:
             version_dir = type_dir / f"v{v:03d}"
             version_dir.mkdir(parents=True)
-            (version_dir / f"Wireframe.1001.png").touch()
+            (version_dir / "Wireframe.1001.png").touch()
 
         result = UserSequenceFinder._find_latest_version_sequence(
             type_dir=type_dir,

@@ -305,7 +305,11 @@ class CommandLauncher(LoggingMixin, QObject):
     # - _validate_path_for_shell() → CommandBuilder.validate_path(path)
 
     def _launch_in_new_terminal(
-        self, full_command: str, app_name: str, error_context: str = ""
+        self,
+        full_command: str,
+        app_name: str,
+        error_context: str = "",
+        has_rez_wrapper: bool = False,
     ) -> bool:
         """Launch command in new terminal window with full error handling.
 
@@ -316,6 +320,8 @@ class CommandLauncher(LoggingMixin, QObject):
             full_command: Complete command to execute
             app_name: Application name (for spawn verification and error messages)
             error_context: Additional context for error messages (e.g., " with scene")
+            has_rez_wrapper: If True, command contains rez wrapper with inner bash -ilc.
+                Enables shell optimization (sh -c instead of bash -ilc for outer shell).
 
         Returns:
             True if launch successful, False otherwise
@@ -349,7 +355,7 @@ class CommandLauncher(LoggingMixin, QObject):
 
         # Delegate to ProcessExecutor for terminal spawning
         process = self.process_executor.execute_in_new_terminal(
-            full_command, app_name, terminal
+            full_command, app_name, terminal, has_rez_wrapper=has_rez_wrapper
         )
 
         if process is None:
@@ -367,7 +373,11 @@ class CommandLauncher(LoggingMixin, QObject):
         return True
 
     def _execute_launch(
-        self, full_command: str, app_name: str, error_context: str = ""
+        self,
+        full_command: str,
+        app_name: str,
+        error_context: str = "",
+        has_rez_wrapper: bool = False,
     ) -> bool:
         """Execute command in a new terminal window.
 
@@ -377,11 +387,14 @@ class CommandLauncher(LoggingMixin, QObject):
             full_command: Complete command to execute (with logging, rez, etc.)
             app_name: Application name (for spawn verification)
             error_context: Additional context for error messages (e.g., " with scene")
+            has_rez_wrapper: If True, enables shell optimization for rez-wrapped commands.
 
         Returns:
             True if launch successful, False otherwise
         """
-        return self._launch_in_new_terminal(full_command, app_name, error_context)
+        return self._launch_in_new_terminal(
+            full_command, app_name, error_context, has_rez_wrapper
+        )
 
     def launch_app(
         self,
@@ -576,14 +589,8 @@ class CommandLauncher(LoggingMixin, QObject):
             self._emit_error(f"Invalid workspace path: {e!s}")
             return False
 
-        # Wrap with rez environment if:
-        # - REZ_FORCE_WRAP=True (force wrapping even in existing rez env), OR
-        # - REZ_ALREADY_AVAILABLE=False (no shell init rez setup)
-        # When REZ_FORCE_WRAP is True, we add app-specific packages (nuke-16, OCIO, etc.)
-        # on top of the base rez environment.
-        should_wrap_rez = self.env_manager.is_rez_available(Config) and (
-            Config.REZ_FORCE_WRAP or not Config.REZ_ALREADY_AVAILABLE
-        )
+        # Determine if rez wrapping should be applied using the new RezMode enum
+        should_wrap_rez = self.env_manager.should_wrap_with_rez(Config)
         if should_wrap_rez:
             rez_packages = self.env_manager.get_rez_packages(app_name, Config)
             if rez_packages:
@@ -596,32 +603,20 @@ class CommandLauncher(LoggingMixin, QObject):
                 )
             else:
                 full_command = ws_command
+                should_wrap_rez = False  # No packages means no actual rez wrapper
         else:
             full_command = ws_command
-            # Emit visible message explaining why Rez wrapping is skipped
-            # This helps users understand which app version will be used
+            # Emit message explaining why Rez wrapping is skipped
             timestamp = self.timestamp
-            if Config.REZ_ALREADY_AVAILABLE and not Config.REZ_FORCE_WRAP:
-                self.command_executed.emit(
-                    timestamp,
-                    f"Note: Rez wrap skipped - shell init already provides rez for {app_name}",
-                )
-            elif os.environ.get("REZ_USED"):
+            if os.environ.get("REZ_USED"):
                 self.command_executed.emit(
                     timestamp,
                     f"Note: Already in rez environment - skipping rez wrap for {app_name}",
                 )
-            elif not Config.USE_REZ_ENVIRONMENT:
-                # Rez explicitly disabled by configuration
-                self.command_executed.emit(
-                    timestamp,
-                    f"Note: Rez disabled by config - {app_name} will use system PATH version",
-                )
             else:
-                # Rez enabled but command not found on system
                 self.command_executed.emit(
                     timestamp,
-                    f"Warning: Rez command not found - {app_name} will use system PATH version",
+                    f"Note: Using system PATH version of {app_name}",
                 )
 
         # Add logging redirection for debugging
@@ -639,7 +634,9 @@ class CommandLauncher(LoggingMixin, QObject):
         )
 
         # Use template method for terminal launch
-        return self._execute_launch(full_command, app_name)
+        return self._execute_launch(
+            full_command, app_name, has_rez_wrapper=should_wrap_rez
+        )
 
     def launch_app_with_scene(self, app_name: str, scene: ThreeDEScene) -> bool:
         """Launch an application with a specific 3DE scene file.
@@ -700,12 +697,8 @@ class CommandLauncher(LoggingMixin, QObject):
             self._emit_error(f"Invalid workspace path: {e!s}")
             return False
 
-        # Wrap with rez environment if:
-        # - REZ_FORCE_WRAP=True (force wrapping even in existing rez env), OR
-        # - REZ_ALREADY_AVAILABLE=False (no shell init rez setup)
-        should_wrap_rez = self.env_manager.is_rez_available(Config) and (
-            Config.REZ_FORCE_WRAP or not Config.REZ_ALREADY_AVAILABLE
-        )
+        # Determine if rez wrapping should be applied using the new RezMode enum
+        should_wrap_rez = self.env_manager.should_wrap_with_rez(Config)
         if should_wrap_rez:
             rez_packages = self.env_manager.get_rez_packages(app_name, Config)
             if rez_packages:
@@ -713,13 +706,9 @@ class CommandLauncher(LoggingMixin, QObject):
                 full_command = CommandBuilder.wrap_with_rez(ws_command, rez_packages)
             else:
                 full_command = ws_command
+                should_wrap_rez = False  # No packages means no actual rez wrapper
         else:
             full_command = ws_command
-            # Log that Rez wrapping is skipped
-            if Config.REZ_ALREADY_AVAILABLE and not Config.REZ_FORCE_WRAP:
-                self.logger.debug(
-                    f"Rez wrapping skipped for {app_name} scene launch (REZ_ALREADY_AVAILABLE=True)"
-                )
 
         # Add logging redirection for debugging
         full_command = CommandBuilder.add_logging(full_command, Config)
@@ -732,7 +721,9 @@ class CommandLauncher(LoggingMixin, QObject):
         )
 
         # Use template method for terminal launch
-        return self._execute_launch(full_command, app_name, " with scene")
+        return self._execute_launch(
+            full_command, app_name, " with scene", has_rez_wrapper=should_wrap_rez
+        )
 
     def launch_with_file(
         self,
@@ -799,22 +790,17 @@ class CommandLauncher(LoggingMixin, QObject):
             self._emit_error(f"Invalid workspace path: {e!s}")
             return False
 
-        # Wrap with rez environment if needed
-        should_wrap_rez = self.env_manager.is_rez_available(Config) and (
-            Config.REZ_FORCE_WRAP or not Config.REZ_ALREADY_AVAILABLE
-        )
+        # Determine if rez wrapping should be applied using the new RezMode enum
+        should_wrap_rez = self.env_manager.should_wrap_with_rez(Config)
         if should_wrap_rez:
             rez_packages = self.env_manager.get_rez_packages(app_name, Config)
             if rez_packages:
                 full_command = CommandBuilder.wrap_with_rez(ws_command, rez_packages)
             else:
                 full_command = ws_command
+                should_wrap_rez = False  # No packages means no actual rez wrapper
         else:
             full_command = ws_command
-            if Config.REZ_ALREADY_AVAILABLE and not Config.REZ_FORCE_WRAP:
-                self.logger.debug(
-                    f"Rez wrapping skipped for {app_name} file launch (REZ_ALREADY_AVAILABLE=True)"
-                )
 
         # Add logging redirection for debugging
         full_command = CommandBuilder.add_logging(full_command, Config)
@@ -827,7 +813,9 @@ class CommandLauncher(LoggingMixin, QObject):
         )
 
         # Use template method for terminal launch
-        return self._execute_launch(full_command, app_name, " with file")
+        return self._execute_launch(
+            full_command, app_name, " with file", has_rez_wrapper=should_wrap_rez
+        )
 
     def launch_app_with_scene_context(
         self,
@@ -932,12 +920,8 @@ class CommandLauncher(LoggingMixin, QObject):
             self._emit_error(f"Invalid workspace path: {e!s}")
             return False
 
-        # Wrap with rez environment if:
-        # - REZ_FORCE_WRAP=True (force wrapping even in existing rez env), OR
-        # - REZ_ALREADY_AVAILABLE=False (no shell init rez setup)
-        should_wrap_rez = self.env_manager.is_rez_available(Config) and (
-            Config.REZ_FORCE_WRAP or not Config.REZ_ALREADY_AVAILABLE
-        )
+        # Determine if rez wrapping should be applied using the new RezMode enum
+        should_wrap_rez = self.env_manager.should_wrap_with_rez(Config)
         if should_wrap_rez:
             rez_packages = self.env_manager.get_rez_packages(app_name, Config)
             if rez_packages:
@@ -950,13 +934,9 @@ class CommandLauncher(LoggingMixin, QObject):
                 )
             else:
                 full_command = ws_command
+                should_wrap_rez = False  # No packages means no actual rez wrapper
         else:
             full_command = ws_command
-            # Log that Rez wrapping is skipped
-            if Config.REZ_ALREADY_AVAILABLE and not Config.REZ_FORCE_WRAP:
-                self.logger.debug(
-                    f"Rez wrapping skipped for {app_name} scene context (REZ_ALREADY_AVAILABLE=True)"
-                )
 
         # Add logging redirection for debugging
         full_command = CommandBuilder.add_logging(full_command, Config)
@@ -969,7 +949,9 @@ class CommandLauncher(LoggingMixin, QObject):
         )
 
         # Use template method for terminal launch
-        return self._execute_launch(full_command, app_name, " in scene context")
+        return self._execute_launch(
+            full_command, app_name, " in scene context", has_rez_wrapper=should_wrap_rez
+        )
 
     # Methods removed - now using launch components:
     # - _is_gui_app() → self.process_executor.is_gui_app(app_name)

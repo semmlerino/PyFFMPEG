@@ -214,10 +214,12 @@ class CommandBuilder:
             config: Application configuration (optional for backward compatibility)
 
         Returns:
-            Command with logging redirection: "{command} 2>&1 | tee -a {logfile}"
+            Command with logging redirection and exit code preservation:
+            "set -o pipefail; {command} 2>&1 | tee -a {logfile}"
             Or original command if logging is disabled or setup fails
 
         Notes:
+            - Uses pipefail to preserve exit code from the command (not tee's exit code)
             - Creates ~/.shotbot/logs/ directory if needed
             - Logs to ~/.shotbot/logs/dispatcher.out
             - Uses tee to capture output while showing in terminal
@@ -251,7 +253,9 @@ class CommandBuilder:
             # Quote log file path to handle spaces/special chars
             quoted_log_file = shlex.quote(str(log_file))
             logger.debug(f"Adding logging redirection to: {log_file}")
-            return f"{command} 2>&1 | tee -a {quoted_log_file}"
+            # Use pipefail to preserve exit code from command before pipe
+            # Without pipefail, pipeline returns tee's exit code (always 0), hiding app failures
+            return f"set -o pipefail; {command} 2>&1 | tee -a {quoted_log_file}"
         except (OSError, PermissionError) as e:
             # Gracefully degrade: return command without tee if setup fails
             logger.warning(

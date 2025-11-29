@@ -429,8 +429,8 @@ class CacheManager(LoggingMixin, QObject):
         Returns:
             Path to created thumbnail
         """
+        temp_path = output.with_suffix(".tmp")
         try:
-            temp_path = output.with_suffix(".tmp")
             with Image.open(source) as img:
                 img.thumbnail((THUMBNAIL_SIZE, THUMBNAIL_SIZE), Image.Resampling.LANCZOS)
                 img.convert("RGB").save(temp_path, "JPEG", quality=THUMBNAIL_QUALITY)
@@ -439,6 +439,9 @@ class CacheManager(LoggingMixin, QObject):
             self.logger.debug(f"Created thumbnail: {output}")
             return output
         except Exception as e:
+            # Clean up temp file before attempting fallback
+            with contextlib.suppress(OSError):
+                temp_path.unlink(missing_ok=True)
             self.logger.debug(f"PIL thumbnail processing failed: {e}")
 
             # Try MOV fallback if PIL can't read the image (e.g., EXR files)
@@ -454,28 +457,29 @@ class CacheManager(LoggingMixin, QObject):
                 self.logger.debug(f"Found MOV file for fallback: {mov_path.name}")
                 extracted_frame = ImageUtils.extract_frame_from_mov(mov_path)
 
-                if extracted_frame and extracted_frame.exists():
-                    self.logger.info(f"Successfully extracted frame from MOV: {mov_path.name}")
+                try:
+                    if extracted_frame and extracted_frame.exists():
+                        self.logger.info(f"Successfully extracted frame from MOV: {mov_path.name}")
 
-                    # Process the extracted JPEG frame
-                    try:
-                        temp_path = output.with_suffix(".tmp")
-                        with Image.open(extracted_frame) as img:
-                            img.thumbnail((THUMBNAIL_SIZE, THUMBNAIL_SIZE), Image.Resampling.LANCZOS)
-                            img.convert("RGB").save(temp_path, "JPEG", quality=THUMBNAIL_QUALITY)
-                        # Atomic rename to final path
-                        _ = temp_path.replace(output)
-                        self.logger.debug(f"Created thumbnail from MOV fallback: {output}")
-
-                        # Clean up temp file
+                        # Process the extracted JPEG frame
+                        try:
+                            temp_path = output.with_suffix(".tmp")
+                            with Image.open(extracted_frame) as img:
+                                img.thumbnail((THUMBNAIL_SIZE, THUMBNAIL_SIZE), Image.Resampling.LANCZOS)
+                                img.convert("RGB").save(temp_path, "JPEG", quality=THUMBNAIL_QUALITY)
+                            # Atomic rename to final path
+                            _ = temp_path.replace(output)
+                            self.logger.debug(f"Created thumbnail from MOV fallback: {output}")
+                            return output
+                        except Exception as fallback_error:
+                            self.logger.error(f"Failed to process MOV fallback frame: {fallback_error}")
+                    else:
+                        self.logger.debug("MOV frame extraction failed")
+                finally:
+                    # Always clean up extracted frame temp file
+                    if extracted_frame and extracted_frame.exists():
                         with contextlib.suppress(Exception):
                             extracted_frame.unlink()
-
-                        return output
-                    except Exception as fallback_error:
-                        self.logger.error(f"Failed to process MOV fallback frame: {fallback_error}")
-                else:
-                    self.logger.debug("MOV frame extraction failed")
             else:
                 self.logger.debug(f"No MOV file found for fallback: {source}")
 
@@ -492,6 +496,9 @@ class CacheManager(LoggingMixin, QObject):
     ) -> Path | None:
         """Cache a thumbnail from QImage directly.
 
+        Lock-minimized implementation: I/O and CPU work happen outside the lock.
+        Only stat cache invalidation uses a brief lock acquisition.
+
         Args:
             image: QImage to cache
             show: Show name
@@ -501,36 +508,46 @@ class CacheManager(LoggingMixin, QObject):
         Returns:
             Path to cached thumbnail or None on error
         """
-        with QMutexLocker(self._lock):
-            output_dir = self.thumbnails_dir / show / sequence
+        # Compute paths (no lock needed - deterministic)
+        output_dir = self.thumbnails_dir / show / sequence
+        output_path = output_dir / f"{shot}_thumb.jpg"
+        temp_path = output_path.with_suffix(".tmp")
+
+        try:
+            # Create directory (no lock needed - idempotent with exist_ok=True)
             output_dir.mkdir(parents=True, exist_ok=True)
-            output_path = output_dir / f"{shot}_thumb.jpg"
 
-            try:
-                # Scale if needed
-                if image.width() > THUMBNAIL_SIZE or image.height() > THUMBNAIL_SIZE:
-                    image = image.scaled(
-                        THUMBNAIL_SIZE,
-                        THUMBNAIL_SIZE,
-                        Qt.AspectRatioMode.KeepAspectRatio,
-                        Qt.TransformationMode.SmoothTransformation,
-                    )
+            # Scale if needed (no lock needed - pure computation on local copy)
+            if image.width() > THUMBNAIL_SIZE or image.height() > THUMBNAIL_SIZE:
+                image = image.scaled(
+                    THUMBNAIL_SIZE,
+                    THUMBNAIL_SIZE,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
 
-                # Save to temp file first, then atomic rename
-                temp_path = output_path.with_suffix(".tmp")
-                if image.save(str(temp_path), b"JPEG", THUMBNAIL_QUALITY):
-                    # Atomic rename to final path
-                    _ = temp_path.replace(output_path)
-                    self.logger.debug(f"Cached QImage thumbnail: {output_path}")
-                    return output_path
-                # Clean up temp file on save failure
+            # Save to temp file (no lock needed - unique temp path per shot)
+            if not image.save(str(temp_path), b"JPEG", THUMBNAIL_QUALITY):
                 temp_path.unlink(missing_ok=True)
                 self.logger.error(f"Failed to save QImage to: {output_path}")
                 return None
 
-            except Exception as e:
-                self.logger.error(f"QImage thumbnail caching failed: {e}")
-                return None
+            # Atomic rename (no lock needed - atomic on POSIX)
+            _ = temp_path.replace(output_path)
+
+            # Invalidate stat cache for immediate visibility (minimal lock)
+            with QMutexLocker(self._lock):
+                _ = self._stat_cache.pop(str(output_path), None)
+
+            self.logger.debug(f"Cached QImage thumbnail: {output_path}")
+            return output_path
+
+        except Exception as e:
+            # Clean up temp file on any error
+            with contextlib.suppress(OSError):
+                temp_path.unlink(missing_ok=True)
+            self.logger.error(f"QImage thumbnail caching failed: {e}")
+            return None
 
     # ========================================================================
     # Shot Data Caching Methods

@@ -66,6 +66,10 @@ class EnvironmentManager:
     # Brief wait for cache warming to complete (avoids 2s subprocess block on fast launch)
     _CACHE_WARM_WAIT_SEC: float = 0.15
 
+    # Timeout for ws availability check
+    # VFX facility shells may take longer due to NFS mounts, AD/LDAP auth, rez init
+    WS_AVAILABILITY_TIMEOUT_SEC: float = 5.0
+
     def __init__(self) -> None:
         """Initialize EnvironmentManager with empty cache."""
         self._rez_available_cache: bool | None = None
@@ -115,6 +119,46 @@ class EnvironmentManager:
         logger.debug(f"Rez availability cached: {self._rez_available_cache}")
         return self._rez_available_cache
 
+    def should_wrap_with_rez(self, config: "type[Config]") -> bool:
+        """Determine if commands should be wrapped with rez environment.
+
+        Uses the new RezMode enum for cleaner configuration:
+            - DISABLED: Never wrap with rez
+            - AUTO: Skip if REZ_USED is set (shell init provides rez)
+            - FORCE: Always wrap with app-specific packages
+
+        Args:
+            config: Application configuration
+
+        Returns:
+            True if rez wrapping should be applied, False to skip wrapping
+        """
+        from config import RezMode
+
+        # DISABLED mode: never wrap
+        if config.REZ_MODE == RezMode.DISABLED:
+            logger.debug("Rez wrapping DISABLED via RezMode.DISABLED")
+            return False
+
+        # AUTO mode: skip if already in rez environment
+        if config.REZ_MODE == RezMode.AUTO:
+            if os.environ.get("REZ_USED"):
+                logger.debug(
+                    "Rez wrapping skipped: already in rez environment (REZ_USED set)"
+                )
+                return False
+
+        # FORCE mode or AUTO without REZ_USED: check if rez command exists
+        if self._rez_available_cache is None:
+            self._rez_available_cache = shutil.which("rez") is not None
+
+        if not self._rez_available_cache:
+            logger.warning("Rez wrapping skipped: 'rez' command not found in PATH")
+            return False
+
+        logger.debug("Rez wrapping ENABLED")
+        return True
+
     def is_ws_available(self) -> bool:
         """Check if ws (workspace) command is available.
 
@@ -154,10 +198,19 @@ class EnvironmentManager:
                 ["bash", "-ilc", "command -v ws"],
                 check=False, capture_output=True,
                 text=True,
-                timeout=2,  # Reduced from 5s to avoid long UI freezes
+                timeout=self.WS_AVAILABILITY_TIMEOUT_SEC,
             )
             self._ws_available_cache = result.returncode == 0
-        except (subprocess.TimeoutExpired, OSError) as e:
+        except subprocess.TimeoutExpired:
+            # Optimistic fallback: assume ws is available
+            # If it doesn't exist, the actual launch will fail with a clear error
+            logger.warning(
+                "ws availability check timed out after %.1fs. "
+                "Assuming ws is available (will fail with clear error if not).",
+                self.WS_AVAILABILITY_TIMEOUT_SEC,
+            )
+            self._ws_available_cache = True
+        except OSError as e:
             logger.warning(f"Failed to check ws availability: {e}")
             # Fall back to shutil.which (better than nothing)
             self._ws_available_cache = shutil.which("ws") is not None

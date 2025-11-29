@@ -113,23 +113,40 @@ class ProcessExecutor(QObject):
         """
         return app_name.lower() in self.GUI_APPS
 
-    def _build_terminal_command(self, terminal: str | None, command: str) -> list[str]:
+    def _build_terminal_command(
+        self, terminal: str | None, command: str, has_rez_wrapper: bool = False
+    ) -> list[str]:
         """Build terminal-specific command list.
 
         Args:
             terminal: Terminal emulator name, or None for headless execution
             command: The command to execute
+            has_rez_wrapper: If True, command already contains 'bash -ilc' for rez context.
+                Use non-interactive shell for outer terminal (~50ms faster).
 
         Returns:
             Command list suitable for subprocess.Popen
+
+        Notes:
+            When rez wrapping is present, the command already contains 'bash -ilc'
+            to ensure shell functions (like 'ws') are available inside the rez
+            environment. Using 'sh -c' for the outer shell avoids double-loading
+            of .bashrc and reduces startup latency.
         """
+        # When rez wrapper is present, use sh -c for outer shell (faster, ~50ms saved)
+        # The inner bash -ilc inside rez provides the interactive context for ws
+        shell_cmd = (
+            ["/bin/sh", "-c", command]
+            if has_rez_wrapper
+            else ["/bin/bash", "-ilc", command]
+        )
+
         if terminal == "gnome-terminal":
-            return ["gnome-terminal", "--", "bash", "-ilc", command]
+            return ["gnome-terminal", "--", *shell_cmd]
         if terminal == "konsole":
-            return ["konsole", "-e", "bash", "-ilc", command]
+            return ["konsole", "-e", *shell_cmd]
         if terminal == "kitty":
-            # kitty uses different syntax: kitty bash -ilc "command"
-            return ["kitty", "bash", "-ilc", command]
+            return ["kitty", *shell_cmd]
         if terminal in [
             "xterm",
             "x-terminal-emulator",
@@ -139,12 +156,16 @@ class ProcessExecutor(QObject):
             "terminology",
         ]:
             # These terminals all use -e flag for command execution
-            return [terminal, "-e", "bash", "-ilc", command]
-        # Headless fallback: direct bash execution
-        return ["/bin/bash", "-ilc", command]
+            return [terminal, "-e", *shell_cmd]
+        # Headless fallback: direct shell execution
+        return shell_cmd
 
     def execute_in_new_terminal(
-        self, command: str, app_name: str, terminal: str | None = None
+        self,
+        command: str,
+        app_name: str,
+        terminal: str | None = None,
+        has_rez_wrapper: bool = False,
     ) -> subprocess.Popen[bytes] | None:
         """Execute command in new terminal or headless if no terminal available.
 
@@ -152,6 +173,8 @@ class ProcessExecutor(QObject):
             command: Command to execute
             app_name: Application name (for error messages and verification)
             terminal: Terminal emulator name, or None for headless execution
+            has_rez_wrapper: If True, command contains rez wrapper with inner bash -ilc.
+                Enables shell optimization (sh -c instead of bash -ilc for outer shell).
 
         Returns:
             Popen object on success, None on failure
@@ -159,6 +182,7 @@ class ProcessExecutor(QObject):
         Notes:
             - If terminal is None, executes directly via bash (headless mode)
             - Uses bash -ilc for interactive login shell (loads workspace functions)
+            - When has_rez_wrapper=True, uses sh -c for outer shell (~50ms faster)
             - Schedules process verification after 100ms
         """
         if terminal is None:
@@ -175,7 +199,7 @@ class ProcessExecutor(QObject):
             self.logger.info(f"Launching {app_name} in new {terminal} terminal")
 
         # Build command for the detected terminal (or headless)
-        term_cmd = self._build_terminal_command(terminal, command)
+        term_cmd = self._build_terminal_command(terminal, command, has_rez_wrapper)
 
         try:
             # Spawn process
