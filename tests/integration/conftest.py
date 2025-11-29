@@ -39,6 +39,9 @@ def integration_temp_dir() -> Iterator[Path]:
         yield Path(temp_dir)
 
 
+# NOTE: This fixture is defined for potential future integration tests
+# but is not currently used by any test. Consider writing tests that
+# exercise this fixture before removing it.
 @pytest.fixture
 def mock_shows_structure(
     integration_temp_dir: Path, request: pytest.FixtureRequest
@@ -120,6 +123,9 @@ def mock_shows_structure(
     }
 
 
+# NOTE: This fixture is defined for potential future performance tests
+# but is not currently used by any test. Consider writing tests that
+# exercise this fixture before removing it.
 @pytest.fixture
 def performance_dataset(
     integration_temp_dir: Path, request: pytest.FixtureRequest
@@ -171,6 +177,55 @@ def isolated_cache_dir() -> Iterator[Path]:
         yield Path(cache_dir)
 
 
+@pytest.fixture
+def launcher_test_env(tmp_path: Path) -> Iterator[dict[str, Any]]:
+    """Fixture providing isolated launcher test environment.
+
+    Provides:
+        - config_dir: Path to config directory
+        - test_shot: Dict with test shot data
+        - qt_objects: List for tracking Qt objects (auto-cleaned)
+
+    Qt cleanup is handled automatically after test completes.
+    """
+    config_dir = tmp_path / "config"
+    config_dir.mkdir(parents=True, exist_ok=True)
+
+    test_shot = {
+        "show": "test_show",
+        "sequence": "seq01",
+        "shot": "0010",
+        "workspace_path": "/shows/test_show/shots/seq01/seq01_0010",
+        "name": "seq01_0010",
+    }
+
+    qt_objects: list[Any] = []
+
+    yield {
+        "config_dir": config_dir,
+        "test_shot": test_shot,
+        "qt_objects": qt_objects,
+        "tmp_path": tmp_path,
+    }
+
+    # Cleanup Qt objects (Qt Widget Guidelines)
+    from tests.test_helpers import process_qt_events
+
+    for obj in qt_objects:
+        try:
+            if hasattr(obj, "stop_all_workers"):
+                obj.stop_all_workers()
+            if hasattr(obj, "deleteLater"):
+                obj.deleteLater()
+        except Exception:
+            pass  # Ignore cleanup errors
+
+    process_qt_events()
+
+
+# NOTE: This fixture is defined for potential future integration tests
+# but is not currently used by any test. Consider writing tests that
+# exercise this fixture before removing it.
 @pytest.fixture
 def vfx_production_environment(
     integration_temp_dir: Path, request: pytest.FixtureRequest

@@ -255,12 +255,58 @@ def mock_subprocess_popen(
     # Also patch in subprocess module for any other direct callers
     monkeypatch.setattr("subprocess.Popen", mock_popen)
 
+    # Also mock subprocess.run for complete coverage
+    # Many production files use subprocess.run() directly (not Popen)
+    def _create_mock_run(*args: object, **kwargs: object) -> MagicMock:
+        """Create subprocess.run mock with STRICT MODE."""
+        cmd_str = ""
+        if args:
+            cmd = args[0]
+            cmd_str = _format_cmd(cmd)
+            if _TRACK_POPEN:
+                if isinstance(cmd, (list, tuple)):
+                    _popen_calls.append([str(c) for c in cmd])
+                else:
+                    _popen_calls.append([str(cmd)])
+
+        # STRICT MODE: Fail on unexpected subprocess.run calls
+        if not _state.permissive_mode and not _state.subprocess_mock_active:
+            raise AssertionError(
+                f"Unexpected subprocess.run command: {cmd_str}\n\n"
+                f"STRICT MODE is enabled by default. To handle subprocess.run calls:\n"
+                f"  1. Use subprocess_mock fixture to configure expected behavior\n"
+                f"  2. Use @pytest.mark.real_subprocess for real subprocess execution\n"
+                f"  3. Use @pytest.mark.permissive_subprocess (DISCOURAGED - legacy opt-out)\n"
+            )
+
+        # Check if text mode requested
+        text_mode = (
+            kwargs.get("text", False)
+            or kwargs.get("encoding") is not None
+            or kwargs.get("universal_newlines", False)
+        )
+
+        result = MagicMock()
+        result.returncode = 0
+        if text_mode:
+            result.stdout = ""
+            result.stderr = ""
+        else:
+            result.stdout = b""
+            result.stderr = b""
+        return result
+
+    mock_run = MagicMock(side_effect=_create_mock_run)
+    monkeypatch.setattr("subprocess.run", mock_run)
+
 
 class SubprocessMock:
     """Controllable subprocess mock for testing command execution.
 
     This class provides methods to configure expected subprocess behavior,
     including stdout, stderr, return codes, and exceptions.
+
+    Mocks both subprocess.Popen and subprocess.run for complete coverage.
 
     Usage:
         def test_command_output(subprocess_mock):
@@ -272,12 +318,14 @@ class SubprocessMock:
 
     def __init__(self) -> None:
         self._mock = MagicMock()
+        self._run_mock = MagicMock()
         self._calls: list[list[str]] = []
         self._stdout = b""
         self._stderr = b""
         self._returncode = 0
         self._should_raise: Exception | None = None
         self._setup_mock()
+        self._setup_run_mock()
 
     def _setup_mock(self) -> None:
         """Configure mock behavior."""
@@ -316,10 +364,44 @@ class SubprocessMock:
 
         self._mock.side_effect = popen_side_effect
 
+    def _setup_run_mock(self) -> None:
+        """Configure subprocess.run mock behavior."""
+
+        def run_side_effect(args: list[str], **kwargs: object) -> MagicMock:
+            if self._should_raise:
+                raise self._should_raise
+            self._calls.append(list(args) if isinstance(args, (list, tuple)) else [str(args)])
+
+            # Check if text mode requested
+            text_mode = (
+                kwargs.get("text", False)
+                or kwargs.get("encoding") is not None
+                or kwargs.get("universal_newlines", False)
+            )
+
+            result = MagicMock()
+            result.returncode = self._returncode
+
+            if text_mode:
+                result.stdout = self._stdout.decode("utf-8")
+                result.stderr = self._stderr.decode("utf-8")
+            else:
+                result.stdout = self._stdout
+                result.stderr = self._stderr
+
+            return result
+
+        self._run_mock.side_effect = run_side_effect
+
     @property
     def mock(self) -> MagicMock:
-        """Get the underlying mock object for patching."""
+        """Get the underlying Popen mock object for patching."""
         return self._mock
+
+    @property
+    def run_mock(self) -> MagicMock:
+        """Get the underlying subprocess.run mock object for patching."""
+        return self._run_mock
 
     @property
     def calls(self) -> list[list[str]]:
@@ -374,8 +456,11 @@ def subprocess_mock(monkeypatch: pytest.MonkeyPatch) -> SubprocessMock:
     _set_subprocess_mock_active(True)
 
     mock = SubprocessMock()
+    # Patch Popen
     monkeypatch.setattr("subprocess.Popen", mock.mock)
     monkeypatch.setattr("launcher.worker.subprocess.Popen", mock.mock)
+    # Patch subprocess.run
+    monkeypatch.setattr("subprocess.run", mock.run_mock)
     return mock
 
 
@@ -403,6 +488,7 @@ def subprocess_error_mock(monkeypatch: pytest.MonkeyPatch) -> SubprocessMock:
     mock.set_output("", stderr="Command failed")
     monkeypatch.setattr("subprocess.Popen", mock.mock)
     monkeypatch.setattr("launcher.worker.subprocess.Popen", mock.mock)
+    monkeypatch.setattr("subprocess.run", mock.run_mock)
     return mock
 
 
@@ -424,6 +510,7 @@ def subprocess_timeout_mock(monkeypatch: pytest.MonkeyPatch) -> SubprocessMock:
     mock._mock.return_value.returncode = None
     monkeypatch.setattr("subprocess.Popen", mock.mock)
     monkeypatch.setattr("launcher.worker.subprocess.Popen", mock.mock)
+    monkeypatch.setattr("subprocess.run", mock.run_mock)
     return mock
 
 
@@ -446,4 +533,5 @@ def subprocess_exception_mock(monkeypatch: pytest.MonkeyPatch) -> SubprocessMock
     mock.set_exception(FileNotFoundError("[Errno 2] No such file or directory"))
     monkeypatch.setattr("subprocess.Popen", mock.mock)
     monkeypatch.setattr("launcher.worker.subprocess.Popen", mock.mock)
+    monkeypatch.setattr("subprocess.run", mock.run_mock)
     return mock

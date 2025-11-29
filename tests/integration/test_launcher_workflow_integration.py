@@ -10,9 +10,6 @@ from __future__ import annotations
 
 # Standard library imports
 import json
-import shutil
-import tempfile
-import traceback
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -23,9 +20,6 @@ import pytest
 # Local application imports
 # Import the module under test
 from launcher_manager import LauncherManager
-
-# Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
-from tests.test_doubles_library import TestSubprocess
 
 
 pytestmark = [
@@ -40,65 +34,23 @@ pytestmark = [
 
 
 class TestLauncherWorkflowIntegration:
-    """Integration tests for launcher execution and process tracking following UNIFIED_TESTING_GUIDE."""
+    """Integration tests for launcher execution and process tracking following UNIFIED_TESTING_GUIDE.
 
-    def setup_method(self) -> None:
-        # Use test double for subprocess (UNIFIED_TESTING_GUIDE)
-        self.test_subprocess = TestSubprocess()
-        """Minimal setup to avoid pytest fixture overhead."""
-        self.temp_dir = Path(tempfile.mkdtemp(prefix="shotbot_launcher_workflow_"))
-        self.config_dir = self.temp_dir / "config"
-        self.config_dir.mkdir(parents=True, exist_ok=True)
-
-        # Track QObject instances for proper cleanup (Qt Widget Guidelines)
-        self.qt_objects: list[Any] = []
-
-        # Create test shot data
-        self.test_shot = {
-            "show": "test_show",
-            "sequence": "seq01",
-            "shot": "0010",
-            "workspace_path": "/shows/test_show/shots/seq01/seq01_0010",
-            "name": "seq01_0010",
-        }
-
-        # Mock subprocess.Popen for system boundary testing
-        self.mock_process = MagicMock()
-        self.mock_process.pid = 12345
-        self.mock_process.poll.return_value = None  # Running
-        self.mock_process.wait.return_value = 0  # Success
-        self.mock_process.returncode = 0
-
-    def teardown_method(self) -> None:
-        """Direct cleanup without fixture dependencies."""
-        # Clean up Qt objects to prevent resource leaks (Qt Widget Guidelines)
-        for obj in self.qt_objects:
-            try:
-                # Stop worker threads in LauncherManager before cleanup
-                if hasattr(obj, "stop_all_workers"):
-                    obj.stop_all_workers()
-
-                if hasattr(obj, "deleteLater"):
-                    obj.deleteLater()
-            except Exception:
-                pass  # Ignore cleanup errors
-
-        # Clear the list
-        self.qt_objects.clear()
-
-        # Clean up temp directory
-        try:
-            if self.temp_dir.exists():
-                shutil.rmtree(self.temp_dir, ignore_errors=True)
-        except Exception:
-            pass  # Ignore cleanup errors
+    Uses launcher_test_env fixture for setup/cleanup instead of manual setup_method/teardown_method.
+    """
 
     @pytest.mark.slow
-    def test_launcher_manager_command_execution_integration(self, qtbot: Any) -> None:
+    def test_launcher_manager_command_execution_integration(
+        self, qtbot: Any, launcher_test_env: dict[str, Any]
+    ) -> None:
         """Test launcher manager executing commands with process tracking."""
+        config_dir = launcher_test_env["config_dir"]
+        qt_objects = launcher_test_env["qt_objects"]
+        test_shot = launcher_test_env["test_shot"]
+
         # Create launcher manager with test config directory
-        launcher_manager = LauncherManager(config_dir=self.config_dir)
-        self.qt_objects.append(launcher_manager)  # Track for cleanup
+        launcher_manager = LauncherManager(config_dir=config_dir)
+        qt_objects.append(launcher_manager)  # Track for cleanup
 
         # Create test launcher using the real API
         launcher_id = launcher_manager.create_launcher(
@@ -127,17 +79,24 @@ class TestLauncherWorkflowIntegration:
         launcher_manager.execution_started.connect(on_execution_started)
         launcher_manager.execution_finished.connect(on_execution_finished)
 
+        # Create mock process for this test
+        mock_process = MagicMock()
+        mock_process.pid = 12345
+        mock_process.poll.return_value = None  # Running
+        mock_process.wait.return_value = 0  # Success
+        mock_process.returncode = 0
+
         try:
             # Mock subprocess.Popen at system boundary
             with (
                 patch("subprocess.Popen") as mock_popen,
                 patch.dict("os.environ", {"SHOTBOT_USE_PROCESS_POOL": "false"}),
             ):
-                mock_popen.return_value = self.mock_process
+                mock_popen.return_value = mock_process
 
                 # Execute launcher with custom variables
                 success = launcher_manager.execute_launcher(
-                    launcher_id, custom_vars={"shot_name": self.test_shot["name"]}
+                    launcher_id, custom_vars={"shot_name": test_shot["name"]}
                 )
 
                 # Verify execution started successfully
@@ -163,10 +122,16 @@ class TestLauncherWorkflowIntegration:
             except (TypeError, RuntimeError):
                 pass
 
-    def test_launcher_manager_process_tracking_integration(self, qtbot: Any) -> None:
+    def test_launcher_manager_process_tracking_integration(
+        self, qtbot: Any, launcher_test_env: dict[str, Any]
+    ) -> None:
         """Test launcher manager process tracking and cleanup."""
-        launcher_manager = LauncherManager(config_dir=self.config_dir)
-        self.qt_objects.append(launcher_manager)  # Track for cleanup
+        config_dir = launcher_test_env["config_dir"]
+        qt_objects = launcher_test_env["qt_objects"]
+        test_shot = launcher_test_env["test_shot"]
+
+        launcher_manager = LauncherManager(config_dir=config_dir)
+        qt_objects.append(launcher_manager)  # Track for cleanup
 
         # Create test launcher using the real API
         launcher_id = launcher_manager.create_launcher(
@@ -192,7 +157,7 @@ class TestLauncherWorkflowIntegration:
 
             # Execute launcher
             success = launcher_manager.execute_launcher(
-                launcher_id, custom_vars={"shot_name": self.test_shot["name"]}
+                launcher_id, custom_vars={"shot_name": test_shot["name"]}
             )
 
             # Verify execution started successfully
@@ -235,10 +200,16 @@ class TestLauncherWorkflowIntegration:
             updated_count = launcher_manager.get_active_process_count()
             assert updated_count >= 0  # Just verify the method works
 
-    def test_launcher_manager_signal_emission_flow(self, qtbot: Any) -> None:
+    def test_launcher_manager_signal_emission_flow(
+        self, qtbot: Any, launcher_test_env: dict[str, Any]
+    ) -> None:
         """Test complete signal emission flow during launcher execution."""
-        launcher_manager = LauncherManager(config_dir=self.config_dir)
-        self.qt_objects.append(launcher_manager)  # Track for cleanup
+        config_dir = launcher_test_env["config_dir"]
+        qt_objects = launcher_test_env["qt_objects"]
+        test_shot = launcher_test_env["test_shot"]
+
+        launcher_manager = LauncherManager(config_dir=config_dir)
+        qt_objects.append(launcher_manager)  # Track for cleanup
 
         # Track all signals
         signal_events = []
@@ -261,6 +232,13 @@ class TestLauncherWorkflowIntegration:
         launcher_manager.launcher_added.connect(launcher_added_handler)
         launcher_manager.validation_error.connect(validation_error_handler)
 
+        # Create mock process for this test
+        mock_process = MagicMock()
+        mock_process.pid = 12345
+        mock_process.poll.return_value = None  # Running
+        mock_process.wait.return_value = 0  # Success
+        mock_process.returncode = 0
+
         try:
             # Create test launcher using the real API
             launcher_id = launcher_manager.create_launcher(
@@ -273,11 +251,11 @@ class TestLauncherWorkflowIntegration:
                 patch("subprocess.Popen") as mock_popen,
                 patch.dict("os.environ", {"SHOTBOT_USE_PROCESS_POOL": "false"}),
             ):
-                mock_popen.return_value = self.mock_process
+                mock_popen.return_value = mock_process
 
                 # Execute launcher
                 success = launcher_manager.execute_launcher(
-                    launcher_id, custom_vars={"shot_name": self.test_shot["name"]}
+                    launcher_id, custom_vars={"shot_name": test_shot["name"]}
                 )
 
                 # Verify execution started successfully
@@ -326,10 +304,16 @@ class TestLauncherWorkflowIntegration:
                     pass
 
     @pytest.mark.slow
-    def test_launcher_manager_concurrent_execution_integration(self, qtbot: Any) -> None:
+    def test_launcher_manager_concurrent_execution_integration(
+        self, qtbot: Any, launcher_test_env: dict[str, Any]
+    ) -> None:
         """Test launcher manager handling multiple concurrent executions."""
-        launcher_manager = LauncherManager(config_dir=self.config_dir)
-        self.qt_objects.append(launcher_manager)  # Track for cleanup
+        config_dir = launcher_test_env["config_dir"]
+        qt_objects = launcher_test_env["qt_objects"]
+        test_shot = launcher_test_env["test_shot"]
+
+        launcher_manager = LauncherManager(config_dir=config_dir)
+        qt_objects.append(launcher_manager)  # Track for cleanup
 
         # Create multiple test launchers using the real API
         launcher_id1 = launcher_manager.create_launcher(
@@ -362,10 +346,10 @@ class TestLauncherWorkflowIntegration:
         ):
             # Execute both launchers concurrently
             success1 = launcher_manager.execute_launcher(
-                launcher_id1, custom_vars={"shot_name": self.test_shot["name"]}
+                launcher_id1, custom_vars={"shot_name": test_shot["name"]}
             )
             success2 = launcher_manager.execute_launcher(
-                launcher_id2, custom_vars={"shot_name": self.test_shot["name"]}
+                launcher_id2, custom_vars={"shot_name": test_shot["name"]}
             )
 
             # Verify both executions started successfully
@@ -396,10 +380,14 @@ class TestLauncherWorkflowIntegration:
             assert launcher_id1 in launcher_ids
             assert launcher_id2 in launcher_ids
 
-    def test_launcher_manager_persistence_integration(self) -> None:
+    def test_launcher_manager_persistence_integration(
+        self, launcher_test_env: dict[str, Any]
+    ) -> None:
         """Test launcher manager persistence of custom launchers."""
+        config_dir = launcher_test_env["config_dir"]
+
         # Create first launcher manager instance
-        launcher_manager1 = LauncherManager(config_dir=self.config_dir)
+        launcher_manager1 = LauncherManager(config_dir=config_dir)
 
         # Create test launcher using the real API
         launcher_id = launcher_manager1.create_launcher(
@@ -412,7 +400,7 @@ class TestLauncherWorkflowIntegration:
         assert launcher_id is not None
 
         # Verify config file was created
-        config_file = self.config_dir / "custom_launchers.json"
+        config_file = config_dir / "custom_launchers.json"
         assert config_file.exists()
 
         # Read config file directly
@@ -432,7 +420,7 @@ class TestLauncherWorkflowIntegration:
         assert launcher_data["category"] == "test"
 
         # Create second launcher manager instance to test loading
-        launcher_manager2 = LauncherManager(config_dir=self.config_dir)
+        launcher_manager2 = LauncherManager(config_dir=config_dir)
 
         # Verify launcher was loaded from config
         loaded_launchers = launcher_manager2.list_launchers()
@@ -448,33 +436,13 @@ class TestLauncherWorkflowIntegration:
 
 # Allow running as standalone test
 if __name__ == "__main__":
-    test = TestLauncherWorkflowIntegration()
-    test.setup_method()
-    try:
-        print("Running launcher manager command execution integration...")
-        test.test_launcher_manager_command_execution_integration()
-        print("✓ Launcher manager command execution passed")
+    # These tests require pytest fixtures (qtbot, launcher_test_env)
+    # Run with: pytest tests/integration/test_launcher_workflow_integration.py -v
+    import subprocess
+    import sys
 
-        print("Running launcher manager process tracking integration...")
-        test.test_launcher_manager_process_tracking_integration()
-        print("✓ Launcher manager process tracking passed")
-
-        print("Running launcher manager signal emission flow...")
-        test.test_launcher_manager_signal_emission_flow()
-        print("✓ Launcher manager signal emission flow passed")
-
-        print("Running launcher manager concurrent execution integration...")
-        test.test_launcher_manager_concurrent_execution_integration()
-        print("✓ Launcher manager concurrent execution passed")
-
-        print("Running launcher manager persistence integration...")
-        test.test_launcher_manager_persistence_integration()
-        print("✓ Launcher manager persistence passed")
-
-        print("All launcher workflow integration tests passed!")
-    except Exception as e:
-        print(f"Test failed: {e}")
-
-        traceback.print_exc()
-    finally:
-        test.teardown_method()
+    result = subprocess.run(
+        [sys.executable, "-m", "pytest", __file__, "-v", "--tb=short"],
+        cwd="/home/gabrielh/projects/shotbot",
+    )
+    sys.exit(result.returncode)
