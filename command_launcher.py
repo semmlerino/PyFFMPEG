@@ -11,8 +11,6 @@ from __future__ import annotations
 # Standard library imports
 import os
 import time
-from concurrent.futures import ThreadPoolExecutor
-from concurrent.futures import TimeoutError as FutureTimeoutError
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -970,14 +968,6 @@ class CommandLauncher(LoggingMixin, QObject):
     # - _is_gui_app() → self.process_executor.is_gui_app(app_name)
     # - _verify_spawn() → self.process_executor._verify_spawn(process, app_name)
 
-    # Minimum disk space required (MB)
-    MIN_DISK_SPACE_MB: int = 100
-
-    # Timeout for disk space check (seconds) - prevents blocking on NFS hangs
-    # NFS mounts under load can take 5-30s for statvfs; 10s balances responsiveness
-    # with avoiding false "timed out" warnings on busy network storage
-    DISK_CHECK_TIMEOUT_SEC: float = 10.0
-
     # Maximum command length (bytes) - gnome-terminal buffer is ~8KB, be conservative
     # Linux ARG_MAX is ~131KB but terminal emulators have smaller buffers
     MAX_COMMAND_LENGTH: int = 8000
@@ -989,16 +979,18 @@ class CommandLauncher(LoggingMixin, QObject):
 
         Performs pre-flight checks (advisory):
         1. Workspace directory exists
-        2. User has read and execute permissions
-        3. User has write permission (for apps that need it)
-        4. Sufficient disk space available
+        2. Workspace path is a directory (not a file)
+        3. User has read and execute permissions
 
         Note:
             Permission checks are advisory only due to TOCTOU (time-of-check to
             time-of-use) race conditions. Permissions could change between check
             and actual use. These checks provide early user feedback but don't
-            guarantee success. The application may still fail if permissions
-            change after validation.
+            guarantee success.
+
+            Disk space is NOT checked - VFX production storage always has
+            sufficient space, and the statvfs() call can block for 10+ seconds
+            on slow NFS mounts, causing UI freezes.
 
         Args:
             workspace_path: Path to the workspace directory
@@ -1028,29 +1020,6 @@ class CommandLauncher(LoggingMixin, QObject):
                 f"Cannot launch {app_name}: No read/execute permission for: {workspace_path}"
             )
             return False
-
-        # Check disk space availability with timeout (prevents NFS hang blocking UI)
-        try:
-            # Run statvfs in a thread with timeout - NFS mounts can block indefinitely
-            with ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(os.statvfs, workspace_path)
-                stat = future.result(timeout=self.DISK_CHECK_TIMEOUT_SEC)
-            available_mb = (stat.f_bavail * stat.f_frsize) / (1024 * 1024)
-            if available_mb < self.MIN_DISK_SPACE_MB:
-                self._emit_error(
-                    f"Cannot launch {app_name}: Insufficient disk space "
-                    f"({available_mb:.0f}MB available, {self.MIN_DISK_SPACE_MB}MB required)"
-                )
-                return False
-        except FutureTimeoutError:
-            # Disk space check timed out (likely NFS hang) - log warning but proceed
-            self.logger.warning(
-                f"Disk space check timed out for {workspace_path} "
-                f"(may be slow NFS mount) - proceeding with launch"
-            )
-        except OSError as e:
-            # Log warning but don't block launch if we can't check disk space
-            self.logger.warning(f"Could not check disk space for {workspace_path}: {e}")
 
         return True
 

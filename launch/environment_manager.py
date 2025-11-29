@@ -63,12 +63,16 @@ class EnvironmentManager:
     # Cache TTL for terminal detection (5 minutes)
     TERMINAL_CACHE_TTL_SEC: Final[float] = 300.0
 
+    # Brief wait for cache warming to complete (avoids 2s subprocess block on fast launch)
+    _CACHE_WARM_WAIT_SEC: float = 0.15
+
     def __init__(self) -> None:
         """Initialize EnvironmentManager with empty cache."""
         self._rez_available_cache: bool | None = None
         self._ws_available_cache: bool | None = None
         self._available_terminal_cache: str | None = None
         self._terminal_cache_time: float = 0.0
+        self._cache_warm_event: threading.Event = threading.Event()
 
     def is_rez_available(self, config: "type[Config]") -> bool:
         """Check if rez wrapping should be applied to commands.
@@ -131,6 +135,14 @@ class EnvironmentManager:
         """
         if self._ws_available_cache is not None:
             return self._ws_available_cache
+
+        # If cache warming is in progress, wait briefly for it to complete
+        # This avoids a 2-second subprocess block if user launches immediately after startup
+        if not self._cache_warm_event.is_set():
+            _ = self._cache_warm_event.wait(timeout=self._CACHE_WARM_WAIT_SEC)
+            # Check again after waiting - warming thread may have populated cache
+            if self._ws_available_cache is not None:
+                return self._ws_available_cache
 
         # Use bash interactive login shell to check for ws - handles binaries, functions, and aliases
         # shutil.which() only finds binaries, but ws is often a shell function in VFX studios
@@ -232,6 +244,7 @@ class EnvironmentManager:
         self._ws_available_cache = None
         self._available_terminal_cache = None
         self._terminal_cache_time = 0.0
+        self._cache_warm_event.clear()
         logger.debug("EnvironmentManager cache reset")
 
     def warm_cache_async(self) -> None:
@@ -241,6 +254,9 @@ class EnvironmentManager:
         environment checks. The caches will be populated in the background
         and subsequent calls to is_rez_available(), is_ws_available(), and
         detect_terminal() will return immediately from cache.
+
+        Sets _cache_warm_event when complete so is_ws_available() can avoid
+        blocking if called during warmup.
         """
         def _warm() -> None:
             try:
@@ -250,6 +266,9 @@ class EnvironmentManager:
                 logger.debug("Environment caches pre-warmed successfully")
             except Exception as e:
                 logger.warning(f"Error during cache pre-warming: {e}")
+            finally:
+                # Always signal completion so waiters don't block forever
+                self._cache_warm_event.set()
 
         thread = threading.Thread(target=_warm, daemon=True, name="EnvironmentCacheWarm")
         thread.start()

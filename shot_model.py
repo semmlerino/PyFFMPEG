@@ -245,26 +245,37 @@ class ShotModel(BaseShotModel):
         """Start loading shots in background without blocking UI.
 
         Thread-safe method that ensures only one background loader
-        is created at a time.
+        is created at a time. Uses phased locking to avoid blocking
+        while holding the mutex (prevents deadlocks).
         """
         self.logger.info(">>> _start_background_refresh() START")
+
+        # Phase 1: Check state and get old loader reference under lock
+        old_loader: AsyncShotLoader | None = None
         with QMutexLocker(self._loader_lock):
-            # Double-check inside the lock
             if self._loading_in_progress:
                 self.logger.warning("Background load already in progress - returning early")
                 return
+            # Capture old loader reference for cleanup outside lock
+            old_loader = self._async_loader
+            self._async_loader = None
 
-            # Clean up any existing loader first
-            if self._async_loader:
-                if self._async_loader.isRunning():
-                    self.logger.warning("Previous loader still running, stopping it")
-                    _ = self._async_loader.request_stop()
-                    _ = self._async_loader.wait(1000)
-                self._async_loader.deleteLater()
-                self._async_loader = None
+        # Phase 2: Clean up old loader OUTSIDE lock (wait() can block for 1s)
+        if old_loader:
+            if old_loader.isRunning():
+                self.logger.warning("Previous loader still running, stopping it")
+                _ = old_loader.request_stop()
+                _ = old_loader.wait(1000)
+            old_loader.deleteLater()
+
+        # Phase 3: Create and start new loader under lock
+        with QMutexLocker(self._loader_lock):
+            # Re-check after cleanup (another thread may have started)
+            if self._loading_in_progress:
+                self.logger.warning("Background load started by another thread - returning")
+                return
 
             self._loading_in_progress = True
-            self.background_load_started.emit()
 
             # Create and configure loader with proper parse function
             self._async_loader = AsyncShotLoader(
@@ -290,7 +301,10 @@ class ShotModel(BaseShotModel):
             self.logger.info("About to call AsyncShotLoader.start()...")
             self._async_loader.start()
             self.logger.info("AsyncShotLoader.start() called - background thread started")
-            self.logger.info("<<< _start_background_refresh() COMPLETE")
+
+        # Phase 4: Emit signal OUTSIDE lock (prevents deadlock if slot re-enters)
+        self.background_load_started.emit()
+        self.logger.info("<<< _start_background_refresh() COMPLETE")
 
     def _process_shot_merge(
         self,
@@ -555,22 +569,32 @@ class ShotModel(BaseShotModel):
         """Clean up resources with safe thread termination.
 
         Uses Qt's safe interruption mechanism instead of dangerous terminate().
+        Thread-safe: captures loader reference under lock, then does blocking
+        operations outside lock to prevent deadlocks.
         """
-        if self._async_loader:
-            if self._async_loader.isRunning():
+        # Phase 1: Atomically capture and clear loader reference under lock
+        loader: AsyncShotLoader | None = None
+        with QMutexLocker(self._loader_lock):
+            loader = self._async_loader
+            self._async_loader = None
+            self._loading_in_progress = False
+
+        # Phase 2: Clean up loader OUTSIDE lock (wait() can block for seconds)
+        if loader:
+            if loader.isRunning():
                 self.logger.info("Stopping background loader")
-                _ = self._async_loader.request_stop()  # Sets event and requests interruption
+                _ = loader.request_stop()  # Sets event and requests interruption
 
                 # Give thread 2 seconds to stop gracefully
-                if not self._async_loader.wait(2000):
+                if not loader.wait(2000):
                     self.logger.warning(
                         "Background loader did not stop gracefully within 2s"
                     )
                     # Use ThreadSafeWorker's safe_terminate method
-                    self._async_loader.safe_terminate()
+                    loader.safe_terminate()
 
                     # Wait up to 2 more seconds for safe termination
-                    if not self._async_loader.wait(2000):
+                    if not loader.wait(2000):
                         # As last resort, we accept the thread will be abandoned
                         # safe_terminate already avoids dangerous terminate()
                         self.logger.error(
@@ -579,8 +603,7 @@ class ShotModel(BaseShotModel):
                         # Mark it for deletion but don't force terminate
 
             # Clean up the loader object
-            self._async_loader.deleteLater()
-            self._async_loader = None
+            loader.deleteLater()
 
         # Note: parent ShotModel doesn't have cleanup method
 

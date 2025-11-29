@@ -303,9 +303,11 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         This is safe to call even if signals are being emitted.
         Thread-safe with mutex protection to prevent race with safe_connect().
         """
-        # Copy connections list under mutex protection
+        # Atomic copy-and-clear under single lock to prevent TOCTOU race
+        # (new connections added between copy and clear would be lost otherwise)
         with QMutexLocker(self._state_mutex):
             connections_to_disconnect = self._connections.copy()
+            self._connections.clear()
             connection_count = len(connections_to_disconnect)
 
         self.logger.debug(
@@ -323,10 +325,6 @@ class ThreadSafeWorker(LoggingMixin, QThread):
                 self.logger.debug(
                     f"Worker {id(self)}: Signal already disconnected: {e}"
                 )
-
-        # Clear the connections list under mutex protection
-        with QMutexLocker(self._state_mutex):
-            self._connections.clear()
 
     @Slot()  # type: ignore[reportAny]
     def run(self) -> None:

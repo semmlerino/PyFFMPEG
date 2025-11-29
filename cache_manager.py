@@ -810,11 +810,13 @@ class CacheManager(LoggingMixin, QObject):
             metadata: Optional metadata (ignored in simple implementation)
         """
         success = self._write_json_cache(self.threede_cache_file, scenes)
-        if not success:
+        if success:
+            self.cache_updated.emit()
+        else:
             self.logger.warning(
                 "Failed to write 3DE scenes cache - data may not persist across restarts"
             )
-        self.cache_updated.emit()
+            self.cache_write_failed.emit("threede_scenes")
 
     def merge_scenes_incremental(
         self,
@@ -1100,10 +1102,11 @@ class CacheManager(LoggingMixin, QObject):
 
             # Validate structure through runtime checks and type narrowing
             if isinstance(raw_data, list):
-                # Direct list format - validate it's a list of dicts
-                if raw_data and not isinstance(raw_data[0], dict):
+                # Direct list format - validate ALL elements are dicts (not just first)
+                # Uses generator for early exit on first non-dict
+                if raw_data and not all(isinstance(item, dict) for item in raw_data):
                     self.logger.warning(
-                        f"Invalid cache format: expected list of dicts, got list of {type(raw_data[0])}"
+                        f"Invalid cache format: expected list of dicts in {cache_file}"
                     )
                     return None
                 return cast("list[ShotDict | ThreeDESceneDict]", raw_data)
@@ -1118,10 +1121,10 @@ class CacheManager(LoggingMixin, QObject):
                     result = raw_data.get("scenes", [])
 
                 if isinstance(result, list):
-                    # Validate it's a list of dicts
-                    if result and not isinstance(result[0], dict):
+                    # Validate ALL elements are dicts (not just first)
+                    if result and not all(isinstance(item, dict) for item in result):
                         self.logger.warning(
-                            f"Invalid cache format: expected list of dicts, got list of {type(result[0])}"
+                            f"Invalid cache format: expected list of dicts in {cache_file}"
                         )
                         return None
                     return cast("list[ShotDict | ThreeDESceneDict]", result)
@@ -1164,7 +1167,8 @@ class CacheManager(LoggingMixin, QObject):
             try:
                 with os.fdopen(fd, "w", encoding="utf-8") as f:
                     json.dump(cache_data, f)  # No indent for 25-30% faster serialization
-                    f.flush()  # Flush to OS buffer (atomic rename ensures readers see complete data)
+                    f.flush()  # Flush Python buffers to OS
+                    os.fsync(f.fileno())  # Ensure data is on disk before rename
 
                 # Atomic rename (POSIX guarantees atomicity on same filesystem)
                 _ = Path(temp_path).replace(cache_file)
