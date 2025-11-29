@@ -1119,6 +1119,7 @@ class SignalDouble:
 # MIGRATION NOTE: Import directly from tests.fixtures.test_doubles instead
 from tests.fixtures.test_doubles import TestProcessPool
 
+
 __all__ = ["TestProcessPool"]  # Explicit re-export for this module
 
 

@@ -83,7 +83,6 @@ class SingletonMixin:
                 if cls._instance is not None:
                     cls._instance.shutdown()
         """
-        pass
 
     @classmethod
     def reset(cls) -> None:

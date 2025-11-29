@@ -6,6 +6,7 @@ proper cleanup and prevent memory leaks from untracked thread pool tasks.
 """
 # Standard library imports
 import logging
+import threading
 import weakref
 from collections.abc import Mapping
 from typing import final
@@ -37,6 +38,9 @@ class QRunnableTracker(SingletonMixin):
 
         super().__init__()
 
+        # Thread safety lock for all mutable state (use RLock for consistency with SingletonMixin)
+        self._data_lock = threading.Lock()
+
         self._active_runnables: weakref.WeakSet[QRunnable] = weakref.WeakSet()
         self._runnable_metadata: weakref.WeakKeyDictionary[
             QRunnable, dict[str, object]
@@ -56,61 +60,76 @@ class QRunnableTracker(SingletonMixin):
         """
         Register a QRunnable for tracking.
 
+        Thread-safe: Protected by internal lock.
+
         Args:
             runnable: The QRunnable instance to track
             metadata: Optional metadata about the runnable (e.g., type, source, timestamp)
         """
-        self._active_runnables.add(runnable)
-        if metadata:
-            self._runnable_metadata[runnable] = dict(metadata)
+        with self._data_lock:
+            self._active_runnables.add(runnable)
+            if metadata:
+                self._runnable_metadata[runnable] = dict(metadata)
 
-        self._stats["total_registered"] += 1
-        current_active = len(self._active_runnables)
-        self._stats["peak_concurrent"] = max(self._stats["peak_concurrent"], current_active)
+            self._stats["total_registered"] += 1
+            current_active = len(self._active_runnables)
+            self._stats["peak_concurrent"] = max(
+                self._stats["peak_concurrent"], current_active
+            )
+            total_registered = self._stats["total_registered"]
 
         logger.debug(
             f"Registered {runnable.__class__.__name__} "
-             f"(active: {current_active}, total: {self._stats['total_registered']})"
+            f"(active: {current_active}, total: {total_registered})"
         )
 
     def unregister(self, runnable: QRunnable) -> None:
         """
         Unregister a completed QRunnable.
 
+        Thread-safe: Protected by internal lock.
+
         Args:
             runnable: The QRunnable instance to unregister
         """
         try:
-            self._active_runnables.discard(runnable)
-            if runnable in self._runnable_metadata:
-                del self._runnable_metadata[runnable]
-            self._stats["total_completed"] += 1
+            with self._data_lock:
+                self._active_runnables.discard(runnable)
+                if runnable in self._runnable_metadata:
+                    del self._runnable_metadata[runnable]
+                self._stats["total_completed"] += 1
+                active_count = len(self._active_runnables)
 
             logger.debug(
                 f"Unregistered {runnable.__class__.__name__} "
-                 f"(active: {len(self._active_runnables)})"
+                f"(active: {active_count})"
             )
         except Exception as e:
             logger.warning(f"Error unregistering runnable: {e}")
 
     def get_active_count(self) -> int:
-        """Get the number of currently active runnables."""
-        return len(self._active_runnables)
+        """Get the number of currently active runnables. Thread-safe."""
+        with self._data_lock:
+            return len(self._active_runnables)
 
     def get_active_runnables(self) -> list[QRunnable]:
-        """Get a list of currently active runnables."""
-        return list(self._active_runnables)
+        """Get a list of currently active runnables. Thread-safe."""
+        with self._data_lock:
+            return list(self._active_runnables)
 
     def get_stats(self) -> dict[str, int]:
-        """Get tracking statistics."""
-        return {
-            **self._stats,
-            "current_active": len(self._active_runnables),
-        }
+        """Get tracking statistics. Thread-safe."""
+        with self._data_lock:
+            return {
+                **self._stats,
+                "current_active": len(self._active_runnables),
+            }
 
     def wait_for_all(self, timeout_ms: int = 30000) -> bool:
         """
         Wait for all active runnables to complete.
+
+        Thread-safe: Uses lock only for checking active count, not during sleep.
 
         Args:
             timeout_ms: Maximum time to wait in milliseconds
@@ -124,40 +143,56 @@ class QRunnableTracker(SingletonMixin):
         start_time = time.time()
         timeout_sec = timeout_ms / 1000.0
 
-        while self._active_runnables:
-            if time.time() - start_time > timeout_sec:
+        while True:
+            # Check active count under lock
+            with self._data_lock:
                 active_count = len(self._active_runnables)
+                if active_count == 0:
+                    return True
+
+            # Check timeout outside lock
+            if time.time() - start_time > timeout_sec:
                 logger.warning(
                     f"Timeout waiting for {active_count} runnables to complete"
                 )
                 return False
-            time.sleep(0.1)
 
-        return True
+            # Sleep outside lock to allow other threads to make progress
+            time.sleep(0.1)
 
     def cleanup_all(self) -> None:
         """
         Clean up all tracked resources.
 
+        Thread-safe: Uses lock for state access, waits for thread pool outside lock.
+
         This should be called during application shutdown to ensure
         proper cleanup of any remaining runnables.
         """
-        active_count = len(self._active_runnables)
+        # Check active count under lock
+        with self._data_lock:
+            active_count = len(self._active_runnables)
+
         if active_count > 0:
             logger.info(f"Cleaning up {active_count} active runnables")
 
-            # Wait for thread pool to finish
+            # Wait for thread pool to finish (outside lock - blocking operation)
             _ = QThreadPool.globalInstance().waitForDone(5000)
 
-            # Clear tracking data
-            self._active_runnables.clear()
-            self._runnable_metadata.clear()
+            # Clear tracking data under lock
+            with self._data_lock:
+                self._active_runnables.clear()
+                self._runnable_metadata.clear()
+
+        # Get final stats under lock
+        with self._data_lock:
+            stats = dict(self._stats)
 
         logger.info(
             "QRunnableTracker cleanup complete - "
-             f"Total: {self._stats['total_registered']}, "
-             f"Completed: {self._stats['total_completed']}, "
-             f"Peak concurrent: {self._stats['peak_concurrent']}"
+            f"Total: {stats['total_registered']}, "
+            f"Completed: {stats['total_completed']}, "
+            f"Peak concurrent: {stats['peak_concurrent']}"
         )
 
     @classmethod

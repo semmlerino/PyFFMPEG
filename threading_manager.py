@@ -367,15 +367,19 @@ class ThreadingManager(QObject):
             worker.deleteLater()
 
         # Phase 3: Force-cleanup any zombie workers from previous operations
-        if self._zombie_workers:
-            logger.info(f"Cleaning up {len(self._zombie_workers)} zombie worker(s)")
-            for zombie in self._zombie_workers:
+        # Grab zombie list under lock, then clean up outside
+        with QMutexLocker(self._mutex):
+            zombies_to_cleanup = list(self._zombie_workers)
+            self._zombie_workers.clear()
+
+        if zombies_to_cleanup:
+            logger.info(f"Cleaning up {len(zombies_to_cleanup)} zombie worker(s)")
+            for zombie in zombies_to_cleanup:
                 if zombie.isRunning():
                     logger.warning("Force-terminating zombie worker")
                     zombie.terminate()
                     _ = zombie.wait(1000)  # Brief wait after terminate
                 zombie.deleteLater()
-            self._zombie_workers.clear()
 
         logger.info("All worker threads shutdown complete")
 
@@ -441,7 +445,9 @@ class ThreadingManager(QObject):
 
             if not worker.wait(2000):
                 logger.warning(f"Worker {name} did not stop gracefully - tracking as zombie")
-                self._zombie_workers.append(worker)
+                # Protect zombie list access with mutex
+                with QMutexLocker(self._mutex):
+                    self._zombie_workers.append(worker)
 
         # Schedule for deletion (safe even if still running - Qt handles it)
         worker.deleteLater()

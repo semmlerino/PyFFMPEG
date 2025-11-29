@@ -90,7 +90,6 @@ from cache_manager import CacheManager  # Need at runtime for instantiation
 from cleanup_manager import CleanupManager  # Extracted cleanup logic
 from command_launcher import CommandLauncher  # Need at runtime
 from config import Config
-from design_system import design_system
 from controllers.launcher_controller import (
     LauncherController,  # Refactored launcher management
 )
@@ -100,6 +99,7 @@ from controllers.settings_controller import (
 from controllers.threede_controller import (
     ThreeDEController,  # Refactored 3DE scene management
 )
+from design_system import design_system
 from launcher_manager import LauncherManager  # Need at runtime
 from log_viewer import LogViewer
 from logging_mixin import LoggingMixin, get_module_logger

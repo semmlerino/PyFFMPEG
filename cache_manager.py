@@ -44,6 +44,7 @@ import json
 import os
 import shutil
 import tempfile
+from collections import OrderedDict
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar, NamedTuple, Protocol, TypeAlias, cast, final
@@ -79,6 +80,7 @@ DEFAULT_TTL_MINUTES = 30
 THUMBNAIL_SIZE = 256
 THUMBNAIL_QUALITY = 85
 STAT_CACHE_TTL = 2.0  # Cache stat results for 2 seconds to reduce filesystem I/O
+STAT_CACHE_MAX_SIZE = 1000  # Maximum entries in stat cache (LRU eviction)
 
 
 # Incremental merging support
@@ -212,8 +214,8 @@ class CacheManager(LoggingMixin, QObject):
         # Thread safety
         self._lock = QMutex()
 
-        # Stat result cache: {path_str: (size, mtime, cache_time)}
-        self._stat_cache: dict[str, tuple[int, float, float]] = {}
+        # Stat result cache with LRU eviction: {path_str: (size, mtime, cache_time)}
+        self._stat_cache: OrderedDict[str, tuple[int, float, float]] = OrderedDict()
 
         # Setup cache directory
         if cache_dir is None:
@@ -279,6 +281,9 @@ class CacheManager(LoggingMixin, QObject):
     def _get_file_stat_cached(self, path: Path) -> tuple[int, float] | None:
         """Get file size and mtime with caching to reduce filesystem I/O.
 
+        Uses LRU eviction to prevent unbounded memory growth. Cache is limited
+        to STAT_CACHE_MAX_SIZE entries, evicting oldest when full.
+
         Args:
             path: File path to stat
 
@@ -296,6 +301,8 @@ class CacheManager(LoggingMixin, QObject):
                 size, mtime, cache_time = self._stat_cache[path_str]
                 # Return cached result if still valid
                 if current_time - cache_time < STAT_CACHE_TTL:
+                    # Move to end (mark as recently used for LRU)
+                    self._stat_cache.move_to_end(path_str)
                     return (size, mtime)
                 # Expired - will re-stat below
                 del self._stat_cache[path_str]
@@ -306,8 +313,12 @@ class CacheManager(LoggingMixin, QObject):
             size = stat_result.st_size
             mtime = stat_result.st_mtime
 
-            # Cache the result (inside lock for thread safety)
+            # Cache the result with LRU eviction (inside lock for thread safety)
             with QMutexLocker(self._lock):
+                # Evict oldest entries if cache is full
+                while len(self._stat_cache) >= STAT_CACHE_MAX_SIZE:
+                    _ = self._stat_cache.popitem(last=False)  # Remove oldest (first)
+
                 self._stat_cache[path_str] = (size, mtime, current_time)
 
             return (size, mtime)
@@ -613,6 +624,7 @@ class CacheManager(LoggingMixin, QObject):
         """Move removed shots to Previous Shots migration cache.
 
         Merges with existing migrated shots (deduplicates by composite key).
+        Lock protects the read-merge-write cycle for thread safety.
 
         Args:
             shots: List of Shot objects or ShotDicts to migrate
@@ -623,18 +635,20 @@ class CacheManager(LoggingMixin, QObject):
 
         Design:
             Uses (show, sequence, shot) composite key for consistent deduplication.
+            Lock protects read-merge-write cycle; input conversion is outside lock.
         """
         if not shots:
             return True  # No-op is success
 
+        # Phase 1: Convert input to dicts (outside lock - pure memory, no shared state)
+        to_migrate = [_shot_to_dict(s) for s in shots]
+
+        # Phase 2-4: Read, merge, write under lock for thread safety
         with QMutexLocker(self._lock):
-            # Load existing migrated shots
+            # Read existing shots
             existing = self.get_migrated_shots() or []
 
-            # Convert to dicts using helper
-            to_migrate = [_shot_to_dict(s) for s in shots]
-
-            # Merge and deduplicate using composite key
+            # Merge and deduplicate
             shots_by_key: dict[tuple[str, str, str], ShotDict] = {}
 
             # Add existing first
@@ -649,24 +663,25 @@ class CacheManager(LoggingMixin, QObject):
 
             merged = list(shots_by_key.values())
 
-            # Write atomically (check return value for success)
+            # Write atomically (inside lock to prevent concurrent write races)
             write_success = self._write_json_cache(
                 self.migrated_shots_cache_file, merged
             )
 
-            if write_success:
-                self.logger.info(
-                    f"Migrated {len(to_migrate)} shots to Previous (total: {len(merged)} after dedup)"
-                )
-                # Emit specific signal (NOT generic cache_updated)
-                self.shots_migrated.emit(to_migrate)
-            else:
-                self.logger.error(
-                    f"Failed to persist {len(to_migrate)} migrated shots to disk. Migration will be lost on restart."
-                )
-                self.cache_write_failed.emit("migrated_shots")
+        # Phase 5: Log and emit signals (outside lock - no shared state mutation)
+        if write_success:
+            self.logger.info(
+                f"Migrated {len(to_migrate)} shots to Previous (total: {len(merged)} after dedup)"
+            )
+            # Emit specific signal (NOT generic cache_updated)
+            self.shots_migrated.emit(to_migrate)
+        else:
+            self.logger.error(
+                f"Failed to persist {len(to_migrate)} migrated shots to disk. Migration will be lost on restart."
+            )
+            self.cache_write_failed.emit("migrated_shots")
 
-            return write_success
+        return write_success
 
     def get_cached_previous_shots(self) -> list[ShotDict] | None:
         """Get cached previous/approved shot list if valid.
