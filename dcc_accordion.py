@@ -68,7 +68,7 @@ class DCCAccordion(QtWidgetMixin, QWidget):
         """Set up the accordion UI."""
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(4)
+        layout.setSpacing(12)
 
         # Create a section for each DCC
         for config in self._configs:

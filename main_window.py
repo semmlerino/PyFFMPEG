@@ -90,6 +90,7 @@ from cache_manager import CacheManager  # Need at runtime for instantiation
 from cleanup_manager import CleanupManager  # Extracted cleanup logic
 from command_launcher import CommandLauncher  # Need at runtime
 from config import Config
+from design_system import design_system
 from controllers.launcher_controller import (
     LauncherController,  # Refactored launcher management
 )
@@ -320,6 +321,10 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         # Initialize settings manager
         self.settings_manager = SettingsManager()
+
+        # Restore UI scale from settings
+        saved_scale = self.settings_manager.get_ui_scale()
+        design_system.set_ui_scale(saved_scale)
 
         # Store reference to settings dialog
         self._settings_dialog: SettingsDialog | None = None

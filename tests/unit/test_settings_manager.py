@@ -698,3 +698,69 @@ class TestSortOrderSettings:
         # Values should persist
         assert manager2.get_sort_order("threede_scenes") == "name"
         assert manager2.get_sort_order("previous_shots") == "name"
+
+
+class TestUIScaleSettings:
+    """Tests for UI scale settings persistence and validation."""
+
+    @pytest.fixture
+    def settings_manager(
+        self, tmp_path: Path, make_settings_manager: Callable[[Path, str, str], SettingsManager]
+    ) -> SettingsManager:
+        """Create settings manager with temporary storage."""
+        return make_settings_manager(tmp_path)
+
+    def test_get_ui_scale_default(self, settings_manager: SettingsManager) -> None:
+        """Test that default UI scale is 1.0 (100%)."""
+        assert settings_manager.get_ui_scale() == 1.0
+
+    def test_set_ui_scale_valid(self, settings_manager: SettingsManager) -> None:
+        """Test setting a valid UI scale value."""
+        settings_manager.set_ui_scale(1.2)
+        assert settings_manager.get_ui_scale() == 1.2
+
+    def test_set_ui_scale_clamps_minimum(self, settings_manager: SettingsManager) -> None:
+        """Test that UI scale is clamped to minimum 0.8."""
+        settings_manager.set_ui_scale(0.5)
+        assert settings_manager.get_ui_scale() == 0.8
+
+    def test_set_ui_scale_clamps_maximum(self, settings_manager: SettingsManager) -> None:
+        """Test that UI scale is clamped to maximum 1.5."""
+        settings_manager.set_ui_scale(2.0)
+        assert settings_manager.get_ui_scale() == 1.5
+
+    def test_set_ui_scale_boundary_minimum(self, settings_manager: SettingsManager) -> None:
+        """Test setting UI scale at minimum boundary."""
+        settings_manager.set_ui_scale(0.8)
+        assert settings_manager.get_ui_scale() == 0.8
+
+    def test_set_ui_scale_boundary_maximum(self, settings_manager: SettingsManager) -> None:
+        """Test setting UI scale at maximum boundary."""
+        settings_manager.set_ui_scale(1.5)
+        assert settings_manager.get_ui_scale() == 1.5
+
+    def test_set_ui_scale_emits_signal(
+        self, settings_manager: SettingsManager, qtbot: QtBot
+    ) -> None:
+        """Test that setting UI scale emits settings_changed signal."""
+        with qtbot.waitSignal(settings_manager.settings_changed, timeout=1000) as blocker:
+            settings_manager.set_ui_scale(1.3)
+
+        assert blocker.args == ["ui/ui_scale", 1.3]
+
+    def test_ui_scale_persistence_across_instances(self, tmp_path: Path) -> None:
+        """Test that UI scale persists across SettingsManager instances."""
+        QSettings.setPath(
+            QSettings.Format.IniFormat, QSettings.Scope.UserScope, str(tmp_path)
+        )
+
+        # Create first instance and set UI scale
+        manager1 = SettingsManager(organization="TestOrg", application="UIScaleTest")
+        manager1.set_ui_scale(1.25)
+        manager1.settings.sync()
+
+        # Create second instance (same org/app)
+        manager2 = SettingsManager(organization="TestOrg", application="UIScaleTest")
+
+        # Value should persist
+        assert manager2.get_ui_scale() == 1.25
