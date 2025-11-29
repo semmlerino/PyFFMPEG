@@ -1,5 +1,5 @@
-Post-commit hook executed at Sat Nov 29 13:12:03 GMT 2025
-Commit: 7565f2e2ea47fc537b0f3af559a3839c5b734b2b
+Post-commit hook executed at Sat Nov 29 14:13:39 GMT 2025
+Commit: ab8e1024afba2b0e4a408f652159a97696dd9d23
 Branch: master
 Author: GabrielH <gabrhas@gmail.com>
-Message: feat: Harden testing infrastructure with strict subprocess mode and isolation
+Message: feat: Add double-click file opening and context menu to DCC sections
