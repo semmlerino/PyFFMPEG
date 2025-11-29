@@ -85,7 +85,7 @@ class QuickLaunchBar(QtWidgetMixin, QWidget):
 
         # Label
         label = QLabel("Quick:")
-        label.setStyleSheet("color: #888; font-size: 11px;")
+        label.setStyleSheet("color: #888; font-size: 13px;")
         layout.addWidget(label)
 
         # Create pill buttons
@@ -119,7 +119,7 @@ class QuickLaunchBar(QtWidgetMixin, QWidget):
                 border-left: 3px solid {config.color};
                 border-radius: 4px;
                 padding: 4px 12px;
-                font-size: 11px;
+                font-size: 13px;
                 font-weight: bold;
                 color: #ddd;
             }}

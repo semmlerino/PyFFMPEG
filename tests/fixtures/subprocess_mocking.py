@@ -52,23 +52,25 @@ import pytest
 # When strict mode is enabled, unexpected subprocess calls raise AssertionError
 # Tests can use subprocess_mock fixture or @pytest.mark.permissive_subprocess to opt out
 
-# Flag to track if strict mode is disabled for current test
-_PERMISSIVE_MODE = False
+# Module-level state container (avoids global statement)
+class _SubprocessMockState:
+    """Container for subprocess mock state flags."""
 
-# Flag to track if subprocess_mock fixture is active (provides controlled behavior)
-_SUBPROCESS_MOCK_ACTIVE = False
+    permissive_mode: bool = False
+    subprocess_mock_active: bool = False
+
+
+_state = _SubprocessMockState()
 
 
 def _set_permissive_mode(enabled: bool) -> None:
     """Set permissive mode for current test."""
-    global _PERMISSIVE_MODE
-    _PERMISSIVE_MODE = enabled
+    _state.permissive_mode = enabled
 
 
 def _set_subprocess_mock_active(active: bool) -> None:
     """Set subprocess_mock fixture state for current test."""
-    global _SUBPROCESS_MOCK_ACTIVE
-    _SUBPROCESS_MOCK_ACTIVE = active
+    _state.subprocess_mock_active = active
 
 
 def _format_cmd(cmd: object) -> str:
@@ -209,7 +211,7 @@ def mock_subprocess_popen(
 
         # STRICT MODE: Fail on unexpected subprocess calls
         # Unless: permissive mode enabled OR subprocess_mock fixture is active
-        if not _PERMISSIVE_MODE and not _SUBPROCESS_MOCK_ACTIVE:
+        if not _state.permissive_mode and not _state.subprocess_mock_active:
             raise AssertionError(
                 f"Unexpected subprocess command: {cmd_str}\n\n"
                 f"STRICT MODE is enabled by default. To handle subprocess calls:\n"

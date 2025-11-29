@@ -44,6 +44,7 @@ class CacheManager(QObject):
 
     # Signals
     cache_updated: Signal
+    cache_write_failed: Signal
     shots_migrated: Signal
 
     # Thread safety
@@ -111,7 +112,7 @@ class CacheManager(QObject):
         fresh: Sequence[Shot | ShotDict],
     ) -> ShotMergeResult: ...
     def get_migrated_shots(self) -> list[ShotDict] | None: ...
-    def migrate_shots_to_previous(self, shots: Sequence[Shot | ShotDict]) -> None: ...
+    def migrate_shots_to_previous(self, shots: Sequence[Shot | ShotDict]) -> bool: ...
     def cache_previous_shots(
         self, shots: Sequence[Shot] | Sequence[ShotDict]
     ) -> None: ...

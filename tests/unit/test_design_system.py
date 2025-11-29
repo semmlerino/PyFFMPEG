@@ -138,13 +138,13 @@ class TestTypography:
     def test_font_sizes_hierarchy(self) -> None:
         """Test font sizes follow proper hierarchy."""
         typo = Typography()
-        assert typo.size_h1 == 24
-        assert typo.size_h2 == 20
-        assert typo.size_h3 == 18
-        assert typo.size_h4 == 16
-        assert typo.size_body == 14
-        assert typo.size_small == 12
-        assert typo.size_tiny == 11
+        assert typo.size_h1 == 26
+        assert typo.size_h2 == 22
+        assert typo.size_h3 == 20
+        assert typo.size_h4 == 18
+        assert typo.size_body == 16
+        assert typo.size_small == 14
+        assert typo.size_tiny == 13
 
         # Verify hierarchy
         assert typo.size_h1 > typo.size_h2 > typo.size_h3 > typo.size_h4
@@ -610,9 +610,9 @@ def test_color_values_parametrized(color_field: str, expected: str) -> None:
 @pytest.mark.parametrize(
     ("size_field", "min_value", "max_value"),
     [
-        ("size_h1", 20, 30),
-        ("size_body", 12, 16),
-        ("size_tiny", 9, 12),
+        ("size_h1", 22, 32),
+        ("size_body", 14, 20),
+        ("size_tiny", 11, 16),
     ],
 )
 def test_font_sizes_in_range(size_field: str, min_value: int, max_value: int) -> None:

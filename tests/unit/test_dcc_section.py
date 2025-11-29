@@ -456,3 +456,473 @@ class TestDCCSectionEnableDisable:
 
         # Should be re-enabled
         assert section._launch_btn.isEnabled()
+
+
+class TestDCCSectionEmbeddedFiles:
+    """Tests for embedded files sub-section functionality."""
+
+    @pytest.fixture
+    def config_with_files(self) -> DCCConfig:
+        """Create config with embedded files section enabled."""
+        from scene_file import FileType
+
+        return DCCConfig(
+            name="test_dcc",
+            display_name="Test DCC",
+            color="#333333",
+            shortcut="T",
+            has_files_section=True,
+            file_type=FileType.THREEDE,
+        )
+
+    @pytest.fixture
+    def config_without_files(self) -> DCCConfig:
+        """Create config with embedded files section disabled."""
+        return DCCConfig(
+            name="test_dcc",
+            display_name="Test DCC",
+            color="#333333",
+            shortcut="T",
+            has_files_section=False,
+            file_type=None,
+        )
+
+    @pytest.fixture
+    def sample_scene_files(self) -> list:
+        """Create sample scene files for testing."""
+        from datetime import datetime
+        from pathlib import Path
+
+        from scene_file import FileType, SceneFile
+
+        now = datetime.now()  # noqa: DTZ005 - Match production code's naive datetime
+        return [
+            SceneFile(
+                path=Path("/path/to/scene_v005.3de"),
+                file_type=FileType.THREEDE,
+                modified_time=now,
+                user="artist1",
+                version=5,
+            ),
+            SceneFile(
+                path=Path("/path/to/scene_v003.3de"),
+                file_type=FileType.THREEDE,
+                modified_time=now,
+                user="artist2",
+                version=3,
+            ),
+        ]
+
+    def test_files_section_created_when_configured(
+        self, qtbot: QtBot, config_with_files: DCCConfig
+    ) -> None:
+        """Files sub-section created when has_files_section is True."""
+        section = DCCSection(config_with_files)
+        qtbot.addWidget(section)
+
+        assert section._files_section is not None
+        assert section._file_table is not None
+
+    def test_no_files_section_when_disabled(
+        self, qtbot: QtBot, config_without_files: DCCConfig
+    ) -> None:
+        """No files section when has_files_section is False."""
+        section = DCCSection(config_without_files)
+        qtbot.addWidget(section)
+
+        assert section._files_section is None
+        assert section._file_table is None
+
+    def test_set_files_populates_table(
+        self, qtbot: QtBot, config_with_files: DCCConfig, sample_scene_files: list
+    ) -> None:
+        """Setting files populates the file table."""
+        section = DCCSection(config_with_files)
+        qtbot.addWidget(section)
+
+        section.set_files(sample_scene_files)
+        process_qt_events()
+
+        assert section._file_model is not None
+        assert section._file_model.rowCount() == 2
+
+    def test_set_files_updates_header_count(
+        self, qtbot: QtBot, config_with_files: DCCConfig, sample_scene_files: list
+    ) -> None:
+        """Setting files updates the section header count."""
+        section = DCCSection(config_with_files)
+        qtbot.addWidget(section)
+        section.show()
+        process_qt_events()
+
+        section.set_files(sample_scene_files)
+        process_qt_events()
+
+        # Header button should show file count
+        assert section._files_header_btn is not None
+        header_text = section._files_header_btn.text()
+        assert "2" in header_text
+
+    def test_get_selected_file_returns_latest(
+        self, qtbot: QtBot, config_with_files: DCCConfig, sample_scene_files: list
+    ) -> None:
+        """get_selected_file returns the selected (latest) file."""
+        section = DCCSection(config_with_files)
+        qtbot.addWidget(section)
+
+        section.set_files(sample_scene_files)
+        process_qt_events()
+
+        selected = section.get_selected_file()
+        # First file in list (latest) should be selected by default
+        assert selected is not None
+        assert selected.version == 5
+
+    def test_get_selected_file_none_when_empty(
+        self, qtbot: QtBot, config_with_files: DCCConfig
+    ) -> None:
+        """get_selected_file returns None when no files."""
+        section = DCCSection(config_with_files)
+        qtbot.addWidget(section)
+
+        selected = section.get_selected_file()
+        assert selected is None
+
+    def test_file_selected_signal_emitted(
+        self, qtbot: QtBot, config_with_files: DCCConfig, sample_scene_files: list
+    ) -> None:
+        """file_selected signal emitted when file is clicked."""
+        section = DCCSection(config_with_files)
+        qtbot.addWidget(section)
+        section.set_expanded(True)
+        section.show()
+        process_qt_events()
+
+        section.set_files(sample_scene_files)
+        process_qt_events()
+
+        # Click the second row in the table
+        with qtbot.waitSignal(section.file_selected, timeout=1000):
+            index = section._file_model.index(1, 0)
+            section._file_table.clicked.emit(index)
+            process_qt_events()
+
+    def test_rv_section_has_no_files(self, qtbot: QtBot) -> None:
+        """RV section should not have embedded files."""
+        rv_config = get_default_config("rv")
+        assert rv_config is not None
+        section = DCCSection(rv_config)
+        qtbot.addWidget(section)
+
+        assert section._files_section is None
+
+    def test_default_configs_have_files_section(self, qtbot: QtBot) -> None:
+        """3DE, Maya, Nuke have files sections; RV does not."""
+        for config in DEFAULT_DCC_CONFIGS:
+            section = DCCSection(config)
+            qtbot.addWidget(section)
+
+            if config.name == "rv":
+                assert section._files_section is None
+            else:
+                assert section._files_section is not None
+
+
+class TestDCCSectionFileDoubleClick:
+    """Tests for double-click file opening functionality."""
+
+    @pytest.fixture
+    def config_with_files(self) -> DCCConfig:
+        """Create config with embedded files section enabled."""
+        from scene_file import FileType
+
+        return DCCConfig(
+            name="test_dcc",
+            display_name="Test DCC",
+            color="#333333",
+            shortcut="T",
+            has_files_section=True,
+            file_type=FileType.THREEDE,
+        )
+
+    @pytest.fixture
+    def sample_scene_files(self) -> list:
+        """Create sample scene files for testing."""
+        from datetime import datetime
+        from pathlib import Path
+
+        from scene_file import FileType, SceneFile
+
+        now = datetime.now()  # noqa: DTZ005 - Match production code's naive datetime
+        return [
+            SceneFile(
+                path=Path("/path/to/scene_v005.3de"),
+                file_type=FileType.THREEDE,
+                modified_time=now,
+                user="artist1",
+                version=5,
+            ),
+            SceneFile(
+                path=Path("/path/to/scene_v003.3de"),
+                file_type=FileType.THREEDE,
+                modified_time=now,
+                user="artist2",
+                version=3,
+            ),
+        ]
+
+    def test_double_click_emits_launch_requested(
+        self, qtbot: QtBot, config_with_files: DCCConfig, sample_scene_files: list
+    ) -> None:
+        """Double-clicking a file emits launch_requested signal."""
+        section = DCCSection(config_with_files)
+        qtbot.addWidget(section)
+        section.set_enabled(True)
+        section.set_expanded(True)
+        section.show()
+        process_qt_events()
+
+        section.set_files(sample_scene_files)
+        process_qt_events()
+
+        # Double-click the first row
+        with qtbot.waitSignal(section.launch_requested, timeout=1000) as blocker:
+            index = section._file_model.index(0, 0)
+            section._file_table.doubleClicked.emit(index)
+            process_qt_events()
+
+        app_name, _options = blocker.args
+        assert app_name == "test_dcc"
+
+    def test_double_click_emits_file_selected(
+        self, qtbot: QtBot, config_with_files: DCCConfig, sample_scene_files: list
+    ) -> None:
+        """Double-clicking a file also emits file_selected signal."""
+        section = DCCSection(config_with_files)
+        qtbot.addWidget(section)
+        section.set_enabled(True)
+        section.set_expanded(True)
+        section.show()
+        process_qt_events()
+
+        section.set_files(sample_scene_files)
+        process_qt_events()
+
+        # Double-click the second row
+        with qtbot.waitSignal(section.file_selected, timeout=1000) as blocker:
+            index = section._file_model.index(1, 0)
+            section._file_table.doubleClicked.emit(index)
+            process_qt_events()
+
+        selected_file = blocker.args[0]
+        assert selected_file.version == 3
+
+    def test_double_click_updates_selected_file(
+        self, qtbot: QtBot, config_with_files: DCCConfig, sample_scene_files: list
+    ) -> None:
+        """Double-clicking updates _current_selected_file."""
+        section = DCCSection(config_with_files)
+        qtbot.addWidget(section)
+        section.set_enabled(True)
+        section.set_expanded(True)
+        section.show()
+        process_qt_events()
+
+        section.set_files(sample_scene_files)
+        process_qt_events()
+
+        # Double-click the second row (v003)
+        index = section._file_model.index(1, 0)
+        section._file_table.doubleClicked.emit(index)
+        process_qt_events()
+
+        assert section._current_selected_file is not None
+        assert section._current_selected_file.version == 3
+
+    def test_double_click_invalid_index_does_nothing(
+        self, qtbot: QtBot, config_with_files: DCCConfig, sample_scene_files: list
+    ) -> None:
+        """Double-clicking invalid index does not emit signals."""
+        section = DCCSection(config_with_files)
+        qtbot.addWidget(section)
+        section.set_enabled(True)
+        section.set_expanded(True)
+        section.show()
+        process_qt_events()
+
+        section.set_files(sample_scene_files)
+        process_qt_events()
+
+        # Store initial state
+        initial_selected = section._current_selected_file
+
+        # Double-click invalid row index
+        from PySide6.QtCore import QModelIndex
+
+        invalid_index = QModelIndex()  # Invalid index
+        section._on_file_double_clicked(invalid_index)
+        process_qt_events()
+
+        # State should be unchanged
+        assert section._current_selected_file == initial_selected
+
+
+class TestDCCSectionFileContextMenu:
+    """Tests for file context menu functionality."""
+
+    @pytest.fixture
+    def config_with_files(self) -> DCCConfig:
+        """Create config with embedded files section enabled."""
+        from scene_file import FileType
+
+        return DCCConfig(
+            name="test_dcc",
+            display_name="Test DCC",
+            color="#333333",
+            shortcut="T",
+            has_files_section=True,
+            file_type=FileType.THREEDE,
+        )
+
+    @pytest.fixture
+    def sample_scene_files(self) -> list:
+        """Create sample scene files for testing."""
+        from datetime import datetime
+        from pathlib import Path
+
+        from scene_file import FileType, SceneFile
+
+        now = datetime.now()  # noqa: DTZ005 - Match production code's naive datetime
+        return [
+            SceneFile(
+                path=Path("/path/to/scene_v005.3de"),
+                file_type=FileType.THREEDE,
+                modified_time=now,
+                user="artist1",
+                version=5,
+            ),
+        ]
+
+    def test_context_menu_policy_set(
+        self, qtbot: QtBot, config_with_files: DCCConfig
+    ) -> None:
+        """File table has custom context menu policy."""
+        section = DCCSection(config_with_files)
+        qtbot.addWidget(section)
+
+        assert section._file_table.contextMenuPolicy() == Qt.ContextMenuPolicy.CustomContextMenu
+
+    def test_launch_file_emits_launch_requested(
+        self, qtbot: QtBot, config_with_files: DCCConfig, sample_scene_files: list
+    ) -> None:
+        """_launch_file method emits launch_requested signal."""
+        section = DCCSection(config_with_files)
+        qtbot.addWidget(section)
+        section.set_enabled(True)
+        section.show()
+        process_qt_events()
+
+        section.set_files(sample_scene_files)
+        process_qt_events()
+
+        file = sample_scene_files[0]
+
+        with qtbot.waitSignal(section.launch_requested, timeout=1000) as blocker:
+            section._launch_file(file)
+            process_qt_events()
+
+        app_name, _options = blocker.args
+        assert app_name == "test_dcc"
+
+    def test_launch_file_updates_selection(
+        self, qtbot: QtBot, config_with_files: DCCConfig, sample_scene_files: list
+    ) -> None:
+        """_launch_file updates selection state before launching."""
+        section = DCCSection(config_with_files)
+        qtbot.addWidget(section)
+        section.set_enabled(True)
+        section.show()
+        process_qt_events()
+
+        section.set_files(sample_scene_files)
+        process_qt_events()
+
+        file = sample_scene_files[0]
+        section._launch_file(file)
+        process_qt_events()
+
+        assert section._current_selected_file == file
+
+    def test_context_menu_on_invalid_index_does_nothing(
+        self, qtbot: QtBot, config_with_files: DCCConfig, sample_scene_files: list
+    ) -> None:
+        """Context menu request on empty area does nothing (no crash)."""
+        section = DCCSection(config_with_files)
+        qtbot.addWidget(section)
+        section.set_expanded(True)
+        section.show()
+        process_qt_events()
+
+        section.set_files(sample_scene_files)
+        process_qt_events()
+
+        # Request context menu at position that doesn't correspond to a row
+        from PySide6.QtCore import QPoint
+
+        # Use a point outside valid rows (large Y value)
+        invalid_pos = QPoint(10, 9999)
+        # This should not raise an exception
+        section._show_file_context_menu(invalid_pos)
+        process_qt_events()
+
+
+class TestDCCSectionFileCopyPath:
+    """Tests for copy file path functionality."""
+
+    @pytest.fixture
+    def config_with_files(self) -> DCCConfig:
+        """Create config with embedded files section enabled."""
+        from scene_file import FileType
+
+        return DCCConfig(
+            name="test_dcc",
+            display_name="Test DCC",
+            color="#333333",
+            shortcut="T",
+            has_files_section=True,
+            file_type=FileType.THREEDE,
+        )
+
+    @pytest.fixture
+    def sample_scene_file(self):
+        """Create a sample scene file for testing."""
+        from datetime import datetime
+        from pathlib import Path
+
+        from scene_file import FileType, SceneFile
+
+        now = datetime.now()  # noqa: DTZ005 - Match production code's naive datetime
+        return SceneFile(
+            path=Path("/path/to/scene_v005.3de"),
+            file_type=FileType.THREEDE,
+            modified_time=now,
+            user="artist1",
+            version=5,
+        )
+
+    def test_copy_file_path_sets_clipboard(
+        self, qtbot: QtBot, config_with_files: DCCConfig, sample_scene_file
+    ) -> None:
+        """_copy_file_path sets clipboard text to file path."""
+        from PySide6.QtWidgets import QApplication
+
+        section = DCCSection(config_with_files)
+        qtbot.addWidget(section)
+        section.show()
+        process_qt_events()
+
+        section._copy_file_path(sample_scene_file)
+        process_qt_events()
+
+        clipboard = QApplication.clipboard()
+        assert clipboard.text() == "/path/to/scene_v005.3de"

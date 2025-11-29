@@ -237,7 +237,9 @@ class TestCrossTabSynchronization:
 
         # Verify info panel shows the selected shot
         assert window.right_panel._current_shot == first_shot
-        assert first_shot.shot in window.right_panel._shot_header._shot_name_label.text()
+        # DCC sections should be enabled when shot is selected
+        for section in window.right_panel._dcc_accordion._sections.values():
+            assert section._launch_btn.isEnabled()
 
         # Tab 2: Switch to 3DE tab
         window.tab_widget.setCurrentIndex(1)  # Other 3DE scenes tab
@@ -273,7 +275,6 @@ class TestCrossTabSynchronization:
         assert current_shot is not None
         assert current_shot.shot == "0030"
         assert current_shot.sequence == "seq02"
-        assert "0030" in window.right_panel._shot_header._shot_name_label.text()
 
         # Tab 3: Switch to Previous Shots tab
         window.tab_widget.setCurrentIndex(2)  # Previous shots tab
@@ -296,7 +297,6 @@ class TestCrossTabSynchronization:
             second_shot = shots[1]
             window._on_shot_selected(second_shot)
             assert window.right_panel._current_shot == second_shot
-            assert second_shot.shot in window.right_panel._shot_header._shot_name_label.text()
         else:
             # Only one shot available, test deselect/reselect
             window._on_shot_selected(None)

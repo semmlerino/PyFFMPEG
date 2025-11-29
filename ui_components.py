@@ -193,7 +193,7 @@ class NotificationBanner(QFrame):
                 background: transparent;
                 border: none;
                 color: white;
-                font-size: 16px;
+                font-size: 20px;
             }
             QPushButton:hover {
                 background-color: rgba(255, 255, 255, 0.1);
@@ -252,7 +252,7 @@ class NotificationBanner(QFrame):
         """)
 
         self.icon_label.setText(icon)
-        self.icon_label.setStyleSheet("font-size: 18px; color: white;")
+        self.icon_label.setStyleSheet("font-size: 20px; color: white;")
 
         # Animate in
         parent_widget = self.parent()
@@ -416,7 +416,7 @@ class EmptyStateWidget(QWidget):
         # Icon
         icon_label = QLabel(icon)
         icon_label.setStyleSheet(f"""
-            font-size: 48px;
+            font-size: 50px;
             color: {design_system.colors.text_disabled};
         """)
         icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -505,7 +505,7 @@ class FloatingActionButton(QPushButton):
                 color: white;
                 border: none;
                 border-radius: 28px;
-                font-size: 24px;
+                font-size: 26px;
                 font-weight: {design_system.typography.weight_bold};
             }}
             QPushButton:hover {{

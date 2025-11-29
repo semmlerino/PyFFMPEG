@@ -144,9 +144,9 @@ class TestShotSelection:
         main_window = MainWindow(cache_manager=cache_manager)
         qtbot.addWidget(main_window)
 
-        # Initially quick launch buttons should be disabled
-        for btn in main_window.right_panel._quick_launch._buttons.values():
-            assert not btn.isEnabled()
+        # Initially DCC section launch buttons should be disabled
+        for section in main_window.right_panel._dcc_accordion._sections.values():
+            assert not section._launch_btn.isEnabled()
 
         # Create a test shot
         shows_root = Config.SHOWS_ROOT
@@ -155,9 +155,9 @@ class TestShotSelection:
         # Simulate shot selection
         main_window._on_shot_selected(shot)
 
-        # Now buttons should be enabled
-        for btn in main_window.right_panel._quick_launch._buttons.values():
-            assert btn.isEnabled()
+        # Now DCC section launch buttons should be enabled
+        for section in main_window.right_panel._dcc_accordion._sections.values():
+            assert section._launch_btn.isEnabled()
 
         # Right panel should be updated with the shot
         assert main_window.right_panel is not None
@@ -175,16 +175,16 @@ class TestShotSelection:
         shot = Shot("test_show", "seq01", "0010", f"{shows_root}/test/seq01/0010")
         main_window._on_shot_selected(shot)
 
-        # Verify buttons are enabled
-        for btn in main_window.right_panel._quick_launch._buttons.values():
-            assert btn.isEnabled()
+        # Verify DCC section launch buttons are enabled
+        for section in main_window.right_panel._dcc_accordion._sections.values():
+            assert section._launch_btn.isEnabled()
 
         # Deselect shot
         main_window._on_shot_selected(None)
 
-        # Buttons should be disabled again
-        for btn in main_window.right_panel._quick_launch._buttons.values():
-            assert not btn.isEnabled()
+        # DCC section launch buttons should be disabled again
+        for section in main_window.right_panel._dcc_accordion._sections.values():
+            assert not section._launch_btn.isEnabled()
 
 
 class TestShotRefresh:
@@ -313,9 +313,9 @@ class TestApplicationLaunching:
         # Select the shot
         main_window._on_shot_selected(shot)
 
-        # Verify buttons enabled (test behavior)
-        assert "nuke" in main_window.right_panel._quick_launch._buttons
-        assert main_window.right_panel._quick_launch._buttons["nuke"].isEnabled()
+        # Verify DCC section launch buttons enabled (test behavior)
+        assert "nuke" in main_window.right_panel._dcc_accordion._sections
+        assert main_window.right_panel._dcc_accordion._sections["nuke"]._launch_btn.isEnabled()
 
         # Test complete workflow - just verify the app launch doesn't crash
         # The subprocess call is already mocked by our autouse fixture (no real process spawned)
@@ -449,9 +449,9 @@ class TestMainWindowIntegration:
         # Select the shot
         main_window._on_shot_selected(shot)
 
-        # Verify buttons enabled (test behavior)
-        assert "nuke" in main_window.right_panel._quick_launch._buttons
-        assert main_window.right_panel._quick_launch._buttons["nuke"].isEnabled()
+        # Verify DCC section launch buttons enabled (test behavior)
+        assert "nuke" in main_window.right_panel._dcc_accordion._sections
+        assert main_window.right_panel._dcc_accordion._sections["nuke"]._launch_btn.isEnabled()
 
         # Test complete workflow - just verify the app launch doesn't crash
         # The subprocess call is already mocked by our autouse fixture (no real process spawned)

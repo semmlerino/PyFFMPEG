@@ -1,5 +1,5 @@
-Post-commit hook executed at Fri Nov 28 11:35:10 GMT 2025
-Commit: e682679c6b4a3fa5c5c414f848bd98963032fa96
+Post-commit hook executed at Sat Nov 29 13:12:03 GMT 2025
+Commit: 7565f2e2ea47fc537b0f3af559a3839c5b734b2b
 Branch: master
 Author: GabrielH <gabrhas@gmail.com>
-Message: refactor: Swap Maya and Nuke positions in DCC accordion
+Message: feat: Harden testing infrastructure with strict subprocess mode and isolation

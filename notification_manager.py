@@ -166,7 +166,7 @@ class ToastNotification(QFrame):
                 border: none;
                 color: white;
                 font-weight: bold;
-                font-size: 16px;
+                font-size: 20px;
             }
             QPushButton:hover {
                 background: rgba(255, 255, 255, 0.2);
@@ -213,7 +213,7 @@ class ToastNotification(QFrame):
         self.icon_label.setText(icon_char)
         self.icon_label.setStyleSheet("""
             color: white;
-            font-size: 18px;
+            font-size: 20px;
             font-weight: bold;
             text-align: center;
         """)

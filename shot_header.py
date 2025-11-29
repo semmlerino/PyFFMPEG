@@ -86,7 +86,7 @@ class ShotHeader(QtWidgetMixin, QWidget):
         # Row 1: Shot name (20px bold, cyan)
         self._shot_name_label = QLabel(self._empty_message)
         shot_font = QFont()
-        shot_font.setPointSize(20)
+        shot_font.setPointSize(22)
         shot_font.setWeight(QFont.Weight.Bold)
         self._shot_name_label.setFont(shot_font)
         self._shot_name_label.setStyleSheet("color: #14ffec;")
@@ -95,7 +95,7 @@ class ShotHeader(QtWidgetMixin, QWidget):
         # Row 2: Show | Sequence (12px, muted)
         self._show_sequence_label = QLabel("")
         show_font = QFont()
-        show_font.setPointSize(12)
+        show_font.setPointSize(14)
         self._show_sequence_label.setFont(show_font)
         self._show_sequence_label.setStyleSheet("color: #aaa;")
         main_layout.addWidget(self._show_sequence_label)
@@ -107,7 +107,7 @@ class ShotHeader(QtWidgetMixin, QWidget):
 
         self._path_label = QLabel("")
         path_font = QFont()
-        path_font.setPointSize(10)
+        path_font.setPointSize(12)
         self._path_label.setFont(path_font)
         self._path_label.setStyleSheet("color: #666;")
         self._path_label.setWordWrap(True)
@@ -120,7 +120,7 @@ class ShotHeader(QtWidgetMixin, QWidget):
             QToolButton {
                 background-color: transparent;
                 border: none;
-                font-size: 14px;
+                font-size: 16px;
                 padding: 2px;
             }
             QToolButton:hover {
@@ -147,7 +147,7 @@ class ShotHeader(QtWidgetMixin, QWidget):
             label.setStyleSheet(f"""
                 QLabel {{
                     color: {FILE_TYPE_COLORS[file_type]};
-                    font-size: 10px;
+                    font-size: 12px;
                     padding: 2px 6px;
                     background-color: #252525;
                     border-radius: 3px;

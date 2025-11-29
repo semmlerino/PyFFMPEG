@@ -189,6 +189,7 @@ class CacheManager(LoggingMixin, QObject):
 
     # Signals - maintain backward compatibility
     cache_updated = Signal()
+    cache_write_failed = Signal(str)  # Emitted with cache name when write fails
     shots_migrated = Signal(list)  # Emitted when shots migrate to Previous Shots
 
     # Track initialized cache directories to suppress duplicate logs
@@ -559,9 +560,11 @@ class CacheManager(LoggingMixin, QObject):
                 shot_dicts.append(shot.to_dict())
 
         success = self._write_json_cache(self.shots_cache_file, shot_dicts)
-        if not success:
+        if success:
+            self.cache_updated.emit()
+        else:
             self.logger.warning("Failed to write shots cache - data may not persist across restarts")
-        self.cache_updated.emit()
+            self.cache_write_failed.emit("shots")
 
     def get_persistent_shots(self) -> list[ShotDict] | None:
         """Get My Shots cache without TTL expiration.
@@ -585,7 +588,7 @@ class CacheManager(LoggingMixin, QObject):
         """
         return self._read_json_cache(self.migrated_shots_cache_file, check_ttl=False)
 
-    def migrate_shots_to_previous(self, shots: list[Shot | ShotDict]) -> None:
+    def migrate_shots_to_previous(self, shots: list[Shot | ShotDict]) -> bool:
         """Move removed shots to Previous Shots migration cache.
 
         Merges with existing migrated shots (deduplicates by composite key).
@@ -593,11 +596,15 @@ class CacheManager(LoggingMixin, QObject):
         Args:
             shots: List of Shot objects or ShotDicts to migrate
 
+        Returns:
+            True if migration was persisted successfully, False on write failure.
+            Returns True for empty input (no-op success).
+
         Design:
             Uses (show, sequence, shot) composite key for consistent deduplication.
         """
         if not shots:
-            return
+            return True  # No-op is success
 
         with QMutexLocker(self._lock):
             # Load existing migrated shots
@@ -636,6 +643,9 @@ class CacheManager(LoggingMixin, QObject):
                 self.logger.error(
                     f"Failed to persist {len(to_migrate)} migrated shots to disk. Migration will be lost on restart."
                 )
+                self.cache_write_failed.emit("migrated_shots")
+
+            return write_success
 
     def get_cached_previous_shots(self) -> list[ShotDict] | None:
         """Get cached previous/approved shot list if valid.
@@ -672,11 +682,13 @@ class CacheManager(LoggingMixin, QObject):
                 shot_dicts.append(shot.to_dict())
 
         success = self._write_json_cache(self.previous_shots_cache_file, shot_dicts)
-        if not success:
+        if success:
+            self.cache_updated.emit()
+        else:
             self.logger.warning(
                 "Failed to write previous shots cache - data may not persist across restarts"
             )
-        self.cache_updated.emit()
+            self.cache_write_failed.emit("previous_shots")
 
     def merge_shots_incremental(
         self,

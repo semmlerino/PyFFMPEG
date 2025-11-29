@@ -9,10 +9,28 @@ and extracts it to a specified directory.
 import argparse
 import base64
 import io
+import shutil
 import sys
 import tarfile
 from pathlib import Path
 from typing import cast
+
+
+def _cleanup_partial_extraction(output_dir: str, root_name: str | None) -> None:
+    """Clean up partial extraction on failure.
+
+    Args:
+        output_dir: Directory where extraction was attempted
+        root_name: Root folder name from the archive (if known)
+    """
+    if root_name:
+        partial_path = Path(output_dir) / root_name
+        if partial_path.exists():
+            try:
+                shutil.rmtree(partial_path)
+                print(f"Cleaned up partial extraction: {partial_path}")
+            except OSError as e:
+                print(f"Warning: Could not clean up partial extraction: {e}")
 
 
 def decode_bundle(encoded_file: str, output_dir: str | None = None, list_only: bool = False) -> bool:
@@ -82,23 +100,40 @@ def decode_bundle(encoded_file: str, output_dir: str | None = None, list_only: b
         print("Extracting archive...")
         tar_buffer = io.BytesIO(tar_data)
 
-        try:
-            with tarfile.open(fileobj=tar_buffer, mode="r:gz") as tar:
-                # List contents
-                members = tar.getmembers()
-                print(f"Found {len(members)} items in archive")
+        def _get_root_name(members: list[tarfile.TarInfo]) -> str | None:
+            """Get root folder name from archive members."""
+            if members:
+                first = members[0].name
+                return first.split("/")[0] if "/" in first else first
+            return None
 
-                if list_only:
-                    print("\nArchive contents:")
-                    for member in members:
-                        print(f"  {member.name}")
-                    return True
+        def _do_extraction(
+            tar: tarfile.TarFile, output_dir: str, list_only: bool
+        ) -> bool:
+            """Extract archive with cleanup on failure."""
+            members = tar.getmembers()
+            print(f"Found {len(members)} items in archive")
 
-                # Extract
-                print(f"Extracting to: {output_dir}")
+            if list_only:
+                print("\nArchive contents:")
+                for member in members:
+                    print(f"  {member.name}")
+                return True
+
+            root_name = _get_root_name(members)
+            print(f"Extracting to: {output_dir}")
+            try:
                 tar.extractall(path=output_dir)
                 print(f"✓ Successfully extracted to {output_dir}")
                 return True
+            except Exception as e:
+                print(f"ERROR: Extraction failed: {e}")
+                _cleanup_partial_extraction(output_dir, root_name)
+                return False
+
+        try:
+            with tarfile.open(fileobj=tar_buffer, mode="r:gz") as tar:
+                return _do_extraction(tar, output_dir, list_only)
 
         except tarfile.TarError as e:
             # Try without gzip compression
@@ -106,18 +141,7 @@ def decode_bundle(encoded_file: str, output_dir: str | None = None, list_only: b
             _ = tar_buffer.seek(0)
             try:
                 with tarfile.open(fileobj=tar_buffer, mode="r:") as tar:
-                    members = tar.getmembers()
-                    print(f"Found {len(members)} items in archive")
-
-                    if list_only:
-                        print("\nArchive contents:")
-                        for member in members:
-                            print(f"  {member.name}")
-                        return True
-
-                    tar.extractall(path=output_dir)
-                    print(f"✓ Successfully extracted to {output_dir}")
-                    return True
+                    return _do_extraction(tar, output_dir, list_only)
             except Exception as e2:
                 print(f"ERROR: Archive extraction failed: {e} / {e2}")
                 return False

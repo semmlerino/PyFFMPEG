@@ -21,6 +21,7 @@ from qt_widget_mixin import QtWidgetMixin
 
 
 if TYPE_CHECKING:
+    from scene_file import SceneFile
     from settings_manager import SettingsManager
     from shot_model import Shot
 
@@ -35,10 +36,12 @@ class DCCAccordion(QtWidgetMixin, QWidget):
     Attributes:
         launch_requested: Signal(str, dict) - app_name, options dict
         section_expanded: Signal(str, bool) - app_name, is_expanded
+        file_selected: Signal(str, object) - app_name, SceneFile
     """
 
     launch_requested = Signal(str, dict)  # app_name, options
     section_expanded = Signal(str, bool)  # app_name, is_expanded
+    file_selected = Signal(str, object)  # app_name, SceneFile
 
     def __init__(
         self,
@@ -75,6 +78,17 @@ class DCCAccordion(QtWidgetMixin, QWidget):
             # Forward signals
             _ = section.launch_requested.connect(self._on_section_launch)
             _ = section.expanded_changed.connect(self._on_section_expanded)
+
+            # Forward file_selected signal with app name
+            def make_file_handler(
+                name: str,
+            ) -> Callable[[SceneFile], None]:
+                def on_file_selected(f: SceneFile) -> None:
+                    self._on_section_file_selected(name, f)
+
+                return on_file_selected
+
+            _ = section.file_selected.connect(make_file_handler(config.name))
 
             # Restore expanded state from settings if available
             if self._settings_manager is not None:
@@ -119,6 +133,15 @@ class DCCAccordion(QtWidgetMixin, QWidget):
             is_expanded: Whether section is now expanded
         """
         self.section_expanded.emit(app_name, is_expanded)
+
+    def _on_section_file_selected(self, app_name: str, file: SceneFile) -> None:
+        """Handle file selection from a section.
+
+        Args:
+            app_name: Name of the app section
+            file: The selected SceneFile
+        """
+        self.file_selected.emit(app_name, file)
 
     def set_shot(self, shot: Shot | None) -> None:
         """Update for the selected shot.
@@ -257,4 +280,44 @@ class DCCAccordion(QtWidgetMixin, QWidget):
         section = self._sections.get(app_name)
         if section:
             return section.get_selected_plate()
+        return None
+
+    # ========== File Routing Methods ==========
+
+    def set_files_for_dcc(self, app_name: str, files: list[SceneFile]) -> None:
+        """Set files for a specific DCC section.
+
+        Args:
+            app_name: App name (e.g., "3de", "nuke", "maya")
+            files: List of scene files to display
+        """
+        section = self._sections.get(app_name)
+        if section:
+            section.set_files(files)
+
+    def set_default_file_for_dcc(
+        self, app_name: str, file: SceneFile | None
+    ) -> None:
+        """Set the default file indicator for a DCC section.
+
+        Args:
+            app_name: App name (e.g., "3de", "nuke", "maya")
+            file: The file to mark as default, or None to clear
+        """
+        section = self._sections.get(app_name)
+        if section:
+            section.set_default_file(file)
+
+    def get_selected_file(self, app_name: str) -> SceneFile | None:
+        """Get the selected file for a specific DCC.
+
+        Args:
+            app_name: App name (e.g., "3de", "nuke", "maya")
+
+        Returns:
+            Selected SceneFile or None
+        """
+        section = self._sections.get(app_name)
+        if section:
+            return section.get_selected_file()
         return None

@@ -528,11 +528,10 @@ class TestShotModelMergeErrorHandling:
             real_cache_manager, "merge_shots_incremental", return_value=mock_merge_result
         )
 
-        # Mock: Migration throws OSError (disk full, permissions, etc.)
+        # Mock: Migration returns False (disk full, permissions, etc.)
         mock_migrate = mocker.patch.object(
-            real_cache_manager, "migrate_shots_to_previous"
+            real_cache_manager, "migrate_shots_to_previous", return_value=False
         )
-        mock_migrate.side_effect = OSError("Disk full")
 
         # Action: Should complete despite migration failure
         result = real_shot_model._process_shot_merge(fresh_shots, "test")

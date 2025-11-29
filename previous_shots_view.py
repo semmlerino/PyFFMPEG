@@ -139,7 +139,7 @@ class PreviousShotsView(BaseGridView):
 
         # Status label
         self._status_label = QLabel("Approved Shots (Persistent Cache)")
-        self._status_label.setStyleSheet("font-weight: bold; font-size: 14px;")
+        self._status_label.setStyleSheet("font-weight: bold; font-size: 16px;")
         header_layout.addWidget(self._status_label)
 
         header_layout.addStretch()

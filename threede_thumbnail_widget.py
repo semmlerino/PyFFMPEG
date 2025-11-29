@@ -45,7 +45,7 @@ class ThreeDEThumbnailWidget(LoggingMixin, ThumbnailWidgetBase):
         self.shot_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.shot_label.setWordWrap(True)
         shot_font = self.shot_label.font()
-        shot_font.setPointSize(10)
+        shot_font.setPointSize(12)
         shot_font.setBold(True)
         self.shot_label.setFont(shot_font)
 
@@ -56,7 +56,7 @@ class ThreeDEThumbnailWidget(LoggingMixin, ThumbnailWidgetBase):
         self.user_label.setObjectName("user")
         self.user_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         user_font = self.user_label.font()
-        user_font.setPointSize(8)
+        user_font.setPointSize(10)
         self.user_label.setFont(user_font)
 
         self.content_layout.addWidget(self.user_label)
@@ -66,7 +66,7 @@ class ThreeDEThumbnailWidget(LoggingMixin, ThumbnailWidgetBase):
         self.plate_label.setObjectName("plate")
         self.plate_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         plate_font = self.plate_label.font()
-        plate_font.setPointSize(9)
+        plate_font.setPointSize(11)
         plate_font.setBold(True)
         self.plate_label.setFont(plate_font)
 

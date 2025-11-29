@@ -21,6 +21,10 @@ from typing import cast
 class FolderEncoder:
     """Handles folder encoding to base64 with optional chunking."""
 
+    # Maximum folder size to encode (MB). Prevents OOM on large folders.
+    # Base64 encoding adds ~33% overhead, so 100MB folder -> ~133MB in memory.
+    MAX_FOLDER_SIZE_MB: int = 100
+
     def __init__(self, chunk_size_kb: int = 0, verbose: bool = False) -> None:
         """Initialize the encoder.
 
@@ -32,6 +36,29 @@ class FolderEncoder:
         self.chunk_size_kb: int = chunk_size_kb
         self.verbose: bool = verbose
 
+    def _get_folder_size(self, folder_path: Path) -> int:
+        """Calculate total size of folder contents in bytes.
+
+        Args:
+            folder_path: Path to the folder
+
+        Returns:
+            Total size in bytes
+        """
+        total_size = 0
+        try:
+            for entry in folder_path.rglob("*"):
+                if entry.is_file():
+                    try:
+                        total_size += entry.stat().st_size
+                    except OSError:
+                        # Skip files we can't stat (permissions, broken symlinks)
+                        pass
+        except OSError:
+            # If we can't traverse, return 0 and let tar fail with a better error
+            pass
+        return total_size
+
     def encode_folder(self, folder_path: str) -> tuple[str, list[str]]:
         """Encode a folder to base64.
 
@@ -40,6 +67,10 @@ class FolderEncoder:
 
         Returns:
             Tuple of (full encoded string, list of chunks if chunking enabled)
+
+        Raises:
+            FileNotFoundError: If folder doesn't exist
+            ValueError: If path is not a directory or folder exceeds size limit
         """
         folder_path_obj = Path(folder_path)
         if not folder_path_obj.exists():
@@ -48,8 +79,18 @@ class FolderEncoder:
         if not folder_path_obj.is_dir():
             raise ValueError(f"Path is not a directory: {folder_path}")
 
+        # Check folder size before loading into memory
+        folder_size_bytes = self._get_folder_size(folder_path_obj)
+        folder_size_mb = folder_size_bytes / (1024 * 1024)
+        if folder_size_mb > self.MAX_FOLDER_SIZE_MB:
+            raise ValueError(
+                f"Folder too large to encode: {folder_size_mb:.1f}MB "
+                f"(max: {self.MAX_FOLDER_SIZE_MB}MB). "
+                f"Consider excluding large files or using a different transfer method."
+            )
+
         if self.verbose:
-            print(f"Encoding folder: {folder_path}", file=sys.stderr)
+            print(f"Encoding folder: {folder_path} ({folder_size_mb:.1f}MB)", file=sys.stderr)
 
         # Create tar archive in memory
         tar_buffer = io.BytesIO()

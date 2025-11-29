@@ -119,7 +119,7 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
         # Shot name (large, full width) - 24px bold
         self.shot_name_label: QLabel = QLabel("No Shot Selected")
         shot_font = QFont()
-        shot_font.setPointSize(20)
+        shot_font.setPointSize(22)
         shot_font.setWeight(QFont.Weight.Bold)
         self.shot_name_label.setFont(shot_font)
         self.shot_name_label.setStyleSheet("color: #14ffec;")
@@ -128,7 +128,7 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
         # Show | Sequence (smaller, muted) - 14px
         self.show_sequence_label: QLabel = QLabel("")
         show_font = QFont()
-        show_font.setPointSize(12)
+        show_font.setPointSize(14)
         self.show_sequence_label.setFont(show_font)
         self.show_sequence_label.setStyleSheet("color: #aaa;")
         header_layout.addWidget(self.show_sequence_label)
@@ -139,7 +139,7 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
 
         self.path_label: QLabel = QLabel("")
         path_font = QFont()
-        path_font.setPointSize(10)
+        path_font.setPointSize(12)
         self.path_label.setFont(path_font)
         self.path_label.setStyleSheet("color: #666;")
         self.path_label.setWordWrap(True)
@@ -153,7 +153,7 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
             QToolButton {
                 background-color: transparent;
                 border: none;
-                font-size: 14px;
+                font-size: 16px;
                 padding: 2px;
             }
             QToolButton:hover {

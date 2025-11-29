@@ -50,6 +50,8 @@ from __future__ import annotations
 
 # Standard library imports
 import json
+import os
+import tempfile
 from pathlib import Path
 from typing import cast, final
 
@@ -603,7 +605,13 @@ class SettingsManager(LoggingMixin, QObject):
 
     # Bulk Operations
     def export_settings(self, file_path: str) -> bool:
-        """Export all settings to JSON file."""
+        """Export all settings to JSON file.
+
+        Uses atomic write pattern (temp file + rename) to prevent file
+        corruption if disk becomes full or write is interrupted.
+        """
+        temp_fd = None
+        temp_path = None
         try:
             all_settings: dict[str, dict[str, object]] = {}
 
@@ -620,15 +628,43 @@ class SettingsManager(LoggingMixin, QObject):
             for category in categories:
                 all_settings[category] = self.get_category(category)
 
-            # Write to file
-            with Path(file_path).open("w") as f:
+            # Atomic write: write to temp file in same directory, then rename
+            target_path = Path(file_path)
+            target_dir = target_path.parent
+            target_dir.mkdir(parents=True, exist_ok=True)
+
+            # Create temp file in same directory (ensures same filesystem for rename)
+            temp_fd, temp_path = tempfile.mkstemp(
+                suffix=".tmp",
+                prefix=f".{target_path.name}.",
+                dir=str(target_dir),
+            )
+
+            # Write to temp file
+            with os.fdopen(temp_fd, "w") as f:
+                temp_fd = None  # fdopen takes ownership
                 json.dump(all_settings, f, indent=2, default=str)
+
+            # Atomic rename (POSIX guarantees this is atomic on same filesystem)
+            _ = Path(temp_path).replace(file_path)
+            temp_path = None  # Successfully moved
 
             self.logger.info(f"Settings exported to: {file_path}")
             return True
 
         except Exception as e:
             self.logger.error(f"Failed to export settings: {e}")
+            # Clean up temp file on error
+            if temp_fd is not None:
+                try:
+                    os.close(temp_fd)
+                except OSError:
+                    pass
+            if temp_path is not None:
+                try:
+                    Path(temp_path).unlink()
+                except OSError:
+                    pass
             return False
 
     def import_settings(self, file_path: str) -> bool:

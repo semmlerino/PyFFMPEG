@@ -549,7 +549,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
             f"Settings File: {self.settings_manager.get_settings_file_path()}"
         )
         settings_path_label.setWordWrap(True)
-        settings_path_label.setStyleSheet("font-family: monospace; font-size: 8pt;")
+        settings_path_label.setStyleSheet("font-family: monospace; font-size: 10pt;")
         system_layout.addWidget(settings_path_label)
 
         scroll_layout.addWidget(system_group)

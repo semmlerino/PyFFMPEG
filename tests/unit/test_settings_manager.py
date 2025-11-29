@@ -514,3 +514,72 @@ class TestSettingsManager:
         # Test setting back to False
         settings_manager.set_background_gui_apps(False)
         assert settings_manager.get_background_gui_apps() is False
+
+
+class TestSettingsManagerAtomicWrite:
+    """Tests for atomic write pattern in export_settings."""
+
+    @pytest.fixture
+    def settings_manager(
+        self, tmp_path: Path, make_settings_manager: Callable[[Path, str, str], SettingsManager]
+    ) -> SettingsManager:
+        """Create settings manager with temporary storage."""
+        return make_settings_manager(tmp_path)
+
+    def test_export_creates_parent_directories(
+        self, settings_manager: SettingsManager, tmp_path: Path
+    ) -> None:
+        """export_settings creates parent directories if needed."""
+        nested_path = tmp_path / "deeply" / "nested" / "settings.json"
+
+        result = settings_manager.export_settings(str(nested_path))
+
+        assert result is True
+        assert nested_path.exists()
+
+    def test_export_overwrites_existing_file_atomically(
+        self, settings_manager: SettingsManager, tmp_path: Path
+    ) -> None:
+        """export_settings atomically overwrites existing file."""
+        export_path = tmp_path / "settings.json"
+
+        # Create initial file
+        export_path.write_text('{"old": "data"}')
+
+        # Export new settings
+        settings_manager.set_thumbnail_size(512)
+        result = settings_manager.export_settings(str(export_path))
+
+        assert result is True
+        # File should be different
+        content = export_path.read_text()
+        assert "old" not in content
+        assert "512" in content or "preferences" in content
+
+    def test_export_failure_returns_false(
+        self, settings_manager: SettingsManager, tmp_path: Path, mocker
+    ) -> None:
+        """export_settings returns False on failure."""
+        export_path = tmp_path / "settings.json"
+
+        # Mock json.dump to raise
+        mocker.patch("json.dump", side_effect=OSError("Disk full"))
+
+        result = settings_manager.export_settings(str(export_path))
+
+        assert result is False
+
+    def test_export_cleans_up_temp_file_on_failure(
+        self, settings_manager: SettingsManager, tmp_path: Path, mocker
+    ) -> None:
+        """Temp file is cleaned up if export fails."""
+        export_path = tmp_path / "settings.json"
+
+        # Mock json.dump to raise after temp file is created
+        mocker.patch("json.dump", side_effect=OSError("Disk full"))
+
+        settings_manager.export_settings(str(export_path))
+
+        # No temp files should remain
+        temp_files = list(tmp_path.glob(".*settings.json*.tmp"))
+        assert len(temp_files) == 0, f"Temp files remain: {temp_files}"

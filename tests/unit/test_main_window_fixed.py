@@ -135,18 +135,18 @@ class TestMainWindowNoHang:
 
     def test_shot_selection_enables_buttons(self, safe_main_window, tmp_path) -> None:
         """Test that selecting a shot enables application launcher buttons."""
-        # Initially disabled
-        for btn in safe_main_window.right_panel._quick_launch._buttons.values():
-            assert not btn.isEnabled()
+        # Initially disabled - check DCC section launch buttons
+        for section in safe_main_window.right_panel._dcc_accordion._sections.values():
+            assert not section._launch_btn.isEnabled()
 
         # Select shot with tmp_path as workspace
         workspace_path = str(tmp_path / "test_workspace")
         shot = Shot("test_show", "seq01", "0010", workspace_path)
         safe_main_window._on_shot_selected(shot)
 
-        # Now enabled
-        for btn in safe_main_window.right_panel._quick_launch._buttons.values():
-            assert btn.isEnabled()
+        # Now DCC section launch buttons enabled
+        for section in safe_main_window.right_panel._dcc_accordion._sections.values():
+            assert section._launch_btn.isEnabled()
 
         # Right panel updated with shot
         assert safe_main_window.right_panel._current_shot == shot
@@ -307,11 +307,11 @@ class TestApplicationLaunchingNoHang:
         ):
             main_window._refresh_timer.stop()
 
-        # No shot selected - buttons should be disabled
-        assert "nuke" in main_window.right_panel._quick_launch._buttons
-        assert not main_window.right_panel._quick_launch._buttons[
+        # No shot selected - DCC section launch buttons should be disabled
+        assert "nuke" in main_window.right_panel._dcc_accordion._sections
+        assert not main_window.right_panel._dcc_accordion._sections[
             "nuke"
-        ].isEnabled()
+        ]._launch_btn.isEnabled()
 
         # Try to launch without shot - button is disabled so can't be clicked
         # This is the correct behavior - UI prevents invalid operations

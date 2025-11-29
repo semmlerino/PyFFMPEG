@@ -699,11 +699,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self._on_shot_recover_crashes_requested
         )
 
-        # Right panel signals - file open requests
-        _ = self.right_panel.file_open_requested.connect(
-            self._on_file_open_requested
-        )
-
         # 3DE scene selection - handled by controller
         # Controller handles its own signal connections in __init__
         # Handle app launch with scene context (signal emits app_name, scene)
@@ -956,12 +951,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         Args:
             index: Index of the newly selected tab
         """
-        # Update empty message based on tab context
-        if index == 1:  # Other 3DE scenes tab
-            self.right_panel.set_empty_message("No Scene Selected")
-        else:  # My Shots or Previous Shots tabs
-            self.right_panel.set_empty_message("No Shot Selected")
-
         # Scene/shot context is automatically cleared by launcher_controller when switching contexts
 
         if index == 0:  # My Shots tab
@@ -1027,7 +1016,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             /* Base tab styling - professional proportions */
             QTabBar::tab {
                 min-width: 120px;
-                font-size: 14px;
+                font-size: 16px;
                 font-weight: 400;
                 border: none;
                 outline: none;
@@ -1245,27 +1234,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         # Launch the application
         self.launcher_controller.launch_app(app_name)
-
-    def _on_file_open_requested(self, scene_file: SceneFile) -> None:
-        """Handle request to open a file from the shot files panel.
-
-        Args:
-            scene_file: The scene file to open
-        """
-        # Get current shot for workspace context
-        current_shot = self.shot_grid.selected_shot
-        if current_shot is None:
-            self.logger.warning("Cannot open file: no shot selected")
-            return
-
-        self.logger.info(f"Opening file: {scene_file.path}")
-
-        # Launch the appropriate application with the file and workspace
-        _ = self.command_launcher.launch_with_file(
-            scene_file.app_name,
-            scene_file.path,
-            current_shot.workspace_path,
-        )
 
     def _apply_show_filter(
         self, item_model: object, model: object, show: str, tab_name: str

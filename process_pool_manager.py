@@ -416,6 +416,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
         commands: list[str],
         cache_ttl: int = 30,
         session_type: str = "workspace",
+        timeout: float | None = None,
     ) -> dict[str, str | None]:
         """Execute multiple commands in parallel using session pool.
 
@@ -425,9 +426,11 @@ class ProcessPoolManager(LoggingMixin, QObject):
             commands: List of commands to execute
             cache_ttl: Cache time-to-live in seconds
             session_type: Type of session pool to use
+            timeout: Per-command timeout in seconds (default: SUBPROCESS_TIMEOUT).
+                     Commands that exceed this timeout return None.
 
         Returns:
-            Dictionary mapping commands to results
+            Dictionary mapping commands to results (None for failed/timed-out commands)
         """
         # CRITICAL BUG FIX #32: Check shutdown flag before executing batch commands
         with QMutexLocker(self._mutex):
@@ -436,6 +439,10 @@ class ProcessPoolManager(LoggingMixin, QObject):
                     "ProcessPoolManager has been shut down. "
                     "Cannot execute batch commands."
                 )
+
+        # Use default timeout if not specified
+        if timeout is None:
+            timeout = ThreadingConfig.SUBPROCESS_TIMEOUT
 
         # Check cache first and separate cached from non-cached
         results: dict[str, str | None] = {}
@@ -465,14 +472,19 @@ class ProcessPoolManager(LoggingMixin, QObject):
             )
             futures[future] = cmd
 
-        # Collect results
+        # Collect results with timeout on each future
         for future in concurrent.futures.as_completed(futures):
             cmd = futures[future]
             try:
-                result = future.result()
+                result = future.result(timeout=timeout)
                 results[cmd] = result
                 # Cache successful results
                 self._cache.set(cmd, result, ttl=cache_ttl)
+            except concurrent.futures.TimeoutError:
+                self.logger.warning(
+                    f"Batch command timed out after {timeout}s: {cmd[:80]}..."
+                )
+                results[cmd] = None
             except Exception as e:
                 self.logger.error(f"Batch command failed: {cmd} - {e}")
                 results[cmd] = None

@@ -952,7 +952,9 @@ class CommandLauncher(LoggingMixin, QObject):
     MIN_DISK_SPACE_MB: int = 100
 
     # Timeout for disk space check (seconds) - prevents blocking on NFS hangs
-    DISK_CHECK_TIMEOUT_SEC: float = 2.0
+    # NFS mounts under load can take 5-30s for statvfs; 10s balances responsiveness
+    # with avoiding false "timed out" warnings on busy network storage
+    DISK_CHECK_TIMEOUT_SEC: float = 10.0
 
     # Maximum command length (bytes) - gnome-terminal buffer is ~8KB, be conservative
     # Linux ARG_MAX is ~131KB but terminal emulators have smaller buffers

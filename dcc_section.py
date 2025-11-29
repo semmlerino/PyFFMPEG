@@ -8,21 +8,32 @@ Shows version info in collapsed header for quick reference.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import final
+from typing import TYPE_CHECKING, final
 
-from PySide6.QtCore import Qt, QTimer, Signal
+
+if TYPE_CHECKING:
+    from files_tab_widget import FileTableModel
+
+from PySide6.QtCore import QModelIndex, QPoint, Qt, QTimer, Signal
 from PySide6.QtWidgets import (
+    QAbstractItemView,
+    QApplication,
     QCheckBox,
     QComboBox,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
+    QMenu,
     QPushButton,
+    QTableView,
     QToolButton,
     QVBoxLayout,
     QWidget,
 )
 
 from qt_widget_mixin import QtWidgetMixin
+from scene_file import FileType, SceneFile
+from thumbnail_widget_base import FolderOpenerWorker
 
 
 @final
@@ -37,6 +48,8 @@ class DCCConfig:
     tooltip: str = ""
     checkboxes: list[CheckboxConfig] | None = None
     has_plate_selector: bool = True
+    has_files_section: bool = False  # Whether to show embedded files sub-section
+    file_type: FileType | None = None  # Which FileType this DCC uses (None = no files)
 
 
 @final
@@ -66,6 +79,8 @@ DEFAULT_DCC_CONFIGS = [
                 default=True,
             )
         ],
+        has_files_section=True,
+        file_type=FileType.THREEDE,
     ),
     DCCConfig(
         name="maya",
@@ -81,6 +96,8 @@ DEFAULT_DCC_CONFIGS = [
                 default=True,
             )
         ],
+        has_files_section=True,
+        file_type=FileType.MAYA,
     ),
     DCCConfig(
         name="nuke",
@@ -108,6 +125,8 @@ DEFAULT_DCC_CONFIGS = [
                 default=False,
             ),
         ],
+        has_files_section=True,
+        file_type=FileType.NUKE,
     ),
     DCCConfig(
         name="rv",
@@ -115,6 +134,8 @@ DEFAULT_DCC_CONFIGS = [
         color="#2b5d4d",
         shortcut="R",
         tooltip="Launch RV for playback and review",
+        has_files_section=False,
+        file_type=None,
     ),
 ]
 
@@ -145,10 +166,12 @@ class DCCSection(QtWidgetMixin, QWidget):
     Attributes:
         launch_requested: Signal(str, dict) - app_name, options dict
         expanded_changed: Signal(str, bool) - app_name, is_expanded
+        file_selected: Signal(object) - emits SceneFile when user clicks a file
     """
 
     launch_requested = Signal(str, dict)  # app_name, options
     expanded_changed = Signal(str, bool)  # app_name, is_expanded
+    file_selected = Signal(object)  # SceneFile
 
     def __init__(
         self,
@@ -173,6 +196,16 @@ class DCCSection(QtWidgetMixin, QWidget):
         # UI components
         self._checkboxes: dict[str, QCheckBox] = {}
         self._plate_selector: QComboBox | None = None
+
+        # Files sub-section components (only if has_files_section)
+        self._files_section: QWidget | None = None
+        self._files_content: QWidget | None = None
+        self._file_table: QTableView | None = None
+        self._file_model: FileTableModel | None = None
+        self._files_header_btn: QPushButton | None = None
+        self._files_expanded = False
+        self._files_count = 0
+        self._current_selected_file: SceneFile | None = None
 
         self._setup_ui()
 
@@ -227,7 +260,7 @@ class DCCSection(QtWidgetMixin, QWidget):
         self._name_label.setStyleSheet(f"""
             QLabel {{
                 font-weight: bold;
-                font-size: 12px;
+                font-size: 14px;
                 color: {self.config.color};
             }}
         """)
@@ -238,7 +271,7 @@ class DCCSection(QtWidgetMixin, QWidget):
         self._version_label.setStyleSheet("""
             QLabel {
                 color: #888;
-                font-size: 10px;
+                font-size: 14px;
             }
         """)
         self._version_label.setVisible(False)
@@ -271,7 +304,7 @@ class DCCSection(QtWidgetMixin, QWidget):
                 border-radius: 4px;
                 padding: 6px 12px;
                 font-weight: bold;
-                font-size: 11px;
+                font-size: 13px;
             }}
             QPushButton:hover {{
                 background-color: {self._lighten_color(self.config.color)};
@@ -296,7 +329,7 @@ class DCCSection(QtWidgetMixin, QWidget):
         self._launch_description.setStyleSheet("""
             QLabel {
                 color: #888;
-                font-size: 11px;
+                font-size: 13px;
                 margin-top: -4px;
             }
         """)
@@ -313,7 +346,7 @@ class DCCSection(QtWidgetMixin, QWidget):
                 checkbox.setStyleSheet("""
                     QCheckBox {
                         color: #aaa;
-                        font-size: 10px;
+                        font-size: 14px;
                     }
                     QCheckBox:hover {
                         color: #ccc;
@@ -329,7 +362,7 @@ class DCCSection(QtWidgetMixin, QWidget):
             plate_row.setSpacing(4)
 
             plate_label = QLabel("Plate:")
-            plate_label.setStyleSheet("QLabel { color: #888; font-size: 10px; }")
+            plate_label.setStyleSheet("QLabel { color: #888; font-size: 14px; }")
             plate_row.addWidget(plate_label)
 
             self._plate_selector = QComboBox()
@@ -343,7 +376,7 @@ class DCCSection(QtWidgetMixin, QWidget):
                     border: 1px solid #444;
                     border-radius: 3px;
                     padding: 2px 4px;
-                    font-size: 10px;
+                    font-size: 14px;
                 }
                 QComboBox:disabled {
                     background-color: #1e1e1e;
@@ -356,6 +389,10 @@ class DCCSection(QtWidgetMixin, QWidget):
             plate_row.addStretch()
 
             content_layout.addLayout(plate_row)
+
+        # Files sub-section (if configured)
+        if self.config.has_files_section:
+            self._setup_files_subsection(content_layout)
 
         container_layout.addWidget(self._content)
         layout.addWidget(self._container)
@@ -529,3 +566,317 @@ class DCCSection(QtWidgetMixin, QWidget):
             self._launch_description.setVisible(True)
         else:
             self._launch_description.setVisible(False)
+
+    # ========== Files Sub-Section Methods ==========
+
+    def _setup_files_subsection(self, content_layout: QVBoxLayout) -> None:
+        """Set up the collapsible files sub-section.
+
+        Args:
+            content_layout: The layout to add the files section to
+        """
+        # Local import to avoid circular dependency
+        from files_tab_widget import FileTableModel
+
+        # Container for files sub-section
+        self._files_section = QWidget()
+        files_layout = QVBoxLayout(self._files_section)
+        files_layout.setContentsMargins(0, 8, 0, 0)
+        files_layout.setSpacing(0)
+
+        # Files header button (collapsible)
+        self._files_header_btn = QPushButton("▶  Files (0)")
+        self._files_header_btn.setFlat(True)
+        self._files_header_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        _ = self._files_header_btn.clicked.connect(self._toggle_files_expanded)
+        self._files_header_btn.setStyleSheet("""
+            QPushButton {
+                background-color: transparent;
+                border: none;
+                text-align: left;
+                padding: 4px 0px;
+                font-size: 13px;
+                font-weight: bold;
+                color: #888;
+            }
+            QPushButton:hover {
+                color: #aaa;
+            }
+        """)
+        files_layout.addWidget(self._files_header_btn)
+
+        # Files table container (hidden by default)
+        self._files_content = QWidget()
+        self._files_content.setVisible(False)
+        files_content_layout = QVBoxLayout(self._files_content)
+        files_content_layout.setContentsMargins(0, 4, 0, 0)
+        files_content_layout.setSpacing(0)
+
+        # Create table model and view
+        self._file_model = FileTableModel(parent=self)
+        self._file_table = QTableView()
+        self._file_table.setModel(self._file_model)
+        self._file_table.setSelectionBehavior(
+            QAbstractItemView.SelectionBehavior.SelectRows
+        )
+        self._file_table.setSelectionMode(
+            QAbstractItemView.SelectionMode.SingleSelection
+        )
+        self._file_table.setAlternatingRowColors(True)
+        self._file_table.setSortingEnabled(False)
+        self._file_table.setShowGrid(False)
+        self._file_table.verticalHeader().setVisible(False)
+        self._file_table.setMaximumHeight(120)
+
+        # Configure header
+        header = self._file_table.horizontalHeader()
+        header.setStretchLastSection(True)
+        header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+
+        # Styling with DCC accent color
+        color = self.config.color
+        self._file_table.setStyleSheet(f"""
+            QTableView {{
+                background-color: #1e1e1e;
+                alternate-background-color: #232323;
+                color: #ecf0f1;
+                border: 1px solid #333;
+                border-radius: 3px;
+                selection-background-color: {color}40;
+                selection-color: #ecf0f1;
+            }}
+            QTableView::item {{
+                padding: 2px 6px;
+                font-size: 14px;
+            }}
+            QTableView::item:selected {{
+                background-color: {color}60;
+            }}
+            QHeaderView::section {{
+                background-color: #252525;
+                color: #888;
+                padding: 3px 6px;
+                border: none;
+                border-bottom: 1px solid #333;
+                font-weight: bold;
+                font-size: 13px;
+            }}
+        """)
+
+        # Connect signals
+        _ = self._file_table.clicked.connect(self._on_file_clicked)
+
+        # Enable context menu on right-click
+        self._file_table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        _ = self._file_table.customContextMenuRequested.connect(
+            self._show_file_context_menu
+        )
+
+        # Connect double-click for quick launch
+        _ = self._file_table.doubleClicked.connect(self._on_file_double_clicked)
+
+        files_content_layout.addWidget(self._file_table)
+        files_layout.addWidget(self._files_content)
+
+        content_layout.addWidget(self._files_section)
+
+    def _toggle_files_expanded(self) -> None:
+        """Toggle the files sub-section expanded state."""
+        self._files_expanded = not self._files_expanded
+        if self._files_content is not None:
+            self._files_content.setVisible(self._files_expanded)
+        self._update_files_header()
+
+    def _update_files_header(self) -> None:
+        """Update files header text with indicator and count."""
+        if self._files_header_btn is not None:
+            indicator = "▼" if self._files_expanded else "▶"
+            self._files_header_btn.setText(f"{indicator}  Files ({self._files_count})")
+
+    def _on_file_clicked(self, index: QModelIndex) -> None:
+        """Handle file row click.
+
+        Args:
+            index: The clicked model index
+        """
+        if self._file_model is not None:
+            file = self._file_model.get_file(index.row())
+            if file is not None:
+                # Track selected file
+                self._current_selected_file = file
+                # Update launch description
+                self._update_launch_button_from_file(file)
+                # Mark this file as current default
+                self._file_model.set_current_default(file)
+                # Emit signal
+                self.file_selected.emit(file)
+
+    def _on_file_double_clicked(self, index: QModelIndex) -> None:
+        """Handle file row double-click - launch immediately.
+
+        Double-clicking a file row launches the DCC app with that file selected.
+
+        Args:
+            index: The double-clicked model index
+        """
+        if self._file_model is None:
+            return
+
+        file = self._file_model.get_file(index.row())
+        if file is None:
+            return
+
+        # Update selection state (same as single click)
+        self._current_selected_file = file
+        self._file_model.set_current_default(file)
+        self.file_selected.emit(file)
+
+        # Emit launch signal - parent retrieves file via get_selected_file()
+        options = self.get_options()
+        self.launch_requested.emit(self.config.name, options)
+
+    def _show_file_context_menu(self, pos: QPoint) -> None:
+        """Show context menu for file table.
+
+        Args:
+            pos: Position where context menu was requested
+        """
+        if self._file_table is None or self._file_model is None:
+            return
+
+        index = self._file_table.indexAt(pos)
+        if not index.isValid():
+            return
+
+        file = self._file_model.get_file(index.row())
+        if file is None:
+            return
+
+        menu = QMenu(self)
+
+        # "Open in [App Name]" action
+        app_display_name = self.config.display_name
+        open_action = menu.addAction(f"Open in {app_display_name}")
+        _ = open_action.triggered.connect(lambda: self._launch_file(file))
+
+        # "Open Containing Folder" action
+        open_folder_action = menu.addAction("Open Containing Folder")
+        _ = open_folder_action.triggered.connect(lambda: self._open_file_folder(file))
+
+        # Separator
+        _ = menu.addSeparator()
+
+        # "Copy Path" action
+        copy_path_action = menu.addAction("Copy Path")
+        _ = copy_path_action.triggered.connect(lambda: self._copy_file_path(file))
+
+        # Show menu at global position
+        _ = menu.exec(self._file_table.mapToGlobal(pos))
+
+    def _launch_file(self, file: SceneFile) -> None:
+        """Launch the DCC app with the specified file.
+
+        Args:
+            file: SceneFile to launch
+        """
+        # Update selection state
+        self._current_selected_file = file
+        if self._file_model is not None:
+            self._file_model.set_current_default(file)
+        self.file_selected.emit(file)
+
+        # Emit launch signal - parent retrieves file via get_selected_file()
+        options = self.get_options()
+        self.launch_requested.emit(self.config.name, options)
+
+    def _open_file_folder(self, file: SceneFile) -> None:
+        """Open the containing folder for a file.
+
+        Args:
+            file: SceneFile whose parent folder to open
+        """
+        from pathlib import Path
+
+        from PySide6.QtCore import QThreadPool
+
+        file_path = Path(file.path)
+        if file_path.exists():
+            folder_path = str(file_path.parent)
+            worker = FolderOpenerWorker(folder_path)
+            QThreadPool.globalInstance().start(worker)
+
+    def _copy_file_path(self, file: SceneFile) -> None:
+        """Copy file path to clipboard.
+
+        Args:
+            file: SceneFile whose path to copy
+        """
+        clipboard = QApplication.clipboard()
+        clipboard.setText(str(file.path))
+
+    def _update_launch_button_from_file(self, file: SceneFile) -> None:
+        """Update launch button description from selected file.
+
+        Args:
+            file: The selected scene file
+        """
+        if file.version is not None:
+            version_str = f"v{file.version:03d}"
+            plate = self.get_selected_plate()
+            self.set_launch_description(version_str, plate)
+
+    def set_files(self, files: list[SceneFile]) -> None:
+        """Set files for the embedded files sub-section.
+
+        Args:
+            files: List of scene files to display
+        """
+        if self._file_model is not None:
+            self._file_model.set_files(files)
+            self._files_count = len(files)
+            self._update_files_header()
+
+            # Auto-select first file if available
+            if files:
+                self._current_selected_file = files[0]
+                self._file_model.set_current_default(files[0])
+                self._update_launch_button_from_file(files[0])
+            else:
+                self._current_selected_file = None
+
+    def get_selected_file(self) -> SceneFile | None:
+        """Get the currently selected file from the embedded table.
+
+        Returns:
+            Selected SceneFile or None
+        """
+        # Return the tracked current selected file
+        return self._current_selected_file
+
+    def set_default_file(self, file: SceneFile | None) -> None:
+        """Mark a file as the default (shows arrow indicator).
+
+        Args:
+            file: The file to mark as default, or None to clear
+        """
+        self._current_selected_file = file
+        if self._file_model is not None:
+            self._file_model.set_current_default(file)
+            if file is not None:
+                self._update_launch_button_from_file(file)
+
+    def set_files_expanded(self, expanded: bool) -> None:
+        """Set the files sub-section expanded state.
+
+        Args:
+            expanded: True to expand, False to collapse
+        """
+        if self._files_expanded != expanded:
+            self._files_expanded = expanded
+            if self._files_content is not None:
+                self._files_content.setVisible(expanded)
+            self._update_files_header()
+
+    def is_files_expanded(self) -> bool:
+        """Return files sub-section expanded state."""
+        return self._files_expanded

@@ -1,1 +1,1 @@
-refactor: Swap Maya and Nuke positions in DCC accordion
+feat: Harden testing infrastructure with strict subprocess mode and isolation

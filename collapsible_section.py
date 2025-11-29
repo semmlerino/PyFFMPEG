@@ -71,7 +71,7 @@ class CollapsibleSection(QtWidgetMixin, QWidget):
                 border: none;
                 text-align: left;
                 padding: 8px 10px;
-                font-size: 12px;
+                font-size: 14px;
                 font-weight: bold;
                 color: #aaa;
             }
@@ -180,7 +180,7 @@ class CollapsibleSection(QtWidgetMixin, QWidget):
                 border: none;
                 text-align: left;
                 padding: 8px 10px;
-                font-size: 12px;
+                font-size: 14px;
                 font-weight: bold;
                 color: {color};
             }}

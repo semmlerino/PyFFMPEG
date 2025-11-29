@@ -108,7 +108,7 @@ class AppLauncherSection(QtWidgetMixin, QWidget):
         name_label.setStyleSheet(f"""
             QLabel {{
                 font-weight: bold;
-                font-size: 11px;
+                font-size: 15px;
                 color: {self.config.color};
             }}
         """)
@@ -122,7 +122,7 @@ class AppLauncherSection(QtWidgetMixin, QWidget):
                 QLabel {
                     background-color: #333;
                     color: #888;
-                    font-size: 9px;
+                    font-size: 11px;
                     font-weight: bold;
                     padding: 2px 5px;
                     border-radius: 3px;
@@ -204,7 +204,7 @@ class AppLauncherSection(QtWidgetMixin, QWidget):
                 checkbox.setStyleSheet("""
                     QCheckBox {
                         color: #aaa;
-                        font-size: 10px;
+                        font-size: 12px;
                     }
                     QCheckBox:hover {
                         color: #ccc;
@@ -220,7 +220,7 @@ class AppLauncherSection(QtWidgetMixin, QWidget):
             plate_layout.setSpacing(4)
 
             plate_label = QLabel("Plate:")
-            plate_label.setStyleSheet("QLabel { color: #888; font-size: 10px; }")
+            plate_label.setStyleSheet("QLabel { color: #888; font-size: 12px; }")
             plate_layout.addWidget(plate_label)
 
             self.plate_selector = QComboBox()
@@ -234,7 +234,7 @@ class AppLauncherSection(QtWidgetMixin, QWidget):
                     border: 1px solid #444;
                     border-radius: 3px;
                     padding: 2px 4px;
-                    font-size: 10px;
+                    font-size: 12px;
                 }
                 QComboBox:disabled {
                     background-color: #1e1e1e;
@@ -413,7 +413,7 @@ class LauncherPanel(QtWidgetMixin, QWidget):
         self.group_box.setStyleSheet("""
             QGroupBox {
                 font-weight: bold;
-                font-size: 13px;
+                font-size: 15px;
                 border: 2px solid #444;
                 border-radius: 5px;
                 margin-top: 10px;
@@ -434,7 +434,7 @@ class LauncherPanel(QtWidgetMixin, QWidget):
         self.info_label = QLabel("Select a shot to enable app launching")
         self.info_label.setWordWrap(True)
         self.info_label.setStyleSheet(
-            "QLabel { color: #888; font-style: italic; padding: 5px 10px; font-size: 11px; }"
+            "QLabel { color: #888; font-style: italic; padding: 5px 10px; font-size: 15px; }"
         )
         group_layout.addWidget(self.info_label)
 
@@ -444,7 +444,7 @@ class LauncherPanel(QtWidgetMixin, QWidget):
         )
         self.hint_label.setWordWrap(True)
         self.hint_label.setStyleSheet(
-            "QLabel { color: #666; font-size: 10px; padding: 2px 10px; }"
+            "QLabel { color: #666; font-size: 12px; padding: 2px 10px; }"
         )
         group_layout.addWidget(self.hint_label)
 
@@ -455,7 +455,7 @@ class LauncherPanel(QtWidgetMixin, QWidget):
         quick_layout.setSpacing(8)
 
         quick_label = QLabel("Quick:")
-        quick_label.setStyleSheet("color: #888; font-size: 11px;")
+        quick_label.setStyleSheet("color: #888; font-size: 15px;")
         quick_layout.addWidget(quick_label)
 
         # Quick launch buttons
@@ -473,7 +473,7 @@ class LauncherPanel(QtWidgetMixin, QWidget):
                 QPushButton {{
                     background-color: {color};
                     border-radius: 4px;
-                    font-size: 16px;
+                    font-size: 18px;
                     border: none;
                 }}
                 QPushButton:hover {{
@@ -626,7 +626,7 @@ class LauncherPanel(QtWidgetMixin, QWidget):
         custom_label.setStyleSheet("""
             QLabel#customLaunchersLabel {
                 color: #aaa;
-                font-size: 11px;
+                font-size: 15px;
                 font-weight: bold;
                 padding: 5px 0 2px 10px;
             }
@@ -661,12 +661,12 @@ class LauncherPanel(QtWidgetMixin, QWidget):
         if shot:
             self.info_label.setText(f"Shot: {shot.show}/{shot.sequence}/{shot.shot}")
             self.info_label.setStyleSheet(
-                "QLabel { color: #9c9; font-style: normal; padding: 5px 10px; font-size: 11px; font-weight: bold; }"
+                "QLabel { color: #9c9; font-style: normal; padding: 5px 10px; font-size: 15px; font-weight: bold; }"
             )
         else:
             self.info_label.setText("Select a shot to enable app launching")
             self.info_label.setStyleSheet(
-                "QLabel { color: #888; font-style: italic; padding: 5px 10px; font-size: 11px; }"
+                "QLabel { color: #888; font-style: italic; padding: 5px 10px; font-size: 15px; }"
             )
 
         # Enable/disable quick buttons

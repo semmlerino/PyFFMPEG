@@ -342,8 +342,10 @@ class ShotModel(BaseShotModel):
 
         # Migrate removed shots
         if merge_result.removed_shots:
-            try:
-                self.cache_manager.migrate_shots_to_previous(merge_result.removed_shots)
+            migration_success = self.cache_manager.migrate_shots_to_previous(
+                merge_result.removed_shots
+            )
+            if migration_success:
                 removed_names = [
                     f"{s['show']}:{s['sequence']}_{s['shot']}"
                     for s in merge_result.removed_shots[:3]
@@ -352,10 +354,10 @@ class ShotModel(BaseShotModel):
                     f"Migrated {len(merge_result.removed_shots)} shots to Previous: "
                     f"{removed_names}{'...' if len(merge_result.removed_shots) > 3 else ''}"
                 )
-            except OSError as e:
-                # Log migration failure but don't abort refresh
+            else:
+                # Migration failed to persist - CacheManager already logged error
                 self.logger.warning(
-                    f"Failed to migrate shots (refresh continues): {e}"
+                    f"Failed to persist {len(merge_result.removed_shots)} migrated shots"
                 )
 
         return merge_result

@@ -1960,3 +1960,95 @@ class TestCacheIntegration:
         cache_manager.clear_cache()
         after_clear = cache_manager.get_memory_usage()
         assert after_clear["total_mb"] < after_thumbs["total_mb"]
+
+
+class TestCacheWriteFailureSignals:
+    """Tests for cache_write_failed signal and proper signal emission on errors."""
+
+    def test_cache_shots_emits_cache_updated_on_success(
+        self, cache_manager: CacheManager, sample_shots: list[Shot], qtbot
+    ) -> None:
+        """cache_updated signal is emitted when cache_shots succeeds."""
+        with qtbot.waitSignal(cache_manager.cache_updated, timeout=1000):
+            cache_manager.cache_shots(sample_shots)
+
+    def test_cache_shots_emits_write_failed_on_error(
+        self, cache_manager: CacheManager, sample_shots: list[Shot], qtbot, mocker
+    ) -> None:
+        """cache_write_failed signal is emitted when cache_shots fails."""
+        # Mock _write_json_cache to return False (write failure)
+        mocker.patch.object(cache_manager, "_write_json_cache", return_value=False)
+
+        signals_received: list[str] = []
+        cache_manager.cache_updated.connect(lambda: signals_received.append("updated"))
+        cache_manager.cache_write_failed.connect(
+            lambda name: signals_received.append(f"failed:{name}")
+        )
+
+        cache_manager.cache_shots(sample_shots)
+
+        assert "failed:shots" in signals_received
+        assert "updated" not in signals_received
+
+    def test_cache_previous_shots_emits_write_failed_on_error(
+        self, cache_manager: CacheManager, sample_shots: list[Shot], qtbot, mocker
+    ) -> None:
+        """cache_write_failed signal is emitted when cache_previous_shots fails."""
+        mocker.patch.object(cache_manager, "_write_json_cache", return_value=False)
+
+        signals_received: list[str] = []
+        cache_manager.cache_updated.connect(lambda: signals_received.append("updated"))
+        cache_manager.cache_write_failed.connect(
+            lambda name: signals_received.append(f"failed:{name}")
+        )
+
+        cache_manager.cache_previous_shots(sample_shots)
+
+        assert "failed:previous_shots" in signals_received
+        assert "updated" not in signals_received
+
+    def test_migrate_returns_true_on_success(
+        self, cache_manager: CacheManager, qtbot
+    ) -> None:
+        """migrate_shots_to_previous returns True on successful write."""
+        shots = [Shot("show1", "seq01", "0010", "/path")]
+        result = cache_manager.migrate_shots_to_previous(shots)
+        assert result is True
+
+    def test_migrate_returns_false_on_write_failure(
+        self, cache_manager: CacheManager, qtbot, mocker
+    ) -> None:
+        """migrate_shots_to_previous returns False when write fails."""
+        mocker.patch.object(cache_manager, "_write_json_cache", return_value=False)
+
+        shots = [Shot("show1", "seq01", "0010", "/path")]
+        result = cache_manager.migrate_shots_to_previous(shots)
+
+        assert result is False
+
+    def test_migrate_returns_true_for_empty_list(
+        self, cache_manager: CacheManager
+    ) -> None:
+        """migrate_shots_to_previous returns True for empty input (no-op)."""
+        result = cache_manager.migrate_shots_to_previous([])
+        assert result is True
+
+    def test_migrate_emits_write_failed_on_error(
+        self, cache_manager: CacheManager, qtbot, mocker
+    ) -> None:
+        """cache_write_failed signal is emitted when migration write fails."""
+        mocker.patch.object(cache_manager, "_write_json_cache", return_value=False)
+
+        signals_received: list[str] = []
+        cache_manager.cache_write_failed.connect(
+            lambda name: signals_received.append(f"failed:{name}")
+        )
+        cache_manager.shots_migrated.connect(
+            lambda _: signals_received.append("migrated")
+        )
+
+        shots = [Shot("show1", "seq01", "0010", "/path")]
+        cache_manager.migrate_shots_to_previous(shots)
+
+        assert "failed:migrated_shots" in signals_received
+        assert "migrated" not in signals_received

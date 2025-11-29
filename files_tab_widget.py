@@ -295,7 +295,7 @@ class FilesTabWidget(QtWidgetMixin, QWidget):
                 border: none;
                 border-bottom: 1px solid #333;
                 font-weight: bold;
-                font-size: 10px;
+                font-size: 12px;
             }}
         """)
 

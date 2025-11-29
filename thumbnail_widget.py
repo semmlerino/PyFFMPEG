@@ -51,7 +51,7 @@ class ThumbnailWidget(LoggingMixin, ThumbnailWidgetBase):
         self.name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.name_label.setWordWrap(True)
         font = self.name_label.font()
-        font.setPointSize(9)
+        font.setPointSize(11)
         self.name_label.setFont(font)
 
         # Add to content container instead of main layout
@@ -62,14 +62,14 @@ class ThumbnailWidget(LoggingMixin, ThumbnailWidgetBase):
         spacer_label1 = QLabel(" ")
         spacer_label1.setObjectName("spacer")
         spacer_font1 = spacer_label1.font()
-        spacer_font1.setPointSize(8)
+        spacer_font1.setPointSize(10)
         spacer_label1.setFont(spacer_font1)
         spacer_label1.setMinimumHeight(16)
 
         spacer_label2 = QLabel(" ")
         spacer_label2.setObjectName("spacer")
         spacer_font2 = spacer_label2.font()
-        spacer_font2.setPointSize(9)
+        spacer_font2.setPointSize(11)
         spacer_label2.setFont(spacer_font2)
         spacer_label2.setMinimumHeight(18)
 

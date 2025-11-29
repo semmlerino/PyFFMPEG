@@ -336,7 +336,7 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
         # Draw camera icon in center
         painter.setPen(QPen(QColor("#444")))
         icon_font = QFont()
-        icon_font.setPointSize(24)
+        icon_font.setPointSize(26)
         painter.setFont(icon_font)
         icon_rect = QRect(rect.x(), rect.y(), rect.width(), rect.height() - 20)
         _ = painter.drawText(icon_rect, Qt.AlignmentFlag.AlignCenter, "📷")

@@ -68,13 +68,13 @@ class Typography:
     font_family_mono: str = '"Cascadia Code", "Fira Code", "Consolas", monospace'
 
     # Font sizes (rem-based scale)
-    size_h1: int = 24
-    size_h2: int = 20
-    size_h3: int = 18
-    size_h4: int = 16
-    size_body: int = 14
-    size_small: int = 12
-    size_tiny: int = 11
+    size_h1: int = 26
+    size_h2: int = 22
+    size_h3: int = 20
+    size_h4: int = 18
+    size_body: int = 16
+    size_small: int = 14
+    size_tiny: int = 13
 
     # Font weights
     weight_light: int = 300

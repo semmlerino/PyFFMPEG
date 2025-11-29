@@ -441,9 +441,9 @@ class TestMainWindowUICoordination:
 
         # Verify right panel created (replaces old launcher_panel)
         assert window.right_panel is not None
-        assert len(window.right_panel._quick_launch._buttons) > 0
-        assert "3de" in window.right_panel._quick_launch._buttons
-        assert "nuke" in window.right_panel._quick_launch._buttons
+        assert len(window.right_panel._dcc_accordion._sections) > 0
+        assert "3de" in window.right_panel._dcc_accordion._sections
+        assert "nuke" in window.right_panel._dcc_accordion._sections
 
     def test_shot_selection_enables_launchers(
         self, main_window_with_real_components: Any, qtbot: Any
@@ -451,9 +451,9 @@ class TestMainWindowUICoordination:
         """Test that selecting a shot enables launcher buttons."""
         window = main_window_with_real_components
 
-        # Initially buttons should be disabled
-        for btn in window.right_panel._quick_launch._buttons.values():
-            assert not btn.isEnabled()
+        # Initially launch buttons should be disabled
+        for section in window.right_panel._dcc_accordion._sections.values():
+            assert not section._launch_btn.isEnabled()
 
         # Create and select a test shot
         test_shot = Shot("testshow", "seq01", "shot01", "/test/workspace")
@@ -465,9 +465,9 @@ class TestMainWindowUICoordination:
         # Process events
         qtbot.wait(1)  # Minimal event processing
 
-        # Buttons should now be enabled
-        for btn in window.right_panel._quick_launch._buttons.values():
-            assert btn.isEnabled()
+        # Launch buttons should now be enabled
+        for section in window.right_panel._dcc_accordion._sections.values():
+            assert section._launch_btn.isEnabled()
 
     def test_tab_switching_updates_context(
         self, main_window_with_real_components: Any, qtbot: Any
@@ -566,13 +566,13 @@ workspace /shows/test/shots/seq01/shot02""")
         # Process events
         qtbot.wait(1)  # Minimal event processing
 
-        # Click 3de quick launch button
-        button_3de = window.right_panel._quick_launch._buttons.get("3de")
-        assert button_3de is not None
-        assert button_3de.isEnabled()
+        # Click 3de launch button in DCC section
+        section_3de = window.right_panel._dcc_accordion._sections.get("3de")
+        assert section_3de is not None
+        assert section_3de._launch_btn.isEnabled()
 
         # Simulate button click
-        button_3de.click()
+        section_3de._launch_btn.click()
         qtbot.wait(1)  # Minimal event processing
 
         # Verify launcher was called by checking subprocess execution

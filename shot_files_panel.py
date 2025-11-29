@@ -63,17 +63,17 @@ class FileListItem(QFrame):
 
         # File name label
         name_label = QLabel(self._scene_file.name)
-        name_label.setStyleSheet("color: #ddd; font-size: 11px;")
+        name_label.setStyleSheet("color: #ddd; font-size: 13px;")
         layout.addWidget(name_label, 1)
 
         # User label
         user_label = QLabel(self._scene_file.user)
-        user_label.setStyleSheet("color: #888; font-size: 10px;")
+        user_label.setStyleSheet("color: #888; font-size: 14px;")
         layout.addWidget(user_label)
 
         # Age label
         age_label = QLabel(self._scene_file.relative_age)
-        age_label.setStyleSheet("color: #666; font-size: 10px;")
+        age_label.setStyleSheet("color: #666; font-size: 14px;")
         layout.addWidget(age_label)
 
         # Tooltip with full path
@@ -181,7 +181,7 @@ class FileTypeSection(QtWidgetMixin, QWidget):
                 color: #eee;
                 border-radius: 12px;
                 padding: 4px 12px;
-                font-size: 11px;
+                font-size: 13px;
                 font-weight: bold;
                 border: 2px solid transparent;
             }}
@@ -318,7 +318,7 @@ class ShotFilesPanel(QtWidgetMixin, QWidget):
         header.setStyleSheet("""
             QLabel {
                 font-weight: bold;
-                font-size: 12px;
+                font-size: 14px;
                 color: #aaa;
                 padding-bottom: 5px;
             }

@@ -78,7 +78,7 @@ class LauncherPreviewPanel(QtWidgetMixin, LoggingMixin, QWidget):
         # Name label
         self.name_label = QLabel("Select a launcher")
         self.name_label.setObjectName("launcherName")
-        self.name_label.setStyleSheet("font-size: 16px; font-weight: bold;")
+        self.name_label.setStyleSheet("font-size: 18px; font-weight: bold;")
         layout.addWidget(self.name_label)
 
         # Description label
@@ -572,7 +572,7 @@ class LauncherManagerDialog(QDialog, QtWidgetMixin, LoggingMixin):
 
             QLabel#titleLabel {
                 color: #14ffec;
-                font-size: 16px;
+                font-size: 18px;
                 font-weight: bold;
                 padding: 10px;
             }
@@ -583,7 +583,7 @@ class LauncherManagerDialog(QDialog, QtWidgetMixin, LoggingMixin):
                 border-radius: 4px;
                 padding: 6px;
                 color: #ddd;
-                font-size: 13px;
+                font-size: 15px;
             }
 
             QLineEdit#searchField:focus {
@@ -632,7 +632,7 @@ class LauncherManagerDialog(QDialog, QtWidgetMixin, LoggingMixin):
                 padding: 8px;
                 color: #aaa;
                 font-family: monospace;
-                font-size: 12px;
+                font-size: 14px;
             }
 
             QPushButton {

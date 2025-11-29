@@ -1,10 +1,10 @@
-"""Right panel widget composing shot info, quick launch, DCC accordion, and files.
+"""Right panel widget with DCC accordion containing integrated file sections.
 
-This is the composition root for the redesigned right panel UI. It brings together:
-- ShotHeader: Compact shot info with DCC status strip
-- QuickLaunchBar: Labeled pill buttons with visible shortcuts
-- DCCAccordion: Collapsible DCC launch sections
-- FilesSection: Collapsible files browser
+This is the composition root for the right panel UI, containing only:
+- DCCAccordion: Collapsible DCC sections with embedded file lists
+
+Each DCC section (3DE, Maya, Nuke) has its own integrated files sub-section.
+RV has no files section since it doesn't have scene files.
 
 The panel handles coordination between child widgets and provides a unified
 interface for the main window to interact with.
@@ -22,12 +22,9 @@ from PySide6.QtWidgets import (
 )
 
 from dcc_accordion import DCCAccordion
-from files_section import FilesSection
 from qt_widget_mixin import QtWidgetMixin
-from quick_launch_bar import QuickLaunchBar
 from scene_file import FileType, SceneFile
 from shot_file_finder import ShotFileFinder
-from shot_header import ShotHeader
 
 
 if TYPE_CHECKING:
@@ -37,23 +34,18 @@ if TYPE_CHECKING:
 
 @final
 class RightPanelWidget(QtWidgetMixin, QWidget):
-    """Composition root for the redesigned right panel.
+    """Composition root for the right panel.
 
-    Layout (top to bottom):
-    1. Shot Header - shot name, show/sequence, path, DCC status
-    2. Quick Launch Bar - labeled pill buttons for fast launching
-    3. DCC Accordion - collapsible sections for each DCC
-    4. Files Section - collapsible tabbed files browser
+    Layout:
+    - DCCAccordion with collapsible sections for each DCC
+    - Each DCC section (3DE, Maya, Nuke) has embedded files sub-section
+    - RV section has no files (no scene files for playback)
 
     Signals:
         launch_requested: Signal(str, dict) - app_name, options
-        file_open_requested: Signal(SceneFile) - scene file to open
-        path_copy_requested: Signal() - workspace path copy
     """
 
     launch_requested = Signal(str, dict)  # app_name, options
-    file_open_requested = Signal(object)  # SceneFile
-    path_copy_requested = Signal()
 
     def __init__(
         self,
@@ -121,31 +113,12 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
         content_layout.setContentsMargins(10, 10, 10, 10)
         content_layout.setSpacing(12)
 
-        # 1. Shot Header
-        self._shot_header = ShotHeader(parent=self)
-        content_layout.addWidget(self._shot_header)
-
-        # 2. Quick Launch Bar
-        self._quick_launch = QuickLaunchBar(parent=self)
-        content_layout.addWidget(self._quick_launch)
-
-        # 3. DCC Accordion
+        # DCC Accordion (only main widget - each section has embedded files)
         self._dcc_accordion = DCCAccordion(
             settings_manager=self._settings_manager,
             parent=self,
         )
         content_layout.addWidget(self._dcc_accordion)
-
-        # 4. Files Section (restore expanded state from settings if available)
-        files_expanded = False
-        if self._settings_manager is not None:
-            files_expanded = self._settings_manager.is_section_expanded("files")
-        self._files_section = FilesSection(
-            title="Files",
-            expanded=files_expanded,
-            parent=self,
-        )
-        content_layout.addWidget(self._files_section)
 
         # Stretch at bottom
         content_layout.addStretch()
@@ -163,45 +136,9 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
 
     def _connect_signals(self) -> None:
         """Connect internal widget signals."""
-        # Shot header signals
-        _ = self._shot_header.path_copy_requested.connect(self.path_copy_requested)
-
-        # Quick launch signals - forward with default options
-        _ = self._quick_launch.launch_requested.connect(self._on_quick_launch)
-
         # DCC accordion signals - route through handler to inject selected file
         _ = self._dcc_accordion.launch_requested.connect(self._on_dcc_launch)
-
-        # Files section signals
-        _ = self._files_section.file_open_requested.connect(self.file_open_requested)
-        _ = self._files_section.file_selected.connect(self._on_file_selected)
-
-        # Save Files section expanded state to settings
-        if self._settings_manager is not None:
-            settings = self._settings_manager  # Capture for lambda
-
-            def save_files_expanded(expanded: bool) -> None:
-                settings.set_section_expanded("files", expanded)
-
-            _ = self._files_section.expanded_changed.connect(save_files_expanded)
-
-    def _on_quick_launch(self, app_name: str) -> None:
-        """Handle quick launch request.
-
-        Gets options from the corresponding DCC section, injects selected file,
-        and emits launch signal.
-
-        Args:
-            app_name: Name of the app to launch
-        """
-        base_options = self._dcc_accordion.get_options(app_name) or {}
-        # Create mutable options dict that can hold SceneFile
-        options: dict[str, Any] = dict(base_options)
-        # Inject selected file if available
-        selected_file = self._selected_files.get(app_name)
-        if selected_file:
-            options["selected_file"] = selected_file
-        self.launch_requested.emit(app_name, options)
+        _ = self._dcc_accordion.file_selected.connect(self._on_file_selected_from_dcc)
 
     def _on_dcc_launch(
         self, app_name: str, base_options: dict[str, bool | str | None]
@@ -216,70 +153,24 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
         """
         # Create mutable options dict that can hold SceneFile
         options: dict[str, Any] = dict(base_options)
-        # Inject selected file if available
-        selected_file = self._selected_files.get(app_name)
+        # Get selected file from the DCC section itself
+        selected_file = self._dcc_accordion.get_selected_file(app_name)
         if selected_file:
             options["selected_file"] = selected_file
         self.launch_requested.emit(app_name, options)
 
-    def _on_file_selected(self, scene_file: SceneFile) -> None:
-        """Handle user clicking a file row - set as default for that DCC.
+    def _on_file_selected_from_dcc(
+        self, app_name: str, scene_file: SceneFile
+    ) -> None:
+        """Handle file selection from a DCC section.
+
+        Stores the selected file for later use in launch options.
 
         Args:
+            app_name: The DCC app name (e.g., "3de", "nuke", "maya")
             scene_file: The selected scene file
         """
-        app_name = self._file_type_to_app(scene_file.file_type)
-        if app_name:
-            self._selected_files[app_name] = scene_file
-            self._update_default_indicators(app_name, scene_file)
-
-    def _file_type_to_app(self, file_type: FileType) -> str | None:
-        """Map FileType to app name string.
-
-        Args:
-            file_type: The file type to map
-
-        Returns:
-            App name string or None if not mappable
-        """
-        return {
-            FileType.THREEDE: "3de",
-            FileType.MAYA: "maya",
-            FileType.NUKE: "nuke",
-        }.get(file_type)
-
-    def _update_default_indicators(
-        self, app_name: str, file: SceneFile | None
-    ) -> None:
-        """Update all UI components when selected default changes.
-
-        Args:
-            app_name: The app name (e.g., "3de", "nuke", "maya")
-            file: The selected file, or None to clear
-        """
-        if file:
-            version = f"v{file.version:03d}" if file.version else None
-            plate = self._dcc_accordion.get_selected_plate(app_name)
-
-            # Update Files table arrow indicator
-            self._files_section.set_default_file(file.file_type, file)
-
-            # Update DCC launch description ("Opens: v005 | FG01")
-            self._dcc_accordion.set_launch_description(app_name, version, plate)
-
-            # Update Quick Launch tooltip
-            self._quick_launch.set_latest_version(app_name, version)
-        else:
-            # Clear indicators
-            file_type_map = {
-                "3de": FileType.THREEDE,
-                "maya": FileType.MAYA,
-                "nuke": FileType.NUKE,
-            }
-            file_type = file_type_map.get(app_name)
-            if file_type:
-                self._files_section.set_default_file(file_type, None)
-            self._dcc_accordion.set_launch_description(app_name, None)
+        self._selected_files[app_name] = scene_file
 
     def set_shot(self, shot: Shot | None, *, discover_files: bool = True) -> None:
         """Set the current shot.
@@ -296,16 +187,13 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
         if shot != self._current_shot:
             for app_name in self._selected_files:
                 self._selected_files[app_name] = None
-            self._files_section.clear_default_files()
-            # Also clear launch descriptions
+            # Clear launch descriptions
             for app_name in ["3de", "nuke", "maya"]:
                 self._dcc_accordion.set_launch_description(app_name, None)
 
         self._current_shot = shot
 
-        # Update all child widgets
-        self._shot_header.set_shot(shot)
-        self._quick_launch.set_shot(shot)
+        # Update DCC accordion (handles enabling/disabling sections)
         self._dcc_accordion.set_shot(shot)
 
         # Discover and display files (unless caller will provide them)
@@ -315,26 +203,19 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
                 self.set_files(files_by_type)
             except Exception as e:
                 self.logger.error(f"Error discovering files for {shot.full_name}: {e}")
-                self._files_section.clear_files()
+                self._clear_files()
         elif shot is None:
-            self._files_section.clear_files()
+            self._clear_files()
 
     def set_files(self, files_by_type: dict[FileType, list[SceneFile]]) -> None:
-        """Set scene files for display.
+        """Set scene files for display in per-DCC embedded sections.
 
-        Updates both the files section and the shot header DCC status.
+        Routes files to the appropriate DCC sections.
 
         Args:
             files_by_type: Dict mapping FileType to list of SceneFiles
         """
-        # Update files section
-        self._files_section.set_files(files_by_type)
-
-        # Update shot header DCC status
-        self._shot_header.update_from_files(files_by_type)
-
-        # Update version info in quick launch tooltips
-        # Map FileType to app names for when there are no files
+        # Map FileType to app names
         file_type_to_app = {
             FileType.THREEDE: "3de",
             FileType.MAYA: "maya",
@@ -342,23 +223,31 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
         }
 
         for file_type, files in files_by_type.items():
-            if files:
-                latest = files[0]
-                app_name = latest.app_name
-                version = f"v{latest.version:03d}" if latest.version else None
+            app_name = file_type_to_app.get(file_type)
+            if app_name:
+                # Route files to the DCC section (handles embedded display)
+                self._dcc_accordion.set_files_for_dcc(app_name, files)
 
-                # Auto-select first file as default for this DCC
-                self._selected_files[app_name] = latest
-                self._update_default_indicators(app_name, latest)
-
-                self._quick_launch.set_latest_version(app_name, version)
-                self._dcc_accordion.set_version_info(app_name, version, latest.relative_age)
-            else:
-                # Clear version info when no files
-                app_name = file_type_to_app.get(file_type)
-                if app_name:
-                    self._quick_launch.set_latest_version(app_name, None)
+                if files:
+                    # Track latest file for this DCC
+                    latest = files[0]
+                    self._selected_files[app_name] = latest
+                    # Update version info in header
+                    version = f"v{latest.version:03d}" if latest.version else None
+                    self._dcc_accordion.set_version_info(
+                        app_name, version, latest.relative_age
+                    )
+                else:
+                    # Clear when no files
+                    self._selected_files[app_name] = None
                     self._dcc_accordion.set_version_info(app_name, None)
+
+    def _clear_files(self) -> None:
+        """Clear files from all DCC sections."""
+        for app_name in ["3de", "nuke", "maya"]:
+            self._dcc_accordion.set_files_for_dcc(app_name, [])
+            self._selected_files[app_name] = None
+            self._dcc_accordion.set_version_info(app_name, None)
 
     def set_available_plates(self, plates: list[str]) -> None:
         """Set available plates for plate selectors.
@@ -367,14 +256,6 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
             plates: List of plate names (e.g., ['FG01', 'BG01'])
         """
         self._dcc_accordion.set_available_plates(plates)
-
-    def set_empty_message(self, message: str) -> None:
-        """Set the message shown when no shot is selected.
-
-        Args:
-            message: The empty state message
-        """
-        self._shot_header.set_empty_message(message)
 
     def expand_dcc_section(self, app_name: str) -> None:
         """Expand a specific DCC section.
@@ -392,14 +273,6 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
         """
         self._dcc_accordion.set_section_expanded(app_name, False)
 
-    def set_files_expanded(self, expanded: bool) -> None:
-        """Set the files section expansion state.
-
-        Args:
-            expanded: True to expand, False to collapse
-        """
-        self._files_section.set_expanded(expanded)
-
     def get_dcc_options(self, app_name: str) -> dict[str, bool | str | None] | None:
         """Get launch options for a specific DCC.
 
@@ -411,13 +284,16 @@ class RightPanelWidget(QtWidgetMixin, QWidget):
         """
         return self._dcc_accordion.get_options(app_name)
 
-    def get_selected_file(self) -> SceneFile | None:
-        """Get the currently selected file from the files section.
+    def get_selected_file(self, app_name: str) -> SceneFile | None:
+        """Get the currently selected file for a specific DCC.
+
+        Args:
+            app_name: The DCC app name (e.g., "3de", "nuke", "maya")
 
         Returns:
             Selected SceneFile or None
         """
-        return self._files_section.get_selected_file()
+        return self._dcc_accordion.get_selected_file(app_name)
 
     # Keyboard shortcut handlers
     def handle_shortcut(self, key: str) -> bool:

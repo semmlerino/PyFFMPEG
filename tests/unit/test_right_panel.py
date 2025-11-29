@@ -61,15 +61,12 @@ def sample_files() -> dict[FileType, list[SceneFile]]:
 class TestRightPanelWidgetInit:
     """Tests for RightPanelWidget initialization."""
 
-    def test_creates_all_child_widgets(self, qtbot: QtBot) -> None:
-        """All child widgets are created."""
+    def test_creates_dcc_accordion(self, qtbot: QtBot) -> None:
+        """DCC accordion is created."""
         panel = RightPanelWidget()
         qtbot.addWidget(panel)
 
-        assert panel._shot_header is not None
-        assert panel._quick_launch is not None
         assert panel._dcc_accordion is not None
-        assert panel._files_section is not None
 
     def test_parent_parameter(self, qtbot: QtBot) -> None:
         """Accepts parent parameter."""
@@ -85,10 +82,10 @@ class TestRightPanelWidgetInit:
 class TestRightPanelWidgetShot:
     """Tests for shot handling."""
 
-    def test_set_shot_updates_all_widgets(
+    def test_set_shot_enables_dcc_sections(
         self, qtbot: QtBot, mock_shot: MagicMock
     ) -> None:
-        """Setting shot updates all child widgets."""
+        """Setting shot enables DCC sections."""
         panel = RightPanelWidget()
         qtbot.addWidget(panel)
         panel.show()
@@ -97,41 +94,66 @@ class TestRightPanelWidgetShot:
         panel.set_shot(mock_shot)
         process_qt_events()
 
-        # Shot header should show shot name
-        assert "sq010_sh0010" in panel._shot_header._shot_name_label.text()
+        # DCC sections should be enabled
+        for section in panel._dcc_accordion._sections.values():
+            assert section._launch_btn.isEnabled()
 
-        # Quick launch should be enabled
-        for btn in panel._quick_launch._buttons.values():
-            assert btn.isEnabled()
-
-    def test_clear_shot_updates_all_widgets(
+    def test_clear_shot_disables_dcc_sections(
         self, qtbot: QtBot, mock_shot: MagicMock
     ) -> None:
-        """Clearing shot updates all child widgets."""
+        """Clearing shot disables DCC sections."""
         panel = RightPanelWidget()
         qtbot.addWidget(panel)
 
         panel.set_shot(mock_shot)
         panel.set_shot(None)
 
-        # Quick launch should be disabled
-        for btn in panel._quick_launch._buttons.values():
-            assert not btn.isEnabled()
+        # DCC sections should be disabled
+        for section in panel._dcc_accordion._sections.values():
+            assert not section._launch_btn.isEnabled()
+
+    def test_set_shot_clears_file_selections(
+        self, qtbot: QtBot, mock_shot: MagicMock
+    ) -> None:
+        """Setting a new shot clears file selections."""
+        panel = RightPanelWidget()
+        qtbot.addWidget(panel)
+
+        # Set initial shot
+        panel.set_shot(mock_shot)
+
+        # Create a different shot
+        new_shot = MagicMock()
+        new_shot.full_name = "sq020_sh0020"
+
+        # Set new shot
+        panel.set_shot(new_shot)
+
+        # File selections should be cleared
+        for app_name in ["3de", "nuke", "maya"]:
+            assert panel._selected_files[app_name] is None
 
 
 class TestRightPanelWidgetFiles:
     """Tests for file handling."""
 
-    def test_set_files(
+    def test_set_files_routes_to_dcc_sections(
         self, qtbot: QtBot, sample_files: dict[FileType, list[SceneFile]]
     ) -> None:
-        """Setting files updates files section."""
+        """Setting files routes them to appropriate DCC sections."""
         panel = RightPanelWidget()
         qtbot.addWidget(panel)
 
         panel.set_files(sample_files)
+        process_qt_events()
 
-        assert panel._files_section.get_total_file_count() == 2
+        # 3DE section should have 1 file
+        threede_section = panel._dcc_accordion._sections["3de"]
+        assert threede_section.get_selected_file() is not None
+
+        # Nuke section should have 1 file
+        nuke_section = panel._dcc_accordion._sections["nuke"]
+        assert nuke_section.get_selected_file() is not None
 
     def test_set_files_updates_version_info(
         self, qtbot: QtBot, sample_files: dict[FileType, list[SceneFile]]
@@ -149,30 +171,23 @@ class TestRightPanelWidgetFiles:
         threede_section = panel._dcc_accordion._sections["3de"]
         assert "v005" in threede_section._version_label.text()
 
+    def test_set_files_tracks_selected_files(
+        self, qtbot: QtBot, sample_files: dict[FileType, list[SceneFile]]
+    ) -> None:
+        """Setting files updates selected files tracking."""
+        panel = RightPanelWidget()
+        qtbot.addWidget(panel)
+
+        panel.set_files(sample_files)
+
+        # Should track latest files
+        assert panel._selected_files["3de"] is not None
+        assert panel._selected_files["nuke"] is not None
+        assert panel._selected_files["maya"] is None  # Empty list
+
 
 class TestRightPanelWidgetLaunchSignals:
     """Tests for launch signal handling."""
-
-    def test_quick_launch_emits_launch_requested(
-        self, qtbot: QtBot, mock_shot: MagicMock
-    ) -> None:
-        """Quick launch button emits launch_requested signal."""
-        panel = RightPanelWidget()
-        qtbot.addWidget(panel)
-        panel.set_shot(mock_shot)
-        panel.show()
-        process_qt_events()
-
-        with qtbot.waitSignal(panel.launch_requested, timeout=1000) as blocker:
-            qtbot.mouseClick(
-                panel._quick_launch._buttons["3de"],
-                Qt.MouseButton.LeftButton,
-            )
-            process_qt_events()
-
-        app_name, options = blocker.args
-        assert app_name == "3de"
-        assert isinstance(options, dict)
 
     def test_accordion_launch_emits_launch_requested(
         self, qtbot: QtBot, mock_shot: MagicMock
@@ -194,6 +209,33 @@ class TestRightPanelWidgetLaunchSignals:
             process_qt_events()
 
         assert blocker.args[0] == "3de"
+
+    def test_launch_includes_selected_file(
+        self,
+        qtbot: QtBot,
+        mock_shot: MagicMock,
+        sample_files: dict[FileType, list[SceneFile]],
+    ) -> None:
+        """Launch signal includes selected file in options."""
+        panel = RightPanelWidget()
+        qtbot.addWidget(panel)
+        panel.set_shot(mock_shot)
+        panel.set_files(sample_files)
+        panel.show()
+        process_qt_events()
+
+        # Expand and click the 3de section
+        section = panel._dcc_accordion._sections["3de"]
+        section.set_expanded(True)
+        process_qt_events()
+
+        with qtbot.waitSignal(panel.launch_requested, timeout=1000) as blocker:
+            qtbot.mouseClick(section._launch_btn, Qt.MouseButton.LeftButton)
+            process_qt_events()
+
+        app_name, options = blocker.args
+        assert app_name == "3de"
+        assert "selected_file" in options
 
 
 class TestRightPanelWidgetPlates:
@@ -232,26 +274,6 @@ class TestRightPanelWidgetDCCExpansion:
         panel.collapse_dcc_section("nuke")
 
         assert not panel._dcc_accordion._sections["nuke"].is_expanded()
-
-
-class TestRightPanelWidgetFilesExpansion:
-    """Tests for files section expansion control."""
-
-    def test_files_collapsed_by_default(self, qtbot: QtBot) -> None:
-        """Files section is collapsed by default."""
-        panel = RightPanelWidget()
-        qtbot.addWidget(panel)
-
-        assert not panel._files_section.is_expanded()
-
-    def test_set_files_expanded(self, qtbot: QtBot) -> None:
-        """Can expand the files section."""
-        panel = RightPanelWidget()
-        qtbot.addWidget(panel)
-
-        panel.set_files_expanded(True)
-
-        assert panel._files_section.is_expanded()
 
 
 class TestRightPanelWidgetShortcuts:
@@ -315,3 +337,42 @@ class TestRightPanelWidgetOptions:
         options = panel.get_dcc_options("unknown")
 
         assert options is None
+
+
+class TestRightPanelWidgetFileSelection:
+    """Tests for file selection functionality."""
+
+    def test_get_selected_file(
+        self, qtbot: QtBot, sample_files: dict[FileType, list[SceneFile]]
+    ) -> None:
+        """Can get selected file for a specific DCC."""
+        panel = RightPanelWidget()
+        qtbot.addWidget(panel)
+
+        panel.set_files(sample_files)
+
+        # 3DE should have a selected file
+        selected = panel.get_selected_file("3de")
+        assert selected is not None
+        assert selected.version == 5
+
+    def test_get_selected_file_no_files(self, qtbot: QtBot) -> None:
+        """Returns None when no files set."""
+        panel = RightPanelWidget()
+        qtbot.addWidget(panel)
+
+        selected = panel.get_selected_file("3de")
+        assert selected is None
+
+    def test_file_selection_from_dcc_section(
+        self, qtbot: QtBot, sample_files: dict[FileType, list[SceneFile]]
+    ) -> None:
+        """File selection from DCC section updates panel state."""
+        panel = RightPanelWidget()
+        qtbot.addWidget(panel)
+
+        panel.set_files(sample_files)
+
+        # The file selection should be tracked
+        assert panel._selected_files["3de"] is not None
+        assert panel._selected_files["3de"].version == 5
