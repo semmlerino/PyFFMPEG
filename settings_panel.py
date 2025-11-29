@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from codec_helpers import CodecHelpers
 from config import AppConfig, EncodingConfig, ProcessConfig
 
 
@@ -48,6 +49,7 @@ class SettingsPanel(QObject):
         self.auto_balance_checkbox: Optional[QCheckBox] = None
         self.hevc_10bit_checkbox: Optional[QCheckBox] = None
         self.nvenc_settings_button: Optional[QPushButton] = None
+        self.priority_combo: Optional[QComboBox] = None
 
         # Advanced NVENC settings
         self.nvenc_b_adapt: int = 2
@@ -660,8 +662,12 @@ class SettingsPanel(QObject):
 
         # Check if AV1 is selected on non-RTX 40 systems
         if settings.get("codec_idx") == 2:  # AV1 NVENC (index 2)
-            # This would require hardware detection, for now just warn
-            return True, "⚠️ AV1 NVENC requires RTX 40 series GPU"
+            if not CodecHelpers.detect_rtx40_series():
+                return (
+                    False,
+                    "AV1 NVENC requires RTX 40 series GPU. "
+                    "Please select a different codec or use an RTX 40 series GPU.",
+                )
 
         # Check parallel processing limits
         if (

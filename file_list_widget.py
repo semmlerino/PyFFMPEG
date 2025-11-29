@@ -7,7 +7,7 @@ A custom QListWidget with drag & drop support for TS files
 import os
 import subprocess
 import sys
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 from PySide6.QtCore import QFileInfo, QObject, QRunnable, QSize, Qt, QThreadPool, Signal
 from PySide6.QtGui import QColor, QCursor
@@ -63,7 +63,7 @@ class FileListWidget(QListWidget):
         self.setSpacing(2)
 
         # Metadata support
-        self.metadata_cache: Dict[str, Optional[Dict]] = {}
+        self.metadata_cache: Dict[str, Optional[Dict[str, Any]]] = {}
         self.thread_pool = QThreadPool()
         self.metadata_signals = MetadataSignals()
         self.metadata_signals.metadata_loaded.connect(self._on_metadata_loaded)
@@ -312,7 +312,7 @@ class FileListWidget(QListWidget):
 
         return self.path_items[path].data(Qt.ItemDataRole.UserRole + 1) or ""
 
-    def add_files(self, file_paths: list) -> None:
+    def add_files(self, file_paths: list[str]) -> None:
         """Add multiple files to the list"""
         for path in file_paths:
             self.add_path(path)
@@ -414,7 +414,7 @@ class FileListWidget(QListWidget):
         # Emit order changed signal
         self.order_changed.emit()
 
-    def get_file_paths(self) -> list:
+    def get_file_paths(self) -> list[str]:
         """Get all file paths in the list"""
         return list(self.path_items.keys())
 
@@ -435,8 +435,14 @@ class FileListWidget(QListWidget):
         worker = MetadataWorker(path, self.metadata_signals)
         self.thread_pool.start(worker)
 
-    def _on_metadata_loaded(self, file_path: str, metadata: Optional[Dict]):
+    def _on_metadata_loaded(self, file_path: str, metadata: Optional[Dict[str, Any]]):
         """Handle metadata loading completion"""
+        # Check if file was removed before metadata loaded (prevents memory leak)
+        if file_path not in self.path_items:
+            # Clean up any partial cache entry
+            self.metadata_cache.pop(file_path, None)
+            return
+
         # Store metadata in cache
         self.metadata_cache[file_path] = metadata
 
@@ -505,7 +511,7 @@ class FileListWidget(QListWidget):
 
         item.setToolTip("\n".join(tooltip_lines))
 
-    def _format_file_with_metadata(self, filename: str, metadata: Dict) -> str:
+    def _format_file_with_metadata(self, filename: str, metadata: Dict[str, Any]) -> str:
         """Format filename with metadata for display"""
         parts = [filename]
 
@@ -531,7 +537,7 @@ class FileListWidget(QListWidget):
 
         return " • ".join(parts)
 
-    def get_file_metadata(self, path: str) -> Optional[Dict]:
+    def get_file_metadata(self, path: str) -> Optional[Dict[str, Any]]:
         """Get cached metadata for a file"""
         return self.metadata_cache.get(path)
 

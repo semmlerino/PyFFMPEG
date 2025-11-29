@@ -41,6 +41,16 @@ class ConversionController(QObject):
         self.current_path: Optional[str] = None
         self.batch_start_time: Optional[float] = None
 
+        # Conversion settings (set when conversion starts)
+        self.codec_idx: int = 0
+        self.hwdecode_idx: int = 0
+        self.crf_value: int = EncodingConfig.DEFAULT_CRF
+        self.parallel_enabled: bool = False
+        self.max_parallel: int = 1
+        self.delete_source: bool = False
+        self.overwrite_mode: bool = False
+        self.preset_idx: int = 0
+
         # Connect process manager signals
         self.process_manager.process_finished.connect(self._on_process_finished)
         self.process_manager.update_progress.connect(self.progress_updated.emit)
@@ -292,8 +302,9 @@ class ConversionController(QObject):
             if self.file_list_widget:
                 self.file_list_widget.set_status(process_path, "failed")
 
-        # Continue with next file if parallel processing
-        if (self.parallel_enabled and self.queue) or not self.parallel_enabled:
+        # Continue processing (handles both parallel and sequential modes)
+        # Always call _process_next() to properly detect conversion completion
+        if self.is_converting:
             self._process_next()
 
     def _finish_conversion(self) -> None:

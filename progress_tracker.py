@@ -42,6 +42,10 @@ class ProcessProgressTracker:
         # Initialize output buffer manager for optimized processing
         self.output_manager = ProcessOutputManager(batch_interval=0.1)
 
+        # Cache for overall progress calculation (thread-safe access via _lock)
+        self._last_overall_calc_time: float = 0.0
+        self._last_overall_result: Dict[str, Any] = {}
+
     def start_batch(self, total_files: int):
         """Start tracking a batch of processes"""
         self.batch_start_time = time.time()
@@ -166,114 +170,119 @@ class ProcessProgressTracker:
         if not self.batch_start_time:
             return {}
 
-        # Use lock to ensure thread safety for cache operations
+        # Use lock for entire calculation to prevent TOCTOU race conditions
+        # RLock allows reentrant calls from output_manager
         with self._lock:
             # Check if we need to recalculate (cache for performance)
             current_time = time.time()
             if (
-                hasattr(self, "_last_overall_calc_time")
-                and hasattr(self, "_last_overall_result")
+                self._last_overall_calc_time > 0
                 and current_time - self._last_overall_calc_time < 0.1  # 100ms cache
             ):
                 return self._last_overall_result
 
-        # Batch process all outputs for accurate data
-        self.output_manager.process_all_batches()
+            # Batch process all outputs for accurate data
+            # Note: output_manager has its own locking, safe to call under our lock
+            self.output_manager.process_all_batches()
 
-        # Calculate overall progress percentage
-        process_progress_sum = sum(p["current_pct"] for p in self.processes.values())
-        active_count = len(self.processes)
-
-        # Calculate weighted progress (completed files count as 100%)
-        if self.total_count > 0:  # Avoid division by zero
-            weighted_pct = (
-                process_progress_sum + (self.completed_count * 100)
-            ) / self.total_count
-        else:
-            weighted_pct = 0
-
-        # Get current time for calculations
-        elapsed_total = current_time - self.batch_start_time
-
-        # Calculate time-based progress rate rather than percentage-based
-        # This makes the ETA calculation more stable
-        current_progress_rate = 0
-        if weighted_pct > 0:  # Avoid division by zero
-            # Calculate instantaneous rate
-            if self.last_progress_value > 0 and current_time > self.last_progress_time:
-                time_diff = current_time - self.last_progress_time
-                progress_diff = weighted_pct - self.last_progress_value
-
-                # Update ETA in two cases:
-                # 1. When we've made meaningful progress
-                # 2. When it's been a while since our last update
-                should_update = (
-                    progress_diff > 0.05 and time_diff > 0.5
-                ) or time_diff > self.force_eta_update_interval
-
-                if should_update:
-                    # Calculate progress rate (%/second)
-                    current_progress_rate = progress_diff / time_diff
-
-                    # Always ensure some minimum rate to prevent infinite ETA
-                    min_rate = 0.001  # Minimum progress rate of 0.001% per second
-                    current_progress_rate = max(current_progress_rate, min_rate)
-
-                    # Calculate raw ETA based on current rate
-                    raw_eta = (100 - weighted_pct) / current_progress_rate
-
-                    # Cap the raw ETA at a reasonable maximum
-                    max_possible_eta = 3600 * 24  # 24 hours max
-                    raw_eta = min(raw_eta, max_possible_eta)
-
-                    # Add to the list of recent ETAs
-                    self.prev_eta_values.append(raw_eta)
-                    # Keep only the most recent values
-                    if len(self.prev_eta_values) > self.eta_window_size:
-                        self.prev_eta_values.pop(0)
-
-            # Use fallback calculation if we don't have enough data yet
-            if not self.prev_eta_values:
-                total_eta = (elapsed_total / weighted_pct) * (100 - weighted_pct)
-                self.prev_eta_values.append(total_eta)
-
-            # Calculate smoothed ETA using weighted moving average
-            # Give more weight to recent values
-            weights = [i + 1 for i in range(len(self.prev_eta_values))]
-            total_weight = sum(weights)
-            smoothed_eta = sum(
-                eta * (w / total_weight)
-                for eta, w in zip(self.prev_eta_values, weights)
+            # Calculate overall progress percentage (safe iteration under lock)
+            process_progress_sum = sum(
+                p["current_pct"] for p in self.processes.values()
             )
+            active_count = len(self.processes)
 
-            # Apply sanity limits to ETA
-            # If progress is >90%, ETA shouldn't be more than 10 minutes
-            if weighted_pct > 90 and smoothed_eta > 600:
-                smoothed_eta = min(smoothed_eta, 600)
+            # Calculate weighted progress (completed files count as 100%)
+            if self.total_count > 0:  # Avoid division by zero
+                weighted_pct = (
+                    process_progress_sum + (self.completed_count * 100)
+                ) / self.total_count
+            else:
+                weighted_pct = 0
 
-            # Store values for next calculation
-            self.last_progress_time = current_time
-            self.last_progress_value = weighted_pct
-        else:
-            smoothed_eta = 0
+            # Get current time for calculations
+            elapsed_total = current_time - self.batch_start_time
 
-        result = {
-            "weighted_pct": weighted_pct,
-            "elapsed_total": elapsed_total,
-            "elapsed_str": self._format_time(elapsed_total),
-            "total_eta": smoothed_eta,
-            "eta_str": self._format_time(smoothed_eta),
-            "active_count": active_count,
-            "completed_count": self.completed_count,
-            "total_count": self.total_count,
-        }
+            # Calculate time-based progress rate rather than percentage-based
+            # This makes the ETA calculation more stable
+            current_progress_rate = 0
+            if weighted_pct > 0:  # Avoid division by zero
+                # Calculate instantaneous rate
+                if (
+                    self.last_progress_value > 0
+                    and current_time > self.last_progress_time
+                ):
+                    time_diff = current_time - self.last_progress_time
+                    progress_diff = weighted_pct - self.last_progress_value
 
-        # Cache the result with thread safety
-        with self._lock:
+                    # Update ETA in two cases:
+                    # 1. When we've made meaningful progress
+                    # 2. When it's been a while since our last update
+                    should_update = (
+                        progress_diff > 0.05 and time_diff > 0.5
+                    ) or time_diff > self.force_eta_update_interval
+
+                    if should_update:
+                        # Calculate progress rate (%/second)
+                        current_progress_rate = progress_diff / time_diff
+
+                        # Always ensure some minimum rate to prevent infinite ETA
+                        min_rate = 0.001  # Minimum progress rate of 0.001% per second
+                        current_progress_rate = max(current_progress_rate, min_rate)
+
+                        # Calculate raw ETA based on current rate
+                        raw_eta = (100 - weighted_pct) / current_progress_rate
+
+                        # Cap the raw ETA at a reasonable maximum
+                        max_possible_eta = 3600 * 24  # 24 hours max
+                        raw_eta = min(raw_eta, max_possible_eta)
+
+                        # Add to the list of recent ETAs
+                        self.prev_eta_values.append(raw_eta)
+                        # Keep only the most recent values
+                        if len(self.prev_eta_values) > self.eta_window_size:
+                            self.prev_eta_values.pop(0)
+
+                # Use fallback calculation if we don't have enough data yet
+                if not self.prev_eta_values:
+                    total_eta = (elapsed_total / weighted_pct) * (100 - weighted_pct)
+                    self.prev_eta_values.append(total_eta)
+
+                # Calculate smoothed ETA using weighted moving average
+                # Give more weight to recent values
+                weights = [i + 1 for i in range(len(self.prev_eta_values))]
+                total_weight = sum(weights)
+                smoothed_eta = sum(
+                    eta * (w / total_weight)
+                    for eta, w in zip(self.prev_eta_values, weights)
+                )
+
+                # Apply sanity limits to ETA
+                # If progress is >90%, ETA shouldn't be more than 10 minutes
+                if weighted_pct > 90 and smoothed_eta > 600:
+                    smoothed_eta = min(smoothed_eta, 600)
+
+                # Store values for next calculation
+                self.last_progress_time = current_time
+                self.last_progress_value = weighted_pct
+            else:
+                smoothed_eta = 0
+
+            result = {
+                "weighted_pct": weighted_pct,
+                "elapsed_total": elapsed_total,
+                "elapsed_str": self._format_time(elapsed_total),
+                "total_eta": smoothed_eta,
+                "eta_str": self._format_time(smoothed_eta),
+                "active_count": active_count,
+                "completed_count": self.completed_count,
+                "total_count": self.total_count,
+            }
+
+            # Cache the result (already under lock)
             self._last_overall_calc_time = current_time
             self._last_overall_result = result
 
-        return result
+            return result
 
     def get_codec_distribution(self, codec_map: Dict[str, int]) -> Dict[str, int]:
         """Calculate distribution of active encoders by type (GPU/CPU)"""

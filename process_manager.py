@@ -43,11 +43,11 @@ class ProcessManager(QObject):
 
         # Initialize process tracking
         self.processes: List[Tuple[QProcess, str]] = []
-        self.process_widgets: Dict[QProcess, Dict] = {}
+        self.process_widgets: Dict[QProcess, Dict[str, Any]] = {}
 
         # Use deque for memory-efficient circular buffers
-        self.process_logs: Dict[QProcess, deque] = {}  # Circular buffer for logs
-        self.process_outputs: Dict[QProcess, deque] = {}  # Circular buffer for outputs
+        self.process_logs: Dict[QProcess, deque[str]] = {}  # Circular buffer for logs
+        self.process_outputs: Dict[QProcess, deque[str]] = {}  # Circular buffer for outputs
         self._base_max_log_lines = 500  # Base maximum lines per process log
         self._current_max_log_lines = (
             500  # Dynamically adjusted based on active processes
@@ -526,6 +526,10 @@ class ProcessManager(QObject):
                     ctypes.windll.kernel32.CloseHandle(handle)
             else:  # Linux/Unix
                 nice_values = {"high": -10, "normal": 0, "low": 10}
-                os.nice(nice_values.get(priority, 0))
+                nice_value = nice_values.get(priority, 0)
+                pid = process.processId()
+                if pid > 0:
+                    # Use setpriority to change the CHILD process priority, not the parent
+                    os.setpriority(os.PRIO_PROCESS, pid, nice_value)
         except Exception as e:
             self.logger.warning(f"Failed to set process priority: {e}")
