@@ -1233,6 +1233,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         if isinstance(files, dict):
             self.right_panel.set_files(cast("dict[FileType, list[SceneFile]]", files))
 
+        # Discover RV sequences (Maya playblasts, Nuke renders)
+        self.right_panel._discover_rv_sequences(shot)
+
     @Slot(str)
     def _on_discovery_error(self, error_message: str) -> None:
         """Handle discovery error.
