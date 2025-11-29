@@ -6,7 +6,6 @@ proper cleanup and prevent memory leaks from untracked thread pool tasks.
 """
 # Standard library imports
 import logging
-import threading
 import weakref
 from collections.abc import Mapping
 from typing import final
@@ -14,6 +13,7 @@ from typing import final
 # Third-party imports
 from PySide6.QtCore import QRunnable, QThreadPool
 
+from singleton_mixin import SingletonMixin
 from typing_compat import override
 
 
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 @final
-class QRunnableTracker:
+class QRunnableTracker(SingletonMixin):
     """
     Singleton tracker for QRunnable instances.
 
@@ -30,26 +30,12 @@ class QRunnableTracker:
     and cleanup of thread pool tasks.
     """
 
-    _instance: "QRunnableTracker | None" = None
-    _lock = threading.Lock()
-    _initialized = False
-
-    def __new__(cls) -> "QRunnableTracker":
-        """Thread-safe singleton implementation."""
-        with cls._lock:
-            if cls._instance is None:
-                instance = super().__new__(cls)
-                instance._initialized = False
-                cls._instance = instance
-        return cls._instance
-
     def __init__(self) -> None:
         """Initialize the tracker (only once)."""
+        if self._is_initialized():
+            return
+
         super().__init__()
-        with self._lock:
-            if self._initialized:
-                return
-            self._initialized = True
 
         self._active_runnables: weakref.WeakSet[QRunnable] = weakref.WeakSet()
         self._runnable_metadata: weakref.WeakKeyDictionary[
@@ -60,6 +46,8 @@ class QRunnableTracker:
             "total_completed": 0,
             "peak_concurrent": 0,
         }
+
+        self._mark_initialized()
         logger.debug("QRunnableTracker initialized")
 
     def register(
@@ -173,16 +161,11 @@ class QRunnableTracker:
         )
 
     @classmethod
-    def reset(cls) -> None:
-        """Reset singleton for testing. INTERNAL USE ONLY.
-
-        This method clears all state and resets the singleton instance.
-        It should only be used in test cleanup to ensure test isolation.
-        """
-        with cls._lock:
-            if cls._instance:
-                cls._instance.cleanup_all()
-            cls._instance = None
+    @override
+    def _cleanup_instance(cls) -> None:
+        """Clean up all tracked runnables before singleton reset."""
+        if cls._instance is not None:
+            cls._instance.cleanup_all()
 
 
 @final

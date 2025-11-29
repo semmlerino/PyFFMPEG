@@ -81,43 +81,16 @@ class EnvironmentManager:
     def is_rez_available(self, config: "type[Config]") -> bool:
         """Check if rez wrapping should be applied to commands.
 
+        This is a compatibility wrapper around should_wrap_with_rez() which
+        uses the modern RezMode enum configuration.
+
         Args:
             config: Application configuration
 
         Returns:
             True if rez wrapping should be applied, False to skip wrapping
-
-        Returns False (skip wrapping) when:
-            - config.USE_REZ_ENVIRONMENT is False
-            - REZ_AUTO_DETECT enabled AND REZ_USED env var is set
-              (indicates shell init already set up Rez - don't double-wrap)
-            - 'rez' command not found on PATH
-
-        Note:
-            In BlueBolt's VFX environment, Rez is initialized by shell startup
-            (setbbplatform in bashrc.env), NOT by the ws command. The ws command
-            only sets workspace context variables (SHOW, SEQUENCE, SHOT).
-            When REZ_USED is set, we're already in a rez context and should not
-            wrap again to avoid package conflicts.
         """
-        if not config.USE_REZ_ENVIRONMENT:
-            return False
-
-        # Check for REZ_USED environment variable (indicates we're already in a rez env)
-        # Don't wrap again to avoid double-wrapping and package conflicts
-        # Unless REZ_FORCE_WRAP is set (for base rez envs that need app packages added)
-        if config.REZ_AUTO_DETECT and os.environ.get("REZ_USED") and not config.REZ_FORCE_WRAP:
-            logger.debug("Already in rez environment (REZ_USED set), skipping rez wrapping")
-            return False
-
-        # Return cached result if available
-        if self._rez_available_cache is not None:
-            return self._rez_available_cache
-
-        # Check if rez command is available
-        self._rez_available_cache = shutil.which("rez") is not None
-        logger.debug(f"Rez availability cached: {self._rez_available_cache}")
-        return self._rez_available_cache
+        return self.should_wrap_with_rez(config)
 
     def should_wrap_with_rez(self, config: "type[Config]") -> bool:
         """Determine if commands should be wrapped with rez environment.

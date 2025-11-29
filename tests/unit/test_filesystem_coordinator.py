@@ -33,10 +33,10 @@ pytestmark = [
 def reset_singleton() -> Generator[None, None, None]:
     """Reset FilesystemCoordinator singleton between tests for isolation."""
     # Reset before test
-    FilesystemCoordinator._instance = None
+    FilesystemCoordinator.reset()
     yield
     # Reset after test
-    FilesystemCoordinator._instance = None
+    FilesystemCoordinator.reset()
 
 
 @pytest.fixture

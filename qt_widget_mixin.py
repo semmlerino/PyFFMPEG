@@ -16,7 +16,7 @@ Part of Phase 2 refactoring to eliminate duplicate Qt patterns.
 from __future__ import annotations
 
 # Standard library imports
-from typing import TYPE_CHECKING, cast, final
+from typing import TYPE_CHECKING, cast
 
 # Third-party imports
 from PySide6.QtCore import QByteArray, QPoint, QSettings, QSize, Qt, QTimer
@@ -33,11 +33,9 @@ if TYPE_CHECKING:
     # Third-party imports
     from PySide6.QtGui import (
         QCloseEvent,
-        QDragEnterEvent,
-        QDropEvent,
         QKeyEvent,
     )
-    from PySide6.QtWidgets import QProgressBar, QStyle
+    from PySide6.QtWidgets import QStyle
 
 
 class QtWidgetMixin(LoggingMixin):
@@ -333,103 +331,3 @@ class QtWidgetMixin(LoggingMixin):
         if hasattr(super(), "keyPressEvent"):
             key_press_method = cast("Callable[[QKeyEvent], None]", super().keyPressEvent)
             key_press_method(event)
-
-
-@final
-class QtDragDropMixin:
-    """Mixin for drag and drop functionality."""
-
-    def __init__(self, *args: object, **kwargs: object) -> None:
-        """Initialize QtDragDropMixin and continue MRO chain."""
-        super().__init__(*args, **kwargs)
-
-    def setup_drag_drop(
-        self,
-        mime_types: list[str] | None = None,
-    ) -> None:
-        """Setup drag and drop support.
-
-        Args:
-            mime_types: List of accepted MIME types
-        """
-        if hasattr(self, "setAcceptDrops"):
-            self.setAcceptDrops(True)
-
-        self._accepted_mime_types: list[str] = mime_types or [
-            "text/plain",
-            "text/uri-list",
-            'application/x-qt-windows-mime;value="FileName"',
-        ]
-
-    def dragEnterEvent(self, event: QDragEnterEvent) -> None:
-        """Handle drag enter event."""
-        if event.mimeData().hasUrls() or any(
-            event.mimeData().hasFormat(mime_type)
-            for mime_type in self._accepted_mime_types
-        ):
-            event.acceptProposedAction()
-        else:
-            event.ignore()
-
-    def dropEvent(self, event: QDropEvent) -> None:
-        """Handle drop event."""
-        mime_data = event.mimeData()
-
-        if mime_data.hasUrls():
-            urls = mime_data.urls()
-            file_paths: list[str] = [url.toLocalFile() for url in urls]
-
-            if hasattr(self, "handle_dropped_files"):
-                self.handle_dropped_files(file_paths)
-                event.acceptProposedAction()
-            else:
-                event.ignore()
-        else:
-            event.ignore()
-
-
-@final
-class QtProgressMixin:
-    """Mixin for progress indication in widgets."""
-
-    def __init__(self, *args: object, **kwargs: object) -> None:
-        """Initialize QtProgressMixin and continue MRO chain."""
-        super().__init__(*args, **kwargs)
-
-    def setup_progress_indicator(self, parent: QWidget | None = None) -> None:
-        """Setup progress indication UI elements."""
-        from PySide6.QtWidgets import QProgressBar
-
-        self._progress_bar: QProgressBar = QProgressBar(parent or cast("QWidget", self))
-        self._progress_bar.setVisible(False)
-        self._progress_text: str = ""
-
-    def show_progress(self, value: int = 0, maximum: int = 100, text: str = "") -> None:
-        """Show progress indicator.
-
-        Args:
-            value: Current progress value
-            maximum: Maximum progress value
-            text: Progress text
-        """
-        if hasattr(self, "_progress_bar"):
-            self._progress_bar.setMaximum(maximum)
-            self._progress_bar.setValue(value)
-            self._progress_bar.setVisible(True)
-
-            if text:
-                self._progress_text = text
-                self._progress_bar.setFormat(f"{text} %p%")
-
-    def hide_progress(self) -> None:
-        """Hide progress indicator."""
-        if hasattr(self, "_progress_bar"):
-            self._progress_bar.setVisible(False)
-            self._progress_text = ""
-
-    def set_indeterminate_progress(self, text: str = "Processing...") -> None:
-        """Show indeterminate progress."""
-        if hasattr(self, "_progress_bar"):
-            self._progress_bar.setMaximum(0)  # Indeterminate
-            self._progress_bar.setVisible(True)
-            self._progress_text = text

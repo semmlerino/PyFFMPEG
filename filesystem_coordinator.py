@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
-from threading import Lock
 
 from logging_mixin import LoggingMixin
+from singleton_mixin import SingletonMixin
+from typing_compat import override
 
 
-class FilesystemCoordinator(LoggingMixin):
+class FilesystemCoordinator(SingletonMixin, LoggingMixin):
     """Singleton coordinator for filesystem operations.
 
     This class provides centralized caching of directory listings to prevent
@@ -17,24 +18,13 @@ class FilesystemCoordinator(LoggingMixin):
     I/O operations by up to 50% by sharing cached results between workers.
     """
 
-    _instance: FilesystemCoordinator | None = None
-    _lock: Lock = Lock()
-
-    def __new__(cls) -> FilesystemCoordinator:
-        """Create singleton instance with thread-safe initialization."""
-        if cls._instance is None:
-            with cls._lock:
-                if cls._instance is None:
-                    cls._instance = super().__new__(cls)
-        return cls._instance
-
     def __init__(self) -> None:
         """Initialize the coordinator.
 
         For singleton pattern, only initialize once even if called multiple times.
         """
         # Skip initialization if already done (singleton pattern)
-        if hasattr(self, "_initialized") and self._initialized:
+        if self._is_initialized():
             return
 
         super().__init__()
@@ -44,8 +34,8 @@ class FilesystemCoordinator(LoggingMixin):
         self._ttl_seconds: int = 300  # 5 minutes TTL for cached listings
         self._cache_hits: int = 0
         self._cache_misses: int = 0
-        self._initialized: bool = True
 
+        self._mark_initialized()
         self.logger.debug(
             f"FilesystemCoordinator initialized with {self._ttl_seconds}s TTL"
         )
@@ -232,18 +222,8 @@ class FilesystemCoordinator(LoggingMixin):
         return removed
 
     @classmethod
-    def reset(cls) -> None:
-        """Reset singleton for testing. INTERNAL USE ONLY.
-
-        This method clears all filesystem cache state and resets the singleton instance.
-        It should only be used in test cleanup to ensure test isolation.
-        """
-        # Reset singleton state under lock to prevent race with __new__
-        with cls._lock:
-            # Clear cache if instance exists (inside lock to prevent orphaned references)
-            if cls._instance is not None:
-                cls._instance.invalidate_all()
-            cls._instance = None
-
-        # Don't need to reset _lock since it's a class variable that should persist
-        # The next instantiation will create a fresh instance with empty caches
+    @override
+    def _cleanup_instance(cls) -> None:
+        """Clean up filesystem cache before singleton reset."""
+        if cls._instance is not None:
+            cls._instance.invalidate_all()

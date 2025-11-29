@@ -116,13 +116,6 @@ class Config:
     # - FORCE: Always wrap with app-specific packages
     REZ_MODE: RezMode = RezMode.AUTO
 
-    # Legacy flags (deprecated - use REZ_MODE instead)
-    # Kept for backward compatibility during migration
-    USE_REZ_ENVIRONMENT: bool = True  # Deprecated: Use REZ_MODE.DISABLED instead
-    REZ_AUTO_DETECT: bool = True  # Deprecated: Behavior now part of RezMode.AUTO
-    REZ_FORCE_WRAP: bool = False  # Deprecated: Use REZ_MODE.FORCE instead
-    REZ_ALREADY_AVAILABLE: bool = True  # Deprecated: No longer used
-
     # Launch Verification Configuration
     LAUNCH_VERIFICATION_ENABLED: bool = True  # Enable async verification of GUI app launches
     # Timeout for app verification. VFX apps under Rez can take 30-60+ seconds to boot:
@@ -315,20 +308,6 @@ class Config:
     ]
 
     THREEDE_SCENE_SEGMENTS: ClassVar[list[str]] = ["mm", "3de", "mm-default", "scenes", "scene"]
-
-    # Alternative 3DE scene path patterns to try if main pattern fails
-    THREEDE_ALTERNATIVE_PATTERNS: ClassVar[list[list[str]]] = [
-        ["mm", "3de", "scenes"],
-        ["mm", "3de", "scene"],
-        ["3de", "scenes"],
-        ["3de", "scene"],
-        ["matchmove", "3de", "scenes"],
-        ["matchmove", "3de", "scene"],
-        ["mm", "scenes"],
-        ["mm", "scene"],
-        ["scenes"],
-        ["scene"],
-    ]
 
     # Environment variables that may contain 3DE path information
     THREEDE_ENV_VARS: ClassVar[list[str]] = [
