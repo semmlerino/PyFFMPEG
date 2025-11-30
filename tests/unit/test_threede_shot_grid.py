@@ -117,8 +117,8 @@ class TestThreeDEGridViewSizeControl:
 
     def test_size_slider_exists(self, threede_grid) -> None:
         """Test size slider is properly connected."""
-        # Change slider value (use valid value within MIN/MAX range)
-        new_value = 300  # MIN_THUMBNAIL_SIZE is 250
+        # Change slider value (use valid value within MIN=400, MAX=1200 range)
+        new_value = 500
         threede_grid.size_slider.setValue(new_value)
 
         # Verify slider value was set

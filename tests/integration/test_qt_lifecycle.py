@@ -171,6 +171,17 @@ class TestQtThreadSafety:
     avoiding interference with other Qt tests while still executing in parallel runs.
     """
 
+    @pytest.fixture(autouse=True)
+    def ensure_clean_qt_state(self, qtbot: QtBot) -> None:
+        """Ensure Qt event loop is clean before and after each test."""
+        from PySide6.QtWidgets import QApplication
+
+        # Clear any pending events from previous tests
+        QApplication.processEvents()
+        yield
+        # Clean up after test
+        QApplication.processEvents()
+
     def test_qthread_cleanup(self, qtbot: QtBot) -> None:
         """QThread cleans up properly when quit is called."""
 
@@ -207,7 +218,7 @@ class TestQtThreadSafety:
 
     def test_cross_thread_signal(self, qtbot: QtBot) -> None:
         """Signals work across threads via queued connections."""
-        from PySide6.QtCore import Qt
+        from PySide6.QtWidgets import QApplication
 
         class Worker(QObject):
             result = Signal(str)
@@ -219,26 +230,27 @@ class TestQtThreadSafety:
         worker = Worker()
         worker.moveToThread(thread)
 
-        results = []
-        worker.result.connect(
-            lambda r: results.append(r),
-            Qt.ConnectionType.QueuedConnection,
-        )
-
+        # Connect worker to emit when thread starts
         thread.started.connect(worker.work)
         worker.result.connect(thread.quit)
 
         try:
-            thread.start()
+            # Use waitSignal which properly handles cross-thread signals
+            with qtbot.waitSignal(worker.result, timeout=5000) as blocker:
+                thread.start()
 
-            qtbot.waitUntil(lambda: len(results) > 0, timeout=2000)
-            thread.wait(1000)
+            # Verify the signal was received with correct data
+            assert blocker.args == ["from worker thread"]
 
-            assert results == ["from worker thread"]
+            # Wait for thread to finish cleanly
+            thread.wait(2000)
         finally:
             # Ensure QThread cleanup even if assertions fail
             if thread.isRunning():
                 thread.quit()
-                thread.wait(1000)
+                thread.wait(2000)
+            # Process any remaining events before cleanup
+            QApplication.processEvents()
             thread.deleteLater()
             worker.deleteLater()
+            QApplication.processEvents()

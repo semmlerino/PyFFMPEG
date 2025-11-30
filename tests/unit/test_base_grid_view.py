@@ -230,8 +230,8 @@ class TestThumbnailSizeControl:
         self, qtbot: QtBot, grid_view: ConcreteGridView
     ) -> None:
         """Test that slider change updates size label."""
-        # Use a value within valid range (MIN=250, MAX=600)
-        new_size = 400
+        # Use a value within valid range (MIN=400, MAX=1200)
+        new_size = 500
         grid_view.size_slider.setValue(new_size)
         process_qt_events()
 
@@ -241,8 +241,8 @@ class TestThumbnailSizeControl:
         self, qtbot: QtBot, grid_view: ConcreteGridView
     ) -> None:
         """Test that slider change updates internal thumbnail size."""
-        # Use a value within valid range
-        new_size = 300
+        # Use a value within valid range (400-1200)
+        new_size = 600
         grid_view.size_slider.setValue(new_size)
         process_qt_events()
 
@@ -268,9 +268,13 @@ class TestThumbnailSizeControl:
         grid_view.size_slider.setValue(new_size)
         process_qt_events()
 
-        # Grid size should be thumbnail size + padding + text height
-        expected_item_size = new_size + 2 * 8 + 40
-        expected_grid_size = QSize(expected_item_size, expected_item_size)
+        # Grid size calculation uses 16:9 aspect ratio for plate images
+        padding = 8
+        text_height = 50
+        expected_width = new_size + 2 * padding
+        thumbnail_height = int(new_size / Config.THUMBNAIL_ASPECT_RATIO)
+        expected_height = thumbnail_height + text_height + 2 * padding
+        expected_grid_size = QSize(expected_width, expected_height)
         assert grid_view.list_view.gridSize() == expected_grid_size
 
 

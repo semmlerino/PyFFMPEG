@@ -209,15 +209,15 @@ class TestSettingsManager:
         assert isinstance(default, int)
         assert default > 0  # Should be a positive size
 
-        # Test setting valid value
-        settings_manager.set_thumbnail_size(256)
-        assert settings_manager.get_thumbnail_size() == 256
+        # Test setting valid value (within MIN=400, MAX=1200 range)
+        settings_manager.set_thumbnail_size(500)
+        assert settings_manager.get_thumbnail_size() == 500
 
         # Test validation - clamp to range
         settings_manager.set_thumbnail_size(10)
         assert settings_manager.get_thumbnail_size() >= Config.MIN_THUMBNAIL_SIZE
 
-        settings_manager.set_thumbnail_size(1000)
+        settings_manager.set_thumbnail_size(2000)
         assert settings_manager.get_thumbnail_size() <= Config.MAX_THUMBNAIL_SIZE
 
     def test_last_directory(self, settings_manager: SettingsManager, tmp_path: Path) -> None:
@@ -323,9 +323,9 @@ class TestSettingsManager:
 
     def test_export_settings(self, settings_manager: SettingsManager, tmp_path: Path) -> None:
         """Test exporting settings to JSON file."""
-        # Set some custom values
+        # Set some custom values (within valid range MIN=400, MAX=1200)
         settings_manager.set_current_tab(1)
-        settings_manager.set_thumbnail_size(256)
+        settings_manager.set_thumbnail_size(500)
 
         # Export
         export_path = tmp_path / "settings_export.json"
@@ -340,14 +340,14 @@ class TestSettingsManager:
 
         assert "window" in exported
         assert exported["window"]["current_tab"] == 1
-        assert exported["preferences"]["thumbnail_size"] == 256
+        assert exported["preferences"]["thumbnail_size"] == 500
 
     def test_import_settings(self, settings_manager: SettingsManager, tmp_path: Path) -> None:
         """Test importing settings from JSON file."""
-        # Create import file
+        # Create import file (using valid thumbnail size within range)
         import_data = {
             "window": {"current_tab": 2},
-            "preferences": {"thumbnail_size": 300},
+            "preferences": {"thumbnail_size": 600},
         }
 
         import_path = tmp_path / "settings_import.json"
@@ -359,7 +359,7 @@ class TestSettingsManager:
 
         assert result is True
         assert settings_manager.get_current_tab() == 2
-        assert settings_manager.get_thumbnail_size() == 300
+        assert settings_manager.get_thumbnail_size() == 600
 
     def test_import_invalid_file(self, settings_manager: SettingsManager, tmp_path: Path) -> None:
         """Test importing from invalid file."""
@@ -397,8 +397,8 @@ class TestSettingsManager:
         received: list[tuple[str, Any]] = []
         settings_manager.settings_changed.connect(lambda k, v: received.append((k, v)))
 
-        # Change setting with signal wait (use valid value within range)
-        new_size = 300  # Between MIN (250) and MAX (600)
+        # Change setting with signal wait (use valid value within range MIN=400, MAX=1200)
+        new_size = 500
         with qtbot.waitSignal(settings_manager.settings_changed, timeout=1000):
             settings_manager.set_thumbnail_size(new_size)
 
@@ -465,16 +465,16 @@ class TestSettingsManager:
             QSettings.Format.IniFormat, QSettings.Scope.UserScope, str(tmp_path)
         )
 
-        # Create first instance and set values
+        # Create first instance and set values (use valid thumbnail size 400-1200)
         manager1 = SettingsManager(organization="TestOrg", application="TestApp")
         manager1.set_current_tab(2)
-        manager1.set_thumbnail_size(250)
+        manager1.set_thumbnail_size(500)
         manager1.settings.sync()
 
         # Create second instance and check values
         manager2 = SettingsManager(organization="TestOrg", application="TestApp")
         assert manager2.get_current_tab() == 2
-        assert manager2.get_thumbnail_size() == 250
+        assert manager2.get_thumbnail_size() == 500
 
     def test_type_safety(self, settings_manager: SettingsManager) -> None:
         """Test type validation and conversion."""

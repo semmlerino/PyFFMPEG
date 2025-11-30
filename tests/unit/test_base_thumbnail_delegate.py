@@ -269,10 +269,12 @@ class TestSizeHint:
         size = delegate.sizeHint(option, index)
 
         expected_width = Config.DEFAULT_THUMBNAIL_SIZE + 2 * delegate.theme.padding
+        # Height uses 16:9 aspect ratio for plate images
+        thumbnail_height = int(
+            Config.DEFAULT_THUMBNAIL_SIZE / Config.THUMBNAIL_ASPECT_RATIO
+        )
         expected_height = (
-            Config.DEFAULT_THUMBNAIL_SIZE
-            + delegate.theme.text_height
-            + 2 * delegate.theme.padding
+            thumbnail_height + delegate.theme.text_height + 2 * delegate.theme.padding
         )
 
         assert size == QSize(expected_width, expected_height)
@@ -281,7 +283,7 @@ class TestSizeHint:
         """Test size hint after setting custom thumbnail size (no parent to avoid update() bug)."""
         delegate = ConcreteThumbnailDelegate()  # No parent to avoid update() bug
 
-        custom_size = 256
+        custom_size = 500  # Use a value within valid range (400-1200)
         delegate.set_thumbnail_size(custom_size)
 
         option = QStyleOptionViewItem()
@@ -290,7 +292,11 @@ class TestSizeHint:
         size = delegate.sizeHint(option, index)
 
         expected_width = custom_size + 2 * delegate.theme.padding
-        expected_height = custom_size + delegate.theme.text_height + 2 * delegate.theme.padding
+        # Height uses 16:9 aspect ratio for plate images
+        thumbnail_height = int(custom_size / Config.THUMBNAIL_ASPECT_RATIO)
+        expected_height = (
+            thumbnail_height + delegate.theme.text_height + 2 * delegate.theme.padding
+        )
 
         assert size == QSize(expected_width, expected_height)
 
@@ -308,7 +314,11 @@ class TestSizeHint:
         size = delegate.sizeHint(option, index)
 
         expected_width = Config.DEFAULT_THUMBNAIL_SIZE + 2 * 16
-        expected_height = Config.DEFAULT_THUMBNAIL_SIZE + custom_theme.text_height + 2 * 16
+        # Height uses 16:9 aspect ratio for plate images
+        thumbnail_height = int(
+            Config.DEFAULT_THUMBNAIL_SIZE / Config.THUMBNAIL_ASPECT_RATIO
+        )
+        expected_height = thumbnail_height + custom_theme.text_height + 2 * 16
 
         assert size == QSize(expected_width, expected_height)
 
@@ -325,7 +335,11 @@ class TestSizeHint:
 
         size = delegate.sizeHint(option, index)
 
-        expected_height = Config.DEFAULT_THUMBNAIL_SIZE + 60 + 2 * custom_theme.padding
+        # Height uses 16:9 aspect ratio for plate images
+        thumbnail_height = int(
+            Config.DEFAULT_THUMBNAIL_SIZE / Config.THUMBNAIL_ASPECT_RATIO
+        )
+        expected_height = thumbnail_height + 60 + 2 * custom_theme.padding
 
         assert size.height() == expected_height
 

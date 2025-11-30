@@ -64,6 +64,8 @@ class ThumbnailItemData(TypedDict, total=False):
     loading_state: str  # Loading state string
     is_selected: bool  # Selection state
     is_pinned: bool  # Pin state
+    has_note: bool  # Note state
+    frame_range: str  # Frame range display string
     user: str  # Optional - user name
     timestamp: str  # Optional - timestamp
 
@@ -241,6 +243,10 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
             # Draw pin icon overlay (after thumbnail, before text)
             self._draw_pin_icon(painter, thumbnail_rect, is_pinned)
 
+            # Draw note icon overlay (top-left, opposite of pin)
+            has_note = data.get("has_note", False)
+            self._draw_note_icon(painter, thumbnail_rect, has_note)
+
             # Draw text
             self._draw_text(painter, rect, data, is_selected)
 
@@ -369,6 +375,36 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
         font.setPointSize(12)
         painter.setFont(font)
         _ = painter.drawText(x, y + icon_size, "📌")
+        painter.restore()
+
+    def _draw_note_icon(
+        self,
+        painter: QPainter,
+        rect: QRect,
+        has_note: bool,
+    ) -> None:
+        """Draw note emoji in top-left corner if shot has notes.
+
+        Args:
+            painter: QPainter instance
+            rect: Rectangle to draw in (thumbnail area)
+            has_note: Whether item has a note
+        """
+        if not has_note:
+            return
+
+        # Position in top-left with small margin (opposite of pin icon)
+        margin = 4
+        icon_size = 16
+        x = rect.left() + margin
+        y = rect.top() + margin
+
+        # Draw note emoji
+        painter.save()
+        font = painter.font()
+        font.setPointSize(12)
+        painter.setFont(font)
+        _ = painter.drawText(x, y + icon_size, "📝")
         painter.restore()
 
     def _draw_placeholder(self, painter: QPainter, rect: QRect) -> None:

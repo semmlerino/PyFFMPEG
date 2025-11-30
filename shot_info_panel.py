@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
     QApplication,
     QHBoxLayout,
     QLabel,
+    QTextEdit,
     QToolButton,
     QVBoxLayout,
     QWidget,
@@ -40,6 +41,7 @@ from utils import ImageUtils
 
 if TYPE_CHECKING:
     # Local application imports
+    from notes_manager import NotesManager
     from shot_model import Shot
 
 
@@ -52,10 +54,13 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
     # Instance attributes
     _files_panel: ShotFilesPanel
     _copy_path_btn: QToolButton
+    _notes_manager: NotesManager | None
+    _notes_edit: QTextEdit
 
     def __init__(
         self,
         cache_manager: CacheManager | None = None,
+        notes_manager: NotesManager | None = None,
         parent: QWidget | None = None,
     ) -> None:
         # Ensure we're in the main thread for Qt widget creation
@@ -102,6 +107,7 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
         self._current_shot: Shot | None = None
         self._empty_message: str = "No Shot Selected"
         self.cache_manager: CacheManager = cache_manager or CacheManager()  # Make public
+        self._notes_manager = notes_manager
         self._setup_ui()
 
     def _setup_ui(self) -> None:
@@ -203,6 +209,34 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
         )
         main_layout.addWidget(self._files_panel)
 
+        # === NOTES SECTION ===
+        notes_label = QLabel("Notes")
+        notes_font = QFont()
+        notes_font.setPixelSize(design_system.typography.size_small)
+        notes_font.setWeight(QFont.Weight.Bold)
+        notes_label.setFont(notes_font)
+        notes_label.setStyleSheet("color: #888; margin-top: 8px;")
+        main_layout.addWidget(notes_label)
+
+        self._notes_edit = QTextEdit()
+        self._notes_edit.setPlaceholderText("Add notes for this shot...")
+        self._notes_edit.setMaximumHeight(100)
+        self._notes_edit.setStyleSheet("""
+            QTextEdit {
+                background-color: #252525;
+                color: #ddd;
+                border: 1px solid #444;
+                border-radius: 4px;
+                padding: 5px;
+                font-size: 12px;
+            }
+            QTextEdit:focus {
+                border: 1px solid #666;
+            }
+        """)
+        _ = self._notes_edit.textChanged.connect(self._on_notes_changed)
+        main_layout.addWidget(self._notes_edit)
+
         # Style the panel
         self.setStyleSheet("""
             ShotInfoPanel {
@@ -219,6 +253,7 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
         """Set the current shot to display."""
         self._current_shot = shot
         self._update_display()
+        self._update_notes_display()
         # Update files panel
         self._files_panel.set_shot(shot)
 
@@ -259,6 +294,27 @@ class ShotInfoPanel(QtWidgetMixin, QWidget):
             self.frame_range_label.setText("")
             self.path_label.setText("")
             self._set_placeholder_thumbnail()
+
+    def _update_notes_display(self) -> None:
+        """Update notes display for current shot."""
+        if self._current_shot and self._notes_manager:
+            note = self._notes_manager.get_note(self._current_shot)
+            _ = self._notes_edit.blockSignals(True)  # Avoid triggering save during load
+            self._notes_edit.setPlainText(note)
+            _ = self._notes_edit.blockSignals(False)
+            self._notes_edit.setEnabled(True)
+        else:
+            _ = self._notes_edit.blockSignals(True)
+            self._notes_edit.setPlainText("")
+            _ = self._notes_edit.blockSignals(False)
+            self._notes_edit.setEnabled(self._current_shot is not None)
+
+    def _on_notes_changed(self) -> None:
+        """Handle notes text change - save to manager."""
+        if self._current_shot and self._notes_manager:
+            self._notes_manager.set_note(
+                self._current_shot, self._notes_edit.toPlainText()
+            )
 
     def _load_thumbnail(self) -> None:
         """Load thumbnail for current shot."""

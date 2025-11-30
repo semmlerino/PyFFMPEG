@@ -66,6 +66,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from notes_manager import NotesManager
 from pin_manager import PinManager
 from typing_compat import override
 
@@ -308,6 +309,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # Create pin manager for tracking pinned shots
         self.pin_manager = PinManager(self.cache_manager)
 
+        # Create notes manager for per-shot notes
+        self.notes_manager = NotesManager(self.cache_manager, parent=self)
+
         # Initialize cleanup and refresh managers (extracted from MainWindow)
         # MainWindow implements protocol interfaces functionally at runtime
         # QMainWindow signatures use position-only params which differ from Protocol
@@ -452,6 +456,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self.shot_item_model = ShotItemModel(
             cache_manager=self.cache_manager,
             pin_manager=self.pin_manager,
+            notes_manager=self.notes_manager,
         )
         self.shot_item_model.set_shots(self.shot_model.shots)
         self.shot_grid = ShotGridView(
@@ -469,6 +474,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self.previous_shots_model,
             self.cache_manager,
             pin_manager=self.pin_manager,
+            notes_manager=self.notes_manager,
         )
         self.previous_shots_grid = PreviousShotsView(
             model=self.previous_shots_item_model,
@@ -1683,6 +1689,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         Implements proper shutdown sequence using CleanupManager.
         """
         self.logger.debug("MainWindow closeEvent - starting cleanup")
+
+        # Flush any pending notes to disk
+        self.notes_manager.flush()
 
         # Delegate to CleanupManager
         self.cleanup_manager.perform_cleanup()

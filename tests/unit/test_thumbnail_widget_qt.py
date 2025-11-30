@@ -285,7 +285,7 @@ class TestThumbnailWidget:
 
         # Font should be configured (using pixelSize via design system)
         font = name_label.font()
-        assert font.pixelSize() == 11  # size_extra_small from design_system
+        assert font.pixelSize() == 14  # size_small from design_system
 
         # Label should support word wrap
         assert name_label.wordWrap() is True

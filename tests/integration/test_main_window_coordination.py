@@ -630,7 +630,8 @@ workspace /shows/test/shots/seq01/shot02""")
         window = main_window_with_real_components
 
         # Test settings persistence by modifying, saving, changing, and loading
-        test_size = 250
+        # Use values within valid slider range (Config.MIN_THUMBNAIL_SIZE to MAX)
+        test_size = 500
         window.shot_grid.size_slider.value()
 
         # Change the setting
@@ -640,8 +641,8 @@ workspace /shows/test/shots/seq01/shot02""")
         window.settings_controller.save_settings()
 
         # Change the slider to a different value to verify load works
-        window.shot_grid.size_slider.setValue(300)
-        assert window.shot_grid.size_slider.value() == 300
+        window.shot_grid.size_slider.setValue(600)
+        assert window.shot_grid.size_slider.value() == 600
 
         # Load settings to restore the saved value
         window.settings_controller.load_settings()

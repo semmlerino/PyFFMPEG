@@ -301,7 +301,7 @@ class TestCommonViewBehavior:
         assert view.size_label.text() == f"{Config.DEFAULT_THUMBNAIL_SIZE}px"
 
         # Test value change through slider (use a valid value within range)
-        new_size = 300  # Between MIN (250) and MAX (600)
+        new_size = 500  # Between MIN (400) and MAX (1200)
         view.size_slider.setValue(new_size)
 
         # Wait for signal processing to complete

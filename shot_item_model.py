@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from base_shot_model import BaseShotModel
     from cache_manager import CacheManager
     from core.shot_types import RefreshResult
+    from notes_manager import NotesManager
     from pin_manager import PinManager
     from shot_model import Shot
 
@@ -40,6 +41,7 @@ class ShotItemModel(BaseItemModel["Shot"]):
         self,
         cache_manager: CacheManager | None = None,
         pin_manager: PinManager | None = None,
+        notes_manager: NotesManager | None = None,
         parent: QObject | None = None,
     ) -> None:
         """Initialize the shot item model.
@@ -47,11 +49,13 @@ class ShotItemModel(BaseItemModel["Shot"]):
         Args:
             cache_manager: Optional cache manager for thumbnails
             pin_manager: Optional pin manager for tracking pinned shots
+            notes_manager: Optional notes manager for tracking shot notes
             parent: Optional parent QObject
         """
         super().__init__(cache_manager, parent)
 
         self._pin_manager: PinManager | None = pin_manager
+        self._notes_manager: NotesManager | None = notes_manager
 
         # Connect generic items_updated to shot-specific signal
         _ = self.items_updated.connect(self.shots_updated)
@@ -100,6 +104,11 @@ class ShotItemModel(BaseItemModel["Shot"]):
         if role == BaseItemRole.IsPinnedRole:
             if self._pin_manager:
                 return self._pin_manager.is_pinned(item)
+            return False
+
+        if role == BaseItemRole.HasNoteRole:
+            if self._notes_manager:
+                return self._notes_manager.has_note(item)
             return False
 
         if role == BaseItemRole.FrameRangeRole:
