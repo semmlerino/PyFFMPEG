@@ -268,8 +268,8 @@ class TestFFmpegArgumentBuilding:
         ):
             args = self.controller._build_ffmpeg_args(input_path, 0)  # H.264 NVENC
 
-        # Verify basic structure
-        assert "-y" in args  # Overwrite flag
+        # Verify basic structure - uses -n (skip existing) when overwrite_mode=False (default)
+        assert "-n" in args  # Skip existing flag (overwrite_mode defaults to False)
         assert "-hwaccel" in args
         assert "cuda" in args
         assert "-i" in args

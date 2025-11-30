@@ -9,7 +9,7 @@ import contextlib
 import json
 import os
 import subprocess
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from config import EncodingConfig, FileConfig, HardwareConfig, ProcessConfig
 
@@ -18,12 +18,12 @@ class CodecHelpers:
     """Helper class for codec selection, hardware acceleration, and encoder configuration"""
 
     # Cache for expensive detection operations
-    _encoder_cache = None
-    _gpu_info_cache = None
-    _rtx40_detection_cache = None
+    _encoder_cache: Optional[str] = None
+    _gpu_info_cache: Optional[str] = None
+    _rtx40_detection_cache: Optional[bool] = None
 
     @staticmethod
-    def get_output_extension(codec_idx):
+    def get_output_extension(codec_idx: int) -> str:
         """Determine output file extension based on codec index"""
         if codec_idx in [0, 1, 2, 3, 5, 6]:  # H.264, HEVC, AV1, QSV, VAAPI
             return ".mp4"
@@ -32,11 +32,11 @@ class CodecHelpers:
         return ".mp4"  # Default
 
     @staticmethod
-    def get_hardware_acceleration_args(hwdecode_idx):
+    def get_hardware_acceleration_args(hwdecode_idx: int) -> Tuple[List[str], str]:
         """Get hardware acceleration arguments based on selected hardware decode option
         Returns a tuple of (args_list, message_for_log)
         """
-        args = []
+        args: List[str] = []
         message = ""
 
         try:
@@ -54,16 +54,20 @@ class CodecHelpers:
                 args.extend(["-hwaccel", "cuda"])
                 message = "Using CUDA hardware acceleration"
             elif hwdecode_idx == 2:  # Intel QSV
-                args.extend(["-hwaccel", "qsv"])
-                message = "Using QSV hardware acceleration"
+                args.extend(["-hwaccel", "qsv", "-hwaccel_output_format", "qsv"])
+                message = "Using QSV hardware acceleration with surface output"
             elif hwdecode_idx == 3:  # VAAPI
                 # Only on Linux systems
                 if os.name == "posix":
-                    args.extend(
-                        ["-hwaccel", "vaapi", "-hwaccel_device", "/dev/dri/renderD128"]
-                    )
-                    message = "Using VAAPI hardware acceleration"
+                    vaapi_device = os.environ.get("VAAPI_DEVICE", "/dev/dri/renderD128")
+                    args.extend([
+                        "-hwaccel", "vaapi",
+                        "-hwaccel_device", vaapi_device,
+                        "-hwaccel_output_format", "vaapi",
+                    ])
+                    message = "Using VAAPI hardware acceleration with surface output"
                 else:
+                    # Windows fallback for VAAPI selection
                     args.extend(["-hwaccel", "auto"])
                     message = "VAAPI not available, falling back to auto"
         except (subprocess.TimeoutExpired, subprocess.CalledProcessError, OSError) as e:
@@ -76,11 +80,11 @@ class CodecHelpers:
         return args, message
 
     @staticmethod
-    def get_audio_codec_args(path, codec_idx):
+    def get_audio_codec_args(path: str, codec_idx: int) -> Tuple[List[str], str]:
         """Get audio codec configuration arguments based on input file and selected video codec
         Returns a tuple of (args_list, message_for_log)
         """
-        args = []
+        args: List[str] = []
         message = ""
 
         try:
@@ -140,14 +144,14 @@ class CodecHelpers:
 
     @staticmethod
     def get_encoder_configuration(
-        codec_idx,
-        thread_count,
-        is_parallel_enabled,
-        crf_value,
-        hevc_10bit=False,
-        nvenc_settings=None,
+        codec_idx: int,
+        thread_count: int,
+        is_parallel_enabled: bool,
+        crf_value: int,
+        hevc_10bit: bool = False,
+        nvenc_settings: Optional[Dict[str, Any]] = None,
         preset_idx: int = 0,
-    ):
+    ) -> Tuple[List[str], str]:
         """Get encoder configuration arguments based on codec index
         Returns a tuple of (args_list, message_for_log)
 
@@ -163,7 +167,7 @@ class CodecHelpers:
         Preset mapping (preset_idx from UI):
         0 = Standard, 1 = High Quality, 2 = Fast, 3 = Ultra Fast
         """
-        args = []
+        args: List[str] = []
         message = ""
 
         # Map UI preset index to NVENC presets (p1=fastest, p7=highest quality)
@@ -307,33 +311,34 @@ class CodecHelpers:
 
             # H.264 QSV
             elif codec_idx == 5 and "h264_qsv" in available_encoders:
+                # Full QSV pipeline: init device, set filter device, hwupload filter
                 args.extend(
                     [
-                        "-c:v",
-                        "h264_qsv",
-                        "-preset",
-                        qsv_preset,
-                        "-global_quality",
-                        str(crf_value),
+                        "-init_hw_device", "qsv=hw",
+                        "-filter_hw_device", "hw",
+                        "-vf", "hwupload=extra_hw_frames=64,format=qsv",
+                        "-c:v", "h264_qsv",
+                        "-preset", qsv_preset,
+                        "-global_quality", str(crf_value),
                     ]
                 )
-                message = "Using H.264 QSV hardware encoding"
+                message = "Using H.264 QSV hardware encoding with surface upload"
 
             # H.264 VAAPI
             elif codec_idx == 6 and "h264_vaapi" in available_encoders:
+                # Full VAAPI pipeline: device init and hwupload filter
+                vaapi_device = os.environ.get("VAAPI_DEVICE", "/dev/dri/renderD128")
                 args.extend(
                     [
-                        "-c:v",
-                        "h264_vaapi",
-                        "-profile:v",
-                        "high",
-                        "-rc_mode",
-                        "CQP",
-                        "-qp",
-                        str(crf_value),
+                        "-vaapi_device", vaapi_device,
+                        "-vf", "format=nv12,hwupload",
+                        "-c:v", "h264_vaapi",
+                        "-profile:v", "high",
+                        "-rc_mode", "CQP",
+                        "-qp", str(crf_value),
                     ]
                 )
-                message = "Using H.264 VAAPI hardware encoding"
+                message = "Using H.264 VAAPI hardware encoding with surface upload"
 
             else:
                 # Fallback to basic h264
@@ -375,8 +380,10 @@ class CodecHelpers:
 
     @staticmethod
     def optimize_threads_for_codec(
-        codec_idx, is_parallel_enabled, file_codec_assignments=None
-    ):
+        codec_idx: int,
+        is_parallel_enabled: bool,
+        file_codec_assignments: Optional[Dict[str, int]] = None,
+    ) -> int:
         """Optimize thread count based on selected codec and parallel processing mode"""
         # NVENC encoders - minimal CPU usage
         if codec_idx in (0, 1, 2):  # Any NVENC encoder
@@ -407,7 +414,7 @@ class CodecHelpers:
         return threads_per_job
 
     @staticmethod
-    def _get_available_encoders():
+    def _get_available_encoders() -> str:
         """Get available encoders with caching for performance"""
         if CodecHelpers._encoder_cache is not None:
             return CodecHelpers._encoder_cache
@@ -427,7 +434,7 @@ class CodecHelpers:
             return ""
 
     @staticmethod
-    def _get_gpu_info():
+    def _get_gpu_info() -> str:
         """Get GPU information with caching"""
         if CodecHelpers._gpu_info_cache is not None:
             return CodecHelpers._gpu_info_cache
@@ -443,7 +450,7 @@ class CodecHelpers:
             return ""
 
     @staticmethod
-    def detect_rtx40_series():
+    def detect_rtx40_series() -> bool:
         """Detect if system has RTX 40 series GPU for AV1 encoding support with caching"""
         if CodecHelpers._rtx40_detection_cache is not None:
             return CodecHelpers._rtx40_detection_cache
@@ -458,7 +465,7 @@ class CodecHelpers:
             return False
 
     @staticmethod
-    def clear_cache():
+    def clear_cache() -> None:
         """Clear all cached detection results - useful for testing or system changes"""
         CodecHelpers._encoder_cache = None
         CodecHelpers._gpu_info_cache = None

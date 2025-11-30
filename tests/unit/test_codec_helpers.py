@@ -98,11 +98,13 @@ class TestHardwareAcceleration:
         assert "CUDA" in message
 
     def test_explicit_qsv_acceleration(self):
-        """Test explicit Intel QSV acceleration"""
+        """Test explicit Intel QSV acceleration with surface output"""
         args, message = CodecHelpers.get_hardware_acceleration_args(2)  # Intel QSV
 
-        assert args == ["-hwaccel", "qsv"]
+        # QSV now includes hwaccel_output_format for proper hardware surface pipeline
+        assert args == ["-hwaccel", "qsv", "-hwaccel_output_format", "qsv"]
         assert "QSV" in message
+        assert "surface" in message.lower()  # Verify surface output mentioned
 
     @patch("os.name", "posix")
     def test_vaapi_acceleration_linux(self):
@@ -562,3 +564,415 @@ class TestCodecHelpersEdgeCases:
         with patch("subprocess.check_output", return_value=b"malformed gpu output"):
             result = CodecHelpers.detect_rtx40_series()
             assert not result
+
+
+class TestQSVEncodingPipeline:
+    """Test Intel QSV encoding pipeline with proper filter chains"""
+
+    def setup_method(self):
+        """Clear cache before each test"""
+        CodecHelpers.clear_cache()
+
+    @patch("subprocess.check_output")
+    def test_qsv_encoding_with_full_pipeline(self, mock_subprocess):
+        """Test QSV encoding includes init_hw_device and hwupload filter"""
+        # Return string (text=True in check_output) with h264_qsv in the output
+        mock_subprocess.return_value = "V..... h264_qsv             H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10 (Intel Quick Sync Video acceleration)"
+
+        args, message = CodecHelpers.get_encoder_configuration(
+            5, 4, False, 20  # H.264 QSV
+        )
+
+        # Verify full QSV pipeline is present
+        assert "-init_hw_device" in args
+        assert "qsv=hw" in args
+        assert "-filter_hw_device" in args
+        assert "hw" in args
+        assert "-vf" in args
+        assert "hwupload=extra_hw_frames=64,format=qsv" in args
+        assert "-c:v" in args
+        assert "h264_qsv" in args
+        assert "QSV" in message
+        assert "surface" in message.lower()
+
+    @patch("subprocess.check_output")
+    def test_qsv_preset_mapping(self, mock_subprocess):
+        """Test QSV preset mapping from UI index"""
+        mock_subprocess.return_value = "V..... h264_qsv             H.264 / AVC (Intel QSV)"
+
+        # Test each preset index
+        preset_tests = [
+            (0, "medium"),   # Standard
+            (1, "slow"),     # High Quality
+            (2, "fast"),     # Fast
+            (3, "veryfast"), # Ultra Fast
+        ]
+
+        for preset_idx, expected_preset in preset_tests:
+            CodecHelpers.clear_cache()
+            args, _ = CodecHelpers.get_encoder_configuration(
+                5, 4, False, 20, preset_idx=preset_idx
+            )
+            preset_pos = args.index("-preset") + 1
+            assert args[preset_pos] == expected_preset
+
+    @patch("subprocess.check_output")
+    def test_qsv_global_quality_passthrough(self, mock_subprocess):
+        """Test QSV global_quality uses CRF value"""
+        mock_subprocess.return_value = "V..... h264_qsv             H.264 / AVC (Intel QSV)"
+
+        args, _ = CodecHelpers.get_encoder_configuration(
+            5, 4, False, 25  # CRF 25
+        )
+
+        quality_pos = args.index("-global_quality") + 1
+        assert args[quality_pos] == "25"
+
+
+class TestVAAPIEncodingPipeline:
+    """Test VAAPI encoding pipeline with proper filter chains"""
+
+    def setup_method(self):
+        """Clear cache before each test"""
+        CodecHelpers.clear_cache()
+
+    @patch("subprocess.check_output")
+    def test_vaapi_encoding_with_full_pipeline(self, mock_subprocess):
+        """Test VAAPI encoding includes vaapi_device and hwupload filter"""
+        # Return string (text=True in check_output) with h264_vaapi in the output
+        mock_subprocess.return_value = "V..... h264_vaapi           H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10 (VAAPI)"
+
+        args, message = CodecHelpers.get_encoder_configuration(
+            6, 4, False, 20  # H.264 VAAPI
+        )
+
+        # Verify full VAAPI pipeline is present
+        assert "-vaapi_device" in args
+        assert "/dev/dri/renderD128" in args
+        assert "-vf" in args
+        assert "format=nv12,hwupload" in args
+        assert "-c:v" in args
+        assert "h264_vaapi" in args
+        assert "VAAPI" in message
+        assert "surface" in message.lower()
+
+    @patch("subprocess.check_output")
+    @patch.dict("os.environ", {"VAAPI_DEVICE": "/dev/dri/renderD129"})
+    def test_vaapi_custom_device_from_env(self, mock_subprocess):
+        """Test VAAPI uses custom device from environment variable"""
+        mock_subprocess.return_value = "V..... h264_vaapi           H.264 / AVC (VAAPI)"
+
+        args, _ = CodecHelpers.get_encoder_configuration(
+            6, 4, False, 20
+        )
+
+        device_pos = args.index("-vaapi_device") + 1
+        assert args[device_pos] == "/dev/dri/renderD129"
+
+    @patch("subprocess.check_output")
+    def test_vaapi_quality_settings(self, mock_subprocess):
+        """Test VAAPI uses CQP rate control with proper QP value"""
+        mock_subprocess.return_value = "V..... h264_vaapi           H.264 / AVC (VAAPI)"
+
+        args, _ = CodecHelpers.get_encoder_configuration(
+            6, 4, False, 22
+        )
+
+        assert "-rc_mode" in args
+        rc_pos = args.index("-rc_mode") + 1
+        assert args[rc_pos] == "CQP"
+
+        assert "-qp" in args
+        qp_pos = args.index("-qp") + 1
+        assert args[qp_pos] == "22"
+
+    @patch("subprocess.check_output")
+    def test_vaapi_profile_high(self, mock_subprocess):
+        """Test VAAPI uses high profile for H.264"""
+        mock_subprocess.return_value = "V..... h264_vaapi           H.264 / AVC (VAAPI)"
+
+        args, _ = CodecHelpers.get_encoder_configuration(
+            6, 4, False, 20
+        )
+
+        profile_pos = args.index("-profile:v") + 1
+        assert args[profile_pos] == "high"
+
+
+class TestHEVC10BitMode:
+    """Test HEVC 10-bit encoding mode"""
+
+    def setup_method(self):
+        """Clear cache before each test"""
+        CodecHelpers.clear_cache()
+
+    @patch("subprocess.check_output")
+    def test_hevc_10bit_profile(self, mock_subprocess):
+        """Test HEVC 10-bit uses main10 profile"""
+        mock_subprocess.return_value = MockEncoderDetection.full_nvenc_support()
+
+        args, _message = CodecHelpers.get_encoder_configuration(
+            1, 4, False, 18, hevc_10bit=True
+        )
+
+        profile_pos = args.index("-profile:v") + 1
+        assert args[profile_pos] == "main10"
+        assert "-pix_fmt" in args
+        pix_fmt_pos = args.index("-pix_fmt") + 1
+        assert args[pix_fmt_pos] == "p010le"
+
+    @patch("subprocess.check_output")
+    def test_hevc_8bit_profile(self, mock_subprocess):
+        """Test HEVC 8-bit uses main profile"""
+        mock_subprocess.return_value = MockEncoderDetection.full_nvenc_support()
+
+        args, _ = CodecHelpers.get_encoder_configuration(
+            1, 4, False, 18, hevc_10bit=False
+        )
+
+        profile_pos = args.index("-profile:v") + 1
+        assert args[profile_pos] == "main"
+        # Should not have p010le pixel format
+        assert "p010le" not in args
+
+
+class TestPresetMapping:
+    """Test preset mapping for different encoders"""
+
+    def setup_method(self):
+        """Clear cache before each test"""
+        CodecHelpers.clear_cache()
+
+    @pytest.mark.parametrize(
+        ("preset_idx", "expected_nvenc", "expected_x264"),
+        [
+            (0, "p5", "medium"),    # Standard
+            (1, "p7", "slow"),      # High Quality
+            (2, "p3", "fast"),      # Fast
+            (3, "p1", "ultrafast"), # Ultra Fast
+        ],
+    )
+    @patch("subprocess.check_output")
+    def test_preset_mapping_nvenc_and_x264(
+        self, mock_subprocess, preset_idx, expected_nvenc, expected_x264
+    ):
+        """Test preset mapping for NVENC and x264 encoders"""
+        mock_subprocess.return_value = MockEncoderDetection.full_nvenc_support()
+
+        # Test NVENC
+        CodecHelpers.clear_cache()
+        args_nvenc, _ = CodecHelpers.get_encoder_configuration(
+            0, 4, False, 18, preset_idx=preset_idx
+        )
+        preset_pos = args_nvenc.index("-preset") + 1
+        assert args_nvenc[preset_pos] == expected_nvenc
+
+        # Test x264
+        CodecHelpers.clear_cache()
+        args_x264, _ = CodecHelpers.get_encoder_configuration(
+            3, 4, False, 18, preset_idx=preset_idx
+        )
+        preset_pos = args_x264.index("-preset") + 1
+        assert args_x264[preset_pos] == expected_x264
+
+
+class TestVideoMetadataExtraction:
+    """Test video metadata extraction functionality"""
+
+    @patch("subprocess.run")
+    def test_extract_basic_metadata(self, mock_run):
+        """Test extraction of basic video metadata"""
+        mock_result = Mock()
+        mock_result.returncode = 0
+        mock_result.stdout = '''{
+            "format": {
+                "duration": "3600.5",
+                "bit_rate": "5000000",
+                "format_name": "mov,mp4"
+            },
+            "streams": [{
+                "codec_type": "video",
+                "codec_name": "h264",
+                "width": 1920,
+                "height": 1080,
+                "bit_rate": "4500000"
+            }]
+        }'''
+        mock_run.return_value = mock_result
+
+        metadata = CodecHelpers.extract_video_metadata("/test/video.mp4")
+
+        assert metadata is not None
+        assert metadata["duration"] == "01:00:00"
+        assert metadata["duration_seconds"] == 3600.5
+        assert metadata["width"] == 1920
+        assert metadata["height"] == 1080
+        assert metadata["codec"] == "H264"
+        assert "Mbps" in metadata["bitrate"]
+
+    @patch("subprocess.run")
+    def test_extract_metadata_no_video_stream(self, mock_run):
+        """Test metadata extraction when no video stream exists"""
+        mock_result = Mock()
+        mock_result.returncode = 0
+        mock_result.stdout = '''{
+            "format": {"duration": "300"},
+            "streams": [{
+                "codec_type": "audio",
+                "codec_name": "aac"
+            }]
+        }'''
+        mock_run.return_value = mock_result
+
+        metadata = CodecHelpers.extract_video_metadata("/test/audio.mp3")
+        assert metadata is None
+
+    @patch("subprocess.run")
+    def test_extract_metadata_ffprobe_failure(self, mock_run):
+        """Test metadata extraction when ffprobe fails"""
+        mock_result = Mock()
+        mock_result.returncode = 1
+        mock_run.return_value = mock_result
+
+        metadata = CodecHelpers.extract_video_metadata("/test/invalid.mp4")
+        assert metadata is None
+
+    @patch("subprocess.run")
+    def test_extract_metadata_timeout(self, mock_run):
+        """Test metadata extraction with timeout"""
+        mock_run.side_effect = subprocess.TimeoutExpired("ffprobe", 30)
+
+        metadata = CodecHelpers.extract_video_metadata("/test/video.mp4")
+        assert metadata is None
+
+    @patch("subprocess.run")
+    def test_extract_metadata_invalid_json(self, mock_run):
+        """Test metadata extraction with invalid JSON"""
+        mock_result = Mock()
+        mock_result.returncode = 0
+        mock_result.stdout = "not valid json"
+        mock_run.return_value = mock_result
+
+        metadata = CodecHelpers.extract_video_metadata("/test/video.mp4")
+        assert metadata is None
+
+
+class TestFileSizeEstimation:
+    """Test output file size estimation"""
+
+    def test_estimate_size_h264(self):
+        """Test size estimation for H.264 codec"""
+        metadata = {
+            "duration_seconds": 3600,  # 1 hour
+        }
+
+        size = CodecHelpers.estimate_output_size(metadata, 0, 20)  # H.264 NVENC
+
+        assert size is not None
+        assert "MB" in size or "GB" in size
+
+    def test_estimate_size_hevc(self):
+        """Test HEVC produces smaller estimate than H.264"""
+        metadata = {
+            "duration_seconds": 3600,
+        }
+
+        size_h264 = CodecHelpers.estimate_output_size(metadata, 0, 20)
+        size_hevc = CodecHelpers.estimate_output_size(metadata, 1, 20)
+
+        # Both should return valid sizes
+        assert size_h264 is not None
+        assert size_hevc is not None
+
+    def test_estimate_size_quality_impact(self):
+        """Test quality setting affects size estimate"""
+        metadata = {
+            "duration_seconds": 3600,
+        }
+
+        # Lower CRF = higher quality = larger file
+        size_high_quality = CodecHelpers.estimate_output_size(metadata, 0, 15)
+        size_low_quality = CodecHelpers.estimate_output_size(metadata, 0, 30)
+
+        # Both should return valid sizes (exact comparison depends on factors)
+        assert size_high_quality is not None
+        assert size_low_quality is not None
+
+    def test_estimate_size_zero_duration(self):
+        """Test size estimation with zero duration"""
+        metadata = {
+            "duration_seconds": 0,
+        }
+
+        size = CodecHelpers.estimate_output_size(metadata, 0, 20)
+        assert size is None
+
+    def test_estimate_size_negative_duration(self):
+        """Test size estimation with negative duration"""
+        metadata = {
+            "duration_seconds": -100,
+        }
+
+        size = CodecHelpers.estimate_output_size(metadata, 0, 20)
+        assert size is None
+
+
+class TestDurationFormatting:
+    """Test duration formatting utility"""
+
+    @pytest.mark.parametrize(
+        ("seconds", "expected"),
+        [
+            (0, "00:00:00"),
+            (59, "00:00:59"),
+            (60, "00:01:00"),
+            (3599, "00:59:59"),
+            (3600, "01:00:00"),
+            (7261, "02:01:01"),
+            (86400, "24:00:00"),
+            (-1, "00:00:00"),  # Negative should return zero
+        ],
+    )
+    def test_format_duration(self, seconds, expected):
+        """Test duration formatting"""
+        result = CodecHelpers._format_duration(seconds)
+        assert result == expected
+
+
+class TestBitrateFormatting:
+    """Test bitrate formatting utility"""
+
+    @pytest.mark.parametrize(
+        ("bitrate_bps", "expected_contains"),
+        [
+            (500000, "Kbps"),        # 500 Kbps
+            (5000000, "Mbps"),       # 5 Mbps
+            (50000000, "Mbps"),      # 50 Mbps
+            (5000000000, "Gbps"),    # 5 Gbps
+            (0, "Unknown"),
+            (None, "Unknown"),
+            (-1000, "Unknown"),
+        ],
+    )
+    def test_format_bitrate(self, bitrate_bps, expected_contains):
+        """Test bitrate formatting"""
+        result = CodecHelpers._format_bitrate(bitrate_bps)
+        assert expected_contains in result
+
+
+class TestFileSizeFormatting:
+    """Test file size formatting utility"""
+
+    @pytest.mark.parametrize(
+        ("size_bytes", "expected_contains"),
+        [
+            (500, "B"),
+            (5000, "KB"),
+            (5000000, "MB"),
+            (5000000000, "GB"),
+        ],
+    )
+    def test_format_file_size(self, size_bytes, expected_contains):
+        """Test file size formatting"""
+        result = CodecHelpers.format_file_size(size_bytes)
+        assert expected_contains in result

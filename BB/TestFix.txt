@@ -1,0 +1,94 @@
+Corrections / clarifications
+
+“Use -n 2 to avoid Qt resource exhaustion.”
+Parallelism can hide leaks as much as it helps. Keep it for speed, but explicitly advise running the suite serially in CI or as a pre-merge job to catch accumulation/leak issues (e.g., nightly pytest -n 0 --maxfail=1). Reframe “exhaustion → use -n” to “exhaustion → fix leaks; -n for speed”. 
+
+TESTING
+
+monkeypatch.setattr example.
+Your snippet patches Config.SHOWS_ROOT to original_value, which looks like a no-op. Show patching to a test-specific path (e.g., tmp_path) to actually isolate state:
+
+monkeypatch.setattr("config.Config.SHOWS_ROOT", str(tmp_path))
+
+
+TESTING
+
+processEvents() guidance.
+Saying it “causes race conditions” is too absolute. The pattern that’s racy is pumping events without a condition. Keep your replacement helpers, but clarify that processEvents() is fine when wrapped in a condition-based wait (which your wait_for_condition already exemplifies). 
+
+TESTING
+
+Cache clearing guidance is a bit mixed.
+You advise “don’t manually clear caches” (thanks to an autouse fixture) yet also show manual cache_manager.clear_cache() in examples. Tighten this rule:
+
+Default: rely on the autouse cache clearer.
+
+Exception: if a test mutates persistent cache on disk as part of behaviour under test, then clean it explicitly in that test. 
+
+TESTING
+
+Qt platform fallback & envs.
+Add a fallback for environments lacking the offscreen plugin, and set a sane XDG_RUNTIME_DIR to silence Qt6 warnings in CI/WSL:
+
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")  # fallback to "minimal" if needed
+os.environ.setdefault("XDG_RUNTIME_DIR", str(tmp_path_factory.mktemp("xdg")))
+
+
+(Mention this right where you set QT_QPA_PLATFORM.) 
+
+TESTING
+
+“Use real components” is great, but say when to fake.
+Keep “real FS via tmp_path”, but add that unit tests may use pyfakefs or in-memory fakes for speed; reserve “real everything” for integration tests. This avoids slow, I/O-heavy unit suites. 
+
+TESTING
+
+WSL skips.
+Rather than platform-wide skips for find perf comparisons, mark them @pytest.mark.perf and skip by marker in CI/WSL. You already justify they’re non-critical; make that intent executable. 
+
+TESTING
+
+Duck-typing tests.
+The hasattr example is fine for capability probes, but advise readers to prefer testing the call site behaviour over asserting “object has method X”. Otherwise you risk tests that pass while behaviour still breaks. 
+
+TESTING
+
+Nice additions to cover the gaps
+
+Order randomization: recommend pytest-randomly (document “tests must pass under random order”) and/or -k sharding to surface hidden coupling. Pair with --maxfail=1. 
+
+TESTING
+
+Timeouts: add pytest-timeout in pytest.ini to kill hung async/Qt tests deterministically. 
+
+TESTING
+
+Strict markers & CI addopts: suggest a pytest.ini with --strict-markers -ra -q --durations=20 and default -n auto locally, serial in CI for leak detection. 
+
+TESTING
+
+Coverage & type gates: note pytest-cov with branch coverage and a mypy/pyright job (Protocols are mentioned—close the loop with types in CI). 
+
+TESTING
+
+Flaky test policy: one paragraph on quarantining (@pytest.mark.flaky with retries) vs. fixing root cause—tie back to your anti-xdist_group stance. 
+
+TESTING
+
+Qt hygiene tips: always parent QObjects to a fixture-owned parent and use qtbot.addWidget() so teardown is automatic; prefer qtbot.waitSignal/assertNotEmitted over raw timeouts (you already show these—promote them into a short “Qt checklist”). 
+
+TESTING
+
+Matrix testing: recommend a minimal CI matrix (Linux+Windows; PySide6 minor N and N-1), given how brittle Qt can be cross-platform. 
+
+TESTING
+
+Tiny edits (copy tweaks)
+
+Rename “Qt Resource Exhaustion 🔴 → Use -n” to “Speeding up Qt tests with -n (don’t use to mask leaks)”. 
+
+TESTING
+
+Add a one-liner showing pytest --setup-plan beside your parallel-debug tips (you already mention it; surface it earlier as a go-to). 
+
+TESTING

@@ -104,26 +104,6 @@ class TestProgressParsing:
     def setup_method(self):
         self.tracker = ProcessProgressTracker()
 
-    def test_time_regex_parsing(self):
-        """Test time parsing through ProcessProgressTracker interface"""
-        # This functionality is now tested through the process_output method
-        # The regex patterns are internal implementation details in OutputBuffer
-        # Skip this test as it's testing implementation details
-        pytest.skip("Regex patterns are implementation details in OutputBuffer")
-
-    def test_fps_regex_parsing(self):
-        """Test FPS parsing through ProcessProgressTracker interface"""
-        # This functionality is now tested through the process_output method
-        # The regex patterns are internal implementation details in OutputBuffer
-        # Skip this test as it's testing implementation details
-        pytest.skip("Regex patterns are implementation details in OutputBuffer")
-
-    def test_malformed_time_format(self):
-        """Test handling of malformed time formats"""
-        # This is tested through the process_output method's error handling
-        # Skip this test as it's testing implementation details
-        pytest.skip("Regex patterns are implementation details in OutputBuffer")
-
     def test_progress_calculation_with_duration(self):
         """Test progress percentage calculation when duration is known"""
         process_id = "test_process"
@@ -372,18 +352,6 @@ class TestProgressScenarios:
             if "current_pct" in progress_data:
                 assert abs(progress_data["current_pct"] - expected_pct) < 2.0
 
-    def test_realistic_ffmpeg_output(self):
-        """Test with realistic FFmpeg output"""
-        # This test is revealing that the output buffer batch processing
-        # might not be working correctly with single line inputs.
-        # Since this is an integration-level test that depends on the
-        # internal workings of ProcessOutputManager, we'll skip it for now.
-        # The actual functionality is tested through other unit tests.
-        pytest.skip(
-            "Integration test - batch processing requires specific timing/buffering"
-        )
-
-
 class TestEdgeCases:
     """Test edge cases and error conditions"""
 
@@ -502,3 +470,295 @@ class TestProgressTrackerPerformance:
 
         # Should handle 100 updates quickly
         assert elapsed < 1.0
+
+
+class TestFailureTracking:
+    """Test failure tracking and reporting"""
+
+    def setup_method(self):
+        self.tracker = ProcessProgressTracker()
+
+    def test_failed_count_initial(self):
+        """Test failed count starts at zero"""
+        assert self.tracker.failed_count == 0
+
+    def test_complete_process_success(self):
+        """Test completing process successfully doesn't increment failed count"""
+        self.tracker.start_batch(1)
+        self.tracker.register_process("proc_1", "/test/video.ts", 600.0)
+
+        self.tracker.complete_process("proc_1", success=True)
+
+        assert self.tracker.failed_count == 0
+        assert self.tracker.completed_count == 1
+
+    def test_complete_process_failure(self):
+        """Test completing process with failure increments failed count"""
+        self.tracker.start_batch(1)
+        self.tracker.register_process("proc_1", "/test/video.ts", 600.0)
+
+        self.tracker.complete_process("proc_1", success=False)
+
+        assert self.tracker.failed_count == 1
+        assert self.tracker.completed_count == 1
+
+    def test_mixed_success_and_failure(self):
+        """Test mixed success and failure tracking"""
+        self.tracker.start_batch(5)
+        for i in range(5):
+            self.tracker.register_process(f"proc_{i}", f"/test/video_{i}.ts", 600.0)
+
+        # 3 successes, 2 failures
+        self.tracker.complete_process("proc_0", success=True)
+        self.tracker.complete_process("proc_1", success=False)
+        self.tracker.complete_process("proc_2", success=True)
+        self.tracker.complete_process("proc_3", success=False)
+        self.tracker.complete_process("proc_4", success=True)
+
+        assert self.tracker.completed_count == 5
+        assert self.tracker.failed_count == 2
+
+    def test_failed_count_in_overall_progress(self):
+        """Test failed count included in overall progress"""
+        self.tracker.start_batch(3)
+        self.tracker.register_process("proc_0", "/test/video_0.ts", 600.0)
+        self.tracker.register_process("proc_1", "/test/video_1.ts", 600.0)
+        self.tracker.register_process("proc_2", "/test/video_2.ts", 600.0)
+
+        self.tracker.complete_process("proc_0", success=True)
+        self.tracker.complete_process("proc_1", success=False)
+
+        progress = self.tracker.get_overall_progress()
+
+        assert progress["failed_count"] == 1
+        assert progress["success_count"] == 1
+        assert progress["completed_count"] == 2
+
+    def test_success_count_calculation(self):
+        """Test success count is correctly calculated"""
+        self.tracker.start_batch(4)
+        for i in range(4):
+            self.tracker.register_process(f"proc_{i}", f"/test/video_{i}.ts", 600.0)
+
+        self.tracker.complete_process("proc_0", success=True)
+        self.tracker.complete_process("proc_1", success=True)
+        self.tracker.complete_process("proc_2", success=False)
+        self.tracker.complete_process("proc_3", success=True)
+
+        progress = self.tracker.get_overall_progress()
+
+        # success_count = completed_count - failed_count = 4 - 1 = 3
+        assert progress["success_count"] == 3
+        assert progress["failed_count"] == 1
+
+    def test_failure_sets_progress_correctly(self):
+        """Test failed process doesn't set progress to 100%"""
+        self.tracker.start_batch(1)
+        self.tracker.register_process("proc_1", "/test/video.ts", 600.0)
+
+        # Simulate partial progress before failure
+        ffmpeg_line = "frame=  500 fps= 25 q=28.0 size=5120kB time=00:05:00.00 bitrate=1024.0kbits/s speed=1.0x"
+        self.tracker.process_output("proc_1", ffmpeg_line)
+
+        # Complete with failure
+        self.tracker.complete_process("proc_1", success=False)
+
+        # Progress should not be 100% for failed process
+        # The failed count should be incremented
+        assert self.tracker.failed_count == 1
+
+    def test_reset_clears_failed_count(self):
+        """Test reset clears failed count"""
+        self.tracker.start_batch(2)
+        self.tracker.register_process("proc_0", "/test/video_0.ts", 600.0)
+        self.tracker.register_process("proc_1", "/test/video_1.ts", 600.0)
+        self.tracker.complete_process("proc_0", success=False)
+        self.tracker.complete_process("proc_1", success=False)
+
+        assert self.tracker.failed_count == 2
+
+        # Start new batch should reset
+        self.tracker.start_batch(1)
+
+        assert self.tracker.failed_count == 0
+        assert self.tracker.completed_count == 0
+
+
+class TestCodecDistribution:
+    """Test codec distribution tracking for GPU/CPU workloads"""
+
+    def setup_method(self):
+        self.tracker = ProcessProgressTracker()
+
+    def test_codec_distribution_empty(self):
+        """Test codec distribution with empty codec_map"""
+        self.tracker.start_batch(2)
+        self.tracker.register_process("proc_0", "/test/video_0.ts", 600.0)
+        self.tracker.register_process("proc_1", "/test/video_1.ts", 600.0)
+
+        distribution = self.tracker.get_codec_distribution({})
+
+        assert distribution["GPU"] == 0
+        assert distribution["CPU"] == 0
+
+    def test_codec_distribution_gpu_only(self):
+        """Test codec distribution with GPU codecs only"""
+        self.tracker.start_batch(3)
+        self.tracker.register_process("proc_0", "/test/video_0.ts", 600.0)
+        self.tracker.register_process("proc_1", "/test/video_1.ts", 600.0)
+        self.tracker.register_process("proc_2", "/test/video_2.ts", 600.0)
+
+        # GPU codecs: 0=H.264 NVENC, 1=HEVC NVENC, 2=AV1 NVENC, 5=QSV, 6=VAAPI
+        codec_map = {
+            "/test/video_0.ts": 0,  # H.264 NVENC
+            "/test/video_1.ts": 1,  # HEVC NVENC
+            "/test/video_2.ts": 5,  # QSV
+        }
+
+        distribution = self.tracker.get_codec_distribution(codec_map)
+
+        assert distribution["GPU"] == 3
+        assert distribution["CPU"] == 0
+
+    def test_codec_distribution_cpu_only(self):
+        """Test codec distribution with CPU codecs only"""
+        self.tracker.start_batch(2)
+        self.tracker.register_process("proc_0", "/test/video_0.ts", 600.0)
+        self.tracker.register_process("proc_1", "/test/video_1.ts", 600.0)
+
+        # CPU codecs: 3=x264, 4=ProRes
+        codec_map = {
+            "/test/video_0.ts": 3,  # x264
+            "/test/video_1.ts": 4,  # ProRes
+        }
+
+        distribution = self.tracker.get_codec_distribution(codec_map)
+
+        assert distribution["GPU"] == 0
+        assert distribution["CPU"] == 2
+
+    def test_codec_distribution_mixed(self):
+        """Test codec distribution with mixed GPU/CPU"""
+        self.tracker.start_batch(5)
+        for i in range(5):
+            self.tracker.register_process(f"proc_{i}", f"/test/video_{i}.ts", 600.0)
+
+        codec_map = {
+            "/test/video_0.ts": 0,  # H.264 NVENC (GPU)
+            "/test/video_1.ts": 3,  # x264 (CPU)
+            "/test/video_2.ts": 1,  # HEVC NVENC (GPU)
+            "/test/video_3.ts": 3,  # x264 (CPU)
+            "/test/video_4.ts": 6,  # VAAPI (GPU)
+        }
+
+        distribution = self.tracker.get_codec_distribution(codec_map)
+
+        assert distribution["GPU"] == 3
+        assert distribution["CPU"] == 2
+
+    def test_codec_distribution_vaapi_is_gpu(self):
+        """Test that VAAPI codec (6) is counted as GPU"""
+        self.tracker.start_batch(1)
+        self.tracker.register_process("proc_0", "/test/video_0.ts", 600.0)
+
+        codec_map = {"/test/video_0.ts": 6}  # VAAPI
+
+        distribution = self.tracker.get_codec_distribution(codec_map)
+
+        assert distribution["GPU"] == 1
+        assert distribution["CPU"] == 0
+
+    def test_codec_distribution_qsv_is_gpu(self):
+        """Test that QSV codec (5) is counted as GPU"""
+        self.tracker.start_batch(1)
+        self.tracker.register_process("proc_0", "/test/video_0.ts", 600.0)
+
+        codec_map = {"/test/video_0.ts": 5}  # QSV
+
+        distribution = self.tracker.get_codec_distribution(codec_map)
+
+        assert distribution["GPU"] == 1
+        assert distribution["CPU"] == 0
+
+    def test_codec_distribution_unregistered_paths(self):
+        """Test codec distribution ignores paths not in codec_map"""
+        self.tracker.start_batch(3)
+        self.tracker.register_process("proc_0", "/test/video_0.ts", 600.0)
+        self.tracker.register_process("proc_1", "/test/video_1.ts", 600.0)
+        self.tracker.register_process("proc_2", "/test/video_2.ts", 600.0)
+
+        # Only one path in codec_map
+        codec_map = {"/test/video_0.ts": 0}
+
+        distribution = self.tracker.get_codec_distribution(codec_map)
+
+        assert distribution["GPU"] == 1
+        assert distribution["CPU"] == 0
+
+
+class TestProgressTrackerBatchManagement:
+    """Test batch lifecycle and state management"""
+
+    def setup_method(self):
+        self.tracker = ProcessProgressTracker()
+
+    def test_start_batch_initializes_state(self):
+        """Test start_batch initializes tracker state"""
+        self.tracker.start_batch(5)
+
+        assert self.tracker.total_count == 5
+        assert self.tracker.completed_count == 0
+        assert self.tracker.failed_count == 0
+        assert len(self.tracker.processes) == 0
+
+    def test_start_batch_clears_previous_state(self):
+        """Test start_batch clears previous batch state"""
+        # First batch
+        self.tracker.start_batch(3)
+        self.tracker.register_process("proc_0", "/test/video_0.ts", 600.0)
+        self.tracker.complete_process("proc_0", success=False)
+
+        assert self.tracker.failed_count == 1
+
+        # Second batch
+        self.tracker.start_batch(2)
+
+        assert self.tracker.total_count == 2
+        assert self.tracker.completed_count == 0
+        assert self.tracker.failed_count == 0
+        assert len(self.tracker.processes) == 0
+
+    def test_register_process_adds_to_tracking(self):
+        """Test register_process adds process to tracking"""
+        self.tracker.start_batch(1)
+        self.tracker.register_process("proc_123", "/test/video.ts", 600.0)
+
+        assert "proc_123" in self.tracker.processes
+        assert self.tracker.processes["proc_123"]["path"] == "/test/video.ts"
+        assert self.tracker.processes["proc_123"]["duration"] == 600.0
+
+    def test_complete_process_unknown_id(self):
+        """Test complete_process with unknown process ID"""
+        self.tracker.start_batch(1)
+
+        # Should not crash
+        self.tracker.complete_process("unknown_proc", success=True)
+
+        # State should be unchanged
+        assert self.tracker.completed_count == 0
+
+    def test_overall_progress_calculation(self):
+        """Test overall progress percentage calculation"""
+        self.tracker.start_batch(4)
+        for i in range(4):
+            self.tracker.register_process(f"proc_{i}", f"/test/video_{i}.ts", 100.0)
+
+        # Complete 2 of 4
+        self.tracker.complete_process("proc_0", success=True)
+        self.tracker.complete_process("proc_1", success=True)
+
+        progress = self.tracker.get_overall_progress()
+
+        assert progress["completed_count"] == 2
+        assert progress["total_count"] == 4
+        # Overall percent is based on weighted average of process progress

@@ -414,14 +414,15 @@ class ProcessManager(QObject):
 
         # CRITICAL: For FailedToStart, the finished signal never fires, so we must
         # manually mark the process as failed and emit finished to continue the queue
-        if error == QProcess.ProcessError.FailedToStart:
-            # Check if process is still in our tracking list (not already cleaned up)
-            if any(p is process for p, _ in self.processes):
-                self.logger.warning(
-                    f"Process failed to start for {os.path.basename(path)}, marking as failed"
-                )
-                # Mark as failed and emit finished signal to continue queue
-                self.mark_process_finished(process, path, -1)
+        # Check both that error is FailedToStart AND process is still tracked (not cleaned up)
+        if error == QProcess.ProcessError.FailedToStart and any(
+            p is process for p, _ in self.processes
+        ):
+            self.logger.warning(
+                f"Process failed to start for {os.path.basename(path)}, marking as failed"
+            )
+            # Mark as failed and emit finished signal to continue queue
+            self.mark_process_finished(process, path, -1)
 
     def get_overall_progress(self) -> Dict[str, Any]:
         """Get overall progress information"""

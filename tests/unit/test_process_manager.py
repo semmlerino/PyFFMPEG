@@ -177,11 +177,12 @@ class TestProcessLifecycle:
             "output.mp4",
         ]
 
-        self.manager.start_process(file_path, ffmpeg_args)
+        # Pass codec_idx explicitly (0 = H.264 NVENC)
+        self.manager.start_process(file_path, ffmpeg_args, codec_idx=0)
 
-        # Should extract codec index from args
+        # Should store codec index from parameter
         assert file_path in self.manager.codec_map
-        # Note: The actual index depends on the implementation logic
+        assert self.manager.codec_map[file_path] == 0  # H.264 NVENC
 
     @patch("process_manager.QProcess")
     @patch("process_manager.ProcessProgressTracker")

@@ -241,3 +241,191 @@ class TestUIUpdateManager:
             # Should change to minimum interval
             assert self.manager.current_interval == self.manager.min_interval
             mock_set.assert_called_with(self.manager.min_interval)
+
+
+class TestSmartBufferMode:
+    """Test smart buffer mode for performance optimization"""
+
+    def setup_method(self):
+        """Create UIUpdateManager instance for each test"""
+        self.manager = UIUpdateManager()
+
+    def test_smart_buffer_disabled_by_default(self):
+        """Test that smart buffer is disabled by default"""
+        assert self.manager.smart_buffer_enabled is False
+        assert self.manager.base_interval == 100
+        assert self.manager.max_interval == 1000
+
+    def test_enable_smart_buffer(self):
+        """Test enabling smart buffer mode increases intervals"""
+        self.manager.set_smart_buffer(True)
+
+        assert self.manager.smart_buffer_enabled is True
+        assert self.manager.base_interval == 200  # Doubled
+        assert self.manager.max_interval == 2000  # Doubled
+
+    def test_disable_smart_buffer(self):
+        """Test disabling smart buffer mode restores intervals"""
+        # Enable first
+        self.manager.set_smart_buffer(True)
+        assert self.manager.base_interval == 200
+
+        # Then disable
+        self.manager.set_smart_buffer(False)
+
+        assert self.manager.smart_buffer_enabled is False
+        assert self.manager.base_interval == 100
+        assert self.manager.max_interval == 1000
+
+    def test_smart_buffer_toggle_triggers_adjustment(self):
+        """Test that toggling smart buffer triggers interval adjustment"""
+        with patch.object(self.manager, "_adjust_update_interval") as mock_adjust:
+            self.manager.set_smart_buffer(True)
+            mock_adjust.assert_called_once()
+
+            mock_adjust.reset_mock()
+            self.manager.set_smart_buffer(False)
+            mock_adjust.assert_called_once()
+
+    def test_smart_buffer_affects_low_activity_interval(self):
+        """Test smart buffer affects the low activity interval"""
+        # Simulate low activity
+        self.manager.last_activity_time = time.time() - 5
+        self.manager.dirty_flags.clear()
+
+        # Without smart buffer
+        self.manager.set_smart_buffer(False)
+        self.manager._adjust_update_interval()
+        normal_interval = self.manager.current_interval
+
+        # With smart buffer
+        self.manager.set_smart_buffer(True)
+        self.manager._adjust_update_interval()
+        smart_interval = self.manager.current_interval
+
+        assert smart_interval > normal_interval
+
+    def test_smart_buffer_preserves_high_activity_behavior(self):
+        """Test smart buffer doesn't affect minimum interval during high activity"""
+        # Create high activity
+        for i in range(10):
+            self.manager.mark_dirty(f"component_{i}")
+
+        # With smart buffer enabled
+        self.manager.set_smart_buffer(True)
+        self.manager._adjust_update_interval()
+
+        # Should still use min_interval for responsiveness
+        assert self.manager.current_interval == self.manager.min_interval
+
+
+class TestUIUpdateManagerEdgeCases:
+    """Test edge cases and error conditions"""
+
+    def setup_method(self):
+        """Create UIUpdateManager instance for each test"""
+        self.manager = UIUpdateManager()
+
+    def test_empty_updates_not_emitted(self):
+        """Test that no signal is emitted when nothing is dirty"""
+        emitted = []
+        self.manager.update_ui.connect(lambda u: emitted.append(u))
+
+        # Process with nothing dirty
+        self.manager.last_frame_time = 0
+        self.manager._process_updates()
+
+        assert len(emitted) == 0
+
+    def test_mark_dirty_updates_activity_time(self):
+        """Test that marking dirty updates the activity timestamp"""
+        old_time = self.manager.last_activity_time
+
+        time.sleep(0.01)  # Small delay
+        self.manager.mark_dirty("test_component")
+
+        assert self.manager.last_activity_time > old_time
+
+    def test_unknown_component_priority(self):
+        """Test unknown components get default priority"""
+        self.manager.mark_dirty("unknown_component_xyz", {"data": "test"})
+
+        # Should not crash and component should be marked dirty
+        assert self.manager.dirty_flags["unknown_component_xyz"] is True
+
+        # Force process
+        self.manager.last_frame_time = 0
+        self.manager._process_updates()
+
+        # Should be cleared after processing
+        assert self.manager.dirty_flags["unknown_component_xyz"] is False
+
+    def test_update_stats_empty_component(self):
+        """Test update stats for component that was never updated"""
+        self.manager.mark_dirty("new_component")
+
+        stats = self.manager.get_update_stats()
+
+        assert "new_component" in stats
+        assert stats["new_component"]["last_update_ago"] == -1  # Never updated
+
+    def test_force_update_non_dirty_component(self):
+        """Test forcing update on non-dirty component does nothing"""
+        emitted = []
+        self.manager.update_ui.connect(lambda u: emitted.append(u))
+
+        self.manager.force_update("non_existent_component")
+
+        assert len(emitted) == 0
+
+    def test_batch_update_empty_dict(self):
+        """Test batch update with empty dictionary"""
+        self.manager.batch_update({})
+
+        assert len(self.manager.dirty_flags) == 0
+        assert len(self.manager.pending_updates) == 0
+
+    def test_get_component_interval_unknown(self):
+        """Test getting interval for unknown component returns default"""
+        interval = self.manager._get_component_interval("unknown_xyz")
+        assert interval == 1.0  # Default interval
+
+    def test_get_component_interval_known(self):
+        """Test getting interval for known components"""
+        assert self.manager._get_component_interval("progress_bar") == 0.1
+        assert self.manager._get_component_interval("fps_display") == 0.5
+        assert self.manager._get_component_interval("eta_display") == 1.0
+
+
+class TestUIUpdateManagerConcurrency:
+    """Test thread safety and concurrent access patterns"""
+
+    def setup_method(self):
+        """Create UIUpdateManager instance for each test"""
+        self.manager = UIUpdateManager()
+
+    def test_rapid_dirty_marking(self):
+        """Test rapid marking of components as dirty"""
+        # Simulate rapid updates
+        for i in range(100):
+            self.manager.mark_dirty("progress_bar", {"value": i})
+
+        # Should have last value
+        assert self.manager.pending_updates["progress_bar"] == {"value": 99}
+        assert self.manager.dirty_flags["progress_bar"] is True
+
+    def test_interleaved_mark_and_process(self):
+        """Test interleaved marking and processing"""
+        emitted = []
+        self.manager.update_ui.connect(lambda u: emitted.append(u.copy()))
+
+        for i in range(5):
+            self.manager.mark_dirty("progress_bar", {"value": i * 20})
+            self.manager.last_frame_time = 0
+            self.manager.last_update_time["progress_bar"] = 0
+            self.manager._process_updates()
+
+        # Should have emitted multiple updates
+        assert len(emitted) == 5
+        # Last update should have value 80
+        assert emitted[-1]["progress_bar"]["value"] == 80
