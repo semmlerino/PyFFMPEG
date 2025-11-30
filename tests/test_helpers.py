@@ -6,27 +6,13 @@ test doubles and helper classes for proper Qt testing without crashes.
 Key Components:
     - ThreadSafeTestImage: QPixmap replacement for worker threads
     - SignalDouble: Signal test double for non-Qt objects (re-exported from fixtures)
-    - TestProcessPoolManager: DEPRECATED - use TestProcessPool from fixtures
     - Factory fixtures and helpers
-
-MIGRATION NOTE:
-    TestProcessPoolManager is deprecated. Use TestProcessPool from
-    tests.fixtures.test_doubles instead:
-
-        # BEFORE (deprecated)
-        from tests.test_helpers import TestProcessPoolManager
-        pool = TestProcessPoolManager()
-
-        # AFTER (recommended)
-        from tests.fixtures.test_doubles import TestProcessPool
-        pool = TestProcessPool(ttl_aware=True)
 """
 
 from __future__ import annotations
 
 # Standard library imports
 import json
-import warnings
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
@@ -37,7 +23,6 @@ from PySide6.QtWidgets import QApplication
 
 # Import canonical doubles - these are the recommended implementations
 from tests.fixtures.test_doubles import SignalDouble  # noqa: F401 (re-export)
-from tests.fixtures.test_doubles import TestProcessPool as _CanonicalTestProcessPool
 
 
 if TYPE_CHECKING:
@@ -105,45 +90,6 @@ def process_qt_events(duration_ms: int = 5, iterations: int = 2) -> None:
 
 
 # SignalDouble is now imported from tests.fixtures.test_doubles (see imports above)
-
-
-class TestProcessPoolManager(_CanonicalTestProcessPool):
-    """DEPRECATED: Use TestProcessPool from tests.fixtures.test_doubles instead.
-
-    This class is a compatibility alias that wraps the canonical TestProcessPool
-    with ttl_aware=True mode enabled by default.
-
-    Migration:
-        # BEFORE (deprecated)
-        from tests.test_helpers import TestProcessPoolManager
-        pool = TestProcessPoolManager()
-
-        # AFTER (recommended)
-        from tests.fixtures.test_doubles import TestProcessPool
-        pool = TestProcessPool(ttl_aware=True)
-    """
-
-    __test__ = False  # Prevent pytest from collecting this as a test class
-
-    def __init__(self) -> None:
-        """Initialize the deprecated test process pool with deprecation warning."""
-        warnings.warn(
-            "TestProcessPoolManager is deprecated. "
-            "Use TestProcessPool(ttl_aware=True) from tests.fixtures.test_doubles instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        # Initialize with TTL-aware mode to match original behavior
-        super().__init__(ttl_aware=True)
-        # Set default output for backward compatibility
-        self.default_output = "workspace /test/path"
-        # Alias for backward compatibility
-        self.failure_message = "Test failure"
-
-    def set_should_fail(self, should_fail: bool, message: str = "Test failure") -> None:
-        """Configure the manager to fail on next command (backward compatible)."""
-        super().set_should_fail(should_fail, message)
-        self.failure_message = message
 
 
 class MockMainWindow(QObject):

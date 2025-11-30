@@ -57,22 +57,6 @@ def find_expired_keys(
     return [key for key, (_, timestamp) in cache.items() if is_expired(timestamp, ttl_seconds)]
 
 
-def find_expired_keys_separate(
-    timestamps: dict[K, float],
-    ttl_seconds: float,
-) -> list[K]:
-    """Find expired keys when timestamps are stored separately.
-
-    Args:
-        timestamps: Dictionary mapping keys to timestamps
-        ttl_seconds: TTL in seconds
-
-    Returns:
-        List of expired keys
-    """
-    return [key for key, timestamp in timestamps.items() if is_expired(timestamp, ttl_seconds)]
-
-
 class CacheStatsMixin:
     """Mixin providing standardized cache statistics tracking.
 

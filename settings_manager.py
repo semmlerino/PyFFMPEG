@@ -169,7 +169,6 @@ class SettingsManager(LoggingMixin, QObject):
                 "status_bar_visible": True,
                 "toolbar_visible": True,
                 "compact_mode": False,
-                "dark_theme": False,
                 "font_size": 9,
                 "ui_scale": 1.0,  # UI scale factor (0.8 to 1.5, default 1.0 = 100%)
                 "thumbnail_spacing": Config.THUMBNAIL_SPACING,
@@ -512,18 +511,9 @@ class SettingsManager(LoggingMixin, QObject):
         self.settings_changed.emit("applications/custom_launchers", launchers)
 
     # UI Settings
-    # Dead settings removed: grid_columns, show_tooltips
+    # Dead settings removed: grid_columns, show_tooltips, dark_theme
     # These were never applied by settings_controller.py
-
-    def get_dark_theme(self) -> bool:
-        """Get dark theme setting."""
-        value = self.settings.value("ui/dark_theme", False, type=bool)
-        return bool(value) if isinstance(value, bool) else False
-
-    def set_dark_theme(self, enabled: bool) -> None:
-        """Set dark theme setting."""
-        self.settings.setValue("ui/dark_theme", enabled)
-        self.settings_changed.emit("ui/dark_theme", enabled)
+    # Dark theme is always enabled unconditionally in shotbot.py
 
     def get_ui_scale(self) -> float:
         """Get UI scale factor.

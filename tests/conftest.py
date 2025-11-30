@@ -9,16 +9,9 @@ Fixture modules are loaded via pytest_plugins for better organization.
 
 from __future__ import annotations
 
-
-# ==============================================================================
-# DEPRECATED TEST MODULE EXCLUSION
-# ==============================================================================
-# These test modules are deprecated and should not be collected.
-# MainWindow now uses RightPanelWidget instead of LauncherPanel.
-collect_ignore = [
-    "integration/test_launcher_panel_integration.py",
-]
-
+# NOTE: collect_ignore was used for deprecated test modules.
+# test_launcher_panel_integration.py was removed (LauncherPanel → RightPanelWidget).
+# If future deprecated tests need exclusion, add: collect_ignore = ["path/to/test.py"]
 import atexit
 import os
 import shutil

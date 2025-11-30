@@ -129,7 +129,6 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         self.ui_scale_slider: QSlider
         self.ui_scale_label: QLabel
         self.grid_columns_spin: QSpinBox
-        self.dark_theme_check: QCheckBox
         self.animations_check: QCheckBox
         self.refresh_interval_spin: QSpinBox
         self.background_refresh_check: QCheckBox
@@ -270,10 +269,6 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         # Animations
         self.animations_check = QCheckBox("Enable Animations")
         ui_layout.addRow(self.animations_check)
-
-        # Dark theme
-        self.dark_theme_check = QCheckBox("Enable Dark Theme")
-        ui_layout.addRow(self.dark_theme_check)
 
         scroll_layout.addWidget(ui_group)
 
@@ -607,9 +602,6 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         _ = self.ui_scale_slider.valueChanged.connect(
             self.update_ui_scale_preview  # type: ignore[reportAny, return-value]
         )
-        _ = self.dark_theme_check.toggled.connect(
-            self.preview_theme_change  # type: ignore[reportAny, return-value]
-        )
 
         # Validation signals
         _ = self.validate_launchers_btn.clicked.connect(
@@ -638,7 +630,6 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         self.update_ui_scale_preview()  # type: ignore[reportAny, return-value]
 
         self.animations_check.setChecked(self.settings_manager.get_enable_animations())
-        self.dark_theme_check.setChecked(self.settings_manager.get_dark_theme())
 
         self.refresh_interval_spin.setValue(
             self.settings_manager.get_refresh_interval()
@@ -709,12 +700,6 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
 
         # Emit preview signal for any listeners
         self.settings_changed.emit("ui_scale_preview", ui_scale)
-
-    @Slot()
-    def preview_theme_change(self) -> None:  # type: ignore[reportAny]
-        """Preview theme change."""
-        dark_enabled = self.dark_theme_check.isChecked()
-        self.settings_changed.emit("dark_theme_preview", dark_enabled)
 
     @Slot()
     def validate_custom_launchers(self) -> None:  # type: ignore[reportAny]
@@ -869,7 +854,6 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         design_system.set_ui_scale(ui_scale)
 
         self.settings_manager.set_enable_animations(self.animations_check.isChecked())
-        self.settings_manager.set_dark_theme(self.dark_theme_check.isChecked())
 
         self.settings_manager.set_refresh_interval(self.refresh_interval_spin.value())
         self.settings_manager.set_background_refresh(

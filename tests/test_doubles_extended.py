@@ -7,18 +7,6 @@ following UNIFIED_TESTING_GUIDE principles:
 - No Mock() or MagicMock usage
 
 These test doubles complement the existing test_doubles_library.py.
-
-MIGRATION NOTE:
-    TestProcessPoolDouble is deprecated. Use TestProcessPool from
-    tests.fixtures.test_doubles instead:
-
-        # BEFORE (deprecated)
-        from tests.test_doubles_extended import TestProcessPoolDouble
-        pool = TestProcessPoolDouble()
-
-        # AFTER (recommended)
-        from tests.fixtures.test_doubles import TestProcessPool
-        pool = TestProcessPool(track_kwargs=True)
 """
 
 from __future__ import annotations
@@ -26,13 +14,11 @@ from __future__ import annotations
 # Standard library imports
 import threading
 import time
-import warnings
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
 # Local application imports
-from tests.fixtures.test_doubles import TestProcessPool as _CanonicalTestProcessPool
 from tests.helpers.synchronization import simulate_work_without_sleep
 
 
@@ -716,44 +702,11 @@ class TestCommand:
         self.fail_after_n_calls = None
 
 
-class TestProcessPoolDouble(_CanonicalTestProcessPool):
-    """DEPRECATED: Use TestProcessPool from tests.fixtures.test_doubles instead.
-
-    This class is a compatibility alias that wraps the canonical TestProcessPool
-    with track_kwargs=True mode enabled by default.
-
-    Migration:
-        # BEFORE (deprecated)
-        from tests.test_doubles_extended import TestProcessPoolDouble
-        pool = TestProcessPoolDouble()
-
-        # AFTER (recommended)
-        from tests.fixtures.test_doubles import TestProcessPool
-        pool = TestProcessPool(track_kwargs=True)
-    """
-
-    __test__ = False  # Prevent pytest from collecting this as a test class
-
-    def __init__(self) -> None:
-        """Initialize the deprecated test process pool with deprecation warning."""
-        warnings.warn(
-            "TestProcessPoolDouble is deprecated. "
-            "Use TestProcessPool(track_kwargs=True) from tests.fixtures.test_doubles instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        # Initialize with kwargs tracking to match original behavior
-        super().__init__(track_kwargs=True)
-        # Set default output for backward compatibility
-        self.default_output = "workspace /test/path"
-
-
 # Export all test doubles
 __all__ = [
     "TestCache",
     "TestCommand",
     "TestFileSystem",
-    "TestProcessPoolDouble",
     "TestQtWidget",
     "TestWorker",
 ]

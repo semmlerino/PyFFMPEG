@@ -122,14 +122,13 @@ def _clear_disk_cache_files() -> None:
     if not cache_path.exists():
         return
 
-    # Known cache files and preserved directories
+    # Known cache files and directories
     known_files = {
         "shots.json",
         "previous_shots.json",
         "threede_scenes.json",
         "migrated_shots.json",
     }
-    preserved_dirs = {"thumbnails"}
     known_dirs = {"production", "thumbnails"}
 
     # Clear from root cache dir and production subdirectory

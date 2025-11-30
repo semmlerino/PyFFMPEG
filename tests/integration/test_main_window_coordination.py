@@ -31,13 +31,13 @@ from cache_manager import CacheManager
 # from main_window import MainWindow
 from notification_manager import NotificationType
 from shot_model import RefreshResult, Shot
+from tests.fixtures.test_doubles import TestProcessPool
 
 # Import qapp fixture from conftest to ensure QApplication exists
 # Import proper test doubles following UNIFIED_TESTING_GUIDE
 from tests.test_doubles_library import (
     TestSubprocess,
 )
-from tests.test_helpers import TestProcessPoolManager
 
 
 # Module-level fixture to handle lazy imports after Qt initialization
@@ -222,7 +222,7 @@ def main_window_with_real_components(
     This prevents segmentation faults from Qt object creation without an app.
 
     FIXED: Forces legacy ShotModel to avoid ShotModel threading issues
-    and ensures TestProcessPoolManager is used throughout the system.
+    and ensures TestProcessPool is used throughout the system.
 
     FIXED: Monkey-patch NotificationManager BEFORE creating MainWindow to prevent
     Fatal Python errors from QMessageBox being called from worker threads.
@@ -234,10 +234,10 @@ def main_window_with_real_components(
     monkeypatch.setenv("SHOTBOT_USE_LEGACY_MODEL", "1")
 
     # Replace ProcessPoolManager.get_instance() to return our test double
-    test_pool = TestProcessPoolManager()
+    test_pool = TestProcessPool(ttl_aware=True)
     test_pool.set_outputs("workspace /test/path")
 
-    def mock_get_instance() -> TestProcessPoolManager:
+    def mock_get_instance() -> TestProcessPool:
         return test_pool
 
     # Mock at the system boundary - ProcessPoolManager singleton

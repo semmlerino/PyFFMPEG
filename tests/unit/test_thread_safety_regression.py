@@ -42,13 +42,10 @@ class TestQThreadInterruptionFix:
         cache_manager = CacheManager(cache_dir=Path(self.temp_dir.name))
         model = ShotModel(cache_manager)
 
-        # Use real AsyncShotLoader with TestProcessPoolDouble at boundary
-        # Local application imports
-        from tests.test_helpers import (
-            TestProcessPoolManager,
-        )
+        # Use real AsyncShotLoader with TestProcessPool at boundary
+        from tests.fixtures.test_doubles import TestProcessPool
 
-        test_pool = TestProcessPoolManager()
+        test_pool = TestProcessPool(ttl_aware=True)
         test_pool.set_outputs("workspace /shows/TEST/seq01/0010")
 
         # Create real loader and start it
@@ -82,12 +79,9 @@ class TestQThreadInterruptionFix:
     def test_interruption_request_used_in_thread(self) -> None:
         """Test that AsyncShotLoader uses interruption requests."""
         # Use real test double at system boundary
-        # Local application imports
-        from tests.test_helpers import (
-            TestProcessPoolManager,
-        )
+        from tests.fixtures.test_doubles import TestProcessPool
 
-        test_pool = TestProcessPoolManager()
+        test_pool = TestProcessPool(ttl_aware=True)
         test_pool.set_outputs("")  # Empty output for quick test
 
         loader = AsyncShotLoader(test_pool)
@@ -107,12 +101,9 @@ class TestQThreadInterruptionFix:
 
     def test_stop_event_and_interruption_work_together(self) -> None:
         """Test that both stop mechanisms work together."""
-        # Local application imports
-        from tests.test_helpers import (
-            TestProcessPoolManager,
-        )
+        from tests.fixtures.test_doubles import TestProcessPool
 
-        test_process_pool = TestProcessPoolManager()
+        test_process_pool = TestProcessPool(ttl_aware=True)
         loader = AsyncShotLoader(test_process_pool)
 
         # Call stop (should set both mechanisms)

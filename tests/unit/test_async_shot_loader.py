@@ -13,7 +13,7 @@ from PySide6.QtTest import QSignalSpy
 from base_shot_model import BaseShotModel
 from config import Config
 from shot_model import AsyncShotLoader, ShotModel
-from tests.test_doubles_extended import TestProcessPoolDouble as TestProcessPool
+from tests.fixtures.test_doubles import TestProcessPool
 
 
 # Mark Qt tests for serial execution in same worker (prevents Qt crashes)
