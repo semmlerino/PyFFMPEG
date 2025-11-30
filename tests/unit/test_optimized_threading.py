@@ -31,7 +31,10 @@ from process_pool_manager import ProcessPoolManager
 from shot_model import AsyncShotLoader, ShotModel
 
 
-pytestmark = pytest.mark.thread_safety
+pytestmark = [
+    pytest.mark.thread_safety,
+    pytest.mark.permissive_process_pool,  # Thread safety tests, not subprocess output
+]
 
 
 # =============================================================================

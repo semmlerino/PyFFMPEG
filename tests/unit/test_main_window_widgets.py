@@ -49,7 +49,11 @@ if TYPE_CHECKING:
 # Lazy import to avoid Qt initialization at module level
 # MainWindow imported inside each test/fixture to avoid module-level issues
 
-pytestmark = [pytest.mark.unit, pytest.mark.qt]
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.qt,
+    pytest.mark.permissive_process_pool,  # Widget tests check UI, not subprocess output
+]
 
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)

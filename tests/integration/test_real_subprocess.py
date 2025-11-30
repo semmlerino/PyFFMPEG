@@ -259,3 +259,127 @@ class TestProcessPoolRealSubprocess:
             assert result.returncode == 0
 
         # Executor should be cleanly shut down - no zombie processes
+
+
+# ==============================================================================
+# LAUNCHER STACK SMOKE TESTS
+# ==============================================================================
+# These tests verify the actual launcher stack (not bare subprocess) with real execution.
+# They test ProcessPoolManager.execute_workspace_command, bash -ilc quoting, and RezMode.
+
+
+@pytest.mark.real_subprocess
+class TestLauncherStackSmoke:
+    """Smoke tests for the actual launcher stack with real subprocess execution.
+
+    These tests verify the complete launch pipeline including:
+    - ProcessPoolManager.execute_workspace_command()
+    - bash -ilc quoting behavior
+    - RezMode handling
+
+    Uses safe commands (echo, env checks) instead of actual app launches.
+    """
+
+    def test_process_pool_execute_workspace_command(self) -> None:
+        """ProcessPoolManager.execute_workspace_command works with real bash."""
+        import threading
+
+        from process_pool_manager import ProcessPoolManager
+
+        result_container: dict = {"output": None, "error": None}
+
+        def run_command() -> None:
+            # Reset to ensure clean state
+            ProcessPoolManager.reset()
+            pool = ProcessPoolManager.get_instance()
+            try:
+                result_container["output"] = pool.execute_workspace_command(
+                    'echo "LAUNCHER_STACK_OK"',
+                    cache_ttl=0,  # No caching for test
+                    timeout=10,
+                )
+            except Exception as e:
+                result_container["error"] = str(e)
+            finally:
+                pool.shutdown(timeout=2.0)
+                ProcessPoolManager.reset()
+
+        # Run in thread because ProcessPoolManager checks for main thread
+        thread = threading.Thread(target=run_command)
+        thread.start()
+        thread.join(timeout=15)
+
+        assert result_container["error"] is None, f"Error: {result_container['error']}"
+        assert result_container["output"] is not None
+        assert "LAUNCHER_STACK_OK" in result_container["output"]
+
+    def test_bash_ilc_quoting_preserved(self) -> None:
+        """Verify bash -ilc properly handles special characters."""
+        # Test path with spaces - common in VFX environments
+        # Use double quotes for easier escaping in Python
+        result = subprocess.run(
+            ["/bin/bash", "-ilc", 'echo "path with spaces/and_special-chars"'],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        assert result.returncode == 0
+        assert "path with spaces" in result.stdout
+
+    def test_bash_interactive_login_shell_works(self) -> None:
+        """Verify bash -ilc (interactive login) mode initializes correctly."""
+        # This tests the shell mode used by ProcessPoolManager and ProcessExecutor
+        result = subprocess.run(
+            ["/bin/bash", "-ilc", "echo shell_init_ok"],
+            capture_output=True,
+            text=True,
+            timeout=10,  # Login shell may take longer to initialize
+        )
+        assert result.returncode == 0
+        assert "shell_init_ok" in result.stdout
+
+    def test_rez_mode_auto_detects_rez_used(self, monkeypatch) -> None:
+        """RezMode.AUTO skips rez wrapping when REZ_USED is set."""
+        from config import Config, RezMode
+        from launch.environment_manager import EnvironmentManager
+
+        # Simulate BlueBolt environment where rez is already initialized
+        monkeypatch.setenv("REZ_USED", "1")
+
+        env_manager = EnvironmentManager()
+
+        # AUTO mode should skip wrapping when REZ_USED is set
+        if Config.REZ_MODE == RezMode.AUTO:
+            should_wrap = env_manager.should_wrap_with_rez(Config)
+            # When REZ_USED is set, AUTO mode should NOT wrap
+            assert not should_wrap, "RezMode.AUTO should skip wrapping when REZ_USED=1"
+
+    def test_command_builder_validates_paths(self) -> None:
+        """CommandBuilder.validate_path handles various path formats."""
+        from launch.command_builder import CommandBuilder
+
+        # Safe path - no escaping needed
+        safe_path = CommandBuilder.validate_path("/shows/myshow/shots/sq010/sh0010")
+        assert safe_path == "/shows/myshow/shots/sq010/sh0010"
+
+        # Path with spaces - should be quoted
+        space_path = CommandBuilder.validate_path("/shows/my show/shots/sq010/sh0010")
+        # Verify it doesn't crash and returns something valid
+        assert space_path is not None
+
+    def test_env_manager_rez_packages(self) -> None:
+        """EnvironmentManager returns rez packages for apps."""
+        from config import Config
+        from launch.environment_manager import EnvironmentManager
+
+        env_manager = EnvironmentManager()
+
+        # Get packages for known apps
+        nuke_packages = env_manager.get_rez_packages("nuke", Config)
+        maya_packages = env_manager.get_rez_packages("maya", Config)
+        threede_packages = env_manager.get_rez_packages("3dequalizer", Config)
+
+        # At minimum, should return a list (may be empty depending on config)
+        assert isinstance(nuke_packages, list)
+        assert isinstance(maya_packages, list)
+        assert isinstance(threede_packages, list)

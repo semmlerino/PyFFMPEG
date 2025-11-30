@@ -173,8 +173,8 @@ class TestCacheScenarios:
             TestProcessPool,
         )
 
-        test_pool = TestProcessPool()
-        test_pool.default_output = "warming"
+        test_pool = TestProcessPool(strict=False)  # Permissive for this specific test
+        test_pool.set_outputs("warming")
         model._process_pool = test_pool
 
         # Measure pre-warming

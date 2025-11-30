@@ -32,6 +32,7 @@ pytestmark = [
     pytest.mark.unit,
     pytest.mark.qt,
     pytest.mark.slow,  # Requires complete isolation
+    pytest.mark.permissive_process_pool,  # Tests check UI, not subprocess output
 ]
 
 

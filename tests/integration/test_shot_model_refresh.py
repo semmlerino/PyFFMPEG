@@ -56,7 +56,6 @@ def real_cache_manager(tmp_path):
 @pytest.fixture
 def shot_model_with_test_pool(real_cache_manager):
     """ShotModel with real cache but TestProcessPool (UNIFIED_TESTING_GUIDE)."""
-    model = ShotModel(cache_manager=real_cache_manager, load_cache=False)
     # Use TestProcessPool from library with default workspace data
     test_pool = TestProcessPool()
     test_pool.set_outputs(
@@ -64,7 +63,12 @@ def shot_model_with_test_pool(real_cache_manager):
         "workspace /shows/testshow/shots/seq01/seq01_shot02",
         "workspace /shows/testshow/shots/seq02/seq02_shot01",
     )
-    model._process_pool = test_pool
+    # Use constructor injection instead of private attribute mutation
+    model = ShotModel(
+        cache_manager=real_cache_manager,
+        load_cache=False,
+        process_pool=test_pool,
+    )
     return model, test_pool
 
 

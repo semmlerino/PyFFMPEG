@@ -638,6 +638,27 @@ class TestCacheManager(QObject):
         # but for now we only need previous_shots support
         self.cache_updated.emit()
 
+    def get_cached_data(self, key: str) -> object | None:
+        """Get cached generic data by key.
+
+        Args:
+            key: Cache key identifier
+
+        Returns:
+            Cached data or None if not found
+        """
+        # Test double: return None for any key (no persistent generic cache)
+        return None
+
+    def get_migrated_shots(self) -> list[dict[str, Any]] | None:
+        """Get shots that were migrated from My Shots.
+
+        Returns:
+            List of migrated shot dictionaries or None
+        """
+        # Test double: return None (no migration tracking)
+        return None
+
     def validate_cache(self) -> dict[str, Any]:
         """Validate cache integrity."""
         return {

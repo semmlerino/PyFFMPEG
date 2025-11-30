@@ -130,21 +130,31 @@ def mock_process_pool_manager(
     their own `test_process_pool` fixture and pass it to components will use their
     local version, while this mock just prevents the singleton from spawning processes.
 
+    By default, strict mode is enabled - tests that call execute_workspace_command()
+    without first calling set_outputs() will fail with a clear error message.
+
     Args:
         request: Pytest request for marker checking
         monkeypatch: Pytest monkeypatch fixture
 
-    OPT-OUT: Use @pytest.mark.real_subprocess to skip this mock.
+    MARKERS:
+        @pytest.mark.real_subprocess: Skip this mock entirely (use real subprocess)
+        @pytest.mark.permissive_process_pool: Disable strict mode (allow unconfigured calls)
     """
     # Allow opt-out for tests that need real subprocess behavior
     if "real_subprocess" in [m.name for m in request.node.iter_markers()]:
         return  # Skip mock for this test
 
+    # Check for permissive marker (escape hatch for tests that don't need specific output)
+    is_permissive = "permissive_process_pool" in [
+        m.name for m in request.node.iter_markers()
+    ]
+
     # Import and create TestProcessPool directly (not via fixture) to avoid
     # interfering with test-local test_process_pool fixtures
     from tests.fixtures.test_doubles import TestProcessPool
 
-    internal_pool = TestProcessPool()
+    internal_pool = TestProcessPool(strict=not is_permissive)
 
     # Patch the singleton instance directly - get_instance() checks this first
     monkeypatch.setattr(

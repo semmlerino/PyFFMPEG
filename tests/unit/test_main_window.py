@@ -28,6 +28,7 @@ pytestmark = [
     pytest.mark.unit,
     pytest.mark.qt,
     pytest.mark.slow,
+    pytest.mark.permissive_process_pool,  # MainWindow tests check UI, not subprocess output
 ]
 
 

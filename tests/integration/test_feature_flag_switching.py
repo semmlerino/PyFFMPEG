@@ -27,7 +27,12 @@ from tests.test_doubles_library import TestCacheManager
 
 
 # Integration tests may show error dialogs when mocks are incomplete
-pytestmark = [pytest.mark.integration, pytest.mark.qt, pytest.mark.allow_dialogs]
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.qt,
+    pytest.mark.allow_dialogs,
+    pytest.mark.permissive_process_pool,  # MainWindow tests, not subprocess output
+]
 
 
 if TYPE_CHECKING:
@@ -76,6 +81,14 @@ class ExtendedTestCacheManager(TestCacheManager):
         """Shutdown method for MainWindow compatibility."""
         # Test double: just clear caches
         self.clear_cache()
+
+    def get_cached_data(self, key: str) -> object | None:
+        """Get cached generic data by key (MainWindow/PinnedShotsStrip compatibility)."""
+        return None
+
+    def get_migrated_shots(self) -> list | None:
+        """Get migrated shots (PreviousShotsModel compatibility)."""
+        return None
 
 
 @pytest.mark.slow

@@ -1,223 +1,98 @@
-# Running ShotBot Integration Tests
+# Integration Test Guide
 
 ## Quick Start
 
-### Prerequisites
 ```bash
-# Ensure you're in the ShotBot directory
-cd /mnt/c/CustomScripts/Python/PyFFMPEG/BB/shotbot
+# Run all integration tests
+~/.local/bin/uv run pytest tests/integration/ -v
 
-# Dependencies are managed by uv
-uv sync
+# Run with parallelism (recommended for full suite)
+~/.local/bin/uv run pytest tests/integration/ -n auto --dist=loadgroup
+
+# Run a specific test file
+~/.local/bin/uv run pytest tests/integration/test_real_subprocess.py -v
 ```
 
-### Run All New Integration Tests
+## Available Integration Tests
+
+| File | Focus |
+|------|-------|
+| `test_real_subprocess.py` | Real subprocess execution, launcher stack smoke tests |
+| `test_real_process_pool_manager.py` | ProcessPoolManager with real bash execution |
+| `test_subprocess_smoke.py` | Basic subprocess operations validation |
+| `test_shot_model_refresh.py` | Shot refresh workflow with test doubles |
+| `test_shot_workflow_integration.py` | End-to-end shot workflow scenarios |
+| `test_threede_scanner_integration.py` | 3DE scene discovery pipeline |
+| `test_threede_launch_integration.py` | 3DE launch command building |
+| `test_threede_discovery_full.py` | Full 3DE discovery with filesystem |
+| `test_threede_parallel_discovery.py` | Concurrent 3DE scene discovery |
+| `test_threede_worker_workflow.py` | 3DE worker thread coordination |
+| `test_cache_corruption_recovery.py` | Cache resilience and recovery |
+| `test_cache_merge_correctness.py` | Incremental cache merge logic |
+| `test_incremental_caching_workflow.py` | Cache TTL and refresh behavior |
+| `test_main_window_coordination.py` | Main window lifecycle and signals |
+| `test_main_window_complete.py` | Complete MainWindow integration |
+| `test_cross_component_integration.py` | Cross-component signal workflows |
+| `test_async_workflow_integration.py` | Async operation coordination |
+| `test_qt_lifecycle.py` | Qt object lifecycle management |
+| `test_e2e_real_components.py` | End-to-end with real components |
+| `test_user_workflows.py` | User interaction workflows |
+| `test_feature_flag_switching.py` | Feature flag toggle behavior |
+| `test_thumbnail_discovery_integration.py` | Thumbnail discovery and caching |
+
+## Test Markers
+
+| Marker | Purpose |
+|--------|---------|
+| `@pytest.mark.real_subprocess` | Uses real subprocess (not mocked) |
+| `@pytest.mark.integration` | Integration test (slower, cross-component) |
+| `@pytest.mark.qt` | Requires Qt event loop |
+| `@pytest.mark.qt_heavy` | Qt test requiring serialization |
+| `@pytest.mark.slow` | Longer-running test |
+
+## Running by Category
+
 ```bash
-# Run the new comprehensive integration tests
-uv run python run_tests.py tests/integration/test_raw_plate_finder_integration.py
-uv run python run_tests.py tests/integration/test_folder_opener_integration.py
-uv run python run_tests.py tests/integration/test_threede_cache_persistence_integration.py
-uv run python run_tests.py tests/integration/test_performance_benchmarks_integration.py
-uv run python run_tests.py tests/integration/test_concurrent_stress_integration.py
+# Real subprocess tests only (no mocking)
+~/.local/bin/uv run pytest tests/integration/ -m real_subprocess -v
+
+# 3DE-related tests
+~/.local/bin/uv run pytest tests/integration/ -k threede -v
+
+# Cache-related tests
+~/.local/bin/uv run pytest tests/integration/ -k cache -v
+
+# Main window tests
+~/.local/bin/uv run pytest tests/integration/ -k main_window -v
+
+# Skip slow tests
+~/.local/bin/uv run pytest tests/integration/ -m "not slow" -v
 ```
-
-### Run by Test Category
-
-#### Critical Workflow Tests (Fast)
-```bash
-# Raw plate finder - comprehensive workflow tests
-uv run python run_tests.py tests/integration/test_raw_plate_finder_integration.py::TestRawPlateFinderIntegration
-
-# Folder opener - filesystem operations
-uv run python run_tests.py tests/integration/test_folder_opener_integration.py::TestFolderOpenerWorkerIntegration
-
-# 3DE cache persistence - app restart simulation
-uv run python run_tests.py tests/integration/test_threede_cache_persistence_integration.py::TestThreeDECachePersistenceIntegration
-```
-
-#### Performance Benchmarks (Medium Speed)
-```bash
-# Performance benchmarks for critical paths
-uv run python run_tests.py -m performance tests/integration/test_performance_benchmarks_integration.py
-
-# Or run specific benchmark classes
-uv run python run_tests.py tests/integration/test_performance_benchmarks_integration.py::TestPerformanceBenchmarks::test_shot_model_refresh_performance
-```
-
-#### Stress Tests (Slow - Use Sparingly)
-```bash
-# Concurrent operations stress tests
-uv run python run_tests.py -m stress tests/integration/test_concurrent_stress_integration.py
-
-# Or run specific stress test
-uv run python run_tests.py tests/integration/test_concurrent_stress_integration.py::TestConcurrentStressIntegration::test_concurrent_cache_operations_stress
-```
-
-### Run with Coverage
-```bash
-# Generate coverage report for new integration tests
-uv run python run_tests.py --cov=raw_plate_finder --cov=thumbnail_widget_base --cov=threede_scene_model --cov=cache_manager tests/integration/test_raw_plate_finder_integration.py tests/integration/test_folder_opener_integration.py tests/integration/test_threede_cache_persistence_integration.py
-```
-
-### Selective Test Execution
-
-#### Run Only Non-Stress Tests
-```bash
-# Run integration tests excluding performance and stress tests
-uv run python run_tests.py tests/integration/ -m "not performance and not stress"
-```
-
-#### Run Only Quick Tests
-```bash
-# Run specific quick test methods
-uv run python run_tests.py tests/integration/test_raw_plate_finder_integration.py::TestRawPlateFinderIntegration::test_full_workflow_complex_structure
-uv run python run_tests.py tests/integration/test_folder_opener_integration.py::TestFolderOpenerWorkerIntegration::test_open_normal_directory
-```
-
-#### Run Performance Tests Only
-```bash
-# Run only performance-marked tests
-uv run python run_tests.py tests/integration/ -m performance
-```
-
-## Test Categories Overview
-
-### 1. Raw Plate Finder Integration Tests
-**File:** `test_raw_plate_finder_integration.py`
-**Focus:** Complete plate discovery workflow
-**Duration:** ~30 seconds (includes performance tests)
-**Key Tests:**
-- Complex plate structure handling
-- Color space detection
-- Version priority selection
-- Edge cases and error handling
-- Performance benchmarks
-
-### 2. Folder Opener Integration Tests  
-**File:** `test_folder_opener_integration.py`
-**Focus:** Non-blocking folder opening across platforms
-**Duration:** ~20 seconds
-**Key Tests:**
-- Cross-platform compatibility
-- Path handling (spaces, Unicode, special chars)
-- Error scenarios and recovery
-- Concurrent operations
-- Thread safety
-
-### 3. 3DE Cache Persistence Integration Tests
-**File:** `test_threede_cache_persistence_integration.py`  
-**Focus:** Cache lifecycle and app restart simulation
-**Duration:** ~40 seconds (includes MainWindow integration)
-**Key Tests:**
-- Cache creation and persistence
-- TTL expiry and refresh
-- App restart scenarios
-- Cache corruption recovery
-- Large dataset performance
-
-### 4. Performance Benchmarks
-**File:** `test_performance_benchmarks_integration.py`
-**Focus:** Performance validation and regression detection  
-**Duration:** ~60 seconds
-**Key Tests:**
-- Shot model refresh performance
-- 3DE scene discovery benchmarks
-- Cache operation speed
-- Memory usage patterns
-- Concurrent operation efficiency
-
-### 5. Concurrent Stress Tests
-**File:** `test_concurrent_stress_integration.py`
-**Focus:** System behavior under high load and concurrency
-**Duration:** ~90 seconds  
-**Key Tests:**
-- Concurrent cache operations
-- Filesystem stress testing
-- Resource exhaustion recovery
-- Error handling under stress
-- Long-running stability
-
-## Expected Results
-
-### Performance Targets
-- **Raw Plate Finder**: <0.1s single shot, >100 shots/sec batch
-- **Shot Model Refresh**: <2s cache miss, <0.5s cache hit  
-- **3DE Scene Discovery**: <10s for 100 shots
-- **Cache Operations**: <1s loading any size
-- **Memory Usage**: <500MB for large datasets
-
-### Success Criteria
-- **Integration Tests**: >95% pass rate
-- **Performance Tests**: Meet or exceed targets
-- **Stress Tests**: >90% success rate under load
-- **Error Handling**: Graceful degradation, no crashes
 
 ## Troubleshooting
 
-### Common Issues
-
-#### Import Errors
+### Qt Crashes in WSL
+Ensure offscreen mode is enabled:
 ```bash
-# Ensure dependencies are installed
-uv sync
+QT_QPA_PLATFORM=offscreen ~/.local/bin/uv run pytest tests/integration/ -v
 ```
 
-#### Permission Errors (Linux/macOS)
+### Timeout Issues
+Increase timeout for slower systems:
 ```bash
-# Some folder opener tests may require GUI session
-export DISPLAY=:0  # If running in headless environment
+~/.local/bin/uv run pytest tests/integration/ --timeout=120 -v
 ```
 
-#### Memory Issues (Stress Tests)
+### Parallel Test Failures
+If parallel tests fail but serial passes, use `--dist=loadgroup`:
 ```bash
-# Reduce concurrent workers if system is constrained
-# Edit test files to reduce max_workers in ThreadPoolExecutor
+~/.local/bin/uv run pytest tests/integration/ -n 4 --dist=loadgroup -v
 ```
-
-#### Timeout Issues
-```bash  
-# Increase timeouts for slower systems
-# Edit qtbot.waitUntil timeout values in test files
-```
-
-### Platform-Specific Notes
-
-#### Linux (WSL)
-- Folder opener may require file manager installation (`sudo apt install xdg-utils`)
-- Some GUI tests may need X server setup
-
-#### Windows  
-- Folder opener should work with native Explorer
-- Path handling tests cover Windows-specific scenarios
-
-#### macOS
-- Folder opener uses native `open` command
-- All tests should work without additional setup
 
 ## Test Development
 
-### Adding New Integration Tests
-1. Create test file: `test_[feature]_integration.py`
-2. Use existing fixtures from `conftest.py`
-3. Add appropriate markers (`@pytest.mark.performance`, `@pytest.mark.stress`)
-4. Follow naming convention: `test_[scenario]_[aspect]`
-5. Include realistic error scenarios
-6. Document expected performance characteristics
-
-### Performance Test Guidelines
-1. Establish baseline on reference hardware
-2. Set reasonable tolerance ranges (±20% typically)  
-3. Include warmup iterations for consistent results
-4. Monitor memory usage and cleanup
-5. Use `time.time()` for elapsed time measurement
-6. Print results for trend monitoring
-
-### Stress Test Guidelines
-1. Use `ThreadPoolExecutor` for controlled concurrency
-2. Include proper cleanup in try/finally blocks
-3. Track success/failure rates, not just crashes
-4. Test both resource exhaustion and recovery
-5. Include realistic error injection
-6. Monitor system resources (memory, file handles)
-
-This comprehensive test suite ensures ShotBot's critical workflows are thoroughly validated across various real-world scenarios and edge cases.
+When adding new integration tests:
+1. Place in `tests/integration/test_*.py`
+2. Add appropriate markers (`@pytest.mark.integration`, `@pytest.mark.qt` if using Qt)
+3. Use test doubles from `tests.fixtures.test_doubles` or `tests.test_doubles_library`
+4. Follow patterns in existing tests for signal waiting and cleanup

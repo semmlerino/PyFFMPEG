@@ -41,7 +41,7 @@ os.environ.setdefault("SHOTBOT_CONFIG_DIR", str(config_dir))
 os.environ.setdefault("SHOTBOT_SECURE_EXECUTOR_MODE", "mock")
 
 # Per-worker cache isolation (eliminates race conditions on shared ~/.shotbot/cache_test)
-cache_dir = base_tmp / f"shotbot_test_cache_{worker}"
+cache_dir = base_tmp / f"shotbot_test_cache_{run_id}_{worker}"
 cache_dir.mkdir(parents=True, exist_ok=True)
 os.environ["SHOTBOT_TEST_CACHE_DIR"] = str(cache_dir)
 
@@ -161,6 +161,13 @@ def _patch_qtbot_short_waits() -> Iterator[None]:
 
     original_wait = QtBot.wait
 
+    # Auto-enable diagnostics in CI environments
+    is_ci = (
+        os.environ.get("CI", "").lower() in ("true", "1", "yes")
+        or os.environ.get("GITHUB_ACTIONS") == "true"
+    )
+    log_intercepted = os.environ.get("SHOTBOT_TEST_WAIT_DIAG", "0") == "1" or is_ci
+
     def _safe_wait(self, timeout: int = 0) -> None:
         from tests.test_helpers import process_qt_events
 
@@ -170,15 +177,13 @@ def _patch_qtbot_short_waits() -> Iterator[None]:
                 return original_wait(self, timeout)
 
         if timeout <= 5:
-            # Optional diagnostic logging for debugging timing issues
-            if os.environ.get("SHOTBOT_TEST_WAIT_DIAG", "0") == "1":
+            # Diagnostic logging - auto-enabled in CI, opt-in locally
+            if log_intercepted:
                 import logging
-                import traceback
 
-                logging.getLogger(__name__).debug(
-                    "qtbot.wait(%d) bypassed at:\n%s",
-                    timeout,
-                    "".join(traceback.format_stack()[-4:-1]),
+                test_name = _current_test_item.name if _current_test_item else "unknown"
+                logging.getLogger(__name__).info(
+                    "qtbot.wait(%d) intercepted in '%s'", timeout, test_name
                 )
             process_qt_events()
             return None
@@ -225,11 +230,15 @@ _conftest_logger = logging.getLogger(__name__)
 
 
 def _module_imports_pyside6(module) -> bool:
-    """Check if a test module imports PySide6.
+    """Check if a test module imports PySide6 at any level.
 
     This function detects tests that use Qt directly without requesting
     Qt fixtures (qtbot, qapp, etc.) so they can be auto-grouped and
     have cleanup fixtures applied.
+
+    Detection methods:
+    1. Runtime check: Module-level PySide6 objects in vars(module)
+    2. AST check: Import statements anywhere in source (catches function-local imports)
 
     Args:
         module: The test module to check
@@ -240,10 +249,11 @@ def _module_imports_pyside6(module) -> bool:
     if module is None:
         return False
 
+    # Method 1: Runtime module-level object check
     try:
         module_dict = vars(module)
     except TypeError:
-        return False
+        module_dict = {}
 
     for obj in module_dict.values():
         # Check object's module
@@ -257,6 +267,27 @@ def _module_imports_pyside6(module) -> bool:
                 base_module = getattr(base, "__module__", "")
                 if isinstance(base_module, str) and base_module.startswith("PySide6"):
                     return True
+
+    # Method 2: AST-based detection for function-level imports
+    # This catches imports inside test functions that runtime check misses
+    try:
+        import ast
+        import inspect
+
+        source = inspect.getsource(module)
+        tree = ast.parse(source)
+
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    if alias.name.startswith("PySide6"):
+                        return True
+            elif isinstance(node, ast.ImportFrom):
+                if node.module and node.module.startswith("PySide6"):
+                    return True
+    except (TypeError, OSError, SyntaxError):
+        # Can't get source or parse it - fall back to runtime check only
+        pass
 
     return False
 
@@ -463,6 +494,10 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line("markers", "qt_heavy: mark test as Qt-intensive")
     config.addinivalue_line("markers", "integration_unsafe: mark test as potentially unsafe integration test")
     config.addinivalue_line("markers", "integration_safe: mark test as safe integration test")
+    config.addinivalue_line(
+        "markers",
+        "permissive_process_pool: allow TestProcessPool without set_outputs() (use sparingly)",
+    )
     config.addinivalue_line(
         "markers",
         "skip_if_parallel: skip test when running in parallel mode due to Qt state pollution",

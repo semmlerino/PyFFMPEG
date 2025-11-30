@@ -77,6 +77,8 @@ def setup_qt_imports() -> None:
 pytestmark = [
     pytest.mark.integration,
     pytest.mark.qt,
+    pytest.mark.allow_dialogs,  # Integration tests may show dialogs
+    pytest.mark.permissive_process_pool,  # MainWindow tests, not subprocess output
 ]
 
 # Test markers for pytest

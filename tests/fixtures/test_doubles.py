@@ -129,16 +129,22 @@ class TestProcessPool:
         self,
         ttl_aware: bool = False,
         track_kwargs: bool = False,
+        strict: bool = True,
     ) -> None:
         """Initialize the test double.
 
         Args:
             ttl_aware: Enable TTL-based caching behavior
             track_kwargs: Enable command kwargs tracking
+            strict: If True (default), raises AssertionError when execute_workspace_command
+                   is called without first calling set_outputs(). This prevents tests from
+                   silently passing with empty output. Use @pytest.mark.permissive_process_pool
+                   to opt out for tests that intentionally don't need specific output.
         """
         # Feature flags
         self._ttl_aware = ttl_aware
         self._track_kwargs = track_kwargs
+        self._strict = strict
 
         # Core state
         self.commands: list[str] = []
@@ -146,6 +152,7 @@ class TestProcessPool:
         self._output_index = 0
         self.default_output = ""
         self._repeat_output: bool = True
+        self._outputs_configured = False
 
         # Error simulation
         self.should_fail = False
@@ -184,6 +191,7 @@ class TestProcessPool:
         that may call execute_workspace_command() multiple times unpredictably.
         Use repeat=False for tests that need specific sequential outputs.
         """
+        self._outputs_configured = True
         self._outputs_queue = list(outputs)
         self._output_index = 0
         self._repeat_output = repeat
@@ -274,6 +282,15 @@ class TestProcessPool:
 
     def _get_next_output(self) -> str:
         """Get the next output based on configured mode."""
+        # Strict mode: fail if set_outputs() was never called
+        if self._strict and not self._outputs_configured:
+            raise AssertionError(
+                "TestProcessPool: set_outputs() required before execute_workspace_command().\n"
+                "Fix: Call test_process_pool.set_outputs('expected output') in your test.\n"
+                "If this test intentionally doesn't need specific output, add:\n"
+                "  @pytest.mark.permissive_process_pool"
+            )
+
         if not self._outputs_queue:
             return self.default_output
 
@@ -499,3 +516,59 @@ def make_test_launcher():
         )
 
     return _make_launcher
+
+
+@pytest.fixture
+def shot_model_factory(test_process_pool: TestProcessPool):
+    """Factory for ShotModel with injected test doubles.
+
+    Creates ShotModel instances with the test process pool already injected
+    via constructor, which is preferred over mutating model._process_pool
+    after construction.
+
+    Example usage:
+        def test_something(shot_model_factory, test_process_pool, tmp_path):
+            test_process_pool.set_outputs("workspace /shows/test/shots/sq01/sh01")
+            model = shot_model_factory(cache_dir=tmp_path / "cache")
+            # model already has test_process_pool injected via constructor
+
+    Args:
+        test_process_pool: The TestProcessPool fixture for mocking subprocess
+
+    Returns:
+        Factory callable that creates configured ShotModel instances
+    """
+    from typing import Any
+
+    from cache_manager import CacheManager
+    from shot_model import ShotModel
+
+    def _create_model(
+        cache_dir: Path | None = None,
+        cache_manager: CacheManager | None = None,
+        load_cache: bool = False,
+        **kwargs: Any,
+    ) -> ShotModel:
+        """Create a ShotModel with test doubles.
+
+        Args:
+            cache_dir: Optional directory for cache (creates CacheManager if provided)
+            cache_manager: Optional pre-configured CacheManager (takes precedence over cache_dir)
+            load_cache: Whether to load existing cache on init (default False for tests)
+            **kwargs: Additional arguments passed to ShotModel
+
+        Returns:
+            ShotModel instance with test_process_pool injected
+        """
+        if cache_manager is None and cache_dir is not None:
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            cache_manager = CacheManager(cache_dir=cache_dir)
+
+        return ShotModel(
+            cache_manager=cache_manager,
+            load_cache=load_cache,
+            process_pool=test_process_pool,
+            **kwargs,
+        )
+
+    return _create_model
