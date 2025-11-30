@@ -79,6 +79,10 @@ if TYPE_CHECKING:
 # Add project root to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# Track current test item for runtime marker checks (e.g., @pytest.mark.real_timing)
+# Set by pytest_runtest_call hook, cleared by pytest_runtest_teardown
+_current_test_item: pytest.Item | None = None
+
 
 # ==============================================================================
 # CRITICAL: Early Qt bootstrap (prevents mass-import crashes)
@@ -160,6 +164,11 @@ def _patch_qtbot_short_waits() -> Iterator[None]:
     def _safe_wait(self, timeout: int = 0) -> None:
         from tests.test_helpers import process_qt_events
 
+        # Honor @pytest.mark.real_timing - bypass patch entirely for timing-sensitive tests
+        if _current_test_item is not None:
+            if _current_test_item.get_closest_marker("real_timing"):
+                return original_wait(self, timeout)
+
         if timeout <= 5:
             # Optional diagnostic logging for debugging timing issues
             if os.environ.get("SHOTBOT_TEST_WAIT_DIAG", "0") == "1":
@@ -208,6 +217,47 @@ pytest_plugins = [
 # Fixtures that indicate a test uses Qt and needs grouping/cleanup
 _QT_FIXTURES = frozenset({"qtbot", "cleanup_qt_state", "qt_cleanup", "qapp"})
 
+# Logger for Qt detection messages
+import logging
+_conftest_logger = logging.getLogger(__name__)
+
+
+def _module_imports_pyside6(module) -> bool:
+    """Check if a test module imports PySide6.
+
+    This function detects tests that use Qt directly without requesting
+    Qt fixtures (qtbot, qapp, etc.) so they can be auto-grouped and
+    have cleanup fixtures applied.
+
+    Args:
+        module: The test module to check
+
+    Returns:
+        True if the module imports from PySide6, False otherwise
+    """
+    if module is None:
+        return False
+
+    try:
+        module_dict = vars(module)
+    except TypeError:
+        return False
+
+    for obj in module_dict.values():
+        # Check object's module
+        obj_module = getattr(obj, "__module__", "")
+        if isinstance(obj_module, str) and obj_module.startswith("PySide6"):
+            return True
+
+        # Check base classes for types (catches Qt widget subclasses)
+        if isinstance(obj, type):
+            for base in getattr(obj, "__mro__", ()):
+                base_module = getattr(base, "__module__", "")
+                if isinstance(base_module, str) and base_module.startswith("PySide6"):
+                    return True
+
+    return False
+
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     """Group Qt-using tests and auto-enable fixtures based on markers.
@@ -243,10 +293,27 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
 
     Without the marker, such tests may skip Qt cleanup and leak state.
     """
+    # Track modules we've already logged auto-detection for (avoid spam)
+    auto_detected_modules: set[str] = set()
+
     for item in items:
-        # Determine if this is a Qt test
+        # Determine if this is a Qt test via fixtures or marker
         fixtures = set(getattr(item, "fixturenames", ()) or ())
         is_qt_test = item.get_closest_marker("qt") or fixtures.intersection(_QT_FIXTURES)
+
+        # Auto-detect PySide6 imports if not already detected as Qt test
+        if not is_qt_test and item.module:
+            if _module_imports_pyside6(item.module):
+                is_qt_test = True
+                # Log once per module (not per test)
+                module_name = item.module.__name__ if item.module else "unknown"
+                if module_name not in auto_detected_modules:
+                    auto_detected_modules.add(module_name)
+                    _conftest_logger.info(
+                        "Auto-detected PySide6 import in %s (no fixture/marker). "
+                        "Applying Qt cleanup automatically.",
+                        module_name,
+                    )
 
         if is_qt_test:
             # Check for qt_heavy marker - these tests need extra isolation
@@ -419,6 +486,11 @@ def pytest_configure(config: pytest.Config) -> None:
         "real_timing: documents test requires actual timing delays "
         "(NOTE: short-wait patch only affects waits ≤5ms; waits >5ms use real timing automatically)",
     )
+    config.addinivalue_line(
+        "markers",
+        "smoke: smoke tests for real subprocess/external dependencies "
+        "(skip locally with SHOTBOT_SKIP_SMOKE=1)",
+    )
 
     # FAIL-FAST: Verify all registered singletons have reset() methods
     # This catches cases where new singletons are added without proper reset support
@@ -447,3 +519,41 @@ def pytest_runtest_setup(item: pytest.Item) -> None:
         # Check if running with xdist (parallel execution)
         if hasattr(item.config, "workerinput"):  # xdist worker
             pytest.skip("Test skipped in parallel execution due to Qt state pollution")
+
+
+def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
+    """Print thread leak summary at end of session (if any leaks detected).
+
+    This hook prints a consolidated summary instead of per-test warnings,
+    reducing console noise while still providing actionable information.
+
+    Only active when STRICT_CLEANUP or FAIL_ON_THREAD_LEAK is enabled
+    (CI environments, GitHub Actions, or explicit env vars).
+    """
+    from tests.fixtures.qt_cleanup import get_thread_leak_summary
+
+    summary = get_thread_leak_summary()
+    if summary:
+        # Get terminal reporter for proper output formatting
+        reporter = session.config.pluginmanager.get_plugin("terminalreporter")
+        if reporter:
+            reporter.write_line(summary, yellow=True)
+        else:
+            # Fallback to print if reporter not available
+            print(summary)
+
+
+def pytest_runtest_call(item: pytest.Item) -> None:
+    """Track current test item for runtime marker checks.
+
+    This hook sets _current_test_item so that fixtures and patches can
+    check for markers like @pytest.mark.real_timing at runtime.
+    """
+    global _current_test_item
+    _current_test_item = item
+
+
+def pytest_runtest_teardown(item: pytest.Item, nextitem: pytest.Item | None) -> None:
+    """Clear current test item tracking after test completion."""
+    global _current_test_item
+    _current_test_item = None

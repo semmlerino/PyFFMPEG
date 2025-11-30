@@ -45,9 +45,64 @@ FAIL_ON_THREAD_LEAK = os.environ.get("SHOTBOT_TEST_FAIL_ON_THREAD_LEAK", "0") ==
 # Thread count tolerance - daemon threads and pytest internals can vary slightly
 _THREAD_TOLERANCE = 2
 
+# Session-level leak tracking (populated in CI/strict mode)
+# Collects leak info for summary at session end instead of per-test spam
+_thread_leak_summary: list[dict[str, Any]] = []
+
+
+def get_thread_leak_summary() -> str | None:
+    """Get formatted thread leak summary for session end.
+
+    Returns:
+        Formatted summary string if leaks were detected, None otherwise.
+        Also clears the leak list after generating summary.
+    """
+    if not _thread_leak_summary:
+        return None
+
+    # Group by surviving thread names for actionable insights
+    thread_counts: dict[str, int] = {}
+    for leak in _thread_leak_summary:
+        for thread in leak.get("threads", []):
+            thread_counts[thread] = thread_counts.get(thread, 0) + 1
+
+    sorted_threads = sorted(thread_counts.items(), key=lambda x: -x[1])
+
+    lines = [
+        "",
+        "=" * 70,
+        f"THREAD LEAK SUMMARY: {len(_thread_leak_summary)} test(s) had thread leaks",
+        "=" * 70,
+        "",
+        "Most common surviving threads (fix these first):",
+    ]
+    for thread, count in sorted_threads[:10]:
+        lines.append(f"  {count:3d}x  {thread}")
+
+    if len(_thread_leak_summary) <= 5:
+        lines.append("")
+        lines.append("Affected tests:")
+        for leak in _thread_leak_summary:
+            lines.append(f"  - {leak['test']}")
+    else:
+        lines.append("")
+        lines.append(f"First 5 affected tests (of {len(_thread_leak_summary)}):")
+        for leak in _thread_leak_summary[:5]:
+            lines.append(f"  - {leak['test']}")
+        lines.append("")
+        lines.append("Run with SHOTBOT_TEST_FAIL_ON_THREAD_LEAK=1 to fail on leaks.")
+
+    lines.append("=" * 70)
+    lines.append("")
+
+    # Clear for next session
+    _thread_leak_summary.clear()
+
+    return "\n".join(lines)
+
 
 @pytest.fixture  # NOTE: No longer autouse - applied conditionally via conftest.py hook
-def qt_cleanup(qapp: QApplication) -> Iterator[None]:
+def qt_cleanup(qapp: QApplication, request: pytest.FixtureRequest) -> Iterator[None]:
     """Ensure Qt state is clean between tests.
 
     This autouse fixture implements proper Qt test hygiene to prevent
@@ -156,48 +211,33 @@ def qt_cleanup(qapp: QApplication) -> Iterator[None]:
             raise
 
     # THREAD LEAK DETECTION: Compare current thread counts to baseline
-    # Only log warnings in strict mode to avoid noise during normal development
+    # Collects to session summary instead of per-test logging (reduces noise)
     if STRICT_CLEANUP or FAIL_ON_THREAD_LEAK:
         final_pool_threads = QThreadPool.globalInstance().activeThreadCount()
         final_python_threads = threading.active_count()
 
-        # Track if any leaks detected (for FAIL_ON_THREAD_LEAK)
+        # Track if any leaks detected
         pool_leaked = final_pool_threads > baseline_pool_threads
         python_leaked = final_python_threads > baseline_python_threads + _THREAD_TOLERANCE
 
-        # Check QThreadPool for leaked runnables
-        if pool_leaked:
-            leaked_count = final_pool_threads - baseline_pool_threads
-            _logger.warning(
-                "THREAD LEAK: QThreadPool has %d more active runnable(s) than before test. "
-                "Baseline: %d, Final: %d. "
-                "This can cause xdist flakes when runnables mutate shared state.",
-                leaked_count,
-                baseline_pool_threads,
-                final_pool_threads,
-            )
-
-        # Check Python threads (with tolerance for daemon threads)
+        # Collect surviving thread names for summary
         surviving_threads: list[str] = []
-        if python_leaked:
-            leaked_count = final_python_threads - baseline_python_threads
+        if pool_leaked or python_leaked:
             surviving_threads = [
                 f"{t.name} (daemon={t.daemon})"
                 for t in threading.enumerate()
                 if t.name != "MainThread"
             ]
-            _logger.warning(
-                "THREAD LEAK: %d more Python thread(s) than before test. "
-                "Baseline: %d, Final: %d. "
-                "Surviving threads: %s. "
-                "This can cause xdist flakes and use-after-free crashes.",
-                leaked_count,
-                baseline_python_threads,
-                final_python_threads,
-                surviving_threads,
-            )
 
-        # FAIL_ON_THREAD_LEAK: Make tests fail on thread leaks (opt-in strict mode)
+            # Collect leak info for session-end summary (no per-test spam)
+            _thread_leak_summary.append({
+                "test": request.node.nodeid,
+                "pool": (baseline_pool_threads, final_pool_threads),
+                "python": (baseline_python_threads, final_python_threads),
+                "threads": surviving_threads,
+            })
+
+        # FAIL_ON_THREAD_LEAK: Make tests fail immediately (opt-in strict mode)
         if FAIL_ON_THREAD_LEAK and (pool_leaked or python_leaked):
             pytest.fail(
                 f"THREAD LEAK DETECTED (SHOTBOT_TEST_FAIL_ON_THREAD_LEAK=1)\n"

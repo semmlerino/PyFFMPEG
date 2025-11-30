@@ -41,9 +41,39 @@ class DialogRecorder:
         def test_no_dialogs_shown(suppress_qmessagebox):
             do_something_quiet()
             suppress_qmessagebox.assert_not_shown()
+
+        # Test Cancel/No code paths:
+        def test_cancel_aborts(suppress_qmessagebox):
+            from PySide6.QtWidgets import QMessageBox
+            suppress_qmessagebox.set_return_value("question", QMessageBox.StandardButton.No)
+            result = confirm_action()
+            assert result is False  # Cancel path taken
     """
 
     calls: list[dict[str, Any]] = field(default_factory=list)
+    _return_values: dict[str, Any] = field(default_factory=dict)
+
+    def set_return_value(self, method: str, value: Any) -> None:
+        """Set return value for a specific dialog method.
+
+        This allows testing Cancel/No code paths that would otherwise be
+        bypassed by the default Ok/Yes returns.
+
+        Args:
+            method: Dialog method name ("information", "warning", "critical",
+                "question", "exec")
+            value: Return value (e.g., QMessageBox.StandardButton.No)
+
+        Example:
+            from PySide6.QtWidgets import QMessageBox
+            suppress_qmessagebox.set_return_value("question", QMessageBox.StandardButton.No)
+            # Code that shows question dialog will now get "No" response
+        """
+        self._return_values[method] = value
+
+    def get_return_value(self, method: str, default: Any) -> Any:
+        """Get configured return value for method, or default if not set."""
+        return self._return_values.get(method, default)
 
     def assert_shown(
         self, method: str | None = None, text_contains: str | None = None
@@ -141,14 +171,14 @@ def suppress_qmessagebox(
     def _record_and_ok(method_name: str):
         def wrapper(*args, **kwargs):
             recorder.calls.append({"method": method_name, "args": args, "kwargs": kwargs})
-            return QMessageBox.StandardButton.Ok
+            return recorder.get_return_value(method_name, QMessageBox.StandardButton.Ok)
 
         return wrapper
 
     def _record_and_yes(method_name: str):
         def wrapper(*args, **kwargs):
             recorder.calls.append({"method": method_name, "args": args, "kwargs": kwargs})
-            return QMessageBox.StandardButton.Yes
+            return recorder.get_return_value(method_name, QMessageBox.StandardButton.Yes)
 
         return wrapper
 
@@ -274,3 +304,43 @@ def expect_dialog(suppress_qmessagebox: DialogRecorder):
     """
     yield suppress_qmessagebox
     assert suppress_qmessagebox.calls, "Expected at least one dialog but none were shown"
+
+
+@pytest.fixture
+def expect_cancel(suppress_qmessagebox: DialogRecorder) -> DialogRecorder:
+    """Configure dialogs to return Cancel/No for testing cancel paths.
+
+    This convenience fixture pre-configures all dialog methods to return
+    Cancel or No instead of the default Ok/Yes. Use this for tests that
+    need to verify cancel/abort code paths.
+
+    The fixture asserts that at least one dialog was shown (otherwise
+    the cancel configuration would be meaningless).
+
+    Example:
+        def test_cancel_aborts_operation(expect_cancel):
+            result = confirm_destructive_action()
+            assert result is False  # User "clicked" Cancel/No
+            expect_cancel.assert_shown("question")  # Optional: verify dialog type
+
+        def test_cancel_preserves_original(expect_cancel):
+            original_data = get_data()
+            trigger_replace_dialog()
+            assert get_data() == original_data  # Cancel preserved original
+    """
+    from PySide6.QtWidgets import QMessageBox
+
+    # Configure all methods to return Cancel/No
+    suppress_qmessagebox.set_return_value("question", QMessageBox.StandardButton.No)
+    suppress_qmessagebox.set_return_value("information", QMessageBox.StandardButton.Cancel)
+    suppress_qmessagebox.set_return_value("warning", QMessageBox.StandardButton.Cancel)
+    suppress_qmessagebox.set_return_value("critical", QMessageBox.StandardButton.Cancel)
+    suppress_qmessagebox.set_return_value("exec", QMessageBox.StandardButton.Cancel)
+
+    yield suppress_qmessagebox
+
+    # Assert at least one dialog was shown (otherwise cancel config is pointless)
+    assert suppress_qmessagebox.calls, (
+        "expect_cancel fixture used but no dialogs were shown. "
+        "Remove the fixture if no dialogs are expected."
+    )
