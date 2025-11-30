@@ -90,10 +90,10 @@ class Config:
 
     # Thumbnail settings
     DEFAULT_THUMBNAIL_SIZE: int = 420
-    MIN_THUMBNAIL_SIZE: int = 250
-    MAX_THUMBNAIL_SIZE: int = 600
+    MIN_THUMBNAIL_SIZE: int = 400
+    MAX_THUMBNAIL_SIZE: int = 1200
     THUMBNAIL_ASPECT_RATIO: float = 16 / 9  # Width / Height ratio for plate images
-    THUMBNAIL_SPACING: int = 20  # Increased to accommodate selection highlight
+    THUMBNAIL_SPACING: int = 12  # Gap between grid cells
     PLACEHOLDER_COLOR: str = "#444444"
 
     # Shot paths (configurable via SHOWS_ROOT environment variable)
