@@ -20,6 +20,7 @@ from PySide6.QtCore import (
     Signal,
     Slot,
 )
+from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -353,6 +354,26 @@ class ShotGridView(BaseGridView):
         self.list_view.viewport().update()
         self._update_visible_range()
 
+    def _create_color_icon(self, color: str, size: int = 16) -> QIcon:
+        """Create a coloured circular icon for menu items.
+
+        Args:
+            color: Hex colour string (e.g., "#FF6B6B")
+            size: Icon size in pixels
+
+        Returns:
+            QIcon with a filled circle of the specified colour
+        """
+        pixmap = QPixmap(size, size)
+        pixmap.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setBrush(QColor(color))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawEllipse(0, 0, size, size)
+        _ = painter.end()
+        return QIcon(pixmap)
+
     @override
     def contextMenuEvent(self, event: QContextMenuEvent) -> None:
         """Handle right-click context menu.
@@ -382,12 +403,14 @@ class ShotGridView(BaseGridView):
 
         # Pin/Unpin shot action (at the top for quick access)
         if self._pin_manager and self._pin_manager.is_pinned(shot):
-            unpin_action = menu.addAction("📌  Unpin Shot")
+            unpin_action = menu.addAction("Unpin Shot")
+            unpin_action.setIcon(self._create_color_icon("#FF6B6B"))
             _ = unpin_action.triggered.connect(
                 lambda checked=False, s=shot: self._unpin_shot(s)  # noqa: ARG005
             )
         else:
-            pin_action = menu.addAction("📌  Pin Shot")
+            pin_action = menu.addAction("Pin Shot")
+            pin_action.setIcon(self._create_color_icon("#FF6B6B"))
             _ = pin_action.triggered.connect(
                 lambda checked=False, s=shot: self._pin_shot(s)  # noqa: ARG005
             )
@@ -395,11 +418,13 @@ class ShotGridView(BaseGridView):
         _ = menu.addSeparator()
 
         # Primary action: Open Shot Folder
-        open_folder_action = menu.addAction("📂  Open Shot Folder")
+        open_folder_action = menu.addAction("Open Shot Folder")
+        open_folder_action.setIcon(self._create_color_icon("#FFB347"))
         _ = open_folder_action.triggered.connect(lambda: self._open_shot_folder(shot))
 
         # Open Main Plate in RV
-        open_plate_action = menu.addAction("🎬  Open Main Plate in RV")
+        open_plate_action = menu.addAction("Open Main Plate in RV")
+        open_plate_action.setIcon(self._create_color_icon("#4ECDC4"))
         _ = open_plate_action.triggered.connect(
             lambda: self._open_main_plate_in_rv(shot)
         )
@@ -407,15 +432,17 @@ class ShotGridView(BaseGridView):
         _ = menu.addSeparator()
 
         # Launch Application submenu (with keyboard shortcuts visible)
-        launch_menu = menu.addMenu("🚀  Launch Application")
+        launch_menu = menu.addMenu("Launch Application")
+        launch_menu.setIcon(self._create_color_icon("#95D5B2"))
         launch_apps = [
-            ("🎯  3DEqualizer", "3", "3de"),
-            ("🎨  Nuke", "N", "nuke"),
-            ("🏛️  Maya", "M", "maya"),
-            ("▶️  RV", "R", "rv"),
+            ("3DEqualizer", "3", "3de", "#00CED1"),
+            ("Nuke", "N", "nuke", "#FF8C00"),
+            ("Maya", "M", "maya", "#9B59B6"),
+            ("RV", "R", "rv", "#2ECC71"),
         ]
-        for label, shortcut, app_id in launch_apps:
+        for label, shortcut, app_id, color in launch_apps:
             action = launch_menu.addAction(f"{label}  ({shortcut})")
+            action.setIcon(self._create_color_icon(color))
             # Use default parameter to capture app_id correctly in lambda
             _ = action.triggered.connect(
                 lambda checked=False, a=app_id: self.app_launch_requested.emit(a)  # noqa: ARG005
@@ -424,7 +451,8 @@ class ShotGridView(BaseGridView):
         _ = menu.addSeparator()
 
         # Copy Shot Path action
-        copy_path_action = menu.addAction("📋  Copy Shot Path")
+        copy_path_action = menu.addAction("Copy Shot Path")
+        copy_path_action.setIcon(self._create_color_icon("#95A5A6"))
         _ = copy_path_action.triggered.connect(
             lambda: self._copy_path_to_clipboard(shot.workspace_path)
         )
@@ -435,8 +463,9 @@ class ShotGridView(BaseGridView):
         has_note = (
             self._notes_manager.has_note(shot) if self._notes_manager else False
         )
-        note_label = "📝  Edit Note" if has_note else "📝  Add Note"
+        note_label = "Edit Note" if has_note else "Add Note"
         edit_note_action = menu.addAction(note_label)
+        edit_note_action.setIcon(self._create_color_icon("#F1C40F"))
         _ = edit_note_action.triggered.connect(
             lambda checked=False, s=shot: self._edit_shot_note(s)  # noqa: ARG005
         )
