@@ -634,8 +634,10 @@ class ThumbnailWidgetBase(ABC, QFrame, metaclass=QABCMeta):
         logger.info(f"Opening plate in RV: {plate_path}")
         try:
             # Use bash -ilc to inherit shell environment where Rez adds RV to PATH
+            # RV settings: 12fps, auto-play, ping-pong mode (setPlayMode(2))
             safe_path = shlex.quote(plate_path)
-            _ = subprocess.Popen(["bash", "-ilc", f"rv {safe_path}"])
+            rv_cmd = f"rv {safe_path} -fps 12 -play -eval 'setPlayMode(2)'"
+            _ = subprocess.Popen(["bash", "-ilc", rv_cmd])
         except FileNotFoundError:
             logger.error("RV not found. Please ensure RV is installed and in PATH.")
             notify_error("RV Not Found", "Could not launch RV. Check that RV is installed.")

@@ -17,6 +17,7 @@ from typing_compat import override
 
 if TYPE_CHECKING:
     from cache_manager import CacheManager
+    from pin_manager import PinManager
     from previous_shots_model import PreviousShotsModel
     from shot_model import Shot
 
@@ -42,6 +43,7 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
         self,
         underlying_model: PreviousShotsModel,
         cache_manager: CacheManager | None = None,
+        pin_manager: PinManager | None = None,
         parent: QObject | None = None,
     ) -> None:
         """Initialize the previous shots item model.
@@ -49,11 +51,13 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
         Args:
             underlying_model: PreviousShotsModel instance providing shot data
             cache_manager: Optional cache manager for thumbnails
+            pin_manager: Optional pin manager for tracking pinned shots
             parent: Optional parent QObject
         """
         super().__init__(cache_manager, parent)
 
         self._underlying_model: PreviousShotsModel = underlying_model
+        self._pin_manager: PinManager | None = pin_manager
         self._sort_order: str = "date"  # Default: newest first by discovered_at
 
         # Connect generic items_updated to shot-specific signal
@@ -117,6 +121,11 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
         # Import here to avoid circular dependency
         from base_item_model import BaseItemRole
 
+        if role == BaseItemRole.IsPinnedRole:
+            if self._pin_manager:
+                return self._pin_manager.is_pinned(item)
+            return False
+
         # Handle item-specific roles for backward compatibility
         if role == BaseItemRole.ItemSpecificRole1:
             return item.shot  # Shot number/ID
@@ -138,12 +147,34 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
     def _apply_sort(self, shots: list[Shot]) -> list[Shot]:
         """Apply current sort order to a list of shots.
 
+        Pinned shots are always sorted to the front (by pin order),
+        then unpinned shots are sorted by the current sort order.
+
         Args:
             shots: List of shots to sort
 
         Returns:
             Sorted list of shots
         """
+        if self._pin_manager:
+            # Sort: pinned first (by pin order), then unpinned (by sort order)
+            def sort_key(s: Shot) -> tuple[bool, int, float | str]:
+                is_pinned = self._pin_manager.is_pinned(s)  # type: ignore[union-attr]
+                pin_order = (
+                    self._pin_manager.get_pin_order(s)  # type: ignore[union-attr]
+                    if is_pinned
+                    else 999999
+                )
+                if self._sort_order == "name":
+                    secondary: float | str = s.full_name.lower()
+                else:
+                    # "date" - use negative timestamp for newest first
+                    secondary = -s.discovered_at
+                return (not is_pinned, pin_order, secondary)
+
+            return sorted(shots, key=sort_key)
+
+        # No pin manager - use original sort logic
         if self._sort_order == "name":
             return sorted(shots, key=lambda s: s.full_name.lower())
         # "date" - newest first
@@ -234,6 +265,23 @@ class PreviousShotsItemModel(BaseItemModel["Shot"]):
             if item.full_name == full_name:
                 return (item, row)
         return None
+
+    def set_pin_manager(self, pin_manager: PinManager) -> None:
+        """Set the pin manager.
+
+        Args:
+            pin_manager: Pin manager for tracking pinned shots
+        """
+        self._pin_manager = pin_manager
+
+    def refresh_pin_order(self) -> None:
+        """Re-sort shots to reflect pin changes.
+
+        Call this after pinning/unpinning to update the display order.
+        """
+        if self._items:
+            # Re-sort with current items
+            self.set_shots(list(self._items))
 
     def _on_underlying_shots_updated(self) -> None:
         """Handle shots update from underlying model."""

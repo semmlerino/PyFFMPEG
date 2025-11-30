@@ -83,7 +83,7 @@ class ExtendedTestCacheManager(TestCacheManager):
         self.clear_cache()
 
     def get_cached_data(self, key: str) -> object | None:
-        """Get cached generic data by key (MainWindow/PinnedShotsStrip compatibility)."""
+        """Get cached generic data by key (MainWindow compatibility)."""
         return None
 
     def get_migrated_shots(self) -> list | None:

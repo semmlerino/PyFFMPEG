@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from base_shot_model import BaseShotModel
     from cache_manager import CacheManager
     from core.shot_types import RefreshResult
+    from pin_manager import PinManager
     from shot_model import Shot
 
 
@@ -38,15 +39,19 @@ class ShotItemModel(BaseItemModel["Shot"]):
     def __init__(
         self,
         cache_manager: CacheManager | None = None,
+        pin_manager: PinManager | None = None,
         parent: QObject | None = None,
     ) -> None:
         """Initialize the shot item model.
 
         Args:
             cache_manager: Optional cache manager for thumbnails
+            pin_manager: Optional pin manager for tracking pinned shots
             parent: Optional parent QObject
         """
         super().__init__(cache_manager, parent)
+
+        self._pin_manager: PinManager | None = pin_manager
 
         # Connect generic items_updated to shot-specific signal
         _ = self.items_updated.connect(self.shots_updated)
@@ -90,7 +95,13 @@ class ShotItemModel(BaseItemModel["Shot"]):
         Returns:
             Data for the role or None
         """
-        # Shot items don't have additional custom roles beyond BaseItemModel
+        from base_item_model import BaseItemRole
+
+        if role == BaseItemRole.IsPinnedRole:
+            if self._pin_manager:
+                return self._pin_manager.is_pinned(item)
+            return False
+
         return None
 
     # ============= Shot-specific methods =============
@@ -98,13 +109,28 @@ class ShotItemModel(BaseItemModel["Shot"]):
     def set_shots(self, shots: list[Shot]) -> None:
         """Set the shots list.
 
-        Always sorts shots by name (full_name) alphabetically.
+        Sorts shots with pinned shots first (by pin order), then unpinned
+        shots alphabetically.
 
         Args:
             shots: List of Shot objects
         """
-        # Always sort by name for My Shots tab
-        sorted_shots = sorted(shots, key=lambda s: s.full_name.lower())
+        if self._pin_manager:
+            # Sort: pinned first (by pin order), then unpinned (alphabetically)
+            def sort_key(s: Shot) -> tuple[bool, int, str]:
+                is_pinned = self._pin_manager.is_pinned(s)  # type: ignore[union-attr]
+                pin_order = (
+                    self._pin_manager.get_pin_order(s)  # type: ignore[union-attr]
+                    if is_pinned
+                    else 999999
+                )
+                return (not is_pinned, pin_order, s.full_name.lower())
+
+            sorted_shots = sorted(shots, key=sort_key)
+        else:
+            # Fallback: alphabetical sorting only
+            sorted_shots = sorted(shots, key=lambda s: s.full_name.lower())
+
         self.set_items(sorted_shots)
 
     def refresh_shots(self, shots: list[Shot]) -> RefreshResult:
@@ -183,6 +209,23 @@ class ShotItemModel(BaseItemModel["Shot"]):
             if item.full_name == full_name:
                 return (item, row)
         return None
+
+    def set_pin_manager(self, pin_manager: PinManager) -> None:
+        """Set the pin manager.
+
+        Args:
+            pin_manager: Pin manager for tracking pinned shots
+        """
+        self._pin_manager = pin_manager
+
+    def refresh_pin_order(self) -> None:
+        """Re-sort shots to reflect pin changes.
+
+        Call this after pinning/unpinning to update the display order.
+        """
+        if self._items:
+            # Re-sort with current items
+            self.set_shots(list(self._items))
 
     # ============= Properties =============
 

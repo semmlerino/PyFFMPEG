@@ -100,4 +100,5 @@ class ShotGridDelegate(BaseThumbnailDelegate):
             "thumbnail": index.data(ShotRole.ThumbnailPixmapRole),
             "loading_state": index.data(ShotRole.LoadingStateRole),
             "is_selected": index.data(ShotRole.IsSelectedRole) or False,
+            "is_pinned": index.data(ShotRole.IsPinnedRole) or False,
         }

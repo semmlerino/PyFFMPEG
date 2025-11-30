@@ -63,6 +63,7 @@ class ThumbnailItemData(TypedDict, total=False):
     thumbnail: QPixmap | None  # thumbnail image
     loading_state: str  # Loading state string
     is_selected: bool  # Selection state
+    is_pinned: bool  # Pin state
     user: str  # Optional - user name
     timestamp: str  # Optional - timestamp
 
@@ -83,6 +84,7 @@ class DelegateTheme:
 
     # Additional colors (optional)
     user_color: QColor | None = None
+    bg_pinned_color: QColor = field(default_factory=lambda: QColor("#2a3a3a"))
 
     # Dimensions
     text_height: int = 40
@@ -216,9 +218,10 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
             is_selected = data.get("is_selected", False) or bool(
                 state & QStyle.StateFlag.State_Selected
             )
+            is_pinned = data.get("is_pinned", False)
 
-            # Draw background
-            self._draw_background(painter, rect, is_hover, is_selected)
+            # Draw background (with pinned indicator)
+            self._draw_background(painter, rect, is_hover, is_selected, is_pinned)
 
             # Draw thumbnail or loading indicator
             thumbnail_rect = self._get_thumbnail_rect(rect)
@@ -234,6 +237,9 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
             else:
                 self._draw_placeholder(painter, thumbnail_rect)
 
+            # Draw pin icon overlay (after thumbnail, before text)
+            self._draw_pin_icon(painter, thumbnail_rect, is_pinned)
+
             # Draw text
             self._draw_text(painter, rect, data, is_selected)
 
@@ -244,11 +250,18 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
             painter.restore()
 
     def _draw_background(
-        self, painter: QPainter, rect: QRect, is_hover: bool, is_selected: bool
+        self,
+        painter: QPainter,
+        rect: QRect,
+        is_hover: bool,
+        is_selected: bool,
+        is_pinned: bool = False,
     ) -> None:
         """Draw the background with appropriate color."""
         if is_selected:
             bg_color = self.theme.bg_selected_color
+        elif is_pinned and not is_hover:
+            bg_color = self.theme.bg_pinned_color
         elif is_hover:
             bg_color = self.theme.bg_hover_color
         else:
@@ -326,6 +339,36 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
             painter.drawPixmap(x, y, scaled_pixmap)
             # Clear clipping to allow text drawing below
             painter.setClipping(False)
+
+    def _draw_pin_icon(
+        self,
+        painter: QPainter,
+        rect: QRect,
+        is_pinned: bool,
+    ) -> None:
+        """Draw pin emoji in top-right corner if pinned.
+
+        Args:
+            painter: QPainter instance
+            rect: Rectangle to draw in (thumbnail area)
+            is_pinned: Whether item is pinned
+        """
+        if not is_pinned:
+            return
+
+        # Position in top-right with small margin
+        margin = 4
+        icon_size = 16
+        x = rect.right() - icon_size - margin
+        y = rect.top() + margin
+
+        # Draw pin emoji
+        painter.save()
+        font = painter.font()
+        font.setPointSize(12)
+        painter.setFont(font)
+        _ = painter.drawText(x, y + icon_size, "📌")
+        painter.restore()
 
     def _draw_placeholder(self, painter: QPainter, rect: QRect) -> None:
         """Draw a placeholder when no thumbnail is available."""

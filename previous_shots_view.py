@@ -51,6 +51,7 @@ if TYPE_CHECKING:
 
     # Local application imports
     from base_thumbnail_delegate import BaseThumbnailDelegate
+    from pin_manager import PinManager
     from previous_shots_item_model import PreviousShotsItemModel
     from shot_model import Shot
 
@@ -78,12 +79,14 @@ class PreviousShotsView(BaseGridView):
     def __init__(
         self,
         model: PreviousShotsItemModel | None = None,
+        pin_manager: PinManager | None = None,
         parent: QWidget | None = None,
     ) -> None:
         """Initialize the previous shots view.
 
         Args:
             model: Optional previous shots item model
+            pin_manager: Optional pin manager for pinning shots
             parent: Optional parent widget
         """
         # Initialize instance variables before super().__init__()
@@ -100,6 +103,7 @@ class PreviousShotsView(BaseGridView):
 
         # PreviousShotsView-specific attributes
         self._selected_shot: Shot | None = None
+        self._pin_manager: PinManager | None = pin_manager
         # Note: Don't redefine _model - it's inherited from BaseGridView
         # We store the typed reference separately for type safety
         self._unified_model: PreviousShotsItemModel | None = model
@@ -446,11 +450,17 @@ class PreviousShotsView(BaseGridView):
         # Create context menu
         menu = QMenu(self)
 
-        # Pin shot action (at the top for quick access)
-        pin_action = menu.addAction("Pin Shot")
-        _ = pin_action.triggered.connect(
-            lambda checked=False: self.pin_shot_requested.emit(shot)  # noqa: ARG005
-        )
+        # Pin/Unpin shot action (at the top for quick access)
+        if self._pin_manager and self._pin_manager.is_pinned(shot):
+            unpin_action = menu.addAction("Unpin Shot")
+            _ = unpin_action.triggered.connect(
+                lambda checked=False, s=shot: self._unpin_shot(s)  # noqa: ARG005
+            )
+        else:
+            pin_action = menu.addAction("Pin Shot")
+            _ = pin_action.triggered.connect(
+                lambda checked=False, s=shot: self._pin_shot(s)  # noqa: ARG005
+            )
 
         _ = menu.addSeparator()
 
@@ -541,8 +551,10 @@ class PreviousShotsView(BaseGridView):
         self.logger.info(f"Opening plate in RV: {plate_path}")
         try:
             # Use bash -ilc to inherit shell environment where Rez adds RV to PATH
+            # RV settings: 12fps, auto-play, ping-pong mode (setPlayMode(2))
             safe_path = shlex.quote(plate_path)
-            _ = subprocess.Popen(["bash", "-ilc", f"rv {safe_path}"])
+            rv_cmd = f"rv {safe_path} -fps 12 -play -eval 'setPlayMode(2)'"
+            _ = subprocess.Popen(["bash", "-ilc", rv_cmd])
         except FileNotFoundError:
             self.logger.error("RV not found. Please ensure RV is installed and in PATH.")
             notify_error("RV Not Found", "Could not launch RV. Check that RV is installed.")
@@ -624,3 +636,43 @@ class PreviousShotsView(BaseGridView):
         else:
             self._sort_date_btn.setChecked(True)
         _ = self._sort_button_group.blockSignals(False)
+
+    # ============= Pin methods =============
+
+    def _pin_shot(self, shot: Shot) -> None:
+        """Pin a shot.
+
+        Args:
+            shot: Shot to pin
+        """
+        if self._pin_manager:
+            self._pin_manager.pin_shot(shot)
+            self._refresh_with_pins()
+        else:
+            # Fallback: emit signal for external handling
+            self.pin_shot_requested.emit(shot)
+
+    def _unpin_shot(self, shot: Shot) -> None:
+        """Unpin a shot.
+
+        Args:
+            shot: Shot to unpin
+        """
+        if self._pin_manager:
+            self._pin_manager.unpin_shot(shot)
+            self._refresh_with_pins()
+
+    def _refresh_with_pins(self) -> None:
+        """Re-sort and refresh grid to reflect pin changes."""
+        if self._unified_model:
+            self._unified_model.refresh_pin_order()
+            # Force view update
+            self.list_view.viewport().update()
+
+    def set_pin_manager(self, pin_manager: PinManager) -> None:
+        """Set the pin manager.
+
+        Args:
+            pin_manager: Pin manager for pinning shots
+        """
+        self._pin_manager = pin_manager

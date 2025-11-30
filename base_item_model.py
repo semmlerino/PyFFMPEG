@@ -143,6 +143,7 @@ class BaseItemRole(IntEnum):
     ThumbnailPixmapRole = Qt.ItemDataRole.UserRole + 8
     LoadingStateRole = Qt.ItemDataRole.UserRole + 9
     IsSelectedRole = Qt.ItemDataRole.UserRole + 10
+    IsPinnedRole = Qt.ItemDataRole.UserRole + 11
 
     # Item-specific roles (for backward compatibility with old tests)
     ItemSpecificRole1 = (

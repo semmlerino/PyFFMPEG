@@ -66,6 +66,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from pin_manager import PinManager
 from typing_compat import override
 
 
@@ -304,6 +305,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # Create single cache manager for the application
         self.cache_manager = cache_manager or CacheManager()
 
+        # Create pin manager for tracking pinned shots
+        self.pin_manager = PinManager(self.cache_manager)
+
         # Initialize cleanup and refresh managers (extracted from MainWindow)
         # MainWindow implements protocol interfaces functionally at runtime
         # QMainWindow signatures use position-only params which differ from Protocol
@@ -440,13 +444,20 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self.tab_widget = QTabWidget()
         # Disable focus indicators on tab bar
         self.tab_widget.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
+
         self.splitter.addWidget(self.tab_widget)
 
         # Tab 1: My Shots
         # Always use Model/View architecture for maximum efficiency
-        self.shot_item_model = ShotItemModel(cache_manager=self.cache_manager)
+        self.shot_item_model = ShotItemModel(
+            cache_manager=self.cache_manager,
+            pin_manager=self.pin_manager,
+        )
         self.shot_item_model.set_shots(self.shot_model.shots)
-        self.shot_grid = ShotGridView(model=self.shot_item_model)
+        self.shot_grid = ShotGridView(
+            model=self.shot_item_model,
+            pin_manager=self.pin_manager,
+        )
         _ = self.tab_widget.addTab(self.shot_grid, "My Shots")
 
         # Tab 2: Other 3DE scenes (using Model/View architecture)
@@ -455,10 +466,13 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         # Tab 3: Previous Shots (approved/completed) - using Model/View architecture
         self.previous_shots_item_model = PreviousShotsItemModel(
-            self.previous_shots_model, self.cache_manager
+            self.previous_shots_model,
+            self.cache_manager,
+            pin_manager=self.pin_manager,
         )
         self.previous_shots_grid = PreviousShotsView(
-            model=self.previous_shots_item_model
+            model=self.previous_shots_item_model,
+            pin_manager=self.pin_manager,
         )
         _ = self.tab_widget.addTab(self.previous_shots_grid, "Previous Shots")
 
