@@ -57,6 +57,7 @@ class FileListWidget(QListWidget):
         self.color_processing = QColor(0, 122, 204)  # Professional blue
         self.color_completed = QColor(34, 139, 34)  # Forest green - success
         self.color_failed = QColor(220, 53, 69)  # Bootstrap red - error
+        self.color_skipped = QColor(255, 193, 7)  # Amber/yellow - skipped (output exists)
 
         # Set fixed height for items
         self.setIconSize(QSize(16, 16))
@@ -271,7 +272,7 @@ class FileListWidget(QListWidget):
 
         Args:
             path: The file path
-            status: One of 'pending', 'processing', 'completed', 'failed'
+            status: One of 'pending', 'processing', 'completed', 'failed', 'skipped'
         """
         if path not in self.path_items:
             return
@@ -294,6 +295,8 @@ class FileListWidget(QListWidget):
             item.setFont(font)
         elif status == "failed":
             item.setForeground(self.color_failed)
+        elif status == "skipped":
+            item.setForeground(self.color_skipped)
 
         # Update the displayed text using the unified method
         self._update_item_display(path)
@@ -670,3 +673,11 @@ class FileListWidget(QListWidget):
         # Clear any potential focus issues that might interfere with drag-and-drop
         self.clearFocus()
         self.setFocus()
+
+    def cleanup(self) -> None:
+        """Clean up thread pool before destruction.
+
+        Call this method before the widget is destroyed (e.g., in closeEvent)
+        to ensure background metadata workers finish before the widget is gone.
+        """
+        self.thread_pool.waitForDone(5000)  # Wait up to 5 seconds

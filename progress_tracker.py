@@ -126,10 +126,16 @@ class ProcessProgressTracker:
         Process ffmpeg output chunk and update progress information
         Returns updated progress data if successful, empty dict otherwise
         """
-        if process_id not in self.processes:
-            return {}
+        # Acquire lock and copy process data to avoid race with complete_process()
+        with self._lock:
+            if process_id not in self.processes:
+                return {}
+            process = self.processes[process_id]
+            duration = process["duration"]
+            start_time = process["start_time"]
+            path = process["path"]
 
-        # Add chunk to buffer for batch processing
+        # Process buffer outside lock to avoid blocking other threads
         buffer = self.output_manager.get_buffer(process_id)
         buffer.add_output(chunk)
 
@@ -139,25 +145,27 @@ class ProcessProgressTracker:
         if not results["has_data"]:
             return {}
 
-        process = self.processes[process_id]
-
-        # Update process data from batch results
-        elapsed_sec = results["elapsed_sec"]
-        process["elapsed_sec"] = elapsed_sec
-        process["fps"] = results["fps"]
-
         # Calculate percentage based on duration
-        duration = process["duration"]
         if not duration:
             return {}
 
+        elapsed_sec = results["elapsed_sec"]
+        fps = results["fps"]
+
         # Update progress percentage
         pct = min(100, round(elapsed_sec / duration * 100))
-        process["current_pct"] = pct
 
         # Calculate remaining time with more precision
-        elapsed = time.time() - process["start_time"]
+        elapsed = time.time() - start_time
         remain = elapsed / pct * (100 - pct) if pct > 0 else 0
+
+        # Re-acquire lock to update process state (re-check it still exists)
+        with self._lock:
+            if process_id not in self.processes:
+                return {}  # Process was removed while we were processing
+            self.processes[process_id]["elapsed_sec"] = elapsed_sec
+            self.processes[process_id]["fps"] = fps
+            self.processes[process_id]["current_pct"] = pct
 
         # Prepare result with formatted times and progress data
         return {
@@ -165,12 +173,12 @@ class ProcessProgressTracker:
             "current_pct": pct,
             "elapsed_sec": elapsed_sec,
             "duration": duration,
-            "fps": process["fps"],
+            "fps": fps,
             "elapsed": elapsed,
             "elapsed_str": self._format_time(elapsed),
             "remain": remain,
             "remain_str": self._format_time(remain),
-            "path": process["path"],
+            "path": path,
         }
 
     def force_batch_process_all(self) -> None:

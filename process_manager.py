@@ -142,7 +142,11 @@ class ProcessManager(QObject):
                 )
 
     def start_process(
-        self, path: str, ffmpeg_args: List[str], codec_idx: int = -1
+        self,
+        path: str,
+        ffmpeg_args: List[str],
+        codec_idx: int = -1,
+        duration: Optional[float] = None,
     ) -> QProcess:
         """
         Start a new FFmpeg process for the given file
@@ -151,6 +155,7 @@ class ProcessManager(QObject):
             path: Path to the input file
             ffmpeg_args: List of FFmpeg command arguments
             codec_idx: The codec index used (0-6 for GPU/CPU encoders, -1 if unknown)
+            duration: Pre-probed duration in seconds. If None, will probe (blocking)
 
         Returns the created process object
         """
@@ -222,10 +227,12 @@ class ProcessManager(QObject):
         self.process_outputs[process] = deque(maxlen=self._current_max_log_lines)
 
         # Register with progress tracker (use 0.0 for unknown duration)
-        duration = self.progress_tracker.probe_duration(path)
+        # Use pre-probed duration if provided, otherwise probe (blocking call)
+        if duration is None:
+            duration = self.progress_tracker.probe_duration(path) or 0.0
         process_id = self._get_process_id(process)
         # Always register, even with unknown duration - this ensures progress reaches 100%
-        self.progress_tracker.register_process(process_id, path, duration or 0.0)
+        self.progress_tracker.register_process(process_id, path, duration)
 
         # Store codec information for this file (using passed codec_idx, not parsed from args)
         if codec_idx >= 0:
@@ -347,6 +354,14 @@ class ProcessManager(QObject):
     def is_ffmpeg_available(self) -> bool:
         """Check if FFmpeg is available in PATH. Uses cached result."""
         return self._get_ffmpeg_command() is not None
+
+    def is_process_tracked(self, process: QProcess) -> bool:
+        """Check if a process is still being tracked (not yet cleaned up).
+
+        Use this to avoid creating widgets for processes that have already
+        finished and been cleaned up (e.g., fast-failing processes).
+        """
+        return any(p is process for p, _ in self.processes)
 
     def _handle_process_error(self, error, process: QProcess, path: str) -> None:
         """Enhanced error handling for process errors"""

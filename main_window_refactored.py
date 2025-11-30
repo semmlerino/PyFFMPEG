@@ -760,9 +760,13 @@ class MainWindow(QMainWindow):
 
         # Clean up resources
         self.ui_update_manager.stop()
+        self.conversion_controller.cleanup()  # Clean up prep thread pool
         self.process_manager.cleanup_all_resources()
         if self.process_monitor:
             self.process_monitor.cleanup_all_widgets()
+        # Clean up file list thread pool to prevent signals to destroyed widget
+        if self.file_list:
+            self.file_list.cleanup()
 
         event.accept()
 

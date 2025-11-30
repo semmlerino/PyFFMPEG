@@ -359,7 +359,7 @@ class TestProcessManagement:
         self.controller = ConversionController(self.mock_process_manager)
 
     def test_process_next_with_queue(self):
-        """Test processing next file in queue"""
+        """Test processing next file in queue (async prep workers are queued)"""
         # Set up conversion state
         self.controller.is_converting = True
         self.controller.queue = ["/test/video1.ts", "/test/video2.ts"]
@@ -369,26 +369,20 @@ class TestProcessManagement:
         # Mock process manager to show no active processes
         self.mock_process_manager.processes = []
 
-        # Mock the start_process to return a mock QProcess
-        mock_process = Mock()
-        mock_process.state.return_value = QProcess.ProcessState.Running
-        self.mock_process_manager.start_process.return_value = mock_process
-
         with patch.object(
-            self.controller,
-            "_build_ffmpeg_args",
-            return_value=["-i", "input.ts", "output.mp4"],
-        ) as mock_build_args, patch.object(
             self.controller, "_get_codec_for_path", return_value=0
-        ) as mock_get_codec:
+        ) as mock_get_codec, patch.object(
+            self.controller._prep_thread_pool, "start"
+        ) as mock_thread_start:
             self.controller._process_next()
 
         # With parallel processing enabled and 2 files in queue,
-        # it should process both files (recursive call)
+        # prep workers should be queued for both files
         assert len(self.controller.queue) == 0  # Both files removed from queue
-        assert self.mock_process_manager.start_process.call_count == 2
-        assert mock_build_args.call_count == 2
+        assert mock_thread_start.call_count == 2  # 2 prep workers started
         assert mock_get_codec.call_count == 2
+        # Files should be tracked in pending_preps
+        assert len(self.controller._pending_preps) == 2
 
     def test_process_next_parallel_limit_reached(self):
         """Test process_next when parallel limit is reached"""
@@ -565,23 +559,40 @@ class TestSourceFileDeletion:
         self.controller.delete_source = True
 
     @patch("os.remove")
-    def test_delete_source_file_success(self, mock_remove):
+    @patch("os.path.getsize")
+    @patch("os.path.exists")
+    @patch("codec_helpers.CodecHelpers.get_output_extension")
+    def test_delete_source_file_success(
+        self, mock_ext, mock_exists, mock_getsize, mock_remove
+    ):
         """Test successful source file deletion in process finished handler"""
         file_path = "/test/video.ts"
         mock_process = Mock()
+
+        # Mock output file verification (new requirement for deletion)
+        mock_ext.return_value = ".mp4"
+        mock_exists.return_value = True  # Output file exists
+        mock_getsize.side_effect = lambda p: 10000 if "_RC.mp4" in p else 100000
 
         # Simulate successful conversion with delete_source enabled
         self.controller.delete_source = True
         self.controller.parallel_enabled = False  # Set required attribute
         self.controller.queue = []  # Set required attribute
         self.controller.file_list_widget = None  # Set required attribute
+        # Mock codec_map for the process_manager
+        self.mock_process_manager.codec_map = {file_path: 0}
         self.controller._on_process_finished(mock_process, 0, file_path)
 
         # Should attempt to delete the source file
         mock_remove.assert_called_once_with(file_path)
 
     @patch("os.remove")
-    def test_delete_source_file_not_exists(self, mock_remove):
+    @patch("os.path.getsize")
+    @patch("os.path.exists")
+    @patch("codec_helpers.CodecHelpers.get_output_extension")
+    def test_delete_source_file_not_exists(
+        self, mock_ext, mock_exists, mock_getsize, mock_remove
+    ):
         """Test source file deletion when file doesn't exist"""
         # os.remove will raise FileNotFoundError if file doesn't exist
         mock_remove.side_effect = FileNotFoundError("File not found")
@@ -589,11 +600,17 @@ class TestSourceFileDeletion:
         file_path = "/test/video.ts"
         mock_process = Mock()
 
+        # Mock output file verification
+        mock_ext.return_value = ".mp4"
+        mock_exists.return_value = True  # Output file exists
+        mock_getsize.side_effect = lambda p: 10000 if "_RC.mp4" in p else 100000
+
         # Set required attributes
         self.controller.delete_source = True
         self.controller.parallel_enabled = False
         self.controller.queue = []
         self.controller.file_list_widget = None
+        self.mock_process_manager.codec_map = {file_path: 0}
 
         # Should handle the exception gracefully
         self.controller._on_process_finished(mock_process, 0, file_path)
@@ -601,18 +618,29 @@ class TestSourceFileDeletion:
         mock_remove.assert_called_once_with(file_path)
 
     @patch("os.remove")
-    def test_delete_source_file_permission_error(self, mock_remove):
+    @patch("os.path.getsize")
+    @patch("os.path.exists")
+    @patch("codec_helpers.CodecHelpers.get_output_extension")
+    def test_delete_source_file_permission_error(
+        self, mock_ext, mock_exists, mock_getsize, mock_remove
+    ):
         """Test source file deletion with permission error"""
         mock_remove.side_effect = PermissionError("Access denied")
 
         file_path = "/test/video.ts"
         mock_process = Mock()
 
+        # Mock output file verification
+        mock_ext.return_value = ".mp4"
+        mock_exists.return_value = True  # Output file exists
+        mock_getsize.side_effect = lambda p: 10000 if "_RC.mp4" in p else 100000
+
         # Set required attributes
         self.controller.delete_source = True
         self.controller.parallel_enabled = False
         self.controller.queue = []
         self.controller.file_list_widget = None
+        self.mock_process_manager.codec_map = {file_path: 0}
 
         # Should handle exception gracefully
         self.controller._on_process_finished(mock_process, 0, file_path)
