@@ -532,7 +532,7 @@ class DesignSystem(QObject):
         }}
 
         QMenu::item {{
-            padding: {self.spacing.sm}px {self.spacing.md}px;
+            padding: {self.spacing.md}px {self.spacing.lg}px;
             border-radius: {self.borders.radius_sm}px;
         }}
 

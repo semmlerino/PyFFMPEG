@@ -382,12 +382,12 @@ class ShotGridView(BaseGridView):
 
         # Pin/Unpin shot action (at the top for quick access)
         if self._pin_manager and self._pin_manager.is_pinned(shot):
-            unpin_action = menu.addAction("Unpin Shot")
+            unpin_action = menu.addAction("📌  Unpin Shot")
             _ = unpin_action.triggered.connect(
                 lambda checked=False, s=shot: self._unpin_shot(s)  # noqa: ARG005
             )
         else:
-            pin_action = menu.addAction("Pin Shot")
+            pin_action = menu.addAction("📌  Pin Shot")
             _ = pin_action.triggered.connect(
                 lambda checked=False, s=shot: self._pin_shot(s)  # noqa: ARG005
             )
@@ -395,11 +395,11 @@ class ShotGridView(BaseGridView):
         _ = menu.addSeparator()
 
         # Primary action: Open Shot Folder
-        open_folder_action = menu.addAction("Open Shot Folder")
+        open_folder_action = menu.addAction("📂  Open Shot Folder")
         _ = open_folder_action.triggered.connect(lambda: self._open_shot_folder(shot))
 
         # Open Main Plate in RV
-        open_plate_action = menu.addAction("Open Main Plate in RV")
+        open_plate_action = menu.addAction("🎬  Open Main Plate in RV")
         _ = open_plate_action.triggered.connect(
             lambda: self._open_main_plate_in_rv(shot)
         )
@@ -407,12 +407,12 @@ class ShotGridView(BaseGridView):
         _ = menu.addSeparator()
 
         # Launch Application submenu (with keyboard shortcuts visible)
-        launch_menu = menu.addMenu("Launch Application")
+        launch_menu = menu.addMenu("🚀  Launch Application")
         launch_apps = [
-            ("3DEqualizer", "3", "3de"),
-            ("Nuke", "N", "nuke"),
-            ("Maya", "M", "maya"),
-            ("RV", "R", "rv"),
+            ("🎯  3DEqualizer", "3", "3de"),
+            ("🎨  Nuke", "N", "nuke"),
+            ("🏛️  Maya", "M", "maya"),
+            ("▶️  RV", "R", "rv"),
         ]
         for label, shortcut, app_id in launch_apps:
             action = launch_menu.addAction(f"{label}  ({shortcut})")
@@ -424,7 +424,7 @@ class ShotGridView(BaseGridView):
         _ = menu.addSeparator()
 
         # Copy Shot Path action
-        copy_path_action = menu.addAction("Copy Shot Path")
+        copy_path_action = menu.addAction("📋  Copy Shot Path")
         _ = copy_path_action.triggered.connect(
             lambda: self._copy_path_to_clipboard(shot.workspace_path)
         )
@@ -435,7 +435,7 @@ class ShotGridView(BaseGridView):
         has_note = (
             self._notes_manager.has_note(shot) if self._notes_manager else False
         )
-        note_label = "Edit Note" if has_note else "Add Note"
+        note_label = "📝  Edit Note" if has_note else "📝  Add Note"
         edit_note_action = menu.addAction(note_label)
         _ = edit_note_action.triggered.connect(
             lambda checked=False, s=shot: self._edit_shot_note(s)  # noqa: ARG005
