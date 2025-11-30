@@ -35,7 +35,7 @@ from PySide6.QtWidgets import (
 from base_grid_view import BaseGridView
 from base_item_model import BaseItemRole
 from design_system import design_system
-from progress_manager import ProgressManager
+from progress_manager import ProgressManager, update_progress
 from shot_grid_delegate import ShotGridDelegate
 from thumbnail_widget_base import FolderOpenerWorker
 from typing_compat import override
@@ -328,6 +328,8 @@ class PreviousShotsView(BaseGridView):
             assert self._status_label is not None
             percent = int((current / total) * 100)
             self._status_label.setText(f"Scanning... {percent}%")
+            # Update progress in status bar
+            update_progress(current, f"Scanning {percent}%")
 
     def _update_status(self) -> None:
         """Update the status label with shot count."""
@@ -526,7 +528,7 @@ class PreviousShotsView(BaseGridView):
 
         self.logger.info(f"Opening plate in RV: {plate_path}")
         try:
-            _ = subprocess.Popen(["rv", plate_path])  # noqa: S603, S607
+            _ = subprocess.Popen(["rv", plate_path])
         except FileNotFoundError:
             self.logger.error("RV not found. Please ensure RV is installed and in PATH.")
         except Exception as e:

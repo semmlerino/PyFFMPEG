@@ -381,6 +381,59 @@ class TestStatusBar:
         # Verify status bar exists
         assert main_window.statusBar() is not None
 
+    def test_background_load_started_shows_message(
+        self, qtbot: QtBot, tmp_path: Path
+    ) -> None:
+        """Test that background load started signal shows status message."""
+        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
+        main_window = MainWindow(cache_manager=cache_manager)
+        qtbot.addWidget(main_window)
+
+        # Directly call the handler (simulating signal emission)
+        main_window._on_background_load_started()
+
+        # Verify status bar shows fetching message
+        assert "Fetching fresh data" in main_window.status_bar.currentMessage()
+
+    def test_show_filter_updates_status_bar(
+        self, qtbot: QtBot, tmp_path: Path
+    ) -> None:
+        """Test that applying show filter updates status bar with count."""
+        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
+        main_window = MainWindow(cache_manager=cache_manager)
+        qtbot.addWidget(main_window)
+
+        # Add some test shots
+        test_shots = [
+            Shot(
+                show="TestShow",
+                sequence="sq010",
+                shot="sh0010",
+                workspace_path="/test/path",
+            ),
+            Shot(
+                show="OtherShow",
+                sequence="sq020",
+                shot="sh0020",
+                workspace_path="/other/path",
+            ),
+        ]
+        main_window.shot_model.shots = test_shots
+        main_window.shot_item_model.set_shots(test_shots)
+
+        # Apply filter via the generic handler
+        main_window._apply_show_filter(
+            main_window.shot_item_model,
+            main_window.shot_model,
+            "TestShow",
+            "My Shots",
+        )
+
+        # Verify status bar shows filter result
+        message = main_window.status_bar.currentMessage()
+        assert "TestShow" in message
+        assert "shot" in message.lower()
+
 
 class TestThumbnailSizeControl:
     """Test thumbnail size control functionality."""

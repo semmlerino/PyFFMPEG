@@ -501,6 +501,10 @@ class TestMainWindowFilterHandlers:
 
         window.refresh_orchestrator = RefreshOrchestrator(window)
 
+        # Add mock status bar for filter feedback
+        from unittest.mock import Mock
+        window.status_bar = Mock()
+
         # Logger is already provided by LoggingMixin
 
         return window
@@ -619,3 +623,28 @@ class TestMainWindowFilterHandlers:
         ]
         assert "showX" in items
         assert "showY" in items
+
+    def test_filter_updates_status_bar(self, mock_main_window: Any) -> None:
+        """Test that applying show filter updates status bar with count."""
+        # Local application imports
+        from main_window import (
+            MainWindow,
+        )
+
+        # Set up test shots
+        test_shots = [
+            Shot("show1", "seq1", "shot1", "/workspace/show1/seq1/shot1"),
+            Shot("show1", "seq2", "shot2", "/workspace/show1/seq2/shot2"),
+            Shot("show2", "seq3", "shot3", "/workspace/show2/seq3/shot3"),
+        ]
+        mock_main_window.shot_model.shots = test_shots
+        mock_main_window.shot_item_model.set_shots(test_shots)
+
+        # Call the handler
+        MainWindow._on_shot_show_filter_requested(mock_main_window, "show1")
+
+        # Verify status bar was updated with filter result
+        mock_main_window.status_bar.showMessage.assert_called()
+        call_args = mock_main_window.status_bar.showMessage.call_args[0][0]
+        assert "show1" in call_args
+        assert "2" in call_args  # 2 shots filtered

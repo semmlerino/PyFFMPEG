@@ -444,6 +444,10 @@ class TestMainWindowTextFilterHandlers:
 
         window.refresh_orchestrator = RefreshOrchestrator(window)
 
+        # Add mock status bar for filter feedback
+        from unittest.mock import Mock
+        window.status_bar = Mock()
+
         return window
 
         # Cleanup
@@ -533,3 +537,28 @@ class TestMainWindowTextFilterHandlers:
         ]
         assert all(shot.show == "show1" for shot in filtered)
         assert all("dm" in shot.shot.lower() for shot in filtered)
+
+    def test_text_filter_updates_status_bar(self, mock_main_window: MainWindow) -> None:
+        """Test that applying text filter updates status bar with count."""
+        # Local application imports
+        from main_window import (
+            MainWindow,
+        )
+
+        # Set up test shots
+        test_shots = [
+            Shot("show1", "seq1", "dm_001", "/workspace/show1/seq1/dm_001"),
+            Shot("show1", "seq2", "DM_002", "/workspace/show1/seq2/DM_002"),
+            Shot("show1", "seq3", "shot_003", "/workspace/show1/seq3/shot_003"),
+        ]
+        mock_main_window.shot_model.shots = test_shots
+        mock_main_window.shot_item_model.set_items(test_shots)
+
+        # Call the handler with "dm" filter
+        MainWindow._on_shot_text_filter_requested(mock_main_window, "dm")
+
+        # Verify status bar was updated with filter result
+        mock_main_window.status_bar.showMessage.assert_called()
+        call_args = mock_main_window.status_bar.showMessage.call_args[0][0]
+        assert "2 of 3" in call_args  # 2 filtered out of 3
+        assert "dm" in call_args  # Filter text shown

@@ -645,6 +645,13 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # Note: shot_model.shot_selected signal removed (vestigial - only logged, no action)
         _ = self.shot_model.cache_updated.connect(self._on_cache_updated)
         _ = self.shot_model.data_recovery_occurred.connect(self._on_data_recovery)
+        # Background load signals for status feedback during initial async load
+        _ = self.shot_model.background_load_started.connect(
+            self._on_background_load_started
+        )
+        _ = self.shot_model.background_load_finished.connect(
+            self._on_background_load_finished
+        )
 
         # Connect to cache manager for migration events
         _ = self.cache_manager.shots_migrated.connect(
@@ -917,6 +924,20 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         """
         self.logger.warning(f"Data recovery: {title} - {details}")
         NotificationManager.warning(title, details)
+
+    def _on_background_load_started(self) -> None:
+        """Handle background load started signal from model.
+
+        Shows a status message while fresh data is being fetched in the background.
+        """
+        self.status_bar.showMessage("Fetching fresh data...")
+
+    def _on_background_load_finished(self) -> None:
+        """Handle background load finished signal from model.
+
+        Clears the loading status (completion handled by shots_loaded/shots_changed).
+        """
+        # Status update handled by shots_loaded signal via RefreshOrchestrator
 
     def _trigger_previous_shots_refresh(self, shots: list[Shot]) -> None:
         """Trigger previous shots refresh only after shots are loaded.
@@ -1273,6 +1294,11 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # We use object types for generic handling across all tabs
         item_model.set_show_filter(model, show_filter)  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
 
+        # Get filtered count for status (cast to int since item_model type is generic object)
+        filtered_count = int(item_model.rowCount())  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType, reportUnknownArgumentType]
+        filter_desc = show if show else "All Shows"
+        self.status_bar.showMessage(f"{tab_name}: {filtered_count} shots ({filter_desc})", 2500)
+
         self.logger.info(
             f"Applied {tab_name} show filter: {show if show else 'All Shows'}"
         )
@@ -1292,6 +1318,16 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         filtered_shots = base_model.get_filtered_shots()
         # get_filtered_shots returns list[Shot], set_items needs list[ItemType]
         self.shot_item_model.set_items(filtered_shots)
+
+        # Show brief status with filter result
+        total_shots = len(self.shot_model.shots)
+        filtered_count = len(filtered_shots)
+        if filter_text:
+            self.status_bar.showMessage(
+                f"My Shots: {filtered_count} of {total_shots} (filter: '{filter_text}')", 2500
+            )
+        else:
+            self.status_bar.showMessage(f"My Shots: {total_shots} shots", 2500)
 
         self.logger.debug(
             f"My Shots text filter applied: '{filter_text}' - {len(filtered_shots)} shots"
@@ -1418,6 +1454,17 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         filtered_shots = self.previous_shots_model.get_filtered_shots()
         # get_filtered_shots returns list[Shot], set_items needs list[ItemType]
         self.previous_shots_item_model.set_items(filtered_shots)
+
+        # Show brief status with filter result
+        total_shots = len(self.previous_shots_model.get_shots())
+        filtered_count = len(filtered_shots)
+        if filter_text:
+            self.status_bar.showMessage(
+                f"Previous Shots: {filtered_count} of {total_shots} (filter: '{filter_text}')",
+                2500,
+            )
+        else:
+            self.status_bar.showMessage(f"Previous Shots: {total_shots} shots", 2500)
 
         self.logger.debug(
             f"Previous Shots text filter applied: '{filter_text}' - {len(filtered_shots)} shots"

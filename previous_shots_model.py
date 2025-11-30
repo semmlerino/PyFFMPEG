@@ -184,6 +184,9 @@ class PreviousShotsModel(LoggingMixin, QObject):
             _ = self._worker.scan_finished.connect(
                 self._on_scan_finished, Qt.ConnectionType.QueuedConnection
             )
+            _ = self._worker.scan_progress.connect(
+                self._on_worker_progress, Qt.ConnectionType.QueuedConnection
+            )
             _ = self._worker.error_occurred.connect(
                 self._on_scan_error, Qt.ConnectionType.QueuedConnection
             )
@@ -272,6 +275,16 @@ class PreviousShotsModel(LoggingMixin, QObject):
         # Use centralized cleanup
         self._cleanup_worker_safely()
         self.scan_finished.emit()
+
+    def _on_worker_progress(self, current: int, total: int, message: str) -> None:
+        """Forward worker progress to model signal.
+
+        Args:
+            current: Current progress value
+            total: Total progress value
+            message: Progress message (not forwarded, model signal is simpler)
+        """
+        self.scan_progress.emit(current, total)
 
     def get_shots(self) -> list[Shot]:
         """Get the list of previous/approved shots.

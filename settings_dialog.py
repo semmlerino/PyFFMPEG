@@ -81,6 +81,7 @@ from PySide6.QtWidgets import (
 from config import Config
 from design_system import design_system
 from logging_mixin import LoggingMixin
+from notification_manager import NotificationManager
 from qt_widget_mixin import QtWidgetMixin
 from typing_compat import override
 
@@ -930,6 +931,7 @@ class SettingsDialog(QDialog, QtWidgetMixin, LoggingMixin):
         self.settings_manager.sync()
 
         self.logger.info("Settings saved successfully")
+        NotificationManager.success("Settings saved", timeout=2500)
 
     # Override mixin event handlers with proper keyword parameter signatures
     @override
