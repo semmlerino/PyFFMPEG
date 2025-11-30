@@ -13,17 +13,18 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, patch
 
 import pytest
-from PySide6.QtCore import Signal
-from PySide6.QtWidgets import QWidget
 
 from controllers.threede_controller import ThreeDEController
 from progress_manager import ProgressManager
-from shot_model import Shot
 from threede_scene_model import ThreeDEScene
+
+
+if TYPE_CHECKING:
+    from shot_model import Shot
 
 
 pytestmark = [

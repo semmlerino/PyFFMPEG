@@ -562,7 +562,7 @@ class TestErrorHandling:
     ) -> None:
         """Test that error signal is emitted when no shot selected."""
         error_received: list[str] = []
-        launcher.command_error.connect(lambda ts, msg: error_received.append(msg))
+        launcher.command_error.connect(lambda _ts, msg: error_received.append(msg))
 
         launcher.launch_app("3de")
 
@@ -575,7 +575,7 @@ class TestErrorHandling:
         """Test that error signal is emitted for unknown app."""
         launcher.set_current_shot(sample_shot)
         error_received: list[str] = []
-        launcher.command_error.connect(lambda ts, msg: error_received.append(msg))
+        launcher.command_error.connect(lambda _ts, msg: error_received.append(msg))
 
         launcher.launch_app("invalid_app")
 
@@ -591,7 +591,7 @@ class TestErrorHandling:
         launcher.env_manager.is_ws_available = MagicMock(return_value=True)
         launcher.set_current_shot(sample_shot)
         error_received: list[str] = []
-        launcher.command_error.connect(lambda ts, msg: error_received.append(msg))
+        launcher.command_error.connect(lambda _ts, msg: error_received.append(msg))
 
         # Don't mock validation - let it fail for non-existent path
         launcher.launch_app("3de")

@@ -28,7 +28,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from PySide6.QtCore import QModelIndex, QSize, Qt
-from PySide6.QtGui import QKeyEvent, QWheelEvent
+from PySide6.QtGui import QWheelEvent
 from PySide6.QtTest import QSignalSpy, QTest
 from PySide6.QtWidgets import QWidget
 
@@ -70,7 +70,7 @@ class MockDelegate(BaseThumbnailDelegate):
 
     def _get_thumbnail_image(self, _index: QModelIndex) -> None:
         """No-op implementation for testing."""
-        return None
+        return
 
     def _get_display_text(self, _index: QModelIndex) -> str:
         """Return placeholder text for testing."""
@@ -501,7 +501,7 @@ class TestKeyboardShortcuts:
 
     @pytest.mark.allow_dialogs
     @pytest.mark.parametrize(
-        "key,expected_app",
+        ("key", "expected_app"),
         [
             (Qt.Key.Key_3, "3de"),
             (Qt.Key.Key_N, "nuke"),
@@ -700,7 +700,6 @@ class TestHasAvailableShowsProtocol:
 
     def test_protocol_method_signature(self) -> None:
         """Test protocol defines correct method signature."""
-        import inspect
         from typing import get_type_hints
 
         # Check protocol has required method

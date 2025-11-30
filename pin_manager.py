@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from logging_mixin import LoggingMixin
 
+
 if TYPE_CHECKING:
     from cache_manager import CacheManager
     from shot_model import Shot

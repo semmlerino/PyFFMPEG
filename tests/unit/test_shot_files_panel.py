@@ -20,12 +20,12 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QSignalSpy
-from PySide6.QtWidgets import QApplication, QMenu
+from PySide6.QtWidgets import QApplication
 
 from scene_file import FileType, SceneFile
 from shot_files_panel import FileListItem, FileTypeSection, ShotFilesPanel
@@ -81,7 +81,7 @@ def create_scene_file(
     from datetime import timedelta
 
     path = Path(f"/shows/test/shots/sq010/sq010_sh0010/{name}")
-    modified_time = datetime.now() - timedelta(hours=hours_ago)
+    modified_time = datetime.now() - timedelta(hours=hours_ago)  # noqa: DTZ005
 
     return SceneFile(
         path=path,
@@ -145,8 +145,6 @@ class TestFileListItem:
         self, qtbot: QtBot, file_list_item: FileListItem, scene_file: SceneFile
     ) -> None:
         """Test that init displays the filename."""
-        # Find the name label (first QLabel child)
-        labels = file_list_item.findChildren(file_list_item.__class__)
         # The widget should have a tooltip with the full path
         assert scene_file.name in file_list_item.toolTip() or str(scene_file.path) in file_list_item.toolTip()
 
@@ -252,7 +250,7 @@ class TestFileTypeSection:
         assert file_type_section._chip_button.isCheckable() is True
 
     @pytest.mark.parametrize(
-        "file_type,expected_name",
+        ("file_type", "expected_name"),
         [
             (FileType.THREEDE, "3DEqualizer"),
             (FileType.MAYA, "Maya"),
@@ -590,7 +588,7 @@ class TestSceneFileRelativeAge:
         sf = SceneFile(
             path=Path("/test/scene.3de"),
             file_type=FileType.THREEDE,
-            modified_time=datetime.now() - timedelta(seconds=30),
+            modified_time=datetime.now() - timedelta(seconds=30),  # noqa: DTZ005
             user="test",
         )
         assert sf.relative_age == "just now"
@@ -602,7 +600,7 @@ class TestSceneFileRelativeAge:
         sf = SceneFile(
             path=Path("/test/scene.3de"),
             file_type=FileType.THREEDE,
-            modified_time=datetime.now() - timedelta(minutes=5),
+            modified_time=datetime.now() - timedelta(minutes=5),  # noqa: DTZ005
             user="test",
         )
         assert "5 minutes ago" in sf.relative_age
@@ -614,7 +612,7 @@ class TestSceneFileRelativeAge:
         sf = SceneFile(
             path=Path("/test/scene.3de"),
             file_type=FileType.THREEDE,
-            modified_time=datetime.now() - timedelta(hours=3),
+            modified_time=datetime.now() - timedelta(hours=3),  # noqa: DTZ005
             user="test",
         )
         assert "3 hours ago" in sf.relative_age
@@ -626,7 +624,7 @@ class TestSceneFileRelativeAge:
         sf = SceneFile(
             path=Path("/test/scene.3de"),
             file_type=FileType.THREEDE,
-            modified_time=datetime.now() - timedelta(days=1),
+            modified_time=datetime.now() - timedelta(days=1),  # noqa: DTZ005
             user="test",
         )
         assert sf.relative_age == "yesterday"
@@ -638,7 +636,7 @@ class TestSceneFileRelativeAge:
         sf = SceneFile(
             path=Path("/test/scene.3de"),
             file_type=FileType.THREEDE,
-            modified_time=datetime.now() - timedelta(days=3),
+            modified_time=datetime.now() - timedelta(days=3),  # noqa: DTZ005
             user="test",
         )
         assert "3 days ago" in sf.relative_age
@@ -650,7 +648,7 @@ class TestSceneFileRelativeAge:
         sf = SceneFile(
             path=Path("/test/scene.3de"),
             file_type=FileType.THREEDE,
-            modified_time=datetime.now() - timedelta(days=14),
+            modified_time=datetime.now() - timedelta(days=14),  # noqa: DTZ005
             user="test",
         )
         assert "2 weeks ago" in sf.relative_age
@@ -662,7 +660,7 @@ class TestSceneFileRelativeAge:
         sf = SceneFile(
             path=Path("/test/scene.3de"),
             file_type=FileType.THREEDE,
-            modified_time=datetime.now() - timedelta(minutes=1),
+            modified_time=datetime.now() - timedelta(minutes=1),  # noqa: DTZ005
             user="test",
         )
         assert "1 minute ago" in sf.relative_age

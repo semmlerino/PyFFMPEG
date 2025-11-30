@@ -538,7 +538,6 @@ def shot_model_factory(test_process_pool: TestProcessPool):
     Returns:
         Factory callable that creates configured ShotModel instances
     """
-    from typing import Any
 
     from cache_manager import CacheManager
     from shot_model import ShotModel

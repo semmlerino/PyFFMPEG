@@ -321,7 +321,7 @@ class TestLauncherStackSmoke:
             ["/bin/bash", "-ilc", 'echo "path with spaces/and_special-chars"'],
             capture_output=True,
             text=True,
-            timeout=5,
+            timeout=5, check=False,
         )
         assert result.returncode == 0
         assert "path with spaces" in result.stdout
@@ -333,7 +333,7 @@ class TestLauncherStackSmoke:
             ["/bin/bash", "-ilc", "echo shell_init_ok"],
             capture_output=True,
             text=True,
-            timeout=10,  # Login shell may take longer to initialize
+            timeout=10, check=False,  # Login shell may take longer to initialize
         )
         assert result.returncode == 0
         assert "shell_init_ok" in result.stdout
