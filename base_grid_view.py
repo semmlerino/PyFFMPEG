@@ -311,11 +311,15 @@ class BaseGridView(QtWidgetMixin, LoggingMixin, QWidget):
     def _update_grid_size(self) -> None:
         """Update the grid size based on thumbnail size."""
         # Calculate item size including padding and text height
-        # This is a common calculation, but subclasses can override if needed
-        item_size = self._thumbnail_size + 2 * 8 + 40  # padding + text height
+        padding = 8
+        text_height = 50
+        item_width = self._thumbnail_size + 2 * padding
+        # Calculate height based on 16:9 aspect ratio for plate images
+        thumbnail_height = int(self._thumbnail_size / Config.THUMBNAIL_ASPECT_RATIO)
+        item_height = thumbnail_height + text_height + 2 * padding
 
         # Set grid size on the view
-        self.list_view.setGridSize(QSize(item_size, item_size))
+        self.list_view.setGridSize(QSize(item_width, item_height))
 
         # Ensure uniform item sizes
         self.list_view.setUniformItemSizes(True)

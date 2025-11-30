@@ -92,6 +92,7 @@ class Config:
     DEFAULT_THUMBNAIL_SIZE: int = 420
     MIN_THUMBNAIL_SIZE: int = 250
     MAX_THUMBNAIL_SIZE: int = 600
+    THUMBNAIL_ASPECT_RATIO: float = 16 / 9  # Width / Height ratio for plate images
     THUMBNAIL_SPACING: int = 20  # Increased to accommodate selection highlight
     PLACEHOLDER_COLOR: str = "#444444"
 

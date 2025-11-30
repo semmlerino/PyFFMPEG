@@ -589,9 +589,11 @@ class BaseThumbnailDelegate(QStyledItemDelegate):
         Returns:
             Recommended size for the item
         """
+        # Calculate height based on 16:9 aspect ratio for plate images
+        thumbnail_height = int(self._thumbnail_size / Config.THUMBNAIL_ASPECT_RATIO)
         return QSize(
             self._thumbnail_size + 2 * self.theme.padding,
-            self._thumbnail_size + self.theme.text_height + 2 * self.theme.padding,
+            thumbnail_height + self.theme.text_height + 2 * self.theme.padding,
         )
 
     def set_thumbnail_size(self, size: int) -> None:
