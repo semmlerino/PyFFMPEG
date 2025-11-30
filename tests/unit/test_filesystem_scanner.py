@@ -16,7 +16,7 @@ import threading
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -249,7 +249,7 @@ class TestDirectoryCacheThreadSafety:
         # Old entries should be cleaned up
         stats = cache.get_stats()
         assert stats["evictions"] >= 500, f"Expected >= 500 evictions, got {stats['evictions']}"
-        assert stats["total_entries"] <= 700, f"Cache should be smaller after cleanup"
+        assert stats["total_entries"] <= 700, "Cache should be smaller after cleanup"
 
 
 # =============================================================================

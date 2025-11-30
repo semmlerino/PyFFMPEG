@@ -48,8 +48,6 @@ def mock_main_window() -> Mock:
     window.session_warmer.is_zombie = Mock(return_value=False)
 
     # Managers
-    window.launcher_manager = Mock()
-    window.launcher_manager.shutdown = Mock()
     window.cache_manager = Mock()
     window.cache_manager.shutdown = Mock()
 
@@ -288,14 +286,6 @@ class TestSessionWarmerCleanup:
 class TestManagersCleanup:
     """Test managers cleanup."""
 
-    def test_cleanup_managers_shuts_down_launcher_manager(
-        self, cleanup_manager: CleanupManager, mock_main_window: Mock
-    ) -> None:
-        """Test cleanup shuts down launcher manager."""
-        cleanup_manager._cleanup_managers()
-
-        mock_main_window.launcher_manager.shutdown.assert_called_once()
-
     def test_cleanup_managers_shuts_down_cache_manager(
         self, cleanup_manager: CleanupManager, mock_main_window: Mock
     ) -> None:
@@ -303,24 +293,6 @@ class TestManagersCleanup:
         cleanup_manager._cleanup_managers()
 
         mock_main_window.cache_manager.shutdown.assert_called_once()
-
-    def test_cleanup_managers_handles_missing_launcher_manager(
-        self, cleanup_manager: CleanupManager, mock_main_window: Mock
-    ) -> None:
-        """Test cleanup handles missing launcher manager."""
-        del mock_main_window.launcher_manager
-
-        # Should not raise
-        cleanup_manager._cleanup_managers()
-
-    def test_cleanup_managers_handles_launcher_manager_without_shutdown(
-        self, cleanup_manager: CleanupManager, mock_main_window: Mock
-    ) -> None:
-        """Test cleanup handles launcher manager without shutdown method."""
-        del mock_main_window.launcher_manager.shutdown
-
-        # Should not raise
-        cleanup_manager._cleanup_managers()
 
     def test_cleanup_managers_handles_missing_cache_manager(
         self, cleanup_manager: CleanupManager, mock_main_window: Mock
@@ -483,7 +455,6 @@ class TestCleanupIntegration:
         assert mock_main_window.closing is True
         mock_main_window.threede_controller.cleanup_worker.assert_called_once()
         session_warmer.deleteLater.assert_called_once()
-        mock_main_window.launcher_manager.shutdown.assert_called_once()
         mock_main_window.cache_manager.shutdown.assert_called_once()
         mock_main_window.shot_model.cleanup.assert_called_once()
 

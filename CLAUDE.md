@@ -237,9 +237,8 @@ cd ~/projects/shotbot
 
 ```
 shotbot/
-├── controllers/       # Application controllers (launcher, settings, 3DE)
+├── controllers/       # Application controllers (settings, 3DE)
 ├── core/             # Core type definitions (shot_types.py)
-├── launcher/         # Custom launcher system (models, repository, workers)
 ├── launch/           # Process execution (command building, env management)
 ├── tests/            # Test suite
 │   ├── fixtures/     # Modular test fixtures
@@ -516,7 +515,7 @@ Coverage reports may show lower percentages due to **intentional exclusions** of
 **Well-covered modules** (comprehensive test suites):
 - ✅ **Core models**: `shot_model.py`, `type_definitions.py` (86%+)
 - ✅ **Managers**: `cache_manager.py`, `settings_manager.py` (comprehensive)
-- ✅ **Controllers**: `launcher_controller.py`, `threede_controller.py`
+- ✅ **Controllers**: `threede_controller.py`, `settings_controller.py`
 - ✅ **Business logic**: Shot validation, cache management, settings persistence
 
 **Why exclude instead of test?**
@@ -614,10 +613,9 @@ launcher.launch_app("nuke", context)
 
 ### Launcher Architecture
 
-**Current Production Stack**:
+**Production Stack**:
 - **CommandLauncher**: Application launching with shot context
-- **LauncherManager**: Custom launcher management
-- **ProcessPoolManager**: Process pool functionality
+- **ProcessPoolManager**: Process pool for workspace command caching
 
 ## VFX Environment Architecture
 

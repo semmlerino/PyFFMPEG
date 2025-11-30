@@ -199,7 +199,6 @@ class TestMainWindowCompleteWorkflows:
             # Verify behavior: launcher was invoked (not implementation detail)
             # Following UNIFIED_TESTING_GUIDE: Test behavior, not mock calls
             assert mock_launch.called  # Launcher was used
-            assert window.launcher_manager is not None
 
         # Step 3: Verify window remains functional
         assert window.isVisible()
@@ -249,19 +248,15 @@ class TestMainWindowCompleteWorkflows:
 
         # Step 4: Test scene launching workflow (simplified)
         with patch(
-            "controllers.launcher_controller.LauncherController._launch_app_with_scene"
+            "command_launcher.CommandLauncher.launch_app_with_scene"
         ) as mock_launch:
             mock_launch.return_value = True
 
-            # Test the launch method exists and can be called
-            if hasattr(window.launcher_controller, "_launch_app_with_scene"):
-                window.launcher_controller._launch_app_with_scene("3de", test_scene)
-                # Verify behavior: launcher was invoked (not implementation detail)
-                # Following UNIFIED_TESTING_GUIDE: Test behavior, not mock calls
-                assert mock_launch.called  # Method was invoked
-            else:
-                # If method doesn't exist, that's also a valid test result
-                pass
+            # Test the launch method via command_launcher
+            window.command_launcher.launch_app_with_scene("3de", test_scene)
+            # Verify behavior: launcher was invoked (not implementation detail)
+            # Following UNIFIED_TESTING_GUIDE: Test behavior, not mock calls
+            assert mock_launch.called  # Method was invoked
 
     def test_tab_switching_workflow(self, qtbot: QtBot, main_window: MainWindow) -> None:
         """Test user workflow across different tabs."""

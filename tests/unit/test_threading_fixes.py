@@ -4,17 +4,12 @@ from __future__ import annotations
 
 # Standard library imports
 import logging
-import subprocess
 import time
-from unittest.mock import MagicMock
 
 # Third-party imports
 import pytest
-from PySide6.QtCore import QTimer
 
 # Local application imports
-from launcher_manager import LauncherManager
-from tests.test_doubles_library import TestSubprocess
 from thread_safe_worker import ThreadSafeWorker, WorkerState
 
 
@@ -64,128 +59,6 @@ class SimpleTestWorker(ThreadSafeWorker):
 
         self.work_completed = True
         logger.debug(f"Worker completed {self.steps_completed} steps")
-
-
-@pytest.fixture
-def test_subprocess():
-    """Test subprocess double for all tests."""
-    return TestSubprocess()
-
-
-@pytest.fixture
-def launcher_manager(qtbot, test_subprocess, monkeypatch, mock_process_pool_manager):
-    """Create LauncherManager with test subprocess double and proper cleanup."""
-    # Use monkeypatch for safer patching that auto-restores
-    monkeypatch.setattr(subprocess, "Popen", lambda *_args, **_kwargs: test_subprocess)
-
-    manager = LauncherManager()
-    # LauncherManager is not a QWidget, so we don't use qtbot.addWidget
-
-    yield manager
-
-    # Explicit cleanup with proper error handling
-    try:
-        # Stop all workers with timeout
-        manager.stop_all_workers()
-
-        # Wait for workers to finish - access ProcessManager directly
-        process_manager = manager._process_manager
-        for worker_id in list(process_manager._active_workers.keys()):
-            worker = process_manager._active_workers.get(worker_id)
-            if worker and worker.isRunning():
-                worker.request_stop()
-                if not worker.wait(1000):  # 1 second timeout
-                    worker.terminate()
-                    worker.wait(100)
-
-        # Clear the workers dict
-        process_manager._active_workers.clear()
-
-        # Stop and clean up timers
-        timer = process_manager._cleanup_retry_timer
-        timer.stop()
-        try:
-            # Disconnect all signals to prevent late firing
-            timer.timeout.disconnect()
-        except (RuntimeError, TypeError):
-            pass  # Already disconnected or no connections
-        timer.deleteLater()
-
-    except Exception as e:
-        logger.warning(f"Cleanup error (non-fatal): {e}")
-
-
-class TestQTimerCascadePrevention:
-    """Test QTimer cascade prevention without timeouts."""
-
-    def test_rapid_cleanup_requests(self, launcher_manager, qtbot) -> None:
-        """Test rapid cleanup requests don't cascade timers."""
-        timer_activations = []
-        # Access ProcessManager directly instead of backward compat properties
-        process_manager = launcher_manager._process_manager
-        original_start = process_manager._cleanup_retry_timer.start
-        test_timers = []  # Track all test timers for cleanup
-
-        def track_timer_start(interval) -> None:
-            timer_activations.append(time.time())
-            original_start(interval)
-
-        # Per UNIFIED_TESTING_V2.MD: Use try/finally for Qt resources
-        try:
-            process_manager._cleanup_retry_timer.start = track_timer_start
-
-            # Create explicit QTimer instances instead of singleShot
-            # This allows proper cleanup and prevents resource leaks
-            for _ in range(10):
-                timer = QTimer()
-                timer.setSingleShot(True)
-                timer.timeout.connect(process_manager._cleanup_finished_workers)
-                test_timers.append(timer)
-                timer.start(1)
-
-            # Wait for all timers to fire and coalescing to occur
-            # TIMING CRITICAL: Testing coalescing behavior of rapid timer events
-            qtbot.wait(100)
-
-            assert len(timer_activations) <= 3, (
-                f"Too many timer activations: {len(timer_activations)}"
-            )
-
-            assert hasattr(process_manager, "_cleanup_scheduled")
-        finally:
-            # Clean up all test timers
-            for timer in test_timers:
-                if timer is not None:
-                    timer.stop()
-                    try:
-                        timer.timeout.disconnect()
-                    except RuntimeError:
-                        pass  # Already disconnected
-                    timer.deleteLater()
-
-            # Always restore original method, even on test failure
-            process_manager._cleanup_retry_timer.start = original_start
-
-    def test_cleanup_coordination(self, launcher_manager, qtbot) -> None:
-        """Test cleanup coordination behavior."""
-        # Third-party imports
-        from PySide6.QtCore import (
-            QMutexLocker,
-        )
-
-        mock_worker = MagicMock()
-        mock_worker.get_state.return_value = WorkerState.STOPPED
-        mock_worker.isRunning.return_value = False
-
-        # Access ProcessManager directly instead of backward compat properties
-        process_manager = launcher_manager._process_manager
-        with QMutexLocker(process_manager._process_lock):
-            process_manager._active_workers = {"worker1": mock_worker}
-
-        process_manager._cleanup_finished_workers()
-
-        with QMutexLocker(process_manager._process_lock):
-            assert len(process_manager._active_workers) == 0
 
 
 class TestWorkerStateTransitions:
@@ -261,40 +134,6 @@ class TestWorkerStateTransitions:
 
         for worker in workers:
             assert worker.get_state() in [WorkerState.STOPPED, WorkerState.DELETED]
-
-
-class TestPerformanceImprovements:
-    """Test performance improvements without cache operations."""
-
-    def test_timer_efficiency(self, launcher_manager, qtbot) -> None:
-        """Test timer efficiency."""
-        start_time = time.time()
-        test_timers = []  # Track all test timers for cleanup
-
-        try:
-            # Create explicit QTimer instances instead of singleShot
-            # This allows proper cleanup and prevents resource leaks
-            for _ in range(20):
-                timer = QTimer()
-                timer.setSingleShot(True)
-                timer.timeout.connect(lambda: None)
-                test_timers.append(timer)
-                timer.start(1)
-
-            qtbot.wait(1)  # Minimal event processing for timers to fire
-
-            elapsed = time.time() - start_time
-            assert elapsed < 1.0, f"Timer operations took too long: {elapsed}s"
-        finally:
-            # Clean up all test timers
-            for timer in test_timers:
-                if timer is not None:
-                    timer.stop()
-                    try:
-                        timer.timeout.disconnect()
-                    except RuntimeError:
-                        pass  # Already disconnected
-                    timer.deleteLater()
 
 
 class TestSimpleThreadingIntegration:

@@ -36,7 +36,6 @@ if TYPE_CHECKING:
     # Local application imports
     from cache_manager import CacheManager
     from command_launcher import CommandLauncher
-    from controllers.launcher_controller import LauncherController
 
     # Local type imports
     from right_panel import RightPanelWidget
@@ -75,13 +74,10 @@ class ThreeDETarget(Protocol):
     threede_item_model: ThreeDEItemModel
     cache_manager: CacheManager
     command_launcher: CommandLauncher
-    launcher_controller: LauncherController
 
     # Required methods
     def setWindowTitle(self, title: str) -> None: ...
     def update_status(self, message: str) -> None: ...
-    def update_launcher_menu_availability(self, available: bool) -> None: ...
-    def enable_custom_launcher_buttons(self, enabled: bool) -> None: ...
     def launch_app(self, app_name: str) -> None: ...
 
     # State tracking
@@ -107,9 +103,6 @@ class ThreeDEController(LoggingMixin):
         logger: Logger instance for this controller
         _threede_worker: Current background worker thread (if any)
         _worker_mutex: Mutex for thread-safe worker access
-
-    Note:
-        Current scene context is managed by window.launcher_controller (single source of truth)
     """
 
     def __init__(self, window: ThreeDETarget) -> None:
@@ -124,7 +117,6 @@ class ThreeDEController(LoggingMixin):
         # Thread management - mirrors MainWindow's approach
         self._threede_worker: ThreeDESceneWorker | None = None
         self._worker_mutex: QMutex = QMutex()
-        # NOTE: Current scene is managed by launcher_controller (single source of truth)
 
         # Progress operation tracking for cleanup
         self._current_progress_operation: ProgressOperation | None = None
@@ -508,11 +500,6 @@ class ThreeDEController(LoggingMixin):
         self.logger.info("📡 ThreeDEController.on_scene_selected() signal received")
         self.logger.info(f"   Scene: {scene.full_name} (user: {scene.user})")
 
-        # Set scene context in launcher controller (automatically clears shot context)
-        self.logger.info("   Calling launcher_controller.set_current_scene()...")
-        self.window.launcher_controller.set_current_scene(scene)
-        self.logger.info("   ✓ Done syncing with launcher_controller")
-
         # Create a Shot object from the scene for compatibility
         shot = Shot(
             show=scene.show,
@@ -523,12 +510,6 @@ class ThreeDEController(LoggingMixin):
 
         # Update right panel with shot info
         self.window.right_panel.set_shot(shot)
-
-        # Update custom launcher menu availability
-        self.window.update_launcher_menu_availability(True)
-
-        # Enable custom launcher buttons
-        self.window.enable_custom_launcher_buttons(True)
 
         # Update window title with scene info
         self.window.setWindowTitle(
@@ -543,10 +524,8 @@ class ThreeDEController(LoggingMixin):
     @Slot(object)  # pyright: ignore[reportAny]
     def on_scene_double_clicked(self, scene: ThreeDEScene) -> None:
         """Handle 3DE scene double click - launch 3de with the scene."""
-        # Set the current scene first, then launch
-        self.window.launcher_controller.set_current_scene(scene)
         self.logger.info(f"Scene double-clicked: {scene.full_name} - launching 3DE")
-        self.window.launch_app("3de")
+        _ = self.window.command_launcher.launch_app_with_scene("3de", scene)
 
     @Slot()  # pyright: ignore[reportAny]
     def on_recover_crashes_clicked(self) -> None:
@@ -555,8 +534,8 @@ class ThreeDEController(LoggingMixin):
         Scans for crash files in the current workspace and presents
         a recovery dialog if any are found.
         """
-        # Get current workspace path from launcher controller
-        scene = self.window.launcher_controller.current_scene
+        # Get current scene from threede grid
+        scene = self.window.threede_shot_grid.selected_scene
         if not scene:
             NotificationManager.warning(
                 "No Scene Selected",
@@ -886,11 +865,8 @@ class ThreeDEController(LoggingMixin):
 
     @property
     def current_scene(self) -> ThreeDEScene | None:
-        """Get the currently selected 3DE scene.
-
-        NOTE: Delegates to launcher_controller (single source of truth).
-        """
-        return self.window.launcher_controller.current_scene
+        """Get the currently selected 3DE scene."""
+        return self.window.threede_shot_grid.selected_scene
 
     @property
     def has_active_worker(self) -> bool:

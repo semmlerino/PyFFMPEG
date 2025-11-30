@@ -256,13 +256,12 @@ class TestCrossTabSynchronization:
             plate="PLATE01",
             scene_path=Path("/test/scene.3de"),
         )
-        # Use the controller (correct architecture) instead of calling orphaned method
-        if window.threede_controller:
+        # Use the controller to handle scene selection (if available)
+        # or directly set the right panel's shot for testing
+        if window.threede_controller is not None:
             window.threede_controller.on_scene_selected(scene)
         else:
-            # Fallback for tests where controller isn't initialized
-            window.launcher_controller.set_current_scene(scene)
-            # Simulate UI updates that would happen in the controller
+            # Directly update the right panel for testing
             shot = Shot(
                 show=scene.show,
                 sequence=scene.sequence,

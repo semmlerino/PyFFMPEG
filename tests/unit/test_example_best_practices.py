@@ -19,7 +19,6 @@ except ImportError:
 from typing import TYPE_CHECKING
 
 from cache_manager import CacheManager
-from launcher_manager import LauncherManager
 
 # Test doubles for behavior testing (UNIFIED_TESTING_GUIDE)
 from tests.test_doubles_library import TestShot, TestShotModel, TestSubprocess
@@ -135,22 +134,23 @@ class TestMockOnlyAtBoundaries:
         test_subprocess = TestSubprocess()
         # TestSubprocess uses direct properties, not set_success method
         test_subprocess.return_code = 0
-        test_subprocess.stdout = "3de\nnuke\nmaya"
+        test_subprocess.stdout = "nuke\nmaya\n3de"
         test_subprocess.stderr = ""
 
         # Use real component with test double injected
         # In real code, we'd inject the subprocess dependency
-        # For this example, we'd patch only at the boundary
+        # For this example, we patch only at the boundary
 
         original_run = subprocess.run
         subprocess.run = test_subprocess.run
 
         try:
-            # Real LauncherManager, but subprocess is replaced
-            LauncherManager()
+            # Test that subprocess was replaced - run a command
+            result = subprocess.run(["echo", "test"], capture_output=True)
 
-            # This will use our test subprocess
-            # (In reality, you'd need to ensure LauncherManager uses subprocess.run)
+            # Verify the test double was used
+            assert result.returncode == 0
+            assert result.stdout == "nuke\nmaya\n3de"
 
         finally:
             # Restore original

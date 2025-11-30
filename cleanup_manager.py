@@ -23,7 +23,6 @@ class MainWindowProtocol(Protocol):
     closing: bool
     threede_controller: Any
     session_warmer: Any
-    launcher_manager: Any
     cache_manager: Any
     shot_model: Any
     previous_shots_model: Any
@@ -151,15 +150,6 @@ class CleanupManager(QObject, LoggingMixin):
         ):
             self.logger.debug("Cleaning up command launcher")
             self.main_window.command_launcher.cleanup()
-
-        # Shutdown launcher manager to stop all worker threads
-        if (
-            hasattr(self.main_window, "launcher_manager")
-            and self.main_window.launcher_manager
-            and hasattr(self.main_window.launcher_manager, "shutdown")
-        ):
-            self.logger.debug("Shutting down launcher manager")
-            self.main_window.launcher_manager.shutdown()
 
         # Shutdown cache manager
         if (

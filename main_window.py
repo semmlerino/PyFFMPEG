@@ -2,19 +2,16 @@
 
 This module contains the MainWindow class, which serves as the primary user interface
 for the ShotBot VFX shot browsing and launcher application. The MainWindow integrates
-all core components including shot grids, 3DE scene discovery, custom launchers,
-and application management.
+all core components including shot grids, 3DE scene discovery, and application management.
 
 The MainWindow follows a tabbed interface design with:
 - My Shots: Visual grid of user's assigned shots with thumbnails
 - Other 3DE scenes: Grid of discovered 3DE scenes from user directories
 - Shot Info: Details panel showing current shot information
-- Custom Launchers: Management interface for creating custom application launchers
 
 Key Features:
     - Real-time shot data refresh with caching
     - Background 3DE scene discovery with progress reporting
-    - Thread-safe custom launcher management with race condition protection
     - Persistent UI state and settings storage
     - Memory-optimized thumbnail loading and caching
     - Cross-platform file system operations
@@ -51,7 +48,7 @@ from __future__ import annotations
 # Standard library imports
 import os
 import time
-from typing import TYPE_CHECKING, cast, final
+from typing import TYPE_CHECKING, Any, cast, final
 
 # Third-party imports
 from PySide6.QtCore import QObject, QRunnable, Qt, QThreadPool, QTimer, Signal, Slot
@@ -77,8 +74,6 @@ if TYPE_CHECKING:
     from base_shot_model import BaseShotModel
     from cache_manager import CacheManager
     from command_launcher import CommandLauncher
-    from launcher_dialog import LauncherManagerDialog
-    from launcher_manager import LauncherManager
     from protocols import ProcessPoolInterface
     from scene_file import FileType, SceneFile
     from settings_dialog import SettingsDialog
@@ -90,9 +85,6 @@ from cache_manager import CacheManager  # Need at runtime for instantiation
 from cleanup_manager import CleanupManager  # Extracted cleanup logic
 from command_launcher import CommandLauncher  # Need at runtime
 from config import Config
-from controllers.launcher_controller import (
-    LauncherController,  # Refactored launcher management
-)
 from controllers.settings_controller import (
     SettingsController,  # Refactored settings handling
 )
@@ -100,7 +92,6 @@ from controllers.threede_controller import (
     ThreeDEController,  # Refactored 3DE scene management
 )
 from design_system import design_system
-from launcher_manager import LauncherManager  # Need at runtime
 from log_viewer import LogViewer
 from logging_mixin import LoggingMixin, get_module_logger
 from notification_manager import NotificationManager
@@ -372,13 +363,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         self.command_launcher = CommandLauncher(
             parent=self, settings_manager=self.settings_manager
         )
-        self.launcher_manager = LauncherManager(
-            process_pool=self._process_pool, parent=self
-        )
 
-        # NOTE: Current scene/shot context now managed by launcher_controller (single source of truth)
         self._closing = False  # Track shutdown state
-        self._launcher_dialog: LauncherManagerDialog | None = None
         self._session_warmer: SessionWarmer | None = None  # Initialize session warmer
         self._discovery_worker: ShotDiscoveryWorker | None = None  # Async file discovery
         self._last_selected_shot_name: str | None = (
@@ -399,11 +385,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             # QMainWindow position-only params differ from Protocol
             self.threede_controller = ThreeDEController(self)  # pyright: ignore[reportArgumentType]
 
-        # Initialize launcher controller for all launcher functionality
-        self.logger.info("Using LauncherController for launcher management")
-        # MainWindow implements LauncherTarget protocol functionally at runtime
-        # QMainWindow position-only params differ from Protocol
-        self.launcher_controller = LauncherController(self)  # pyright: ignore[reportArgumentType]
         self._setup_menu()
         self._setup_accessibility()  # Add accessibility support
         self._connect_signals()
@@ -604,23 +585,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         )
         edit_menu.addAction(preferences_action)
 
-        # Tools menu
-        tools_menu = menubar.addMenu("&Tools")
-
-        # Launcher manager
-        self.launcher_manager_action = QAction("&Manage Custom Launchers...", self)
-        self.launcher_manager_action.setShortcut("Ctrl+L")
-        _ = self.launcher_manager_action.triggered.connect(
-            self.launcher_controller.show_launcher_manager
-        )
-        tools_menu.addAction(self.launcher_manager_action)
-
-        _ = tools_menu.addSeparator()
-
-        # Custom launchers submenu
-        self.custom_launcher_menu = tools_menu.addMenu("Custom &Launchers")
-        # Launcher menu will be updated by LauncherController after initialization
-
         # Help menu
         help_menu = menubar.addMenu("&Help")
 
@@ -651,9 +615,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         AccessibilityManager.setup_shot_grid_accessibility(
             self.previous_shots_grid, "previous"
         )
-
-        # Set up launcher panel (improved accessibility built into LauncherPanel)
-        # AccessibilityManager.setup_launcher_buttons_accessibility is no longer needed
 
         # Set up tab widget
         AccessibilityManager.setup_tab_widget_accessibility(self.tab_widget)
@@ -694,7 +655,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         _ = self.shot_grid.shot_selected.connect(self._on_shot_selected)
         _ = self.shot_grid.shot_double_clicked.connect(self._on_shot_double_clicked)
         _ = self.shot_grid.app_launch_requested.connect(
-            self.launcher_controller.launch_app
+            self.command_launcher.launch_app
         )
         _ = self.shot_grid.show_filter_requested.connect(
             self._on_shot_show_filter_requested
@@ -723,7 +684,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self._on_shot_double_clicked
         )
         _ = self.previous_shots_grid.app_launch_requested.connect(
-            self.launcher_controller.launch_app
+            self.command_launcher.launch_app
         )
         _ = self.previous_shots_grid.show_filter_requested.connect(
             self._on_previous_show_filter_requested
@@ -738,7 +699,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # Tab widget - handle tab changes to update shot context
         _ = self.tab_widget.currentChanged.connect(self._on_tab_changed)
 
-        # Launcher signals are handled by LauncherController in its _setup_signals method
+        # Right panel DCC launch buttons
+        _ = self.right_panel.launch_requested.connect(self._on_right_panel_launch)
 
         # Synchronize thumbnail sizes between tabs
         _ = self.shot_grid.size_slider.valueChanged.connect(self._sync_thumbnail_sizes)
@@ -998,8 +960,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         Args:
             index: Index of the newly selected tab
         """
-        # Scene/shot context is automatically cleared by launcher_controller when switching contexts
-
         if index == 0:  # My Shots tab
             # Get the current selection from My Shots
             selected_shot = self.shot_grid.selected_shot
@@ -1019,9 +979,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
                     self.threede_controller.on_scene_selected(selected_scene)
             else:
                 # Clear selection
-                self.launcher_controller.set_current_shot(None)
+                self.command_launcher.set_current_shot(None)
                 self.right_panel.set_shot(None)
-                self.launcher_controller.update_launcher_menu_availability(False)
 
         elif index == 2:  # Previous Shots tab
             # Get the current selection from Previous Shots
@@ -1176,18 +1135,13 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self._discovery_worker.cancel()
             self._discovery_worker = None
 
-        # Scene context is automatically cleared by launcher_controller.set_current_shot()
-
         if shot is None:
             # Handle deselection
-            self.launcher_controller.set_current_shot(None)
+            self.command_launcher.set_current_shot(None)
             self.right_panel.set_shot(None, discover_files=False)
 
             # Clear plate selectors
             self.right_panel.set_available_plates([])
-
-            # Update custom launcher menu availability
-            self.launcher_controller.update_launcher_menu_availability(False)
 
             # Reset window title
             self.setWindowTitle(Config.APP_NAME)
@@ -1199,14 +1153,11 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self._last_selected_shot_name = None
             self.settings_controller.save_settings()
         else:
-            # Handle selection - use launcher controller
-            self.launcher_controller.set_current_shot(shot)
+            # Handle selection
+            self.command_launcher.set_current_shot(shot)
 
             # Update right panel immediately (without file discovery - that's async)
             self.right_panel.set_shot(shot, discover_files=False)
-
-            # Update custom launcher menu availability
-            self.launcher_controller.update_launcher_menu_availability(True)
 
             # Update window title
             self.setWindowTitle(f"{Config.APP_NAME} - {shot.full_name} ({shot.show})")
@@ -1236,7 +1187,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         files = result.get("files", {})
 
         # Verify this result is for the currently selected shot (may have changed)
-        current_shot = self.launcher_controller.current_shot
+        current_shot = self.command_launcher.current_shot
         if current_shot is None or not isinstance(shot, Shot):
             return
         if current_shot.full_name != shot.full_name:
@@ -1265,7 +1216,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
     def _on_shot_double_clicked(self, _shot: Shot) -> None:
         """Handle shot double click - launch default app."""
-        self.launcher_controller.launch_app(Config.DEFAULT_APP)
+        _ = self.command_launcher.launch_app(Config.DEFAULT_APP)
 
     def _launch_app_with_scene_context(
         self, app_name: str, scene: ThreeDEScene
@@ -1279,11 +1230,28 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             app_name: Name of the application to launch
             scene: 3DE scene providing the launch context
         """
-        # Set the scene context in launcher controller
-        self.launcher_controller.set_current_scene(scene)
+        _ = self.command_launcher.launch_app_with_scene(app_name, scene)
 
-        # Launch the application
-        self.launcher_controller.launch_app(app_name)
+    def _on_right_panel_launch(
+        self, app_name: str, options: dict[str, Any]
+    ) -> None:
+        """Handle launch request from right panel DCC section.
+
+        Converts options dict to launch_app parameters.
+
+        Args:
+            app_name: Name of the application to launch
+            options: Dict containing checkbox states and selected plate
+        """
+        _ = self.command_launcher.launch_app(
+            app_name,
+            include_raw_plate=bool(options.get("include_raw_plate", False)),
+            open_latest_threede=bool(options.get("open_latest_threede", False)),
+            open_latest_maya=bool(options.get("open_latest_maya", False)),
+            open_latest_scene=bool(options.get("open_latest_scene", False)),
+            create_new_file=bool(options.get("create_new_file", False)),
+            selected_plate=options.get("selected_plate"),
+        )
 
     def _apply_show_filter(
         self, item_model: object, model: object, show: str, tab_name: str
@@ -1337,10 +1305,10 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         Scans for crash files in the current shot's workspace and presents
         a recovery dialog if any are found.
         """
-        # Get current shot or scene from launcher controller
+        # Get current shot or scene
         # Check both since either can provide workspace context
-        current_shot = self.launcher_controller.current_shot
-        current_scene = self.launcher_controller.current_scene
+        current_shot = self.command_launcher.current_shot
+        current_scene = self.threede_shot_grid.selected_scene
 
         if not current_shot and not current_scene:
             # Local application imports
@@ -1645,17 +1613,9 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         """Public method to update status bar."""
         self._update_status(message)
 
-    def update_launcher_menu_availability(self, available: bool) -> None:
-        """Public method to update launcher menu availability."""
-        self.launcher_controller.update_launcher_menu_availability(available)
-
-    def enable_custom_launcher_buttons(self, enabled: bool) -> None:
-        """Public method to enable/disable custom launcher buttons."""
-        self.launcher_controller.enable_custom_launcher_buttons(enabled)
-
     def launch_app(self, app_name: str) -> None:
         """Public method to launch an application."""
-        self.launcher_controller.launch_app(app_name)
+        _ = self.command_launcher.launch_app(app_name)
 
     def cleanup(self) -> None:
         """Explicit cleanup method for proper resource management.

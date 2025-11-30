@@ -74,7 +74,6 @@ class TestMainWindowInitialization:
         assert main_window.threede_scene_model is not None
         assert main_window.previous_shots_model is not None
         assert main_window.command_launcher is not None
-        assert main_window.launcher_manager is not None
 
         # Verify UI components
         assert main_window.tab_widget is not None
@@ -350,8 +349,8 @@ class TestSignalConnections:
         # Trigger signal and verify handler is called
         main_window._on_shot_selected(shot)
 
-        # Verify launcher controller has the shot
-        assert main_window.launcher_controller.current_shot == shot
+        # Verify command launcher has the shot
+        assert main_window.command_launcher.current_shot == shot
 
 
 class TestWindowCleanup:
@@ -492,8 +491,8 @@ class TestCrashRecovery:
         main_window._on_shot_selected(shot)
 
         # Verify shot is set and scene is None (important for the bug fix)
-        assert main_window.launcher_controller.current_shot == shot
-        assert main_window.launcher_controller.current_scene is None
+        assert main_window.command_launcher.current_shot == shot
+        assert main_window.threede_shot_grid.selected_scene is None
 
         # Mock the recovery components to avoid filesystem operations
         # Patch where they're imported, not where they're called from
@@ -542,16 +541,13 @@ class TestCrashRecovery:
             plate="FG01",
             scene_path=Path(f"{shows_root}/test/seq01/0010/test.3de"),
         )
-        # Use the controller (correct architecture) instead of calling orphaned method
-        if main_window.threede_controller:
-            main_window.threede_controller.on_scene_selected(scene)
-        else:
-            # Fallback for tests where controller isn't initialized
-            main_window.launcher_controller.set_current_scene(scene)
+        # Simulate scene selection by setting the grid's internal state directly
+        # (in production, this is set by user clicking on a scene in the grid)
+        main_window.threede_shot_grid._selected_scene = scene
 
-        # Verify scene is set and shot is None (cleared by scene selection)
-        assert main_window.launcher_controller.current_scene == scene
-        assert main_window.launcher_controller.current_shot is None
+        # Verify scene is set and shot is None
+        assert main_window.threede_shot_grid.selected_scene == scene
+        assert main_window.command_launcher.current_shot is None
 
         # Mock the recovery components
         mock_crash_info = MagicMock()
@@ -586,8 +582,8 @@ class TestCrashRecovery:
         qtbot.addWidget(main_window)
 
         # Don't select any shot or scene
-        assert main_window.launcher_controller.current_shot is None
-        assert main_window.launcher_controller.current_scene is None
+        assert main_window.command_launcher.current_shot is None
+        assert main_window.threede_shot_grid.selected_scene is None
 
         # Mock NotificationManager to capture warning
         with patch("notification_manager.NotificationManager") as mock_notif:

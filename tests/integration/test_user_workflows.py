@@ -50,7 +50,6 @@ from PySide6.QtWidgets import QApplication
 
 # Local application imports
 from cache_manager import CacheManager
-from launcher_manager import LauncherManager
 
 # Moved to lazy import to fix Qt initialization
 # from main_window import MainWindow
@@ -351,7 +350,6 @@ class TestUserWorkflows:
         # Create real components
         cache_manager = CacheManager(cache_dir=self.cache_dir)
         ThreeDESceneModel()
-        LauncherManager(config_dir=self.config_dir)
         main_window = MainWindow(cache_manager=cache_manager)
 
         qtbot.addWidget(main_window)
@@ -406,7 +404,7 @@ class TestUserWorkflows:
             main_window.command_launcher.current_shot = test_shot
 
             # Launch Maya with the scene directly
-            success = main_window.launcher_controller._launch_app_with_scene(
+            success = main_window.command_launcher.launch_app_with_scene(
                 "maya", test_scene
             )
 
@@ -511,121 +509,6 @@ class TestUserWorkflows:
                     main_window.refresh_completed.disconnect(on_refresh_completed)
                 except (TypeError, RuntimeError):
                     pass  # Already disconnected or object deleted
-
-    @pytest.mark.slow
-    @pytest.mark.integration
-    @pytest.mark.qt
-    def test_custom_launcher_creation(self, qtbot: Any) -> None:
-        """Test complete custom launcher creation workflow.
-
-        Verifies user can:
-        1. Open launcher creation dialog
-        2. Fill in launcher details
-        3. Save launcher configuration
-        4. Execute the custom launcher
-        5. Track execution properly
-        """
-
-        sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
-        # Create real components
-        cache_manager = CacheManager(cache_dir=self.cache_dir)
-        main_window = MainWindow(cache_manager=cache_manager)
-        # Create launcher_manager with test config_dir AND proper Qt parent (main_window)
-        launcher_manager = LauncherManager(config_dir=self.config_dir, parent=main_window)
-
-        qtbot.addWidget(main_window)
-
-        # Track launcher events
-        launcher_added_events = []
-        execution_started_events = []
-        execution_finished_events = []
-
-        def on_launcher_added(launcher_id: str) -> None:
-            launcher_added_events.append(launcher_id)
-
-        def on_execution_started(launcher_id: str) -> None:
-            execution_started_events.append(launcher_id)
-
-        def on_execution_finished(launcher_id: str, success: bool) -> None:
-            execution_finished_events.append((launcher_id, success))
-
-        launcher_manager.launcher_added.connect(on_launcher_added)
-        launcher_manager.execution_started.connect(on_execution_started)
-        launcher_manager.execution_finished.connect(on_execution_finished)
-
-        # Mock _save_launchers to always succeed (prevents hanging when file save fails in test environment)
-        with patch.object(launcher_manager._repository, "save", return_value=True):
-            # Create custom launcher using the real API (using python3 which is whitelisted)
-            launcher_id = launcher_manager.create_launcher(
-                name="Test Custom Tool",
-                description="Integration test custom launcher",
-                command="python3 -c \"print('Launching for shot: {shot_name}')\"",
-                category="testing",
-            )
-
-            # Verify launcher was created
-            assert launcher_id is not None, "Launcher creation failed - no ID returned"
-
-            # Wait for launcher_added signal
-            qtbot.waitUntil(lambda: len(launcher_added_events) > 0, timeout=2000)
-
-            # Verify launcher_added signal was received
-            assert len(launcher_added_events) > 0, (
-                f"launcher_added signal not received. Events: {launcher_added_events}"
-            )
-            assert launcher_added_events[0] == launcher_id, (
-                f"Expected launcher_id {launcher_id}, got {launcher_added_events[0]}"
-            )
-
-            # Verify launcher appears in manager
-            launchers = launcher_manager.list_launchers()
-            assert len(launchers) == 1, f"Expected 1 launcher, got {len(launchers)}"
-            assert launchers[0].id == launcher_id
-            assert launchers[0].name == "Test Custom Tool"
-
-            # Test launcher execution with shot context
-            shot_data = self.test_shots[0]
-
-            with patch(
-                "subprocess.Popen", return_value=self.test_processes["custom"]
-            ) as mock_popen:
-                # Execute the custom launcher
-                success = launcher_manager.execute_launcher(
-                    launcher_id, custom_vars={"shot_name": shot_data["name"]}
-                )
-
-                assert success is True, "Launcher execution failed"
-
-                # Wait for execution tracking
-                try:
-                    qtbot.waitUntil(lambda: len(execution_started_events) > 0, timeout=1000)
-                except Exception:
-                    # Execution tracking may not emit signal in test environment
-                    pass
-
-                # Verify execution was tracked
-                if len(execution_started_events) > 0:
-                    assert execution_started_events[0] == launcher_id
-
-                # Verify command execution was attempted
-                if mock_popen.called:
-                    call_args = mock_popen.call_args
-                    command_str = " ".join(call_args[0][0]) if call_args[0] else ""
-                    # Check if the basic command structure is correct
-                    # The command should contain python3
-                    assert "python3" in command_str, (
-                        f"Expected python3 in command: {command_str}"
-                    )
-
-                    # Check for either variable substitution or placeholder
-                    # (Variable substitution might happen at a different level)
-                    has_substitution = shot_data["name"] in command_str
-                    has_placeholder = "{shot_name}" in command_str
-                    assert has_substitution or has_placeholder, (
-                        f"Expected either shot name '{shot_data['name']}' or placeholder '{{shot_name}}' "
-                        f"in command: {command_str}"
-                    )
 
     @pytest.mark.integration
     @pytest.mark.qt
@@ -918,9 +801,6 @@ class TestUserWorkflows:
         if hasattr(main_window, "recovery_attempted"):
             main_window.recovery_attempted.connect(on_recovery_attempted)
 
-        # Create launcher_manager outside try block so we can clean it up
-        launcher_manager: LauncherManager | None = None
-
         try:
             # Test 1: Workspace command failure
             with patch("subprocess.run") as mock_run:
@@ -960,32 +840,6 @@ class TestUserWorkflows:
                 assert result is not None
                 assert result.success  # Refresh should succeed
 
-            # Test 3: Launcher execution error
-            # Create launcher manager and ensure proper cleanup
-            launcher_manager = LauncherManager(config_dir=self.config_dir)
-
-            launcher_id = launcher_manager.create_launcher(
-                name="Failing Launcher", command="nonexistent_command {shot_name}"
-            )
-
-            # Patch at the worker level to prevent thread from actually running
-            with patch("launcher.worker.subprocess.Popen") as mock_popen:
-                # Simulate command not found
-                mock_popen.side_effect = FileNotFoundError("Command not found")
-
-                # Attempt to execute failing launcher
-                success = launcher_manager.execute_launcher(
-                    launcher_id, custom_vars={"shot_name": "test_shot"}
-                )
-
-                # execute_launcher returns True when it successfully starts the worker
-                # The actual error happens in the worker thread
-                assert success is True or success is False  # Just verify it doesn't crash
-
-                # Wait for worker thread to complete (it will fail quickly due to mock)
-                qtbot.wait(100)  # Give worker thread time to fail and clean up
-                process_qt_events()
-
         finally:
             # Clean up signal connections
             if hasattr(main_window, "error_occurred"):
@@ -998,11 +852,6 @@ class TestUserWorkflows:
                     main_window.recovery_attempted.disconnect(on_recovery_attempted)
                 except (TypeError, RuntimeError):
                     pass
-
-            # CRITICAL: Shutdown launcher_manager to stop worker threads
-            if launcher_manager is not None:
-                launcher_manager.shutdown()
-                process_qt_events()
 
     @pytest.mark.integration
     @pytest.mark.qt
@@ -1150,155 +999,6 @@ class TestUserWorkflows:
                     assert not any(
                         shot.full_name in current_shot_names for shot in model_shots
                     )
-
-    @pytest.mark.slow
-    @pytest.mark.integration
-    @pytest.mark.qt
-    def test_concurrent_operations(self, qtbot: Any) -> None:
-        """Test that multiple operations can run simultaneously.
-
-        Verifies that:
-        1. Multiple launchers can execute concurrently
-        2. Shot refresh can happen while launchers are running
-        3. Thumbnail loading works during other operations
-        4. UI remains responsive during concurrent operations
-        5. Process tracking handles multiple processes correctly
-        """
-
-        sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
-        # Create real components
-        cache_manager = CacheManager(cache_dir=self.cache_dir)
-        main_window = MainWindow(cache_manager=cache_manager)
-        # Create launcher_manager with test config_dir AND proper Qt parent (main_window)
-        launcher_manager = LauncherManager(config_dir=self.config_dir, parent=main_window)
-
-        qtbot.addWidget(main_window)
-
-        # Create multiple test launchers using whitelisted commands
-        launcher_ids = []
-        # Use whitelisted commands: python3, nuke, maya
-        whitelisted_commands = ["python3", "nuke", "maya"]
-        for i, app_name in enumerate(whitelisted_commands):
-            launcher_id = launcher_manager.create_launcher(
-                name=f"Concurrent {app_name.title()}",
-                description=f"Test launcher {i + 1} for concurrent execution",
-                command=f"{app_name} {{shot_name}}_v{{version:03d}}"
-                if app_name != "python3"
-                else "python3 -c \"print('Test launcher for {shot_name}_v{version:03d}')\"",
-            )
-            launcher_ids.append(launcher_id)
-
-        # Track concurrent execution events
-        execution_events = []
-        active_process_counts = []
-
-        def track_execution(launcher_id: str) -> None:
-            execution_events.append((launcher_id, time.time()))
-            active_count = launcher_manager.get_active_process_count()
-            active_process_counts.append(active_count)
-
-        launcher_manager.execution_started.connect(track_execution)
-
-        # Create test processes for concurrent execution
-        test_processes = []
-        for i, cmd_name in enumerate(whitelisted_commands):
-            process = PopenDouble(
-                [cmd_name], returncode=0, stdout=f"{cmd_name} output", stderr=""
-            )
-            process.pid = 10000 + i
-            # Simulate running process
-            process.returncode = None
-            test_processes.append(process)
-
-        with (
-            patch("subprocess.Popen", side_effect=test_processes),
-            patch.dict("os.environ", {"SHOTBOT_USE_PROCESS_POOL": "false"}),
-        ):
-            # Launch all processes concurrently
-            shot_data = self.test_shots[0]
-            execution_results = []
-
-            for launcher_id in launcher_ids:
-                success = launcher_manager.execute_launcher(
-                    launcher_id,
-                    custom_vars={"shot_name": shot_data["name"], "version": 1},
-                )
-                execution_results.append(success)
-
-            # All launches should succeed
-            assert all(execution_results)
-
-            # Wait for all executions to be tracked
-            qtbot.waitUntil(
-                lambda: len(execution_events) >= len(launcher_ids), timeout=2000
-            )
-
-            # Verify concurrent execution was tracked
-            assert len(execution_events) == len(launcher_ids)
-
-            # Check that launcher execution was tracked
-            # Note: Process tracking may not work with mocked processes
-            assert len(execution_events) >= 1  # At least one execution was tracked
-
-            # Verify UI remains responsive by testing a UI operation
-            # during concurrent execution
-            qtbot.wait(1)  # Minimal event processing
-            main_window.status_bar.showMessage("Testing concurrent operations")
-            # Wait for status message to be displayed
-            qtbot.waitUntil(
-                lambda: main_window.status_bar.currentMessage() != "",
-                timeout=1000
-            )
-
-            current_message = main_window.status_bar.currentMessage()
-            # Check if our message is there or if it was overwritten by a background process
-            # Either is acceptable as it shows the UI is responsive
-            assert (
-                "concurrent" in current_message.lower()
-                or "discovery" in current_message.lower()
-                or "complete" in current_message.lower()
-            ), (
-                f"Expected status message containing 'concurrent', 'discovery', or 'complete', "
-                f"but got: '{current_message}'"
-            )
-
-        # Test concurrent refresh during launcher execution
-        # Create test result for workspace refresh
-        concurrent_refresh_result = TestCompletedProcess(
-            args=["bash", "-i", "-c", "ws -sg"],
-            returncode=0,
-            stdout="\n".join(
-                [f"workspace {shot['workspace_path']}" for shot in self.test_shots]
-            ),
-            stderr="",
-        )
-
-        with (
-            patch("subprocess.run", return_value=concurrent_refresh_result),
-            patch("subprocess.Popen", return_value=self.test_processes["nuke"]),
-        ):
-            # Start launcher execution and refresh simultaneously
-            launcher_success = launcher_manager.execute_launcher(
-                launcher_ids[0], custom_vars={"shot_name": shot_data["name"]}
-            )
-
-            refresh_result = main_window.shot_model.refresh_shots()
-
-            # Both operations should complete successfully
-            assert launcher_success is True
-            assert refresh_result is not None
-            assert refresh_result.success
-
-            # Process events to ensure both operations complete
-            qtbot.wait(1)  # Minimal event processing
-
-        # CRITICAL: Clean up worker threads before test teardown
-        # Without this, QThread objects are destroyed while threads are still running,
-        # causing "QThread: Destroyed while thread is still running" and Qt C++ crashes
-        launcher_manager.shutdown()
-        qtbot.wait(1)  # Minimal event processing for shutdown
-
 
 # Helper functions for standalone testing
 def setup_test_environment() -> Path:

@@ -106,83 +106,14 @@ for i in range(1024):
             pytest.fail("PIPE approach also deadlocked - fix failed!")
 
 
-@pytest.mark.real_subprocess
-def test_launcher_worker_no_deadlock() -> None:
-    """Test that the actual LauncherWorker doesn't deadlock with verbose apps."""
-
-    # Third-party imports
-    from PySide6.QtCore import (
-        QCoreApplication,
-    )
-
-    # Local application imports
-    from launcher.worker import (
-        LauncherWorker,
-    )
-    from tests.helpers.synchronization import (
-        process_qt_events,
-    )
-
-    app = QCoreApplication.instance() or QCoreApplication([])
-
-    # Create a command that generates lots of output
-    if sys.platform == "win32":
-        # Windows: dir /s generates lots of output
-        command = "dir /s C:\\Windows\\System32"
-    else:
-        # Linux/Mac: find generates lots of output
-        command = "find /usr -type f 2>&1 | head -10000"
-
-    worker = LauncherWorker(
-        launcher_id="test_verbose", command=command, working_dir=None
-    )
-
-    finished = False
-
-    def on_finished(launcher_id, success, return_code) -> None:
-        nonlocal finished
-        finished = True
-        print(f"LauncherWorker finished: success={success}, code={return_code}")
-
-    worker.command_finished.connect(on_finished)
-
-    # Start worker
-    worker.start()
-    try:
-        # Wait up to 10 seconds
-        start = time.time()
-        timeout_sec = 10
-        while not finished and time.time() - start < timeout_sec:
-            process_qt_events(app, 10)
-            # Use wait_for_condition instead of sleep to avoid blocking
-            wait_for_condition(lambda: finished, timeout_ms=100, poll_interval_ms=50)
-
-        # Check result
-        assert finished, "LauncherWorker deadlocked or timed out!"
-        print(f"✓ LauncherWorker completed in {time.time() - start:.2f}s")
-    finally:
-        # Always cleanup worker resources
-        worker.request_stop()
-        worker.wait(1000)
-
-
 if __name__ == "__main__":
     print("=" * 60)
     print("Testing subprocess deadlock prevention")
     print("=" * 60)
 
     # Test basic subprocess behavior
-    result1 = test_subprocess_with_large_output_no_deadlock()
+    test_subprocess_with_large_output_no_deadlock()
 
     print("\n" + "=" * 60)
-    print("Testing LauncherWorker implementation")
+    print("✓✓✓ ALL TESTS PASSED - No deadlock risk!")
     print("=" * 60)
-
-    # Test actual LauncherWorker
-    result2 = test_launcher_worker_no_deadlock()
-
-    print("\n" + "=" * 60)
-    if result1 and result2:
-        print("✓✓✓ ALL TESTS PASSED - No deadlock risk!")
-    else:
-        print("✗✗✗ TESTS FAILED - Deadlock risk remains!")

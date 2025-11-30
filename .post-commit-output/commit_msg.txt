@@ -1,1 +1,1 @@
-feat: Enable background GUI apps by default + test infrastructure improvements
+chore: Pre-launcher-removal checkpoint

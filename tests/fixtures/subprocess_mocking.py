@@ -250,9 +250,7 @@ def mock_subprocess_popen(
 
     mock_popen = MagicMock(side_effect=_create_mock_popen)
 
-    # Patch in launcher.worker module namespace (uses `import subprocess`)
-    monkeypatch.setattr("launcher.worker.subprocess.Popen", mock_popen)
-    # Also patch in subprocess module for any other direct callers
+    # Patch subprocess.Popen for any callers
     monkeypatch.setattr("subprocess.Popen", mock_popen)
 
     # Also mock subprocess.run for complete coverage
@@ -458,7 +456,6 @@ def subprocess_mock(monkeypatch: pytest.MonkeyPatch) -> SubprocessMock:
     mock = SubprocessMock()
     # Patch Popen
     monkeypatch.setattr("subprocess.Popen", mock.mock)
-    monkeypatch.setattr("launcher.worker.subprocess.Popen", mock.mock)
     # Patch subprocess.run
     monkeypatch.setattr("subprocess.run", mock.run_mock)
     return mock
@@ -487,7 +484,6 @@ def subprocess_error_mock(monkeypatch: pytest.MonkeyPatch) -> SubprocessMock:
     mock.set_return_code(1)  # Default to failure
     mock.set_output("", stderr="Command failed")
     monkeypatch.setattr("subprocess.Popen", mock.mock)
-    monkeypatch.setattr("launcher.worker.subprocess.Popen", mock.mock)
     monkeypatch.setattr("subprocess.run", mock.run_mock)
     return mock
 
@@ -509,7 +505,6 @@ def subprocess_timeout_mock(monkeypatch: pytest.MonkeyPatch) -> SubprocessMock:
     mock._mock.return_value.poll.return_value = None
     mock._mock.return_value.returncode = None
     monkeypatch.setattr("subprocess.Popen", mock.mock)
-    monkeypatch.setattr("launcher.worker.subprocess.Popen", mock.mock)
     monkeypatch.setattr("subprocess.run", mock.run_mock)
     return mock
 
@@ -532,6 +527,5 @@ def subprocess_exception_mock(monkeypatch: pytest.MonkeyPatch) -> SubprocessMock
     mock = SubprocessMock()
     mock.set_exception(FileNotFoundError("[Errno 2] No such file or directory"))
     monkeypatch.setattr("subprocess.Popen", mock.mock)
-    monkeypatch.setattr("launcher.worker.subprocess.Popen", mock.mock)
     monkeypatch.setattr("subprocess.run", mock.run_mock)
     return mock

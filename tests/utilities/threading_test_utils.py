@@ -79,6 +79,7 @@ try:
     # Local application imports
     from launcher import LauncherWorker
     from launcher_manager import LauncherManager
+
     from thread_safe_worker import WorkerState
 except ImportError:
     # Handle relative imports for test context
@@ -93,6 +94,7 @@ except ImportError:
     # Local application imports
     from launcher import LauncherWorker
     from launcher_manager import LauncherManager
+
     from thread_safe_worker import WorkerState
 
 logger = logging.getLogger(__name__)

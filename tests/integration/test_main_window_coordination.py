@@ -430,7 +430,6 @@ class TestMainWindowUICoordination:
         # Verify essential components exist
         assert window.shot_model is not None
         assert window.cache_manager is not None
-        assert window.launcher_manager is not None
         assert window.command_launcher is not None
 
         # Verify UI elements
@@ -638,48 +637,6 @@ workspace /shows/test/shots/seq01/shot02""")
         assert hasattr(window, "_on_refresh_started")
         assert hasattr(window, "_on_refresh_finished")
         assert hasattr(window, "_on_shot_selected")
-
-        # Check launcher manager has expected signals
-        if hasattr(window.launcher_manager, "launchers_changed"):
-            assert callable(window.launcher_manager.launchers_changed.emit)
-        if hasattr(window.launcher_manager, "execution_started"):
-            assert callable(window.launcher_manager.execution_started.emit)
-        if hasattr(window.launcher_manager, "execution_finished"):
-            assert callable(window.launcher_manager.execution_finished.emit)
-
-    def test_custom_launcher_integration(
-        self, main_window_with_real_components: Any, qtbot: Any
-    ) -> None:
-        """Test custom launcher creation and execution."""
-        window = main_window_with_real_components
-        assert window.launcher_manager is not None
-
-        # Get initial launcher count
-        initial_count = len(window.launcher_manager.list_launchers())
-
-        # Create a custom launcher through the manager using the correct API
-        launcher_id = window.launcher_manager.create_launcher(
-            name="Test Launcher",
-            command="echo test",
-            description="Test launcher for integration test",
-            category="test",
-        )
-
-        # Verify launcher was added
-        launchers = window.launcher_manager.list_launchers()
-        assert len(launchers) == initial_count + 1
-
-        # Verify the specific launcher exists
-        test_launcher = window.launcher_manager.get_launcher(launcher_id)
-        assert test_launcher is not None
-        assert test_launcher.name == "Test Launcher"
-        assert test_launcher.command == "echo test"
-
-        # Verify UI updated (signal should trigger menu update)
-        qtbot.wait(1)  # Minimal event processing
-
-        # Clean up
-        window.launcher_manager.delete_launcher(launcher_id)
 
     @pytest.mark.usefixtures("qtbot", "tmp_path")
     def test_settings_persistence(
