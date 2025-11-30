@@ -146,7 +146,7 @@ class TestMockOnlyAtBoundaries:
 
         try:
             # Test that subprocess was replaced - run a command
-            result = subprocess.run(["echo", "test"], capture_output=True)
+            result = subprocess.run(["echo", "test"], check=False, capture_output=True)
 
             # Verify the test double was used
             assert result.returncode == 0

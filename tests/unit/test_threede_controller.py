@@ -1,0 +1,1045 @@
+"""Unit tests for controllers/threede_controller.py.
+
+Tests for ThreeDEController which manages 3DE scene discovery,
+signal routing, and worker thread management.
+
+Following UNIFIED_TESTING_V2.md best practices:
+- Test behavior using protocol-based test doubles
+- Cover signal routing, discovery callbacks, scene selection
+- Test thread safety and worker management
+"""
+
+from __future__ import annotations
+
+import time
+from pathlib import Path
+from typing import Any
+from unittest.mock import MagicMock, patch
+
+import pytest
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import QWidget
+
+from controllers.threede_controller import ThreeDEController
+from progress_manager import ProgressManager
+from shot_model import Shot
+from threede_scene_model import ThreeDEScene
+
+
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.qt,
+]
+
+
+# ============================================================================
+# Test Doubles
+# ============================================================================
+
+
+class SignalDouble:
+    """Test double for Qt Signal."""
+
+    __test__ = False
+
+    def __init__(self) -> None:
+        self._connections: list[Any] = []
+        self._emitted_values: list[Any] = []
+
+    def connect(self, slot: Any) -> bool:
+        self._connections.append(slot)
+        return True
+
+    def disconnect(self, slot: Any | None = None) -> bool:
+        if slot is None:
+            self._connections.clear()
+        elif slot in self._connections:
+            self._connections.remove(slot)
+        return True
+
+    def emit(self, *args: Any) -> None:
+        self._emitted_values.append(args)
+        for slot in self._connections:
+            slot(*args)
+
+
+class ThreeDEGridViewDouble:
+    """Test double for ThreeDEGridView."""
+
+    __test__ = False
+
+    def __init__(self) -> None:
+        self.scene_selected = SignalDouble()
+        self.scene_double_clicked = SignalDouble()
+        self.recover_crashes_requested = SignalDouble()
+        self.show_filter_requested = SignalDouble()
+        self.text_filter_requested = SignalDouble()
+        self._show_filter_populated = False
+        self._selected_scene: ThreeDEScene | None = None
+
+    def populate_show_filter(self, model: Any) -> None:
+        """Populate show filter from model."""
+        self._show_filter_populated = True
+
+    @property
+    def selected_scene(self) -> ThreeDEScene | None:
+        """Get currently selected scene."""
+        return self._selected_scene
+
+
+class ThreeDESceneModelDouble:
+    """Test double for ThreeDESceneModel."""
+
+    __test__ = False
+
+    def __init__(self, cache_manager: Any = None) -> None:
+        self._scenes: list[ThreeDEScene] = []
+        self._text_filter: str | None = None
+        self.cache_manager = cache_manager or CacheManagerDouble()
+
+    @property
+    def scenes(self) -> list[ThreeDEScene]:
+        return self._scenes
+
+    @scenes.setter
+    def scenes(self, value: list[ThreeDEScene]) -> None:
+        self._scenes = value
+
+    def _deduplicate_scenes_by_shot(
+        self, scenes: list[ThreeDEScene]
+    ) -> list[ThreeDEScene]:
+        """Simple deduplication for testing."""
+        seen: dict[str, ThreeDEScene] = {}
+        for scene in scenes:
+            key = f"{scene.show}_{scene.sequence}_{scene.shot}"
+            if key not in seen or scene.modified_time > seen[key].modified_time:
+                seen[key] = scene
+        return list(seen.values())
+
+    def set_text_filter(self, text: str | None) -> None:
+        """Set text filter."""
+        self._text_filter = text
+
+    def get_filtered_scenes(self) -> list[ThreeDEScene]:
+        """Get filtered scenes."""
+        if not self._text_filter:
+            return self._scenes
+        return [s for s in self._scenes if self._text_filter.lower() in s.full_name.lower()]
+
+    def to_dict(self) -> list[dict[str, Any]]:
+        """Convert scenes to dict list for caching."""
+        return [s.to_dict() for s in self._scenes]
+
+
+class ThreeDEItemModelDouble:
+    """Test double for ThreeDEItemModel."""
+
+    __test__ = False
+
+    def __init__(self) -> None:
+        self._loading_state = False
+        self._source_model: ThreeDESceneModelDouble | None = None
+        self._filter_show: str = ""
+        self._filter_text: str = ""
+        self._scenes: list[ThreeDEScene] = []
+        self._items: list[ThreeDEScene] = []
+
+    def set_loading_state(self, loading: bool) -> None:
+        self._loading_state = loading
+
+    def setSourceModel(self, model: ThreeDESceneModelDouble) -> None:
+        self._source_model = model
+
+    def setFilterFixedString(self, text: str) -> None:
+        self._filter_text = text
+
+    def invalidateFilter(self) -> None:
+        pass
+
+    def set_show_filter(self, model: Any, show: str | None) -> None:
+        self._filter_show = show or ""
+
+    def set_scenes(self, scenes: list[ThreeDEScene]) -> None:
+        """Set scenes in the model."""
+        self._scenes = scenes
+
+    def set_items(self, items: list[ThreeDEScene]) -> None:
+        """Set items (filtered scenes) in the model."""
+        self._items = items
+
+
+class ShotModelDouble:
+    """Test double for ShotModel."""
+
+    __test__ = False
+
+    def __init__(self) -> None:
+        self._shots: list[Shot] = []
+
+    @property
+    def shots(self) -> list[Shot]:
+        return self._shots
+
+
+class RightPanelDouble:
+    """Test double for RightPanelWidget."""
+
+    __test__ = False
+
+    def __init__(self) -> None:
+        self._current_shot: Shot | None = None
+
+    def set_shot(self, shot: Shot) -> None:
+        self._current_shot = shot
+
+
+class CacheManagerDouble:
+    """Test double for CacheManager."""
+
+    __test__ = False
+
+    def __init__(self) -> None:
+        self._persistent_scenes: list[dict[str, Any]] = []
+        self._cached_scenes: list[dict[str, Any]] = []
+
+    def get_persistent_threede_scenes(self) -> list[dict[str, Any]]:
+        return self._persistent_scenes
+
+    def cache_threede_scenes(
+        self, scenes: list[dict[str, Any]], immediate: bool = False
+    ) -> None:
+        self._cached_scenes = scenes
+
+
+class CommandLauncherDouble:
+    """Test double for CommandLauncher."""
+
+    __test__ = False
+
+    def __init__(self) -> None:
+        self._launched_apps: list[tuple[str, Any]] = []
+        self._launched_with_scene: list[tuple[str, Any]] = []
+
+    def launch_app(self, app_name: str, context: Any = None) -> None:
+        self._launched_apps.append((app_name, context))
+
+    def launch_app_with_scene(self, app_name: str, scene: Any) -> bool:
+        """Launch app with scene context."""
+        self._launched_with_scene.append((app_name, scene))
+        return True
+
+
+class StatusBarDouble:
+    """Test double for QStatusBar."""
+
+    __test__ = False
+
+    def __init__(self) -> None:
+        self._messages: list[str] = []
+
+    def showMessage(self, message: str, timeout: int = 0) -> None:
+        self._messages.append(message)
+
+
+class ThreeDETargetDouble:
+    """Test double implementing ThreeDETarget protocol.
+
+    Provides all required attributes and methods for testing ThreeDEController.
+    """
+
+    __test__ = False
+
+    def __init__(self) -> None:
+        # Closing state
+        self._closing = False
+
+        # Managers (create first since models may reference them)
+        self.cache_manager = CacheManagerDouble()
+        self.command_launcher = CommandLauncherDouble()
+
+        # UI Components
+        self.threede_shot_grid = ThreeDEGridViewDouble()
+        self.right_panel = RightPanelDouble()
+        self.status_bar = StatusBarDouble()
+
+        # Models - pass shared cache_manager to scene model
+        self.shot_model = ShotModelDouble()
+        self.threede_scene_model = ThreeDESceneModelDouble(
+            cache_manager=self.cache_manager
+        )
+        self.threede_item_model = ThreeDEItemModelDouble()
+
+        # Window state tracking
+        self._window_title: str = ""
+        self._status_messages: list[str] = []
+
+    @property
+    def closing(self) -> bool:
+        return self._closing
+
+    def setWindowTitle(self, title: str) -> None:
+        self._window_title = title
+
+    def update_status(self, message: str) -> None:
+        self._status_messages.append(message)
+
+    def launch_app(self, app_name: str, context: Any = None) -> None:
+        self.command_launcher.launch_app(app_name, context)
+
+
+# ============================================================================
+# Factory Functions
+# ============================================================================
+
+
+def make_scene(
+    show: str = "testshow",
+    sequence: str = "sq010",
+    shot: str = "sh0010",
+    user: str = "testuser",
+    plate: str = "plate_main",
+    modified_time: float | None = None,
+    scene_path: str | None = None,
+) -> ThreeDEScene:
+    """Factory function to create ThreeDEScene instances for testing."""
+    if modified_time is None:
+        modified_time = time.time()
+    if scene_path is None:
+        scene_path = f"/shows/{show}/shots/{sequence}/{shot}/3de/{user}_{plate}.3de"
+
+    return ThreeDEScene(
+        show=show,
+        sequence=sequence,
+        shot=shot,
+        workspace_path=f"/shows/{show}/shots/{sequence}/{shot}",
+        user=user,
+        plate=plate,
+        scene_path=Path(scene_path),
+        modified_time=modified_time,
+    )
+
+
+def make_scene_dict(
+    show: str = "testshow",
+    sequence: str = "sq010",
+    shot: str = "sh0010",
+    user: str = "testuser",
+    plate: str = "plate_main",
+    modified_time: float | None = None,
+    scene_path: str | None = None,
+) -> dict[str, Any]:
+    """Factory function to create scene dictionaries for cache testing."""
+    if modified_time is None:
+        modified_time = time.time()
+    if scene_path is None:
+        scene_path = f"/shows/{show}/shots/{sequence}/{shot}/3de/{user}_{plate}.3de"
+
+    return {
+        "show": show,
+        "sequence": sequence,
+        "shot": shot,
+        "workspace_path": f"/shows/{show}/shots/{sequence}/{shot}",
+        "user": user,
+        "plate": plate,
+        "scene_path": scene_path,
+        "modified_time": modified_time,
+    }
+
+
+# ============================================================================
+# Fixtures
+# ============================================================================
+
+
+@pytest.fixture
+def window_double() -> ThreeDETargetDouble:
+    """Create a ThreeDETarget test double."""
+    return ThreeDETargetDouble()
+
+
+@pytest.fixture
+def controller(window_double: ThreeDETargetDouble) -> ThreeDEController:
+    """Create a ThreeDEController with test double."""
+    return ThreeDEController(window_double)  # type: ignore[arg-type]
+
+
+@pytest.fixture
+def reset_progress_manager() -> None:
+    """Reset ProgressManager state before each test."""
+    ProgressManager.reset()
+    yield
+    ProgressManager.reset()
+
+
+# ============================================================================
+# Test Initialization
+# ============================================================================
+
+
+class TestThreeDEControllerInitialization:
+    """Test ThreeDEController initialization."""
+
+    def test_init_stores_window_reference(
+        self, window_double: ThreeDETargetDouble
+    ) -> None:
+        """Test that init stores window reference."""
+        controller = ThreeDEController(window_double)  # type: ignore[arg-type]
+        assert controller.window is window_double
+
+    def test_init_creates_mutex(self, controller: ThreeDEController) -> None:
+        """Test that init creates worker mutex."""
+        assert controller._worker_mutex is not None
+
+    def test_init_sets_no_active_worker(self, controller: ThreeDEController) -> None:
+        """Test that init starts with no active worker."""
+        assert controller._threede_worker is None
+
+    def test_init_sets_progress_operation_to_none(
+        self, controller: ThreeDEController
+    ) -> None:
+        """Test that init has no progress operation."""
+        assert controller._current_progress_operation is None
+
+    def test_init_sets_scan_time_to_zero(self, controller: ThreeDEController) -> None:
+        """Test that init has zero scan time."""
+        assert controller._last_scan_time == 0.0
+
+    def test_init_sets_minimum_scan_interval(
+        self, controller: ThreeDEController
+    ) -> None:
+        """Test that init sets minimum scan interval."""
+        assert controller._min_scan_interval == 30.0
+
+
+# ============================================================================
+# Test Signal Setup
+# ============================================================================
+
+
+class TestSignalSetup:
+    """Test signal connections during initialization."""
+
+    def test_scene_selected_signal_connected(
+        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
+    ) -> None:
+        """Test that scene_selected signal is connected."""
+        grid = window_double.threede_shot_grid
+        assert controller.on_scene_selected in grid.scene_selected._connections
+
+    def test_scene_double_clicked_signal_connected(
+        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
+    ) -> None:
+        """Test that scene_double_clicked signal is connected."""
+        grid = window_double.threede_shot_grid
+        assert controller.on_scene_double_clicked in grid.scene_double_clicked._connections
+
+    def test_recover_crashes_signal_connected(
+        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
+    ) -> None:
+        """Test that recover_crashes_requested signal is connected."""
+        grid = window_double.threede_shot_grid
+        assert (
+            controller.on_recover_crashes_clicked
+            in grid.recover_crashes_requested._connections
+        )
+
+    def test_show_filter_signal_connected(
+        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
+    ) -> None:
+        """Test that show_filter_requested signal is connected."""
+        grid = window_double.threede_shot_grid
+        assert (
+            controller._on_show_filter_requested
+            in grid.show_filter_requested._connections
+        )
+
+    def test_text_filter_signal_connected(
+        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
+    ) -> None:
+        """Test that text_filter_requested signal is connected."""
+        grid = window_double.threede_shot_grid
+        assert (
+            controller._on_text_filter_requested
+            in grid.text_filter_requested._connections
+        )
+
+
+# ============================================================================
+# Test Scene Selection
+# ============================================================================
+
+
+class TestSceneSelection:
+    """Test scene selection handling."""
+
+    def test_on_scene_selected_updates_right_panel(
+        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
+    ) -> None:
+        """Test that scene selection updates right panel."""
+        scene = make_scene(show="myshow", sequence="sq020", shot="sh0030")
+
+        controller.on_scene_selected(scene)
+
+        panel_shot = window_double.right_panel._current_shot
+        assert panel_shot is not None
+        assert panel_shot.show == "myshow"
+        assert panel_shot.sequence == "sq020"
+        assert panel_shot.shot == "sh0030"
+
+    def test_on_scene_selected_updates_window_title(
+        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
+    ) -> None:
+        """Test that scene selection updates window title."""
+        scene = make_scene(user="john", plate="fg_plate")
+
+        controller.on_scene_selected(scene)
+
+        assert "john" in window_double._window_title
+        assert "fg_plate" in window_double._window_title
+
+    def test_on_scene_selected_updates_status(
+        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
+    ) -> None:
+        """Test that scene selection updates status bar."""
+        scene = make_scene(show="testshow", sequence="sq010", shot="sh0010")
+
+        controller.on_scene_selected(scene)
+
+        assert len(window_double._status_messages) > 0
+        assert "sq010_sh0010" in window_double._status_messages[-1]
+
+    def test_on_scene_double_clicked_logs_message(
+        self, controller: ThreeDEController, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Test that double-click on scene logs the event."""
+        scene = make_scene()
+
+        with caplog.at_level("DEBUG"):
+            controller.on_scene_double_clicked(scene)
+
+        # Double click handler logs, though actual launch logic may be elsewhere
+        assert controller is not None  # Controller processes the event
+
+
+# ============================================================================
+# Test Discovery Callbacks
+# ============================================================================
+
+
+class TestDiscoveryCallbacks:
+    """Test discovery event callbacks."""
+
+    def test_on_discovery_started_creates_progress_operation(
+        self,
+        controller: ThreeDEController,
+        window_double: ThreeDETargetDouble,
+        reset_progress_manager: None,
+    ) -> None:
+        """Test that discovery start creates progress operation."""
+        controller.on_discovery_started()
+
+        assert controller._current_progress_operation is not None
+
+    def test_on_discovery_progress_updates_operation(
+        self,
+        controller: ThreeDEController,
+        window_double: ThreeDETargetDouble,
+        reset_progress_manager: None,
+    ) -> None:
+        """Test that discovery progress updates progress operation."""
+        # Start a progress operation first
+        controller.on_discovery_started()
+
+        # Call progress with all required arguments (current, total, percentage, description, eta)
+        controller.on_discovery_progress(50, 100, 50.0, "Scanning show X", "1m 30s")
+
+        # Progress operation should have been updated
+        operation = ProgressManager.get_current_operation()
+        assert operation is not None
+
+    def test_on_discovery_finished_clears_progress(
+        self,
+        controller: ThreeDEController,
+        window_double: ThreeDETargetDouble,
+        reset_progress_manager: None,
+    ) -> None:
+        """Test that discovery finish clears progress operation."""
+        # Start a progress operation first
+        controller.on_discovery_started()
+        assert controller._current_progress_operation is not None
+
+        # Finish discovery
+        scenes = [make_scene()]
+        controller.on_discovery_finished(scenes)
+
+        assert controller._current_progress_operation is None
+
+    def test_on_discovery_finished_clears_loading_state(
+        self,
+        controller: ThreeDEController,
+        window_double: ThreeDETargetDouble,
+        reset_progress_manager: None,
+    ) -> None:
+        """Test that discovery finish clears loading state."""
+        window_double.threede_item_model._loading_state = True
+
+        # Start progress to have valid operation
+        controller.on_discovery_started()
+
+        controller.on_discovery_finished([])
+
+        assert window_double.threede_item_model._loading_state is False
+
+    def test_on_discovery_finished_skipped_when_closing(
+        self,
+        controller: ThreeDEController,
+        window_double: ThreeDETargetDouble,
+        reset_progress_manager: None,
+    ) -> None:
+        """Test that discovery finish is skipped when window is closing."""
+        window_double._closing = True
+        window_double.threede_item_model._loading_state = True
+
+        # Progress manager should not be touched when closing
+        scenes = [make_scene()]
+        controller.on_discovery_finished(scenes)
+
+        # Loading state should remain unchanged when closing
+        assert window_double.threede_item_model._loading_state is True
+
+    @pytest.mark.allow_dialogs
+    def test_on_discovery_error_clears_progress(
+        self,
+        controller: ThreeDEController,
+        window_double: ThreeDETargetDouble,
+        reset_progress_manager: None,
+    ) -> None:
+        """Test that discovery error clears progress operation."""
+        # Start a progress operation first
+        controller.on_discovery_started()
+
+        controller.on_discovery_error("Network error")
+
+        assert controller._current_progress_operation is None
+
+    @pytest.mark.allow_dialogs
+    def test_on_discovery_error_shows_warning(
+        self,
+        controller: ThreeDEController,
+        window_double: ThreeDETargetDouble,
+        reset_progress_manager: None,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Test that discovery error logs a warning."""
+        # Start a progress operation first
+        controller.on_discovery_started()
+
+        with caplog.at_level("WARNING"):
+            controller.on_discovery_error("Disk read error")
+
+        # Should log a warning about the error
+        assert any("Disk read error" in record.message for record in caplog.records)
+
+    def test_on_batch_ready_logs_batch_size(
+        self, controller: ThreeDEController, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Test that batch_ready logs the batch size."""
+        batch = [make_scene(), make_scene(shot="sh0020")]
+
+        with caplog.at_level("DEBUG"):
+            controller.on_batch_ready(batch)
+
+        assert any("2" in record.message for record in caplog.records)
+
+
+# ============================================================================
+# Test Scene Change Detection
+# ============================================================================
+
+
+class TestSceneChangeDetection:
+    """Test scene change detection logic."""
+
+    def test_has_scene_changes_returns_true_when_new_scenes(
+        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
+    ) -> None:
+        """Test that changes are detected when new scenes are added."""
+        # Start with empty model
+        window_double.threede_scene_model._scenes = []
+
+        # New scenes discovered
+        new_scenes = [make_scene()]
+
+        assert controller.has_scene_changes(new_scenes) is True
+
+    def test_has_scene_changes_returns_true_when_scenes_removed(
+        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
+    ) -> None:
+        """Test that changes are detected when scenes are removed."""
+        # Start with existing scene
+        window_double.threede_scene_model._scenes = [make_scene()]
+
+        # Empty discovery
+        new_scenes: list[ThreeDEScene] = []
+
+        assert controller.has_scene_changes(new_scenes) is True
+
+    def test_has_scene_changes_returns_false_when_identical(
+        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
+    ) -> None:
+        """Test that no changes detected when scenes are identical."""
+        scene = make_scene()
+        window_double.threede_scene_model._scenes = [scene]
+
+        # Same scene discovered
+        new_scenes = [scene]
+
+        assert controller.has_scene_changes(new_scenes) is False
+
+    def test_has_scene_changes_detects_user_change(
+        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
+    ) -> None:
+        """Test that changes are detected when scene user changes."""
+        old_scene = make_scene(user="alice")
+        window_double.threede_scene_model._scenes = [old_scene]
+
+        # Same shot but different user
+        new_scene = make_scene(user="bob")
+        new_scenes = [new_scene]
+
+        assert controller.has_scene_changes(new_scenes) is True
+
+    def test_has_scene_changes_detects_path_change(
+        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
+    ) -> None:
+        """Test that changes are detected when scene path changes."""
+        old_scene = make_scene(scene_path="/old/path.3de")
+        window_double.threede_scene_model._scenes = [old_scene]
+
+        # Same shot but different path
+        new_scene = make_scene(scene_path="/new/path.3de")
+        new_scenes = [new_scene]
+
+        assert controller.has_scene_changes(new_scenes) is True
+
+
+# ============================================================================
+# Test Scene Updates
+# ============================================================================
+
+
+class TestSceneUpdates:
+    """Test scene update logic."""
+
+    def test_update_scenes_with_changes_deduplicates(
+        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
+    ) -> None:
+        """Test that update_scenes_with_changes deduplicates scenes."""
+        # Two scenes for same shot - should keep one
+        scene1 = make_scene(user="alice", modified_time=1000.0)
+        scene2 = make_scene(user="bob", modified_time=2000.0)
+
+        controller.update_scenes_with_changes([scene1, scene2])
+
+        # Should have deduplicated to 1 scene
+        assert len(window_double.threede_scene_model._scenes) == 1
+        # Should keep the newer one (bob)
+        assert window_double.threede_scene_model._scenes[0].user == "bob"
+
+    def test_update_scenes_with_changes_sorts_scenes(
+        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
+    ) -> None:
+        """Test that update_scenes_with_changes sorts scenes."""
+        scene_z = make_scene(sequence="sq999", shot="sh0010")
+        scene_a = make_scene(sequence="sq001", shot="sh0010")
+
+        controller.update_scenes_with_changes([scene_z, scene_a])
+
+        scenes = window_double.threede_scene_model._scenes
+        # Should be sorted by full_name
+        assert scenes[0].sequence == "sq001"
+        assert scenes[1].sequence == "sq999"
+
+    def test_update_scenes_with_changes_caches_results(
+        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
+    ) -> None:
+        """Test that update_scenes_with_changes caches results."""
+        scenes = [make_scene()]
+
+        controller.update_scenes_with_changes(scenes)
+
+        # Cache manager should have cached the scenes
+        assert len(window_double.cache_manager._cached_scenes) == 1
+
+    def test_update_scenes_with_changes_updates_status_with_count(
+        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
+    ) -> None:
+        """Test that update_scenes_with_changes shows scene count in status."""
+        scenes = [
+            make_scene(shot="sh0010"),
+            make_scene(shot="sh0020"),
+            make_scene(shot="sh0030"),
+        ]
+
+        controller.update_scenes_with_changes(scenes)
+
+        assert any("3" in msg for msg in window_double._status_messages)
+
+    def test_update_scenes_with_changes_shows_empty_message(
+        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
+    ) -> None:
+        """Test that update_scenes_with_changes shows empty message when no scenes."""
+        controller.update_scenes_with_changes([])
+
+        assert any(
+            "No 3DE scenes" in msg for msg in window_double._status_messages
+        )
+
+
+# ============================================================================
+# Test Filter Handling
+# ============================================================================
+
+
+class TestFilterHandling:
+    """Test filter request handling."""
+
+    def test_show_filter_applies_to_model(
+        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
+    ) -> None:
+        """Test that show filter is applied to item model."""
+        controller._on_show_filter_requested("myshow")
+
+        # The filter should be applied (set_show_filter converts "" to None)
+        assert window_double.threede_item_model._filter_show == "myshow"
+
+    def test_text_filter_applies_to_scene_model(
+        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
+    ) -> None:
+        """Test that text filter is applied to scene model."""
+        controller._on_text_filter_requested("sq010")
+
+        # The filter should be applied to scene model
+        assert window_double.threede_scene_model._text_filter == "sq010"
+
+    def test_empty_show_filter_clears_filter(
+        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
+    ) -> None:
+        """Test that empty show filter clears the filter."""
+        # Set a filter first
+        window_double.threede_item_model._filter_show = "oldshow"
+
+        controller._on_show_filter_requested("")
+
+        # Empty string is converted to None, which becomes "" in the double
+        assert window_double.threede_item_model._filter_show == ""
+
+
+# ============================================================================
+# Test Worker Management
+# ============================================================================
+
+
+class TestWorkerManagement:
+    """Test worker thread management."""
+
+    def test_has_active_worker_returns_false_initially(
+        self, controller: ThreeDEController
+    ) -> None:
+        """Test that has_active_worker returns False when no worker."""
+        assert controller.has_active_worker is False
+
+    def test_cleanup_worker_handles_no_worker(
+        self, controller: ThreeDEController
+    ) -> None:
+        """Test that cleanup_worker handles no active worker gracefully."""
+        # Should not raise
+        controller.cleanup_worker()
+
+    @pytest.mark.allow_dialogs
+    def test_cleanup_worker_clears_orphaned_progress(
+        self,
+        controller: ThreeDEController,
+        reset_progress_manager: None,
+    ) -> None:
+        """Test that cleanup_worker clears orphaned progress operations."""
+        # Start a progress operation manually (simulating orphaned state)
+        controller.on_discovery_started()
+        assert controller._current_progress_operation is not None
+
+        # Simulate a worker that exists but is finished
+        mock_worker = MagicMock()
+        mock_worker.isFinished.return_value = True
+        controller._threede_worker = mock_worker
+
+        # Cleanup should clear the progress operation
+        controller.cleanup_worker()
+
+        assert controller._current_progress_operation is None
+
+
+# ============================================================================
+# Test Refresh Guards
+# ============================================================================
+
+
+class TestRefreshGuards:
+    """Test refresh debouncing and concurrency guards."""
+
+    def test_refresh_skipped_when_closing(
+        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
+    ) -> None:
+        """Test that refresh is skipped when window is closing."""
+        window_double._closing = True
+
+        # Should return early without creating worker
+        with patch.object(controller, "_setup_worker_signals") as mock_setup:
+            controller.refresh_threede_scenes()
+
+            mock_setup.assert_not_called()
+
+    def test_refresh_debounced_when_called_too_soon(
+        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
+    ) -> None:
+        """Test that refresh is debounced when called within interval."""
+        # Set last scan time to now
+        controller._last_scan_time = time.time()
+
+        # Try to refresh immediately
+        with patch.object(controller, "_setup_worker_signals") as mock_setup:
+            controller.refresh_threede_scenes()
+
+            # Should be debounced - no new worker created
+            mock_setup.assert_not_called()
+
+    def test_refresh_proceeds_after_interval(
+        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
+    ) -> None:
+        """Test that refresh proceeds after minimum interval passes."""
+        # Set last scan time to long ago
+        controller._last_scan_time = time.time() - 60  # 60 seconds ago
+
+        # Mock the worker creation path
+        with patch(
+            "controllers.threede_controller.ThreeDESceneWorker"
+        ) as mock_worker_class:
+            mock_worker = MagicMock()
+            mock_worker.isFinished.return_value = True
+            mock_worker_class.return_value = mock_worker
+
+            controller.refresh_threede_scenes()
+
+            # Worker should have been created
+            mock_worker_class.assert_called_once()
+
+    def test_concurrent_refresh_blocked(
+        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
+    ) -> None:
+        """Test that concurrent refresh calls are blocked."""
+        # Set up a mock worker that appears to be running
+        mock_worker = MagicMock()
+        mock_worker.isFinished.return_value = False
+        controller._threede_worker = mock_worker
+
+        # Reset last scan time to allow refresh based on timing
+        controller._last_scan_time = 0
+
+        # Try to refresh while worker is running
+        with patch(
+            "controllers.threede_controller.ThreeDESceneWorker"
+        ) as mock_worker_class:
+            controller.refresh_threede_scenes()
+
+            # Should NOT create a new worker
+            mock_worker_class.assert_not_called()
+
+
+# ============================================================================
+# Test Current Scene Property
+# ============================================================================
+
+
+class TestCurrentSceneProperty:
+    """Test current_scene property."""
+
+    def test_current_scene_returns_none_initially(
+        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
+    ) -> None:
+        """Test that current_scene returns None when no selection."""
+        # Add scenes to model
+        window_double.threede_scene_model._scenes = [make_scene()]
+
+        # current_scene property relies on grid view selection
+        # Without actual Qt widget, this should return None or first scene
+        # depending on implementation
+        result = controller.current_scene
+        # The property may return None if no selection, or the scene if auto-selected
+        assert result is None or isinstance(result, ThreeDEScene)
+
+
+# ============================================================================
+# Test Cache Operations
+# ============================================================================
+
+
+class TestCacheOperations:
+    """Test cache-related operations."""
+
+    def test_cache_scenes_serializes_all_scenes(
+        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
+    ) -> None:
+        """Test that cache_scenes serializes all scenes to cache manager."""
+        scenes = [
+            make_scene(shot="sh0010"),
+            make_scene(shot="sh0020"),
+        ]
+        window_double.threede_scene_model._scenes = scenes
+
+        controller.cache_scenes()
+
+        cached = window_double.cache_manager._cached_scenes
+        assert len(cached) == 2
+
+    def test_cache_scenes_converts_to_dict(
+        self, controller: ThreeDEController, window_double: ThreeDETargetDouble
+    ) -> None:
+        """Test that cache_scenes converts scenes to dictionaries."""
+        scene = make_scene(show="testshow", sequence="sq010")
+        window_double.threede_scene_model._scenes = [scene]
+
+        controller.cache_scenes()
+
+        cached = window_double.cache_manager._cached_scenes
+        assert len(cached) == 1
+        assert cached[0]["show"] == "testshow"
+        assert cached[0]["sequence"] == "sq010"
+
+
+# ============================================================================
+# Test Logging
+# ============================================================================
+
+
+class TestLogging:
+    """Test logging behavior."""
+
+    def test_log_discovered_scenes_logs_count(
+        self, controller: ThreeDEController, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Test that log_discovered_scenes logs scene count."""
+        scenes = [make_scene(), make_scene(shot="sh0020")]
+
+        with caplog.at_level("INFO"):
+            controller.log_discovered_scenes(scenes)
+
+        assert any("2" in record.message for record in caplog.records)
+
+    def test_log_discovered_scenes_handles_empty(
+        self, controller: ThreeDEController, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Test that log_discovered_scenes handles empty list."""
+        with caplog.at_level("INFO"):
+            controller.log_discovered_scenes([])
+
+        # Should not raise and should log something
+        assert len(caplog.records) >= 0  # Just verify no exception

@@ -468,7 +468,7 @@ class ShotGridView(BaseGridView):
 
         self.logger.info(f"Opening plate in RV: {plate_path}")
         try:
-            _ = subprocess.Popen(["rv", plate_path])  # noqa: S603, S607
+            _ = subprocess.Popen(["rv", plate_path])
         except FileNotFoundError:
             self.logger.error("RV not found. Please ensure RV is installed and in PATH.")
         except Exception as e:

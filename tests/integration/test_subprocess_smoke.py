@@ -19,6 +19,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -43,7 +44,7 @@ class TestSubprocessSmoke:
         """Verify subprocess.run with echo works."""
         result = subprocess.run(
             ["echo", "smoke-test-ok"],
-            capture_output=True,
+            check=False, capture_output=True,
             text=True,
             timeout=5,
         )
@@ -54,7 +55,7 @@ class TestSubprocessSmoke:
         """Verify Python subprocess execution works."""
         result = subprocess.run(
             [sys.executable, "-c", "print('subprocess-python-ok')"],
-            capture_output=True,
+            check=False, capture_output=True,
             text=True,
             timeout=10,
         )
@@ -76,7 +77,7 @@ class TestSubprocessSmoke:
         """Verify subprocess handles non-zero exit codes."""
         result = subprocess.run(
             [sys.executable, "-c", "import sys; sys.exit(42)"],
-            capture_output=True,
+            check=False, capture_output=True,
             timeout=10,
         )
         assert result.returncode == 42
@@ -85,7 +86,7 @@ class TestSubprocessSmoke:
         """Verify stderr is captured correctly."""
         result = subprocess.run(
             [sys.executable, "-c", "import sys; print('error', file=sys.stderr)"],
-            capture_output=True,
+            check=False, capture_output=True,
             text=True,
             timeout=10,
         )
@@ -97,7 +98,7 @@ class TestBashShellSmoke:
     """Smoke tests for bash shell operations used by CommandLauncher."""
 
     @pytest.mark.skipif(
-        not os.path.exists("/bin/bash"),
+        not Path("/bin/bash").exists(),
         reason="bash not available",
     )
     def test_bash_interactive_login(self) -> None:
@@ -108,7 +109,7 @@ class TestBashShellSmoke:
         """
         result = subprocess.run(
             ["bash", "-ilc", "echo shotbot_bash_test_ok"],
-            capture_output=True,
+            check=False, capture_output=True,
             text=True,
             timeout=10,
         )
@@ -117,7 +118,7 @@ class TestBashShellSmoke:
         assert "shotbot_bash_test_ok" in result.stdout
 
     @pytest.mark.skipif(
-        not os.path.exists("/bin/bash"),
+        not Path("/bin/bash").exists(),
         reason="bash not available",
     )
     def test_environment_variable_expansion(self) -> None:
@@ -127,7 +128,7 @@ class TestBashShellSmoke:
 
         result = subprocess.run(
             ["bash", "-c", "echo $SHOTBOT_TEST_VAR"],
-            capture_output=True,
+            check=False, capture_output=True,
             text=True,
             env=env,
             timeout=5,
@@ -136,14 +137,14 @@ class TestBashShellSmoke:
         assert "test_value_xyz" in result.stdout
 
     @pytest.mark.skipif(
-        not os.path.exists("/bin/bash"),
+        not Path("/bin/bash").exists(),
         reason="bash not available",
     )
     def test_shell_quote_handling(self) -> None:
         """Verify nested quotes work in shell mode."""
         result = subprocess.run(
             '''bash -c "echo 'inner quotes work'"''',
-            shell=True,
+            check=False, shell=True,
             capture_output=True,
             text=True,
             timeout=5,
@@ -159,5 +160,5 @@ class TestSubprocessTimeout:
         with pytest.raises(subprocess.TimeoutExpired):
             subprocess.run(
                 [sys.executable, "-c", "import time; time.sleep(10)"],
-                timeout=0.1,
+                check=False, timeout=0.1,
             )

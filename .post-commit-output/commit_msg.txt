@@ -1,1 +1,1 @@
-chore: Pre-launcher-removal checkpoint
+feat: Add comprehensive status bar feedback for operations

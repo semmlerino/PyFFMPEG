@@ -296,11 +296,12 @@ class TestSubprocessTimeoutCancellation:
 
         monkeypatch.setattr(
             "filesystem_scanner.subprocess.Popen",
-            lambda *a, **k: process,
+            lambda *_a, **_k: process,
         )
 
         # Cancel immediately
-        cancel_flag = lambda: True
+        def cancel_flag() -> bool:
+            return True
 
         result = scanner_with_parser._run_find_with_polling(
             find_cmd=["find", "/test"],
@@ -337,11 +338,11 @@ class TestSubprocessTimeoutCancellation:
 
         monkeypatch.setattr(
             "filesystem_scanner.subprocess.Popen",
-            lambda *a, **k: process,
+            lambda *_a, **_k: process,
         )
         monkeypatch.setattr("filesystem_scanner.time.time", mock_time)
         # Don't actually sleep during the poll loop
-        monkeypatch.setattr("filesystem_scanner.time.sleep", lambda x: None)
+        monkeypatch.setattr("filesystem_scanner.time.sleep", lambda _x: None)
 
         result = scanner_with_parser._run_find_with_polling(
             find_cmd=["find", "/test"],
@@ -367,10 +368,10 @@ class TestSubprocessTimeoutCancellation:
 
         monkeypatch.setattr(
             "filesystem_scanner.subprocess.Popen",
-            lambda *a, **k: process,
+            lambda *_a, **_k: process,
         )
         # Speed up polling
-        monkeypatch.setattr("filesystem_scanner.time.sleep", lambda x: None)
+        monkeypatch.setattr("filesystem_scanner.time.sleep", lambda _x: None)
 
         result = scanner_with_parser._run_find_with_polling(
             find_cmd=["find", "/test"],
@@ -399,7 +400,7 @@ class TestSubprocessTimeoutCancellation:
 
         monkeypatch.setattr(
             "filesystem_scanner.subprocess.Popen",
-            lambda *a, **k: process,
+            lambda *_a, **_k: process,
         )
 
         # Should not raise, just return empty results
@@ -599,7 +600,7 @@ class TestLazyImportThreadSafety:
             if scanner.parser is None:
                 try:
                     # Simulate an error during initialization
-                    raise ImportError("Test import failure")
+                    raise ImportError("Test import failure")  # noqa: TRY301
                 except ImportError:
                     pass  # Expected - don't set parser
 
@@ -706,7 +707,6 @@ class TestProgressiveDiscoveryFallback:
 
         # Track method calls
         calls = {"python": 0, "subprocess": 0}
-        original_subprocess = scanner.find_3de_files_subprocess_optimized
 
         def tracking_subprocess(
             user_dir: Path, excluded_users: set[str] | None
@@ -720,7 +720,7 @@ class TestProgressiveDiscoveryFallback:
 
         monkeypatch.setattr(scanner, "find_3de_files_subprocess_optimized", tracking_subprocess)
 
-        result = scanner.find_3de_files_progressive(user_dir, excluded_users=None)
+        scanner.find_3de_files_progressive(user_dir, excluded_users=None)
 
         assert calls["subprocess"] == 1, "Should use subprocess for large workload"
 

@@ -219,6 +219,8 @@ _QT_FIXTURES = frozenset({"qtbot", "cleanup_qt_state", "qt_cleanup", "qapp"})
 
 # Logger for Qt detection messages
 import logging
+
+
 _conftest_logger = logging.getLogger(__name__)
 
 
@@ -549,11 +551,11 @@ def pytest_runtest_call(item: pytest.Item) -> None:
     This hook sets _current_test_item so that fixtures and patches can
     check for markers like @pytest.mark.real_timing at runtime.
     """
-    global _current_test_item
+    global _current_test_item  # noqa: PLW0603
     _current_test_item = item
 
 
 def pytest_runtest_teardown(item: pytest.Item, nextitem: pytest.Item | None) -> None:
     """Clear current test item tracking after test completion."""
-    global _current_test_item
+    global _current_test_item  # noqa: PLW0603
     _current_test_item = None

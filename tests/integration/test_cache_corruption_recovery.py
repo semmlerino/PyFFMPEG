@@ -1,0 +1,662 @@
+"""Integration tests for cache corruption recovery.
+
+This module tests:
+1. Malformed JSON recovery - corrupted files, truncated writes
+2. Invalid data structure recovery - missing fields, wrong types
+3. Permission errors - read/write access issues
+4. Disk space errors - write failures
+5. Atomic write guarantees - crash safety
+
+These are integration tests because they test:
+- Real file I/O operations
+- Error recovery mechanisms
+- CacheManager state consistency after errors
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+import pytest
+
+from cache_manager import CacheManager
+
+
+if TYPE_CHECKING:
+    from type_definitions import ShotDict, ThreeDESceneDict
+
+
+# ==============================================================================
+# Test Data Factories
+# ==============================================================================
+
+
+def make_shot_dict(
+    show: str = "testshow",
+    sequence: str = "sq010",
+    shot: str = "0010",
+) -> ShotDict:
+    """Create a valid ShotDict for testing."""
+    return {
+        "show": show,
+        "sequence": sequence,
+        "shot": shot,
+        "workspace_path": f"/shows/{show}/shots/{sequence}/{sequence}_{shot}",
+        "discovered_at": 0.0,
+    }
+
+
+def make_scene_dict(
+    show: str = "testshow",
+    sequence: str = "sq010",
+    shot: str = "0010",
+) -> ThreeDESceneDict:
+    """Create a valid ThreeDESceneDict for testing."""
+    return {
+        "filepath": f"/shows/{show}/shots/{sequence}/{sequence}_{shot}/scene.3de",
+        "show": show,
+        "sequence": sequence,
+        "shot": shot,
+        "user": "artist",
+        "filename": "scene.3de",
+        "modified_time": 1700000000.0,
+        "workspace_path": f"/shows/{show}/shots/{sequence}/{sequence}_{shot}",
+    }
+
+
+# ==============================================================================
+# Malformed JSON Recovery Tests
+# ==============================================================================
+
+
+@pytest.mark.integration
+class TestMalformedJsonRecovery:
+    """Tests for recovery from corrupted/malformed JSON cache files."""
+
+    @pytest.fixture
+    def cache_manager(self, tmp_path: Path) -> CacheManager:
+        """Create CacheManager with isolated cache directory."""
+        cache = CacheManager()
+        cache._cache_dir = tmp_path / "cache"
+        cache._cache_dir.mkdir(parents=True, exist_ok=True)
+        cache._shots_cache_file = cache._cache_dir / "shots.json"
+        cache._previous_shots_cache_file = cache._cache_dir / "previous_shots.json"
+        cache._threede_cache_file = cache._cache_dir / "threede_scenes.json"
+        return cache
+
+    def test_recover_from_empty_file(self, cache_manager: CacheManager) -> None:
+        """Empty cache file returns None (cache miss), app continues."""
+        cache_file = cache_manager._shots_cache_file
+        cache_file.write_text("")
+
+        result = cache_manager._read_json_cache(cache_file, check_ttl=False)
+
+        assert result is None
+
+    def test_recover_from_truncated_json(self, cache_manager: CacheManager) -> None:
+        """Truncated JSON (mid-write crash) returns None gracefully."""
+        cache_file = cache_manager._shots_cache_file
+        # Truncated JSON - missing closing brackets
+        cache_file.write_text('{"data": [{"show": "test", "sequence": "sq01"')
+
+        result = cache_manager._read_json_cache(cache_file, check_ttl=False)
+
+        assert result is None
+
+    def test_recover_from_invalid_json_syntax(
+        self, cache_manager: CacheManager
+    ) -> None:
+        """Invalid JSON syntax returns None gracefully."""
+        cache_file = cache_manager._shots_cache_file
+        # Invalid JSON - trailing comma
+        cache_file.write_text('[{"show": "test",}]')
+
+        result = cache_manager._read_json_cache(cache_file, check_ttl=False)
+
+        assert result is None
+
+    def test_recover_from_binary_garbage(self, cache_manager: CacheManager) -> None:
+        """Binary garbage in cache file returns None gracefully."""
+        cache_file = cache_manager._shots_cache_file
+        cache_file.write_bytes(b"\x00\x01\x02\xff\xfe\xfd")
+
+        result = cache_manager._read_json_cache(cache_file, check_ttl=False)
+
+        assert result is None
+
+    def test_recover_from_wrong_encoding(self, cache_manager: CacheManager) -> None:
+        """Non-UTF8 encoded file returns None gracefully."""
+        cache_file = cache_manager._shots_cache_file
+        # Write with Latin-1 encoding (non-UTF8)
+        with cache_file.open("w", encoding="latin-1") as f:
+            f.write('[{"show": "tëst"}]')
+
+        # Read should either succeed or fail gracefully
+        result = cache_manager._read_json_cache(cache_file, check_ttl=False)
+
+        # Result is either the data (if Python's UTF-8 is lenient) or None
+        assert result is None or isinstance(result, list)
+
+
+# ==============================================================================
+# Invalid Data Structure Recovery Tests
+# ==============================================================================
+
+
+@pytest.mark.integration
+class TestInvalidDataStructureRecovery:
+    """Tests for recovery from structurally invalid cache data."""
+
+    @pytest.fixture
+    def cache_manager(self, tmp_path: Path) -> CacheManager:
+        """Create CacheManager with isolated cache directory."""
+        cache = CacheManager()
+        cache._cache_dir = tmp_path / "cache"
+        cache._cache_dir.mkdir(parents=True, exist_ok=True)
+        cache._shots_cache_file = cache._cache_dir / "shots.json"
+        return cache
+
+    def test_recover_from_null_json(self, cache_manager: CacheManager) -> None:
+        """JSON null value returns None (treated as empty)."""
+        cache_file = cache_manager._shots_cache_file
+        cache_file.write_text("null")
+
+        result = cache_manager._read_json_cache(cache_file, check_ttl=False)
+
+        # null is not a list or dict, should return None
+        assert result is None
+
+    def test_recover_from_string_json(self, cache_manager: CacheManager) -> None:
+        """JSON string returns None (expected list/dict)."""
+        cache_file = cache_manager._shots_cache_file
+        cache_file.write_text('"just a string"')
+
+        result = cache_manager._read_json_cache(cache_file, check_ttl=False)
+
+        assert result is None
+
+    def test_recover_from_number_json(self, cache_manager: CacheManager) -> None:
+        """JSON number returns None (expected list/dict)."""
+        cache_file = cache_manager._shots_cache_file
+        cache_file.write_text("42")
+
+        result = cache_manager._read_json_cache(cache_file, check_ttl=False)
+
+        assert result is None
+
+    def test_recover_from_list_of_non_dicts(
+        self, cache_manager: CacheManager
+    ) -> None:
+        """List containing non-dicts returns None."""
+        cache_file = cache_manager._shots_cache_file
+        cache_file.write_text('["string1", "string2"]')
+
+        result = cache_manager._read_json_cache(cache_file, check_ttl=False)
+
+        assert result is None
+
+    def test_recover_from_mixed_list(self, cache_manager: CacheManager) -> None:
+        """List with mixed types returns None."""
+        cache_file = cache_manager._shots_cache_file
+        # First item is dict, second is string
+        cache_file.write_text('[{"show": "test"}, "not a dict"]')
+
+        result = cache_manager._read_json_cache(cache_file, check_ttl=False)
+
+        assert result is None
+
+    def test_accept_valid_list_format(self, cache_manager: CacheManager) -> None:
+        """Valid list of dicts is accepted."""
+        cache_file = cache_manager._shots_cache_file
+        shots = [make_shot_dict(shot="0010"), make_shot_dict(shot="0020")]
+        cache_file.write_text(json.dumps(shots))
+
+        result = cache_manager._read_json_cache(cache_file, check_ttl=False)
+
+        assert result is not None
+        assert len(result) == 2
+
+    def test_accept_valid_wrapped_format(self, cache_manager: CacheManager) -> None:
+        """Valid wrapped format {"data": [...]} is accepted."""
+        cache_file = cache_manager._shots_cache_file
+        shots = [make_shot_dict(shot="0010")]
+        wrapped = {"data": shots, "cached_at": "2024-01-01T00:00:00"}
+        cache_file.write_text(json.dumps(wrapped))
+
+        result = cache_manager._read_json_cache(cache_file, check_ttl=False)
+
+        assert result is not None
+        assert len(result) == 1
+
+    def test_accept_empty_list(self, cache_manager: CacheManager) -> None:
+        """Empty list [] is valid (no shots)."""
+        cache_file = cache_manager._shots_cache_file
+        cache_file.write_text("[]")
+
+        result = cache_manager._read_json_cache(cache_file, check_ttl=False)
+
+        assert result is not None
+        assert len(result) == 0
+
+    def test_accept_wrapped_empty_data(self, cache_manager: CacheManager) -> None:
+        """Wrapped format with empty data is valid."""
+        cache_file = cache_manager._shots_cache_file
+        cache_file.write_text('{"data": [], "cached_at": "2024-01-01"}')
+
+        result = cache_manager._read_json_cache(cache_file, check_ttl=False)
+
+        assert result is not None
+        assert len(result) == 0
+
+
+# ==============================================================================
+# Permission Error Recovery Tests
+# ==============================================================================
+
+
+@pytest.mark.integration
+class TestPermissionErrorRecovery:
+    """Tests for recovery from permission errors."""
+
+    @pytest.fixture
+    def cache_manager(self, tmp_path: Path) -> CacheManager:
+        """Create CacheManager with isolated cache directory."""
+        cache = CacheManager()
+        cache._cache_dir = tmp_path / "cache"
+        cache._cache_dir.mkdir(parents=True, exist_ok=True)
+        cache._shots_cache_file = cache._cache_dir / "shots.json"
+        return cache
+
+    def test_recover_from_unreadable_file(
+        self, cache_manager: CacheManager, tmp_path: Path
+    ) -> None:
+        """Unreadable cache file returns None gracefully."""
+        cache_file = cache_manager._shots_cache_file
+        cache_file.write_text('[{"show": "test"}]')
+
+        # Make file unreadable (Unix only)
+        try:
+            cache_file.chmod(0o000)
+
+            result = cache_manager._read_json_cache(cache_file, check_ttl=False)
+
+            # Should return None due to permission error
+            assert result is None
+
+        finally:
+            # Restore permissions for cleanup
+            cache_file.chmod(0o644)
+
+    def test_recover_from_unwritable_directory(
+        self, cache_manager: CacheManager, tmp_path: Path
+    ) -> None:
+        """Unwritable cache directory causes write to fail gracefully."""
+        cache_file = cache_manager._shots_cache_file
+        shots = [make_shot_dict()]
+
+        # Make directory unwritable (Unix only)
+        try:
+            cache_manager._cache_dir.chmod(0o555)
+
+            success = cache_manager._write_json_cache(cache_file, shots)
+
+            # Should return False due to permission error
+            assert success is False
+
+        finally:
+            # Restore permissions for cleanup
+            cache_manager._cache_dir.chmod(0o755)
+
+    def test_nonexistent_file_returns_none(
+        self, cache_manager: CacheManager
+    ) -> None:
+        """Nonexistent cache file returns None (not an error)."""
+        cache_file = cache_manager._cache_dir / "does_not_exist.json"
+
+        result = cache_manager._read_json_cache(cache_file, check_ttl=False)
+
+        assert result is None
+
+
+# ==============================================================================
+# Atomic Write Tests
+# ==============================================================================
+
+
+@pytest.mark.integration
+class TestAtomicWriteGuarantees:
+    """Tests for atomic write behavior."""
+
+    @pytest.fixture
+    def cache_manager(self, tmp_path: Path) -> CacheManager:
+        """Create CacheManager with isolated cache directory."""
+        cache = CacheManager()
+        cache._cache_dir = tmp_path / "cache"
+        cache._cache_dir.mkdir(parents=True, exist_ok=True)
+        cache._shots_cache_file = cache._cache_dir / "shots.json"
+        return cache
+
+    def test_successful_write_creates_file(
+        self, cache_manager: CacheManager
+    ) -> None:
+        """Successful write creates cache file."""
+        cache_file = cache_manager._shots_cache_file
+        shots = [make_shot_dict(shot="0010")]
+
+        success = cache_manager._write_json_cache(cache_file, shots)
+
+        assert success is True
+        assert cache_file.exists()
+
+    def test_successful_write_is_readable(
+        self, cache_manager: CacheManager
+    ) -> None:
+        """Written cache file is valid and readable."""
+        cache_file = cache_manager._shots_cache_file
+        shots = [make_shot_dict(shot="0010")]
+
+        cache_manager._write_json_cache(cache_file, shots)
+        result = cache_manager._read_json_cache(cache_file, check_ttl=False)
+
+        assert result is not None
+        assert len(result) == 1
+        assert result[0]["shot"] == "0010"
+
+    def test_write_overwrites_existing(self, cache_manager: CacheManager) -> None:
+        """Write overwrites existing cache file."""
+        cache_file = cache_manager._shots_cache_file
+
+        # Write first version
+        shots_v1 = [make_shot_dict(shot="0010")]
+        cache_manager._write_json_cache(cache_file, shots_v1)
+
+        # Write second version
+        shots_v2 = [make_shot_dict(shot="0020"), make_shot_dict(shot="0030")]
+        cache_manager._write_json_cache(cache_file, shots_v2)
+
+        result = cache_manager._read_json_cache(cache_file, check_ttl=False)
+
+        assert result is not None
+        assert len(result) == 2  # Second write succeeded
+
+    def test_write_creates_parent_directories(
+        self, cache_manager: CacheManager
+    ) -> None:
+        """Write creates parent directories if they don't exist."""
+        cache_file = cache_manager._cache_dir / "subdir" / "nested" / "shots.json"
+        shots = [make_shot_dict()]
+
+        success = cache_manager._write_json_cache(cache_file, shots)
+
+        assert success is True
+        assert cache_file.exists()
+
+    def test_no_temp_files_left_on_success(
+        self, cache_manager: CacheManager
+    ) -> None:
+        """Successful write leaves no temp files."""
+        cache_file = cache_manager._shots_cache_file
+        shots = [make_shot_dict()]
+
+        cache_manager._write_json_cache(cache_file, shots)
+
+        # Check for temp files in cache directory
+        temp_files = list(cache_manager._cache_dir.glob(".*"))
+        # Should have no hidden temp files
+        assert len([f for f in temp_files if ".tmp" in f.name]) == 0
+
+
+# ==============================================================================
+# Write Failure Recovery Tests
+# ==============================================================================
+
+
+@pytest.mark.integration
+class TestWriteFailureRecovery:
+    """Tests for recovery from write failures."""
+
+    @pytest.fixture
+    def cache_manager(self, tmp_path: Path) -> CacheManager:
+        """Create CacheManager with isolated cache directory."""
+        cache = CacheManager()
+        cache._cache_dir = tmp_path / "cache"
+        cache._cache_dir.mkdir(parents=True, exist_ok=True)
+        cache._shots_cache_file = cache._cache_dir / "shots.json"
+        return cache
+
+    def test_invalid_data_type_fails_gracefully(
+        self, cache_manager: CacheManager
+    ) -> None:
+        """Non-serializable data causes write to fail gracefully."""
+        cache_file = cache_manager._shots_cache_file
+
+        # Create non-JSON-serializable data
+        class NotSerializable:
+            pass
+
+        invalid_data = [{"obj": NotSerializable()}]
+
+        success = cache_manager._write_json_cache(cache_file, invalid_data)
+
+        assert success is False
+
+    def test_write_failure_preserves_existing_cache(
+        self, cache_manager: CacheManager
+    ) -> None:
+        """Failed write preserves existing cache file."""
+        cache_file = cache_manager._shots_cache_file
+
+        # Write valid data first
+        shots_v1 = [make_shot_dict(shot="0010")]
+        cache_manager._write_json_cache(cache_file, shots_v1)
+
+        # Attempt to write invalid data
+        class NotSerializable:
+            pass
+
+        invalid_data = [{"obj": NotSerializable()}]
+        cache_manager._write_json_cache(cache_file, invalid_data)
+
+        # Original data should still be readable
+        result = cache_manager._read_json_cache(cache_file, check_ttl=False)
+        assert result is not None
+        assert len(result) == 1
+        assert result[0]["shot"] == "0010"
+
+
+# ==============================================================================
+# TTL Expiration Tests
+# ==============================================================================
+
+
+@pytest.mark.integration
+class TestTTLExpiration:
+    """Tests for cache TTL expiration behavior."""
+
+    @pytest.fixture
+    def cache_manager(self, tmp_path: Path) -> CacheManager:
+        """Create CacheManager with isolated cache directory."""
+        cache = CacheManager()
+        cache._cache_dir = tmp_path / "cache"
+        cache._cache_dir.mkdir(parents=True, exist_ok=True)
+        cache._shots_cache_file = cache._cache_dir / "shots.json"
+        return cache
+
+    def test_fresh_cache_is_valid(self, cache_manager: CacheManager) -> None:
+        """Just-written cache is valid (not expired)."""
+        cache_file = cache_manager._shots_cache_file
+        shots = [make_shot_dict()]
+        cache_manager._write_json_cache(cache_file, shots)
+
+        result = cache_manager._read_json_cache(cache_file, check_ttl=True)
+
+        assert result is not None
+
+    def test_ttl_check_can_be_disabled(self, cache_manager: CacheManager) -> None:
+        """TTL check can be disabled with check_ttl=False."""
+        cache_file = cache_manager._shots_cache_file
+        shots = [make_shot_dict()]
+        cache_manager._write_json_cache(cache_file, shots)
+
+        # Even if we could artificially age the file, check_ttl=False should skip
+        result = cache_manager._read_json_cache(cache_file, check_ttl=False)
+
+        assert result is not None
+
+
+# ==============================================================================
+# Public API Recovery Tests
+# ==============================================================================
+
+
+@pytest.mark.integration
+class TestPublicAPIRecovery:
+    """Tests that public API methods handle errors gracefully."""
+
+    @pytest.fixture
+    def cache_manager(self, tmp_path: Path) -> CacheManager:
+        """Create CacheManager with isolated cache directory."""
+        cache = CacheManager()
+        cache._cache_dir = tmp_path / "cache"
+        cache._cache_dir.mkdir(parents=True, exist_ok=True)
+        cache._shots_cache_file = cache._cache_dir / "shots.json"
+        cache._previous_shots_cache_file = cache._cache_dir / "previous_shots.json"
+        cache._threede_cache_file = cache._cache_dir / "threede_scenes.json"
+        return cache
+
+    def test_get_cached_shots_with_corrupted_file(
+        self, cache_manager: CacheManager
+    ) -> None:
+        """get_cached_shots returns None with corrupted cache file."""
+        cache_manager._shots_cache_file.write_text("invalid json {{{")
+
+        result = cache_manager.get_cached_shots()
+
+        # Should return None (graceful fallback)
+        assert result is None
+
+    def test_get_cached_previous_shots_with_corrupted_file(
+        self, cache_manager: CacheManager
+    ) -> None:
+        """get_cached_previous_shots returns None with corrupted cache file."""
+        cache_manager._previous_shots_cache_file.write_text("not valid json")
+
+        result = cache_manager.get_cached_previous_shots()
+
+        assert result is None
+
+    def test_cache_shots_success_after_corruption(
+        self, cache_manager: CacheManager
+    ) -> None:
+        """cache_shots can overwrite corrupted file."""
+        # Start with corrupted file
+        cache_manager._shots_cache_file.write_text("corrupted")
+
+        # Cache new valid data
+        shots = [make_shot_dict(shot="0010")]
+        cache_manager.cache_shots(shots)
+
+        # Should be readable now
+        result = cache_manager.get_cached_shots()
+        assert result is not None
+        assert len(result) == 1
+
+    def test_clear_cache_removes_files(self, cache_manager: CacheManager) -> None:
+        """clear_cache removes all cache files."""
+        # Create some cache files
+        cache_manager.cache_shots([make_shot_dict()])
+        cache_manager.cache_previous_shots([make_shot_dict()])
+
+        cache_manager.clear_cache()
+
+        # Files should not exist or be empty
+        assert (
+            not cache_manager._shots_cache_file.exists()
+            or cache_manager._shots_cache_file.stat().st_size == 0
+            or cache_manager.get_cached_shots() is None
+        )
+
+
+# ==============================================================================
+# Concurrent Error Recovery Tests
+# ==============================================================================
+
+
+@pytest.mark.integration
+class TestConcurrentErrorRecovery:
+    """Tests for error recovery under concurrent access."""
+
+    @pytest.fixture
+    def cache_manager(self, tmp_path: Path) -> CacheManager:
+        """Create CacheManager with isolated cache directory."""
+        cache = CacheManager()
+        cache._cache_dir = tmp_path / "cache"
+        cache._cache_dir.mkdir(parents=True, exist_ok=True)
+        cache._shots_cache_file = cache._cache_dir / "shots.json"
+        return cache
+
+    def test_concurrent_reads_of_valid_cache(
+        self, cache_manager: CacheManager
+    ) -> None:
+        """Multiple threads can read cache concurrently."""
+        import concurrent.futures
+        import threading
+
+        # Write valid cache
+        shots = [make_shot_dict(shot=f"{i:04d}") for i in range(100)]
+        cache_manager._write_json_cache(cache_manager._shots_cache_file, shots)
+
+        errors: list[Exception] = []
+        results: list[int] = []
+        lock = threading.Lock()
+
+        def read_cache() -> None:
+            try:
+                result = cache_manager._read_json_cache(
+                    cache_manager._shots_cache_file, check_ttl=False
+                )
+                with lock:
+                    results.append(len(result) if result else 0)
+            except Exception as e:
+                with lock:
+                    errors.append(e)
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+            futures = [executor.submit(read_cache) for _ in range(50)]
+            concurrent.futures.wait(futures)
+
+        assert len(errors) == 0, f"Errors: {errors}"
+        assert all(r == 100 for r in results)  # All reads returned 100 shots
+
+    def test_concurrent_writes_no_corruption(
+        self, cache_manager: CacheManager
+    ) -> None:
+        """Concurrent writes don't produce corrupted files."""
+        import concurrent.futures
+        import threading
+
+        errors: list[Exception] = []
+        lock = threading.Lock()
+
+        def write_cache(thread_id: int) -> None:
+            try:
+                shots = [make_shot_dict(shot=f"{thread_id:04d}")]
+                cache_manager._write_json_cache(cache_manager._shots_cache_file, shots)
+            except Exception as e:
+                with lock:
+                    errors.append(e)
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+            futures = [executor.submit(write_cache, i) for i in range(20)]
+            concurrent.futures.wait(futures)
+
+        assert len(errors) == 0, f"Errors: {errors}"
+
+        # Final file should be valid (one of the writes won)
+        result = cache_manager._read_json_cache(
+            cache_manager._shots_cache_file, check_ttl=False
+        )
+        assert result is not None
+        assert len(result) == 1  # One shot from one of the writers

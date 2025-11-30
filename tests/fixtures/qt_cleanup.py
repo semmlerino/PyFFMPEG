@@ -25,6 +25,7 @@ import pytest
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
+    from typing import Any
 
     from PySide6.QtWidgets import QApplication
 
@@ -82,13 +83,11 @@ def get_thread_leak_summary() -> str | None:
     if len(_thread_leak_summary) <= 5:
         lines.append("")
         lines.append("Affected tests:")
-        for leak in _thread_leak_summary:
-            lines.append(f"  - {leak['test']}")
+        lines.extend(f"  - {leak['test']}" for leak in _thread_leak_summary)
     else:
         lines.append("")
         lines.append(f"First 5 affected tests (of {len(_thread_leak_summary)}):")
-        for leak in _thread_leak_summary[:5]:
-            lines.append(f"  - {leak['test']}")
+        lines.extend(f"  - {leak['test']}" for leak in _thread_leak_summary[:5])
         lines.append("")
         lines.append("Run with SHOTBOT_TEST_FAIL_ON_THREAD_LEAK=1 to fail on leaks.")
 

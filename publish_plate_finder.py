@@ -44,9 +44,7 @@ def find_main_plate(workspace_path: str) -> str | None:
     resolution_dir = resolution_dirs[0]
 
     # Find first .exr file and extract pattern
-    plate_pattern = _extract_plate_pattern(resolution_dir)
-
-    return plate_pattern
+    return _extract_plate_pattern(resolution_dir)
 
 
 def _find_latest_version(base_path: Path) -> Path | None:

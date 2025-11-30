@@ -17,8 +17,8 @@ import threading
 import time
 from pathlib import Path
 
+
 # Local imports
-from tests.helpers.synchronization import wait_for_condition
 
 
 @pytest.mark.real_subprocess
