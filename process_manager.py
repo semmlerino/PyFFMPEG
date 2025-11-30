@@ -141,9 +141,17 @@ class ProcessManager(QObject):
                     old_data, maxlen=self._current_max_log_lines
                 )
 
-    def start_process(self, path: str, ffmpeg_args: List[str]) -> QProcess:
+    def start_process(
+        self, path: str, ffmpeg_args: List[str], codec_idx: int = -1
+    ) -> QProcess:
         """
         Start a new FFmpeg process for the given file
+
+        Args:
+            path: Path to the input file
+            ffmpeg_args: List of FFmpeg command arguments
+            codec_idx: The codec index used (0-6 for GPU/CPU encoders, -1 if unknown)
+
         Returns the created process object
         """
         # Create process
@@ -213,15 +221,14 @@ class ProcessManager(QObject):
         self.process_logs[process] = deque(maxlen=self._current_max_log_lines)
         self.process_outputs[process] = deque(maxlen=self._current_max_log_lines)
 
-        # Register with progress tracker
+        # Register with progress tracker (use 0.0 for unknown duration)
         duration = self.progress_tracker.probe_duration(path)
-        if duration:
-            process_id = self._get_process_id(process)
-            self.progress_tracker.register_process(process_id, path, duration)
+        process_id = self._get_process_id(process)
+        # Always register, even with unknown duration - this ensures progress reaches 100%
+        self.progress_tracker.register_process(process_id, path, duration or 0.0)
 
-        # Store codec information for this file
-        codec_idx = ffmpeg_args.index("-c:v") + 1 if "-c:v" in ffmpeg_args else -1
-        if codec_idx >= 0 and codec_idx < len(ffmpeg_args):
+        # Store codec information for this file (using passed codec_idx, not parsed from args)
+        if codec_idx >= 0:
             self.codec_map[path] = codec_idx
 
         return process
@@ -270,7 +277,8 @@ class ProcessManager(QObject):
                 path = next((p for proc, p in self.processes if proc == process), None)
                 if path:
                     # Mark this file as needing genpts flag for potential restart
-                    self.progress_tracker.mark_needs_genpts(str(id(process)))
+                    process_id = self._get_process_id(process)
+                    self.progress_tracker.mark_needs_genpts(process_id)
 
             # Store the output
             self.process_outputs[process].append(chunk)
@@ -336,6 +344,10 @@ class ProcessManager(QObject):
         ProcessManager._ffmpeg_available_cache = False
         return None
 
+    def is_ffmpeg_available(self) -> bool:
+        """Check if FFmpeg is available in PATH. Uses cached result."""
+        return self._get_ffmpeg_command() is not None
+
     def _handle_process_error(self, error, process: QProcess, path: str) -> None:
         """Enhanced error handling for process errors"""
         error_names = {
@@ -399,6 +411,17 @@ class ProcessManager(QObject):
                             )
                 except Exception as e:
                     self.logger.error(f"Failed to test FFmpeg command: {e}")
+
+        # CRITICAL: For FailedToStart, the finished signal never fires, so we must
+        # manually mark the process as failed and emit finished to continue the queue
+        if error == QProcess.ProcessError.FailedToStart:
+            # Check if process is still in our tracking list (not already cleaned up)
+            if any(p is process for p, _ in self.processes):
+                self.logger.warning(
+                    f"Process failed to start for {os.path.basename(path)}, marking as failed"
+                )
+                # Mark as failed and emit finished signal to continue queue
+                self.mark_process_finished(process, path, -1)
 
     def get_overall_progress(self) -> Dict[str, Any]:
         """Get overall progress information"""

@@ -22,6 +22,7 @@ class ProcessProgressTracker:
         self.processes: Dict[str, Dict[str, Any]] = {}
         self.batch_start_time: Optional[float] = None
         self.completed_count = 0
+        self.failed_count = 0  # Track failures separately for UI breakdown
         self.total_count = 0
         self._lock = threading.RLock()  # Reentrant lock for thread safety
 
@@ -50,6 +51,7 @@ class ProcessProgressTracker:
         """Start tracking a batch of processes"""
         self.batch_start_time = time.time()
         self.completed_count = 0
+        self.failed_count = 0
         self.total_count = total_files
 
     def register_process(self, process_id: str, path: str, duration: float):
@@ -71,7 +73,19 @@ class ProcessProgressTracker:
             return self.processes[process_id]
 
     def mark_needs_genpts(self, process_id: str) -> None:
-        """Mark a process as needing the genpts ffmpeg flag"""
+        """Mark a process as needing the genpts ffmpeg flag.
+
+        Args:
+            process_id: Must be in format 'process_N' from ProcessManager._get_process_id()
+
+        Raises:
+            ValueError: If process_id format is invalid
+        """
+        if not process_id.startswith("process_"):
+            raise ValueError(
+                f"Invalid process_id format: '{process_id}'. "
+                f"Expected 'process_N'. Use ProcessManager._get_process_id()."
+            )
         self.needs_genpts[process_id] = True
 
     def needs_genpts_flag(self, process_id: str) -> bool:
@@ -85,13 +99,20 @@ class ProcessProgressTracker:
                 self.processes[process_id]["current_pct"] = 100
 
     def complete_process(self, process_id: str, success: bool = True):
-        """Mark a process as completed"""
+        """Mark a process as completed (successfully or with failure)"""
         with self._lock:
             if process_id in self.processes:
                 if success:
                     # Force progress to 100% for successful completion
                     self.processes[process_id]["current_pct"] = 100
-                    self.completed_count += 1
+                else:
+                    # Track failures separately for UI breakdown
+                    self.failed_count += 1
+
+                # ALWAYS count toward completion (including failures)
+                # This ensures progress bar reaches 100% even with failures
+                self.completed_count += 1
+
                 del self.processes[process_id]
 
                 # Clean up genpts tracking
@@ -275,6 +296,8 @@ class ProcessProgressTracker:
                 "eta_str": self._format_time(smoothed_eta),
                 "active_count": active_count,
                 "completed_count": self.completed_count,
+                "failed_count": self.failed_count,
+                "success_count": self.completed_count - self.failed_count,
                 "total_count": self.total_count,
             }
 
@@ -285,15 +308,20 @@ class ProcessProgressTracker:
             return result
 
     def get_codec_distribution(self, codec_map: Dict[str, int]) -> Dict[str, int]:
-        """Calculate distribution of active encoders by type (GPU/CPU)"""
+        """Calculate distribution of active encoders by type (GPU/CPU)
+
+        GPU codec indices: 0=H.264 NVENC, 1=HEVC NVENC, 2=AV1 NVENC, 5=H.264 QSV, 6=H.264 VAAPI
+        CPU codec indices: 3=H.264 CPU, 4=HEVC CPU, 7=ProRes, etc.
+        """
+        # GPU encoders: NVENC (0, 1, 2), QSV (5), VAAPI (6)
+        GPU_CODEC_INDICES = (0, 1, 2, 5, 6)
         codec_counts = {"GPU": 0, "CPU": 0}
 
         for _process_id, data in self.processes.items():
             path = data["path"]
             if path in codec_map:
                 codec_idx = codec_map[path]
-                # Assuming codec indices 0-2 are GPU encoders, the rest are CPU
-                codec_type = "GPU" if codec_idx in [0, 1, 2] else "CPU"
+                codec_type = "GPU" if codec_idx in GPU_CODEC_INDICES else "CPU"
                 codec_counts[codec_type] += 1
 
         return codec_counts

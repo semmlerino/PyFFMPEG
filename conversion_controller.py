@@ -50,6 +50,10 @@ class ConversionController(QObject):
         self.delete_source: bool = False
         self.overwrite_mode: bool = False
         self.preset_idx: int = 0
+        self.hevc_10bit: bool = False
+        self.threads: int = 0  # 0 = auto
+        self.priority_idx: int = 1  # 0=high, 1=normal, 2=low
+        self.smart_buffer: bool = True
 
         # Connect process manager signals
         self.process_manager.process_finished.connect(self._on_process_finished)
@@ -74,6 +78,10 @@ class ConversionController(QObject):
         delete_source: bool,
         overwrite_mode: bool,
         preset_idx: int = 0,
+        hevc_10bit: bool = False,
+        threads: int = 0,
+        priority_idx: int = 1,
+        smart_buffer: bool = True,
     ) -> bool:
         """Start the conversion process with given parameters"""
         if self.is_converting:
@@ -104,6 +112,10 @@ class ConversionController(QObject):
         self.delete_source = delete_source
         self.overwrite_mode = overwrite_mode
         self.preset_idx = preset_idx
+        self.hevc_10bit = hevc_10bit
+        self.threads = threads
+        self.priority_idx = priority_idx
+        self.smart_buffer = smart_buffer
 
         self.log_message.emit(f"🚀 Starting conversion of {len(file_paths)} files...")
         self.conversion_started.emit()
@@ -134,24 +146,35 @@ class ConversionController(QObject):
             return
 
         # For parallel processing, process multiple files up to the limit
-        while self.queue and getattr(self, "parallel_enabled", False):
+        while self.queue and self.parallel_enabled:
             # Check if we can start more processes
             active_count = len(self.process_manager.processes)
-            if active_count >= getattr(self, "max_parallel", 1):
+            if active_count >= self.max_parallel:
                 break  # Wait for a process to finish
 
             # Process one file
             self._process_single_file()
 
         # For non-parallel processing, process just one file
-        if not getattr(self, "parallel_enabled", False) and self.queue:
+        if not self.parallel_enabled and self.queue:
             active_count = len(self.process_manager.processes)
-            if active_count < getattr(self, "max_parallel", 1):
+            if active_count < self.max_parallel:
                 self._process_single_file()
 
     def _process_single_file(self) -> None:
         """Process a single file from the queue"""
         if not self.queue:
+            return
+
+        # Pre-flight check: Verify FFmpeg is available BEFORE popping from queue
+        if not self.process_manager.is_ffmpeg_available():
+            self.log_message.emit("❌ FFmpeg not found in PATH - cannot process files")
+            # Mark all remaining files as failed
+            for remaining_path in self.queue:
+                if self.file_list_widget:
+                    self.file_list_widget.set_status(remaining_path, "failed")
+            self.queue.clear()
+            self._finish_conversion()
             return
 
         # Get next file
@@ -170,8 +193,14 @@ class ConversionController(QObject):
         if self.file_list_widget:
             self.file_list_widget.set_status(file_path, "processing")
 
-        # Start the process
-        process = self.process_manager.start_process(file_path, ffmpeg_args)
+        # Start the process (pass codec_idx for proper GPU/CPU tracking)
+        process = self.process_manager.start_process(file_path, ffmpeg_args, codec_idx)
+
+        # Apply process priority if process started successfully
+        if process.state() != QProcess.ProcessState.NotRunning:
+            priority_names = {0: "high", 1: "normal", 2: "low"}
+            priority = priority_names.get(self.priority_idx, "normal")
+            self.process_manager.set_process_priority(process, priority)
 
         # Create process widget if monitor is available
         if self.process_monitor and process.state() != QProcess.ProcessState.NotRunning:
@@ -179,7 +208,8 @@ class ConversionController(QObject):
 
     def _build_ffmpeg_args(self, input_path: str, codec_idx: int) -> List[str]:
         """Build FFmpeg command arguments for the given file and codec"""
-        args = ["-y"]  # Overwrite output files
+        # Add overwrite flag based on setting (-y to overwrite, -n to skip existing)
+        args = ["-y"] if self.overwrite_mode else ["-n"]
 
         # Add hardware acceleration if enabled
         hw_args, hw_message = CodecHelpers.get_hardware_acceleration_args(
@@ -201,10 +231,14 @@ class ConversionController(QObject):
             self.log_message.emit(f"🎵 {audio_message}")
 
         # Get video encoder configuration
-        thread_count = self._optimize_threads_for_codec(codec_idx)
+        # Use user-specified threads if non-zero, otherwise auto-calculate
+        thread_count = (
+            self.threads if self.threads > 0 else self._optimize_threads_for_codec(codec_idx)
+        )
         encoder_args, encoder_message = CodecHelpers.get_encoder_configuration(
             codec_idx, thread_count, self.parallel_enabled, self.crf_value,
-            preset_idx=self.preset_idx
+            hevc_10bit=self.hevc_10bit,
+            preset_idx=self.preset_idx,
         )
         args.extend(encoder_args)
         if encoder_message:

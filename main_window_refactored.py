@@ -395,6 +395,10 @@ class MainWindow(QMainWindow):
         if self.process_monitor:
             self.process_monitor.progress_updated.connect(self._update_overall_progress)
 
+        # Sync auto_balance state at startup (signals blocked during settings restore)
+        settings = self.settings_panel.get_current_settings()
+        self.conversion_controller.enable_auto_balance(settings.get("auto_balance", False))
+
     def add_files(self):
         """Add files to the conversion list"""
         if self.file_list is None:
@@ -495,12 +499,19 @@ class MainWindow(QMainWindow):
             parallel_enabled=settings["parallel_enabled"],
             max_parallel=settings["max_parallel"],
             delete_source=settings["delete_source"],
-            overwrite_mode=True,  # Always overwrite for now
+            overwrite_mode=settings.get("overwrite_mode", True),
             preset_idx=settings.get("preset_idx", 0),
+            hevc_10bit=settings.get("hevc_10bit", False),
+            threads=settings.get("threads", 0),
+            priority_idx=settings.get("priority_idx", 1),
+            smart_buffer=settings.get("smart_buffer", True),
         )
 
         if success:
             self.is_converting = True
+            # Enable smart buffer mode if setting is enabled
+            smart_buffer = settings.get("smart_buffer", True)
+            self.ui_update_manager.set_smart_buffer(smart_buffer)
 
     def _stop_conversion(self):
         """Stop the conversion process"""
@@ -540,6 +551,9 @@ class MainWindow(QMainWindow):
         self.stop_btn.setEnabled(False)
         self.overall_progress_bar.setVisible(False)
         self.status_bar.showMessage("Conversion completed")
+
+        # Disable smart buffer mode when conversion ends
+        self.ui_update_manager.set_smart_buffer(False)
 
         # Refresh drag-and-drop functionality after conversion completion
         if self.file_list:
@@ -611,9 +625,15 @@ class MainWindow(QMainWindow):
             if progress_data.get("eta_str"):
                 active_count = progress_data.get("active_count", 0)
                 completed_count = progress_data.get("completed_count", 0)
+                failed_count = progress_data.get("failed_count", 0)
                 total_count = progress_data.get("total_count", 0)
 
-                status_msg = f"Converting: {completed_count}/{total_count} completed, {active_count} active"
+                # Show completion with failure breakdown if any failed
+                status_msg = f"Converting: {completed_count}/{total_count} completed"
+                if failed_count > 0:
+                    status_msg += f" ({failed_count} failed)"
+                status_msg += f", {active_count} active"
+
                 if progress_data["eta_str"] != "00:00:00":
                     status_msg += f" • ETA: {progress_data['eta_str']}"
 
@@ -747,7 +767,14 @@ class MainWindow(QMainWindow):
         event.accept()
 
 
-if __name__ == "__main__":
+def main() -> int:
+    """CLI entry point for PyFFMPEG application.
+
+    This function is called by the 'pympeg' console script defined in pyproject.toml.
+
+    Returns:
+        Exit code (0 for success, non-zero for errors)
+    """
     from PySide6.QtWidgets import QApplication
 
     app = QApplication(sys.argv)
@@ -757,4 +784,8 @@ if __name__ == "__main__":
     window = MainWindow()
     window.show()
 
-    sys.exit(app.exec())
+    return app.exec()
+
+
+if __name__ == "__main__":
+    sys.exit(main())

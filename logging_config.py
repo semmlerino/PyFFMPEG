@@ -140,31 +140,43 @@ class PyFFMPEGLogger(QObject):
         console_handler.setFormatter(user_formatter)
         self.logger.addHandler(console_handler)
 
-        # File handler for detailed logging
-        log_dir = Path(os.getcwd()) / "logs"
-        log_dir.mkdir(exist_ok=True)
+        # File handler for detailed logging (with fallback for read-only directories)
+        log_dir: Optional[Path] = Path(os.getcwd()) / "logs"
+        try:
+            log_dir.mkdir(exist_ok=True)
+        except (PermissionError, OSError):
+            # Fallback to user home directory
+            log_dir = Path.home() / ".pyffmpeg" / "logs"
+            try:
+                log_dir.mkdir(parents=True, exist_ok=True)
+            except (PermissionError, OSError):
+                log_dir = None  # Disable file logging entirely
 
-        file_handler = logging.handlers.RotatingFileHandler(
-            log_dir / f"{self.name.lower()}.log",
-            maxBytes=LogConfig.MAIN_LOG_MAX_SIZE * 1024,  # Convert to bytes
-            backupCount=5,
-            encoding="utf-8",
-        )
-        file_handler.setLevel(logging.DEBUG)
-        file_handler.setFormatter(detailed_formatter)
-        self.logger.addHandler(file_handler)
+        if log_dir:
+            try:
+                file_handler = logging.handlers.RotatingFileHandler(
+                    log_dir / f"{self.name.lower()}.log",
+                    maxBytes=LogConfig.MAIN_LOG_MAX_SIZE * 1024,  # Convert to bytes
+                    backupCount=5,
+                    encoding="utf-8",
+                )
+                file_handler.setLevel(logging.DEBUG)
+                file_handler.setFormatter(detailed_formatter)
+                self.logger.addHandler(file_handler)
 
-        # Performance log handler
-        perf_handler = logging.handlers.RotatingFileHandler(
-            log_dir / f"{self.name.lower()}_performance.log",
-            maxBytes=LogConfig.PROCESS_LOG_MAX_SIZE * 1024,
-            backupCount=3,
-            encoding="utf-8",
-        )
-        perf_handler.setLevel(logging.INFO)
-        perf_handler.setFormatter(detailed_formatter)
-        perf_handler.addFilter(lambda record: hasattr(record, "performance"))
-        self.logger.addHandler(perf_handler)
+                # Performance log handler
+                perf_handler = logging.handlers.RotatingFileHandler(
+                    log_dir / f"{self.name.lower()}_performance.log",
+                    maxBytes=LogConfig.PROCESS_LOG_MAX_SIZE * 1024,
+                    backupCount=3,
+                    encoding="utf-8",
+                )
+                perf_handler.setLevel(logging.INFO)
+                perf_handler.setFormatter(detailed_formatter)
+                perf_handler.addFilter(lambda record: hasattr(record, "performance"))
+                self.logger.addHandler(perf_handler)
+            except (PermissionError, OSError):
+                pass  # File logging disabled if handler creation fails
 
     def debug(self, message: str, **kwargs) -> None:
         """Log debug message"""
