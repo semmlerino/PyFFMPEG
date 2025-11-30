@@ -3,7 +3,7 @@
 Tests for SettingsController which manages settings-related functionality
 extracted from MainWindow.
 
-Following UNIFIED_TESTING_V2.MD best practices:
+Following UNIFIED_TESTING_V2.md best practices:
 - Test behavior using protocol-based test doubles
 - Cover load/save, apply settings, and reset layout
 - Mock Qt dialogs for import/export tests

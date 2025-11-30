@@ -1,6 +1,20 @@
-# ShotBot - VFX Shot Launcher
+# ShotBot - Matchmove Shot Launcher
 
-A PySide6 GUI application for browsing VFX shots and launching applications in shot context.
+A PySide6 GUI application for a **Matchmove artist at BlueBolt**, providing shot browsing and DCC launching tailored to the matchmove pipeline.
+
+## Matchmove Workflow
+
+Shotbot supports the standard matchmove pipeline:
+
+```
+3DEqualizer → Maya → Nuke → Publish
+   (track)    (finalize)  (review)  (deliver)
+```
+
+1. **3DEqualizer**: Camera tracking, point clouds, lens distortion
+2. **Maya**: Import tracked camera, scene finalization, playblasts
+3. **Nuke**: Review playblasts, comp checks, final tweaks
+4. **Publish**: Export deliverables from Nuke
 
 ## Features
 
@@ -90,7 +104,10 @@ If no thumbnail is found, a placeholder is displayed.
 
 ### Other 3DE Scenes Tab
 
-The "Other 3DE scenes" tab shows 3DE scene files created by other users (excluding gabriel-h):
+The "Other 3DE scenes" tab shows 3DE scene files created by other matchmove artists. This is useful for:
+- Seeing what shots colleagues are working on
+- Picking up work from another artist
+- Checking reference tracks for similar shots
 
 - **Scene Discovery**: Automatically scans for .3de files in user directories:
   ```
@@ -132,7 +149,6 @@ The "Other 3DE scenes" tab shows 3DE scene files created by other users (excludi
   - `process_executor.py` - Executes processes in terminal emulators
   - `process_verifier.py` - Verifies process execution success
 - `undistortion_finder.py` - Finds undistortion .nk files for Nuke
-- `raw_plate_finder.py` - Finds raw plate sequences for Nuke
 
 ### Utilities
 - `log_viewer.py` - Command history display
@@ -184,7 +200,7 @@ python -m basedpyright
 > `coverage_html/` after any `pytest` invocation using the default config.
 
 For deeper guidance (Qt hygiene, fixture behavior, debugging tips) see
-[UNIFIED_TESTING_V2.MD](./UNIFIED_TESTING_V2.MD) and [TESTING_FIXTURES.md](./TESTING_FIXTURES.md).
+[UNIFIED_TESTING_V2.md](./UNIFIED_TESTING_V2.md) and [docs/TEST_FIXTURES_GUIDE.md](./docs/TEST_FIXTURES_GUIDE.md).
 
 ## Customization
 

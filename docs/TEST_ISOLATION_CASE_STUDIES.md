@@ -1,6 +1,6 @@
 # Test Isolation Case Studies
 
-Deep-dive debugging patterns and case studies for Qt test isolation issues. For quick reference, see [UNIFIED_TESTING_V2.MD](../UNIFIED_TESTING_V2.MD).
+Deep-dive debugging patterns and case studies for Qt test isolation issues. For quick reference, see [UNIFIED_TESTING_V2.md](../UNIFIED_TESTING_V2.md).
 
 ---
 

@@ -2,7 +2,7 @@
 
 ## Overview
 
-The ShotBot test suite contains 2,500+ tests spanning unit, integration, and performance coverage. As of November 2025 the suite can run end-to-end with `pytest tests/ -n auto --dist=loadgroup` thanks to the eager Qt bootstrap (`_GLOBAL_QAPP`), sandboxed config directories, and the automatic xdist grouping in `tests/conftest.py`. Running tests by category is still useful for focus and speed, but the historical “Fatal Python error: Aborted” crash is resolved for both serial and grouped-parallel runs.
+The ShotBot test suite contains 2,600+ tests spanning unit, integration, and performance coverage. As of November 2025 the suite can run end-to-end with `pytest tests/ -n auto --dist=loadgroup` thanks to the eager Qt bootstrap (`_GLOBAL_QAPP`), sandboxed config directories, and the automatic xdist grouping in `tests/conftest.py`. Running tests by category is still useful for focus and speed, but the historical “Fatal Python error: Aborted” crash is resolved for both serial and grouped-parallel runs.
 
 ## Quick Start
 
@@ -274,4 +274,4 @@ def test_concurrent_access(cache_manager):
 
 - **Qt Test Hygiene**: See `QT_TEST_HYGIENE_AUDIT.md` for details on proper Qt cleanup patterns
 - **Thread Cleanup**: See `tests/helpers/qt_thread_cleanup.py` for reusable cleanup helper
-- **General Testing Guide**: See `UNIFIED_TESTING_V2.MD` for comprehensive testing guidance
+- **General Testing Guide**: See `UNIFIED_TESTING_V2.md` for comprehensive testing guidance

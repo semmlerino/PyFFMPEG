@@ -117,7 +117,7 @@ Proposed: Click filter "Has 3DE", see list instantly
 
 **Implementation Complexity**: Medium
 - Reuse incremental merge pattern from 3DE scenes
-- Add `RawPlateFinder.get_plate_summary()` method
+
 - Add filter UI to Shot grid header
 
 **User Benefit**: Quick filtering/searching for shots by plate availability.

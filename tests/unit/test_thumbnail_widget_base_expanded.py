@@ -468,7 +468,7 @@ class TestThumbnailWidgetBaseLoadingOperations:
         This prevents cache manager pollution between tests.
         Critical for test isolation when tests use set_cache_manager().
 
-        Per UNIFIED_TESTING_V2.MD: Use monkeypatch for global state isolation.
+        Per UNIFIED_TESTING_V2.md: Use monkeypatch for global state isolation.
         """
         # Save the current cache manager before test
         ThumbnailWidget._cache_manager if hasattr(ThumbnailWidget, "_cache_manager") else None

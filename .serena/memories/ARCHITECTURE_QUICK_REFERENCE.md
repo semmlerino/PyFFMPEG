@@ -1,5 +1,11 @@
 # Shotbot Architecture - Quick Reference
 
+## Purpose
+GUI application for a **single Matchmove artist at BlueBolt** supporting the pipeline:
+```
+3DEqualizer (tracking) → Maya (finalize/playblast) → Nuke (review) → Nuke (publish)
+```
+
 ## Executive Summary
 - **47K LOC** across **1,050 files**
 - **5-layer architecture** with clear separation of concerns
@@ -18,7 +24,6 @@
 - **Responsibility**: UI coordination, signal routing
 
 ### 2. CONTROLLERS (Coordination)
-- **LauncherController** - App launch coordination
 - **SettingsController** - Preferences management
 - **ThreeDEController** - 3DE scene operations
 
@@ -35,8 +40,6 @@ Generic infrastructure:
 
 ### 4. SYSTEM INTEGRATION (I/O & Execution)
 - **ProcessPoolManager** (746 LOC) - Singleton subprocess pool, command caching
-- **LauncherProcessManager** - Process lifecycle management
-- **LauncherWorker** - QThread-based execution
 - **CacheManager** (1,151 LOC) - Multi-level caching with TTL
 - **RefreshOrchestrator** - Periodic refresh coordination
 
@@ -90,7 +93,6 @@ Generic infrastructure:
 ### 🟡 TIER 2: Data Pipeline Coordinators
 
 **ShotModel** (825 LOC) - Async loading coordination
-**LauncherProcessManager** - Process lifecycle + cleanup
 **BaseItemModel[T]** (838 LOC) - Generic Qt model + lazy loading
 
 ---
@@ -105,13 +107,12 @@ Generic infrastructure:
 ### ✅ Very Good (85-94%)
 - CacheManager (90%)
 - ProcessPoolManager (92%)
-- LauncherProcessManager (94%)
 - ShotModel (85%)
 - BaseItemModel[T] (88%)
 
 ### ⚠️ Good (75-84%)
 - MainWindow (75%) - Orchestrator, acceptable
-- LauncherManager (75%) - Mixed concerns
+
 - RefreshOrchestrator (70%) - Multiple models
 
 **Overall SRP Adherence: 92%** ✓
@@ -134,7 +135,6 @@ TIER 3: Coordination
 TIER 4: Core Services
   ProcessPoolManager → ThreadPool
   CacheManager → File I/O, PIL
-  LauncherProcessManager → LauncherWorker
 
 TIER 5: Generic Infrastructure
   BaseItemModel[T], BaseShotModel, BaseGridView

@@ -68,7 +68,7 @@ def cleanup_qthread_properly(
         4. Process events to flush deletion queue (CRITICAL)
         5. Process events again for cascading cleanups
 
-    See UNIFIED_TESTING_V2.MD section "Large Qt Test Suite Stability" for details.
+    See UNIFIED_TESTING_V2.md section "Large Qt Test Suite Stability" for details.
     """
     # Step 1: Disconnect all signal handlers FIRST
     # This prevents Qt from calling handlers on objects that are being deleted

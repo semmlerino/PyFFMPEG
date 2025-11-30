@@ -59,7 +59,7 @@ def model(qtbot, tmp_path):
 @pytest.fixture
 def test_shots(tmp_path, monkeypatch):
     """Create test Shot objects for previous/approved shots."""
-    # Isolate Config.SHOWS_ROOT to tmp_path per UNIFIED_TESTING_V2.MD section 2
+    # Isolate Config.SHOWS_ROOT to tmp_path per UNIFIED_TESTING_V2.md section 2
     monkeypatch.setattr("config.Config.SHOWS_ROOT", str(tmp_path))
 
     return [
@@ -288,7 +288,7 @@ class TestPreviousShotsSorting:
     @pytest.fixture
     def shots_with_times(self, tmp_path, monkeypatch) -> list[Shot]:
         """Create test shots with different discovered_at timestamps for sorting."""
-        # Isolate Config.SHOWS_ROOT per UNIFIED_TESTING_V2.MD section 2
+        # Isolate Config.SHOWS_ROOT per UNIFIED_TESTING_V2.md section 2
         monkeypatch.setattr("config.Config.SHOWS_ROOT", str(tmp_path))
 
         return [

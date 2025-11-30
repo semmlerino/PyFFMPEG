@@ -25,7 +25,7 @@ Shotbot has 3 central complexity hotspots that require careful attention during 
   # Core initialization flow
   1. Create cache_manager (singleton pattern)
   2. Create 3 models (ShotModel, ThreeDESceneModel, PreviousShotsModel)
-  3. Create 3 controllers (LauncherController, SettingsController, ThreeDEController)
+  3. Create 2 controllers (SettingsController, ThreeDEController)
   4. Create 3 item models + grid views
   5. Create panels and dialogs
   6. Setup menu bar and status bar
@@ -127,7 +127,6 @@ self.threede_scene_model = None  # line 289
 self.previous_shots_model = None  # line 291
 self.threede_item_model = None  # line 262
 self.command_launcher = CommandLauncher(...)  # line 309
-self.launcher_manager = LauncherManager(...)  # line 316
 
 # UI Components (15+)
 self.tab_widget = QTabWidget()  # line 411
@@ -159,7 +158,6 @@ MainWindow depends on:
 ├─ 3 Item Models (depends on Models)
 ├─ 3 Grid Views (depends on Item Models)
 ├─ 3 Controllers
-│  ├─ LauncherController (depends on LauncherProcessManager)
 │  ├─ SettingsController (depends on SettingsManager)
 │  └─ ThreeDEController (depends on ThreeDESceneModel)
 ├─ 8 Panels/Dialogs

@@ -442,7 +442,7 @@ class TestThumbnailWidgetEdgeCases:
     def cleanup_cache_manager(self, cache_manager) -> Iterator[None]:
         """Reset ThumbnailWidget cache manager after each test.
 
-        Per UNIFIED_TESTING_V2.MD: Use monkeypatch for global state isolation.
+        Per UNIFIED_TESTING_V2.md: Use monkeypatch for global state isolation.
         """
         yield
         # Restore to CLEAN cache manager (from fixture) to prevent pollution
@@ -556,7 +556,7 @@ class TestThumbnailWidgetIntegration:
     def cleanup_cache_manager(self, cache_manager) -> Iterator[None]:
         """Reset ThumbnailWidget cache manager after each test.
 
-        Per UNIFIED_TESTING_V2.MD: Use monkeypatch for global state isolation.
+        Per UNIFIED_TESTING_V2.md: Use monkeypatch for global state isolation.
         """
         yield
         # Restore to CLEAN cache manager (from fixture) to prevent pollution

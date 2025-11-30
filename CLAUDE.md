@@ -4,7 +4,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Shotbot is a PySide6-based GUI application for VFX production management. The application provides shot tracking, media management, and workflow automation for visual effects pipelines.
+Shotbot is a PySide6-based GUI application for **a single Matchmove artist at BlueBolt**. It provides shot browsing, DCC launching, and workflow automation tailored to the matchmove pipeline.
+
+### Matchmove Workflow Context
+
+The tool supports this specific pipeline:
+
+```
+3DEqualizer (tracking) → Maya (finalize/playblast) → Nuke (review) → Nuke (publish)
+```
+
+1. **3DEqualizer**: Camera tracking and point cloud generation
+2. **Maya**: Import tracked camera, finalize scene, create playblasts
+3. **Nuke**: Review playblasts, comp checks, final adjustments
+4. **Publish**: Export deliverables from Nuke
+
+**Design implications:**
+- 3DE is the primary entry point (most used launcher)
+- "Other 3DE scenes" tab lets the artist see what colleagues are working on
+- Maya/Nuke launchers include options to open latest scenes from the pipeline
+- RV is for quick plate review (no scene files, just playback)
 
 ## Security Posture
 
@@ -366,7 +385,7 @@ def cleanup_qt_state(qtbot: QtBot):
 
 ## Testing
 
-**📖 See [UNIFIED_TESTING_V2.MD](./UNIFIED_TESTING_V2.MD) for comprehensive testing guidance**, including:
+**📖 See [UNIFIED_TESTING_V2.md](./UNIFIED_TESTING_V2.md) for comprehensive testing guidance**, including:
 - Quick Start commands
 - 5 Basic Qt Testing Hygiene Rules (essential for reliable tests)
 - Test isolation and parallel execution patterns
@@ -404,7 +423,7 @@ process_qt_events()  # ✅ Execute deleteLater
 ```
 
 ### Current Test Status
-- **3,100+ tests passing** (`pytest tests/ -n auto --dist=loadgroup`)
+- **2,600+ tests passing** (`pytest tests/ -n auto --dist=loadgroup`)
 - Grouped-parallel runs match serial reliability thanks to the early QApplication
   bootstrap, qtbot wait patch, and xdist grouping
 - Comprehensive coverage across:

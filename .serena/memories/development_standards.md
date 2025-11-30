@@ -12,18 +12,12 @@
 
 #### Controllers (Model coordination)
 
-- **controllers/launcher_controller.py** - Application launching coordination
 - **controllers/settings_controller.py** - Settings management
 - **controllers/threede_controller.py** - 3DE-specific functionality
 
 #### Launcher System
 
-- **launcher/worker.py** - Command execution worker
-- **launcher/process_manager.py** - Process lifecycle management
-- **launcher/validator.py** - Command validation
-- **launcher/models.py** - Domain models
-- **launcher/repository.py** - Process state storage
-- **launcher/result_types.py** - Result type definitions
+- **command_launcher.py** - Production app launcher with shot context
 
 ### Model Layer (Three Distinct Data Sources)
 
@@ -73,7 +67,6 @@
 - **threede_scene_finder.py** - Find .3de files
 - **threede_latest_finder.py** - Find latest 3DE scenes
 - **previous_shots_finder.py** - Find user's previous shots
-- **raw_plate_finder.py** - Find raw plates for Nuke
 - **undistortion_finder.py** - Find undistortion data
 
 ### Nuke Integration

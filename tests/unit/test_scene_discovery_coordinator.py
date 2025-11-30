@@ -3,7 +3,7 @@
 Tests for SceneDiscoveryCoordinator which orchestrates scene discovery
 using the Template Method pattern.
 
-Following UNIFIED_TESTING_V2.MD best practices:
+Following UNIFIED_TESTING_V2.md best practices:
 - Test behavior using injected test doubles
 - Mock lazy imports to isolate tests
 - Test cache interactions, validation, and discovery workflow
