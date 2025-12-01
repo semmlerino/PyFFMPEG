@@ -36,13 +36,17 @@ pytestmark = [
 @pytest.fixture(scope="module", autouse=True)
 def setup_qt_imports() -> None:
     """Import Qt and MainWindow components after test setup."""
-    global MainWindow, CacheManager, Shot, ThreeDEScene  # noqa: PLW0603
+    global MainWindow, CacheManager, Shot, ThreeDEScene, SceneFile, FileType  # noqa: PLW0603
     # Local application imports
     from cache_manager import (
         CacheManager,
     )
     from main_window import (
         MainWindow,
+    )
+    from scene_file import (
+        FileType,
+        SceneFile,
     )
     from shot_model import (
         Shot,
@@ -705,3 +709,246 @@ class TestCrashRecovery:
                 call_args = mock_notif.error.call_args
                 assert call_args[0][0] == "Scan Error"
                 assert "Test error" in call_args[0][1]
+
+
+class TestRightPanelFileLaunch:
+    """Test file launch from right panel DCC section.
+
+    When a user selects a file in the DCC panel (e.g., Maya file from
+    'Other 3DE scenes' tab) and clicks Launch, the selected file should
+    be opened in the application.
+    """
+
+    def test_launch_with_selected_file_from_shot_context(
+        self, qtbot: QtBot, tmp_path: Path, monkeypatch
+    ) -> None:
+        """Test launching a selected file when shot is selected (My Shots tab)."""
+        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
+        main_window = MainWindow(cache_manager=cache_manager)
+        qtbot.addWidget(main_window)
+
+        # Select a shot (provides workspace context)
+        shows_root = Config.SHOWS_ROOT
+        shot = Shot("test_show", "seq01", "0010", f"{shows_root}/test/seq01/0010")
+        main_window._on_shot_selected(shot)
+
+        # Create a SceneFile to simulate file selection in DCC panel
+        from datetime import datetime
+
+        maya_file = SceneFile(
+            path=Path(f"{shows_root}/test/seq01/0010/scenes/test_scene.ma"),
+            file_type=FileType.MAYA,
+            modified_time=datetime.now(),
+            user="other_user",
+        )
+
+        # Mock launch_with_file to verify it's called correctly
+        with patch.object(
+            main_window.command_launcher, "launch_with_file", return_value=True
+        ) as mock_launch:
+            # Simulate right panel launch with selected file
+            options = {"selected_file": maya_file}
+            main_window._on_right_panel_launch("maya", options)
+
+            # Verify launch_with_file was called with correct args
+            mock_launch.assert_called_once_with(
+                "maya",
+                maya_file.path,
+                shot.workspace_path,
+            )
+
+    def test_launch_with_selected_file_from_scene_context(
+        self, qtbot: QtBot, tmp_path: Path, monkeypatch
+    ) -> None:
+        """Test launching a selected file when 3DE scene is selected."""
+        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
+        main_window = MainWindow(cache_manager=cache_manager)
+        qtbot.addWidget(main_window)
+
+        # Select a 3DE scene (provides workspace context via selected_scene)
+        shows_root = Config.SHOWS_ROOT
+        scene = ThreeDEScene(
+            show="test_show",
+            sequence="seq01",
+            shot="0010",
+            workspace_path=f"{shows_root}/test/seq01/0010",
+            user="scene_user",
+            plate="FG01",
+            scene_path=Path(f"{shows_root}/test/seq01/0010/scenes/track.3de"),
+        )
+        # Set scene directly (simulates user selection in Other 3DE Scenes tab)
+        main_window.threede_shot_grid._selected_scene = scene
+        # Ensure no shot is selected (Other 3DE Scenes tab behavior)
+        main_window.command_launcher.set_current_shot(None)
+
+        # Create a Maya file to launch
+        from datetime import datetime
+
+        maya_file = SceneFile(
+            path=Path(f"{shows_root}/test/seq01/0010/scenes/finalize.ma"),
+            file_type=FileType.MAYA,
+            modified_time=datetime.now(),
+            user="another_user",
+        )
+
+        # Mock launch_with_file
+        with patch.object(
+            main_window.command_launcher, "launch_with_file", return_value=True
+        ) as mock_launch:
+            options = {"selected_file": maya_file}
+            main_window._on_right_panel_launch("maya", options)
+
+            # Verify launch_with_file was called with scene's workspace
+            mock_launch.assert_called_once_with(
+                "maya",
+                maya_file.path,
+                scene.workspace_path,
+            )
+
+    def test_launch_with_selected_file_no_context_shows_error(
+        self, qtbot: QtBot, tmp_path: Path, monkeypatch
+    ) -> None:
+        """Test that launching without context shows an error."""
+        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
+        main_window = MainWindow(cache_manager=cache_manager)
+        qtbot.addWidget(main_window)
+
+        # Ensure no shot or scene is selected
+        main_window.command_launcher.set_current_shot(None)
+        main_window.threede_shot_grid._selected_scene = None
+
+        # Create a file to launch
+        from datetime import datetime
+
+        nuke_file = SceneFile(
+            path=Path("/shows/test/scenes/comp.nk"),
+            file_type=FileType.NUKE,
+            modified_time=datetime.now(),
+            user="user",
+        )
+
+        # Mock error notification - patch at source module
+        with patch("notification_manager.error") as mock_error:
+            options = {"selected_file": nuke_file}
+            main_window._on_right_panel_launch("nuke", options)
+
+            # Verify error was shown
+            mock_error.assert_called_once_with(
+                "Cannot Launch File",
+                "No shot or scene context available. Select a shot first.",
+            )
+
+    def test_launch_without_selected_file_uses_launch_app(
+        self, qtbot: QtBot, tmp_path: Path, monkeypatch
+    ) -> None:
+        """Test that launch without selected_file uses standard launch_app."""
+        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
+        main_window = MainWindow(cache_manager=cache_manager)
+        qtbot.addWidget(main_window)
+
+        # Select a shot for context
+        shows_root = Config.SHOWS_ROOT
+        shot = Shot("test_show", "seq01", "0010", f"{shows_root}/test/seq01/0010")
+        main_window._on_shot_selected(shot)
+
+        # Mock both launch methods
+        with patch.object(
+            main_window.command_launcher, "launch_app", return_value=True
+        ) as mock_launch_app:
+            with patch.object(
+                main_window.command_launcher, "launch_with_file", return_value=True
+            ) as mock_launch_with_file:
+                # Launch without selected_file
+                options = {"open_latest_maya": True}
+                main_window._on_right_panel_launch("maya", options)
+
+                # Verify launch_app was called, not launch_with_file
+                mock_launch_app.assert_called_once()
+                mock_launch_with_file.assert_not_called()
+
+
+class TestGetCurrentWorkspacePath:
+    """Test the _get_current_workspace_path helper method."""
+
+    def test_returns_shot_workspace_when_shot_selected(
+        self, qtbot: QtBot, tmp_path: Path
+    ) -> None:
+        """Test returns workspace from current_shot when available."""
+        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
+        main_window = MainWindow(cache_manager=cache_manager)
+        qtbot.addWidget(main_window)
+
+        # Select a shot
+        shows_root = Config.SHOWS_ROOT
+        shot = Shot("test_show", "seq01", "0010", f"{shows_root}/test/seq01/0010")
+        main_window._on_shot_selected(shot)
+
+        # Verify workspace path comes from shot
+        result = main_window._get_current_workspace_path()
+        assert result == shot.workspace_path
+
+    def test_returns_scene_workspace_when_no_shot(
+        self, qtbot: QtBot, tmp_path: Path
+    ) -> None:
+        """Test returns workspace from selected_scene when no shot selected."""
+        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
+        main_window = MainWindow(cache_manager=cache_manager)
+        qtbot.addWidget(main_window)
+
+        # Select a 3DE scene without a shot
+        shows_root = Config.SHOWS_ROOT
+        scene = ThreeDEScene(
+            show="test_show",
+            sequence="seq01",
+            shot="0010",
+            workspace_path=f"{shows_root}/test/seq01/0010",
+            user="user",
+            plate="FG01",
+            scene_path=Path(f"{shows_root}/test/seq01/0010/track.3de"),
+        )
+        main_window.threede_shot_grid._selected_scene = scene
+        main_window.command_launcher.set_current_shot(None)
+
+        # Verify workspace path comes from scene
+        result = main_window._get_current_workspace_path()
+        assert result == scene.workspace_path
+
+    def test_prefers_shot_over_scene(self, qtbot: QtBot, tmp_path: Path) -> None:
+        """Test that shot workspace is preferred when both are available."""
+        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
+        main_window = MainWindow(cache_manager=cache_manager)
+        qtbot.addWidget(main_window)
+
+        shows_root = Config.SHOWS_ROOT
+
+        # Set both shot and scene with different workspaces
+        shot = Shot("test_show", "seq01", "0010", f"{shows_root}/shot/workspace")
+        scene = ThreeDEScene(
+            show="test_show",
+            sequence="seq01",
+            shot="0010",
+            workspace_path=f"{shows_root}/scene/workspace",
+            user="user",
+            plate="FG01",
+            scene_path=Path(f"{shows_root}/scene/workspace/track.3de"),
+        )
+        main_window._on_shot_selected(shot)
+        main_window.threede_shot_grid._selected_scene = scene
+
+        # Verify shot workspace is preferred
+        result = main_window._get_current_workspace_path()
+        assert result == shot.workspace_path
+        assert result != scene.workspace_path
+
+    def test_returns_none_when_no_context(self, qtbot: QtBot, tmp_path: Path) -> None:
+        """Test returns None when neither shot nor scene is selected."""
+        cache_manager = CacheManager(cache_dir=tmp_path / "cache")
+        main_window = MainWindow(cache_manager=cache_manager)
+        qtbot.addWidget(main_window)
+
+        # Ensure no context
+        main_window.command_launcher.set_current_shot(None)
+        main_window.threede_shot_grid._selected_scene = None
+
+        result = main_window._get_current_workspace_path()
+        assert result is None
