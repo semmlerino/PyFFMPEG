@@ -12,7 +12,11 @@ import pytest
 from PySide6.QtCore import QProcess
 
 from config import ProcessConfig
-from process_manager import ProcessManager
+from process_manager import (
+    FFmpegDetectionSignals,
+    FFmpegDetectionWorker,
+    ProcessManager,
+)
 
 
 class TestProcessManager:
@@ -731,13 +735,20 @@ class TestProcessManagerIntegration:
         self.mock_tracker.probe_duration.assert_called_once_with(file_path)
         self.mock_tracker.register_process.assert_called_once()
 
-        # Simulate process output
+        # Simulate process output - patch signals to prevent segfault with mock QProcess
         mock_process.bytesAvailable.return_value = 22  # Has bytes available
         # Mock readAllStandardOutput to return QByteArray
         mock_data = Mock()
         mock_data.data.return_value = b"ffmpeg progress output"
         mock_process.readAllStandardOutput.return_value = mock_data
-        self.manager._handle_process_output(mock_process)
+
+        # Patch signals to prevent segfault when emitting with Mock objects
+        with patch.object(self.manager, "output_ready") as mock_output_signal, \
+                patch.object(self.manager, "update_progress") as mock_update_signal:
+            self.manager._handle_process_output(mock_process)
+
+            # Verify signal was called
+            mock_output_signal.emit.assert_called_once()
 
         # Simulate process finish
         mock_process.state.return_value = QProcess.ProcessState.NotRunning
@@ -819,3 +830,172 @@ class TestProcessManagerIntegration:
         assert len(self.manager.processes) == 0
         assert mock_process not in self.manager.process_logs
         assert mock_process not in self.manager.process_outputs
+
+
+@pytest.mark.unit
+class TestFFmpegAsyncDetection:
+    """Test async FFmpeg detection (bug #5 fix)"""
+
+    def setup_method(self):
+        """Reset class-level cache before each test"""
+        ProcessManager._ffmpeg_command_cache = None
+        ProcessManager._ffmpeg_available_cache = None
+        with patch("process_manager.ProcessProgressTracker"):
+            self.manager = ProcessManager()
+
+    def teardown_method(self):
+        """Reset cache after each test"""
+        ProcessManager._ffmpeg_command_cache = None
+        ProcessManager._ffmpeg_available_cache = None
+
+    def test_ffmpeg_detected_signal_exists(self):
+        """Test that ffmpeg_detected signal exists on ProcessManager"""
+        assert hasattr(self.manager, "ffmpeg_detected")
+
+    def test_detect_ffmpeg_async_uses_cached_result(self):
+        """Test that detect_ffmpeg_async uses cached result if available"""
+        # Set cache to simulate previous detection
+        ProcessManager._ffmpeg_command_cache = "/usr/bin/ffmpeg"
+        ProcessManager._ffmpeg_available_cache = True
+
+        signal_received = []
+
+        def on_detected(available, path):
+            signal_received.append((available, path))
+
+        self.manager.ffmpeg_detected.connect(on_detected)
+        self.manager.detect_ffmpeg_async()
+
+        # Should emit immediately from cache without spawning worker
+        assert len(signal_received) == 1
+        assert signal_received[0] == (True, "/usr/bin/ffmpeg")
+
+    def test_detect_ffmpeg_async_uses_cached_not_found(self):
+        """Test that detect_ffmpeg_async uses cached not-found result"""
+        # Set cache to simulate previous failed detection
+        ProcessManager._ffmpeg_command_cache = None
+        ProcessManager._ffmpeg_available_cache = False
+
+        signal_received = []
+
+        def on_detected(available, path):
+            signal_received.append((available, path))
+
+        self.manager.ffmpeg_detected.connect(on_detected)
+        self.manager.detect_ffmpeg_async()
+
+        # Should emit immediately from cache
+        assert len(signal_received) == 1
+        assert signal_received[0][0] is False
+
+    @patch("process_manager.subprocess.run")
+    def test_ffmpeg_detection_worker_finds_ffmpeg(self, mock_run):
+        """Test FFmpegDetectionWorker successfully finds FFmpeg"""
+        # Mock successful FFmpeg detection
+        mock_result = Mock()
+        mock_result.returncode = 0
+        mock_run.return_value = mock_result
+
+        signals = FFmpegDetectionSignals()
+        signal_received = []
+
+        def on_complete(available, path):
+            signal_received.append((available, path))
+
+        signals.detection_complete.connect(on_complete)
+
+        worker = FFmpegDetectionWorker(signals)
+        worker.run()
+
+        assert len(signal_received) == 1
+        assert signal_received[0][0] is True
+        assert signal_received[0][1] == "ffmpeg"  # First command tried
+
+    @patch("process_manager.subprocess.run")
+    def test_ffmpeg_detection_worker_not_found(self, mock_run):
+        """Test FFmpegDetectionWorker when FFmpeg is not found"""
+        # Mock failed FFmpeg detection - all attempts fail
+        mock_run.side_effect = FileNotFoundError("ffmpeg not found")
+
+        signals = FFmpegDetectionSignals()
+        signal_received = []
+
+        def on_complete(available, path):
+            signal_received.append((available, path))
+
+        signals.detection_complete.connect(on_complete)
+
+        worker = FFmpegDetectionWorker(signals)
+        worker.run()
+
+        assert len(signal_received) == 1
+        assert signal_received[0][0] is False
+        assert "not found" in signal_received[0][1].lower()
+
+    @patch("process_manager.subprocess.run")
+    def test_ffmpeg_detection_worker_handles_timeout(self, mock_run):
+        """Test FFmpegDetectionWorker handles timeout gracefully"""
+        import subprocess
+
+        # First call times out, second succeeds
+        mock_result = Mock()
+        mock_result.returncode = 0
+        mock_run.side_effect = [
+            subprocess.TimeoutExpired(cmd="ffmpeg", timeout=2),
+            mock_result,
+        ]
+
+        signals = FFmpegDetectionSignals()
+        signal_received = []
+
+        def on_complete(available, path):
+            signal_received.append((available, path))
+
+        signals.detection_complete.connect(on_complete)
+
+        worker = FFmpegDetectionWorker(signals)
+        worker.run()
+
+        assert len(signal_received) == 1
+        assert signal_received[0][0] is True  # Found on second try
+
+    def test_on_ffmpeg_detected_caches_success(self):
+        """Test that _on_ffmpeg_detected caches successful result"""
+        # Ensure cache is empty
+        ProcessManager._ffmpeg_command_cache = None
+        ProcessManager._ffmpeg_available_cache = None
+
+        # Call handler with success
+        with patch.object(self.manager.logger, "info"):
+            self.manager._on_ffmpeg_detected(True, "/usr/bin/ffmpeg")
+
+        assert ProcessManager._ffmpeg_command_cache == "/usr/bin/ffmpeg"
+        assert ProcessManager._ffmpeg_available_cache is True
+
+    def test_on_ffmpeg_detected_caches_failure(self):
+        """Test that _on_ffmpeg_detected caches failed result"""
+        # Ensure cache is empty
+        ProcessManager._ffmpeg_command_cache = None
+        ProcessManager._ffmpeg_available_cache = None
+
+        # Call handler with failure
+        with patch.object(self.manager.logger, "warning"):
+            self.manager._on_ffmpeg_detected(False, "FFmpeg not found")
+
+        assert ProcessManager._ffmpeg_command_cache is None
+        assert ProcessManager._ffmpeg_available_cache is False
+
+    def test_on_ffmpeg_detected_emits_signal(self):
+        """Test that _on_ffmpeg_detected emits ffmpeg_detected signal"""
+        signal_received = []
+
+        def on_detected(available, path):
+            signal_received.append((available, path))
+
+        self.manager.ffmpeg_detected.connect(on_detected)
+
+        with patch.object(self.manager.logger, "info"):
+            self.manager._on_ffmpeg_detected(True, "/usr/bin/ffmpeg")
+
+        assert len(signal_received) == 1
+        assert signal_received[0] == (True, "/usr/bin/ffmpeg")
