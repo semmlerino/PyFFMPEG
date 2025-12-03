@@ -235,3 +235,43 @@ class TestSimpleNukeLauncher:
         assert "_mm-default_" in expected_pattern
         assert "_scene_v" in expected_pattern
         assert ".nk" in expected_pattern
+
+    @patch.dict("os.environ", {"USER": "testuser"})
+    def test_startup_script_contains_cleanup(
+        self, simple_launcher, mock_shot, tmp_path
+    ) -> None:
+        """Test that generated startup script cleans itself up after execution.
+
+        This prevents /tmp from being littered with nuke_create_*.py files.
+        """
+        import tempfile
+
+        mock_shot.show = "myshow"
+        mock_shot.sequence = "sq010"
+        mock_shot.shot = "sh0010"
+
+        # Call the internal method that generates the startup script
+        command = simple_launcher._create_script_via_nuke_api(
+            mock_shot,
+            plate="FG01",
+            script_dir=tmp_path / "scripts",
+            version=1,
+        )
+
+        # Extract temp script path from command (format: "nuke '/tmp/nuke_create_*.py'")
+        temp_script_path = Path(command.replace("nuke ", "").strip().strip("'"))
+
+        # Verify temp file was created
+        assert temp_script_path.exists(), "Temp startup script should exist"
+        assert str(temp_script_path).startswith(tempfile.gettempdir())
+        assert "nuke_create_" in temp_script_path.name
+
+        # Read the generated script and verify it contains self-cleanup code
+        script_content = temp_script_path.read_text()
+
+        # Must contain cleanup code
+        assert "os.remove(" in script_content, "Script should contain os.remove() call"
+        assert str(temp_script_path) in script_content, "Script should reference its own path for cleanup"
+
+        # Clean up the temp file ourselves (normally Nuke would do this)
+        temp_script_path.unlink()

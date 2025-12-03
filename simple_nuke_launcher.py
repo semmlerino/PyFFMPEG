@@ -113,6 +113,7 @@ class SimpleNukeLauncher(LoggingMixin):
         1. Sets environment variables for show/shot context
         2. Creates and saves a new file using nuke.scriptSaveAs()
         3. Triggers all onCreate hooks and templates with proper context
+        4. Cleans up the temporary startup script after execution
 
         Args:
             shot: Current shot context
@@ -133,7 +134,11 @@ class SimpleNukeLauncher(LoggingMixin):
         # Get user
         user = os.environ.get("USER", "unknown")
 
+        # Create temp file first so we can reference its path in the script
+        fd, temp_script = tempfile.mkstemp(suffix=".py", prefix="nuke_create_")
+
         # Create a temporary Python script that Nuke will execute on startup
+        # The script cleans itself up after execution
         startup_script = f"""import nuke
 import os
 
@@ -172,17 +177,17 @@ nuke.scriptSaveAs(script_path, overwrite=False)
 
 print(f"Created new Nuke script: {{script_path}}")
 print(f"Context: SHOW={{os.environ['SHOW']}} SHOT={{os.environ['SHOT_NAME']}} PLATE={{os.environ['PLATE']}}")
+
+# Clean up this temporary startup script
+try:
+    os.remove({temp_script!r})
+except OSError:
+    pass  # Ignore cleanup failures (file may be locked on Windows)
 """
 
-        # Write startup script to temp file
-        with tempfile.NamedTemporaryFile(
-            mode="w",
-            suffix=".py",
-            delete=False,
-            prefix="nuke_create_",
-        ) as f:
+        # Write startup script using the file descriptor from mkstemp
+        with os.fdopen(fd, "w") as f:
             _ = f.write(startup_script)
-            temp_script = f.name
 
         # Build Nuke command WITHOUT -t flag (keeps GUI open)
         safe_temp = shlex.quote(temp_script)
