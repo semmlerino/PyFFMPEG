@@ -12,6 +12,7 @@ from typing import ClassVar, Final
 from PySide6.QtCore import QEvent, QModelIndex, QObject, QRect, QTimer, Signal
 from PySide6.QtGui import QMouseEvent
 from PySide6.QtWidgets import QListView
+from shiboken6 import isValid
 
 from typing_compat import override
 
@@ -78,6 +79,10 @@ class ScrubEventFilter(QObject):
         Returns:
             True if event was handled, False to pass to next filter
         """
+        # Guard against access to deleted C++ objects during teardown
+        if not isValid(self._view):
+            return False
+
         if obj is not self._view.viewport():
             return False
 
@@ -153,6 +158,13 @@ class ScrubEventFilter(QObject):
     def _on_hover_timer_expired(self) -> None:
         """Handle hover delay timer expiration - start scrubbing."""
         if not self._hover_pending or self._pending_index is None:
+            return
+
+        # Guard against access to deleted C++ objects during teardown
+        if not isValid(self._view):
+            self._hover_pending = False
+            self._pending_index = None
+            self._pending_rect = None
             return
 
         # Verify mouse is still over the same item

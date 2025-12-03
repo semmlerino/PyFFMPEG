@@ -30,7 +30,10 @@ def shows_root() -> str:
 @pytest.fixture
 def clear_pattern_cache() -> None:
     """Clear pattern cache before test for isolation."""
-    _PATTERN_CACHE.clear()
+    import optimized_shot_parser
+
+    # Use module reference to avoid stale imports after module reloads
+    optimized_shot_parser._PATTERN_CACHE.clear()
 
 
 class TestParseWorkspaceLineStandardNaming:
@@ -66,13 +69,17 @@ class TestParseWorkspaceLineStandardNaming:
 
     def test_parse_complete_result_structure(self, shows_root: str) -> None:
         """ParseResult contains all required fields."""
+        import optimized_shot_parser
+
         parser = OptimizedShotParser()
         line = f"workspace {shows_root}/demo/shots/seq01/seq01_0010"
 
         result = parser.parse_workspace_line(line)
 
         assert result is not None
-        assert isinstance(result, ParseResult)
+        # Use the module's ParseResult to avoid issues with module reloads
+        # in other tests (e.g., test_critical_fixes_complete.py)
+        assert isinstance(result, optimized_shot_parser.ParseResult)
         assert result.show == "demo"
         assert result.sequence == "seq01"
         assert result.shot == "0010"
@@ -240,21 +247,36 @@ class TestPatternCacheIsolation:
         clear_pattern_cache: None,
     ) -> None:
         """Different SHOWS_ROOT values create separate cached patterns."""
+        import importlib
+
+        import optimized_shot_parser
+
+        # Use module reference to avoid stale imports after module reloads
+        cache = optimized_shot_parser._PATTERN_CACHE
+
+        # Reload the module to ensure it uses the current Config reference
+        # This is needed because test_critical_fixes_complete.py may have
+        # left the module with a stale Config reference
+        importlib.reload(optimized_shot_parser)
+        cache = optimized_shot_parser._PATTERN_CACHE
+        cache.clear()
+
         # First SHOWS_ROOT
         monkeypatch.setattr("config.Config.SHOWS_ROOT", "/test/shows1")
-        _ = OptimizedShotParser()
+        parser_cls = optimized_shot_parser.OptimizedShotParser
+        _ = parser_cls()
 
-        assert "/test/shows1" in _PATTERN_CACHE
-        assert "/test/shows2" not in _PATTERN_CACHE
+        assert "/test/shows1" in cache
+        assert "/test/shows2" not in cache
 
         # Second SHOWS_ROOT
         monkeypatch.setattr("config.Config.SHOWS_ROOT", "/test/shows2")
-        _ = OptimizedShotParser()
+        _ = parser_cls()
 
-        assert "/test/shows2" in _PATTERN_CACHE
+        assert "/test/shows2" in cache
 
         # Both patterns cached (at minimum - other parallel tests may add more)
-        assert len(_PATTERN_CACHE) >= 2
+        assert len(cache) >= 2
 
     def test_pattern_cache_reuses_compiled_regex(
         self,

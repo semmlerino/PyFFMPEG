@@ -4,20 +4,10 @@
 # Standard library imports
 import re
 import time
-from typing import NamedTuple
 
 # Local application imports
 from config import Config
-
-
-class ParseResult(NamedTuple):
-    """Result of parsing a shot path."""
-
-    show: str
-    sequence: str
-    shot: str
-    workspace_path: str
-
+from optimized_shot_parser import ParseResult
 
 # Global pre-compiled pattern (fastest approach)
 _GLOBAL_WS_PATTERN = re.compile(
