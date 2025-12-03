@@ -131,6 +131,7 @@ class FrameExtractionRunnable(QRunnable):
             if self.plate_source.source_type == "mov":
                 # Extract from MOV using time-based seeking
                 time_seconds = self.plate_source.frame_to_time(self.frame)
+                logger.debug(f"Extracting frame {self.frame} from MOV at {time_seconds:.2f}s: {self.plate_source.source_path}")
                 # basedpyright can't resolve new ImageUtils methods (Python 3.13 compat)
                 extracted_path = utils_module.ImageUtils.extract_frame_at_time(  # type: ignore[reportUnknownMemberType]
                     self.plate_source.source_path,
@@ -141,16 +142,20 @@ class FrameExtractionRunnable(QRunnable):
                 # Extract from EXR sequence
                 exr_path = self.plate_source.get_exr_path_for_frame(self.frame)
                 if exr_path and exr_path.exists():
+                    logger.debug(f"Extracting frame {self.frame} from EXR: {exr_path}")
                     # basedpyright can't resolve new ImageUtils methods (Python 3.13 compat)
                     extracted_path = utils_module.ImageUtils.extract_frame_from_exr(  # type: ignore[reportUnknownMemberType]
                         exr_path,
                         width=self.thumbnail_width,
                     )
+                else:
+                    logger.debug(f"EXR path not found for frame {self.frame}: {exr_path}")
 
             if extracted_path is not None and extracted_path.exists():  # type: ignore[reportUnknownMemberType]
                 # Load as QImage (thread-safe)
                 image = QImage(str(extracted_path))  # type: ignore[reportUnknownArgumentType]
                 if not image.isNull():
+                    logger.debug(f"Frame {self.frame} extracted successfully: {extracted_path}")
                     self.signals.finished.emit(self.shot_key, self.frame, image)
                     # Clean up temp file
                     try:
@@ -158,12 +163,16 @@ class FrameExtractionRunnable(QRunnable):
                     except OSError:
                         pass
                     return
+                else:
+                    logger.debug(f"Frame {self.frame} image is null from: {extracted_path}")
 
+            logger.debug(f"Frame {self.frame} extraction failed - no path or path doesn't exist")
             self.signals.failed.emit(
                 self.shot_key, self.frame, "Failed to extract frame"
             )
 
         except Exception as e:
+            logger.debug(f"Frame {self.frame} extraction exception: {e}")
             self.signals.failed.emit(self.shot_key, self.frame, str(e))
 
 
@@ -184,7 +193,7 @@ class PlateFrameProvider(QObject):
     def __init__(
         self,
         parent: QObject | None = None,
-        max_concurrent: int = 4,
+        max_concurrent: int = 8,
         thumbnail_width: int = 200,
     ) -> None:
         """Initialize plate frame provider.
@@ -385,6 +394,17 @@ class PlateFrameProvider(QObject):
             Dictionary with cache size information
         """
         return self._cache.get_stats()
+
+    def get_cached_frames(self, shot_key: str) -> list[int]:
+        """Get list of cached frame numbers for a shot.
+
+        Args:
+            shot_key: Unique identifier for the shot
+
+        Returns:
+            List of cached frame numbers
+        """
+        return self._cache.get_cached_frames(shot_key)
 
     def _on_extraction_finished(
         self, shot_key: str, frame: int, image: QImage

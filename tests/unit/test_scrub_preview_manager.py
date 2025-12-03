@@ -119,7 +119,7 @@ class TestScrubPreviewManagerInit:
         """Test manager is properly initialized."""
         manager = ScrubPreviewManager()
 
-        assert manager._prefetch_radius == 5  # Default
+        assert manager._prefetch_radius == 10  # Default (increased for smoother scrubbing)
         assert manager._frame_provider is not None
         assert len(manager._scrub_states) == 0
         assert len(manager._key_to_row) == 0
@@ -127,9 +127,9 @@ class TestScrubPreviewManagerInit:
 
     def test_initialization_with_custom_prefetch(self, qapp: QApplication) -> None:
         """Test manager with custom prefetch radius."""
-        manager = ScrubPreviewManager(prefetch_radius=10)
+        manager = ScrubPreviewManager(prefetch_radius=15)
 
-        assert manager._prefetch_radius == 10
+        assert manager._prefetch_radius == 15
 
 
 class TestGetScrubState:

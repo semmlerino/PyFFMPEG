@@ -96,7 +96,7 @@ class ScrubPreviewManager(QObject):
     def __init__(
         self,
         parent: QObject | None = None,
-        prefetch_radius: int = 5,
+        prefetch_radius: int = 10,
     ) -> None:
         """Initialize scrub preview manager.
 
@@ -132,6 +132,7 @@ class ScrubPreviewManager(QObject):
             rect: Visual rectangle of the item
         """
         if not index.isValid():
+            logger.debug("start_scrub: invalid index")
             return
 
         # Get shot data from model
@@ -140,12 +141,13 @@ class ScrubPreviewManager(QObject):
         model = index.model()
         # Note: model() theoretically never returns None per Qt docs, but check anyway
         if model is None:  # type: ignore[reportUnnecessaryComparison]
+            logger.debug("start_scrub: no model")
             return
 
         # Try to get the Shot object from the model
         shot_data = model.data(index, BaseItemRole.ObjectRole)
         if shot_data is None:
-            logger.debug(f"No shot data for index {index.row()}")
+            logger.info(f"start_scrub: No shot data for index {index.row()}")
             return
 
         # Extract shot info
@@ -153,8 +155,10 @@ class ScrubPreviewManager(QObject):
         workspace_path = self._get_workspace_path(shot_data)
         frame_start, frame_end = self._get_frame_range(shot_data)
 
+        logger.info(f"start_scrub: {shot_key}, frames {frame_start}-{frame_end}, workspace: {workspace_path}")
+
         if frame_start is None or frame_end is None:
-            logger.debug(f"No frame range for {shot_key}")
+            logger.info(f"start_scrub: No frame range for {shot_key}")
             return
 
         # End any existing scrub
@@ -164,8 +168,10 @@ class ScrubPreviewManager(QObject):
         # Discover plate source
         plate_source = self._frame_provider.discover_plate_source(workspace_path)
         if plate_source is None:
-            logger.debug(f"No plate source for {shot_key}")
+            logger.info(f"start_scrub: No plate source for {shot_key} at {workspace_path}")
             return
+
+        logger.info(f"start_scrub: Found plate source {plate_source.source_type} at {plate_source.source_path}")
 
         # Create scrub state
         state = ScrubState(
@@ -217,6 +223,7 @@ class ScrubPreviewManager(QObject):
         if target_frame == state.current_frame:
             return
 
+        old_frame = state.current_frame
         state.current_frame = target_frame
 
         # Check if frame is cached
@@ -227,8 +234,12 @@ class ScrubPreviewManager(QObject):
                 state.current_pixmap = QPixmap.fromImage(image)
                 self.scrub_frame_ready.emit(index, target_frame, state.current_pixmap)
                 self.request_repaint.emit(index)
+                logger.debug(f"update_scrub_position: frame {target_frame} CACHED, displaying")
+            else:
+                logger.debug(f"update_scrub_position: frame {target_frame} has_cached=True but get_cached=None")
         else:
-            # Request extraction
+            # Request extraction for the target frame
+            logger.debug(f"update_scrub_position: frame {old_frame}->{target_frame} NOT cached, requesting extraction")
             if state.plate_source is not None:
                 self._frame_provider.extract_frame(
                     state.shot_key, state.plate_source, target_frame
@@ -240,6 +251,18 @@ class ScrubPreviewManager(QObject):
                     target_frame,
                     self._prefetch_radius,
                 )
+
+            # Show the nearest cached frame while waiting for extraction
+            # This provides visual feedback during scrubbing even when frames aren't ready
+            nearest_frame = self._find_nearest_cached_frame(state, target_frame)
+            if nearest_frame is not None:
+                image = self._frame_provider.get_cached_frame(state.shot_key, nearest_frame)
+                if image is not None:
+                    state.current_pixmap = QPixmap.fromImage(image)
+                    # Emit with target_frame (for frame indicator) but show nearest cached frame
+                    self.scrub_frame_ready.emit(index, target_frame, state.current_pixmap)
+                    self.request_repaint.emit(index)
+                    logger.debug(f"update_scrub_position: showing nearest cached frame {nearest_frame} while waiting for {target_frame}")
 
     @Slot(QModelIndex)
     def end_scrub(self, index: QModelIndex) -> None:
@@ -339,6 +362,31 @@ class ScrubPreviewManager(QObject):
         # Clear frame provider caches
         self._frame_provider.clear_all_caches()
 
+    def _find_nearest_cached_frame(self, state: ScrubState, target_frame: int) -> int | None:
+        """Find the nearest cached frame to the target frame.
+
+        Args:
+            state: Current scrub state
+            target_frame: The frame we're trying to display
+
+        Returns:
+            Nearest cached frame number, or None if no frames are cached
+        """
+        cached_frames = self._frame_provider.get_cached_frames(state.shot_key)
+        if not cached_frames:
+            return None
+
+        # Find the closest frame
+        min_distance = float("inf")
+        nearest = None
+        for frame in cached_frames:
+            distance = abs(frame - target_frame)
+            if distance < min_distance:
+                min_distance = distance
+                nearest = frame
+
+        return nearest
+
     def _on_frame_ready(self, shot_key: str, frame: int, image: QImage) -> None:
         """Handle frame extraction completion.
 
@@ -349,10 +397,12 @@ class ScrubPreviewManager(QObject):
         """
         row = self._key_to_row.get(shot_key)
         if row is None:
+            logger.debug(f"_on_frame_ready: {shot_key}:{frame} - no row mapping")
             return
 
         state = self._scrub_states.get(row)
         if state is None or not state.is_active:
+            logger.debug(f"_on_frame_ready: {shot_key}:{frame} - state inactive or None")
             return
 
         # Only update if this is the current frame
@@ -364,6 +414,10 @@ class ScrubPreviewManager(QObject):
             if self._active_index is not None:
                 self.scrub_frame_ready.emit(self._active_index, frame, pixmap)
                 self.request_repaint.emit(self._active_index)
+                logger.debug(f"_on_frame_ready: {shot_key}:{frame} - DISPLAYED (matches current)")
+        else:
+            # Frame was extracted but user has moved on - it's now cached for later
+            logger.debug(f"_on_frame_ready: {shot_key}:{frame} - CACHED ONLY (current is {state.current_frame})")
 
     def _on_frame_failed(self, shot_key: str, frame: int, error: str) -> None:
         """Handle frame extraction failure.
