@@ -113,6 +113,27 @@ class ProcessExecutor(QObject):
         """
         return app_name.lower() in self.GUI_APPS
 
+    def _log_sgtk_env_vars(self) -> None:
+        """Log SGTK-related environment variables for debugging.
+
+        This helps diagnose file dialog issues caused by ShotGrid Toolkit
+        environment configuration.
+        """
+        import os
+
+        sgtk_vars = {
+            k: v for k, v in os.environ.items() if k.startswith(("SGTK_", "SHOTGUN_"))
+        }
+        if sgtk_vars:
+            logger.debug(f"SGTK/ShotGrid environment vars: {sgtk_vars}")
+        else:
+            logger.debug("No SGTK_*/SHOTGUN_* environment variables found")
+
+        # Also log workspace-related vars that might affect context
+        workspace_vars = ["SHOW", "SEQUENCE", "SHOT", "WORKSPACE_PATH", "REZ_USED"]
+        ws_values = {k: os.environ.get(k, "<not set>") for k in workspace_vars}
+        logger.debug(f"Workspace environment vars: {ws_values}")
+
     def _build_terminal_command(
         self, terminal: str | None, command: str, has_rez_wrapper: bool = False
     ) -> list[str]:
@@ -140,6 +161,9 @@ class ProcessExecutor(QObject):
             if has_rez_wrapper
             else ["/bin/bash", "-ilc", command]
         )
+
+        # Log the shell command for debugging file dialog issues
+        logger.debug(f"Shell command (rez_wrapper={has_rez_wrapper}): {shell_cmd}")
 
         if terminal == "gnome-terminal":
             return ["gnome-terminal", "--", *shell_cmd]
@@ -198,8 +222,17 @@ class ProcessExecutor(QObject):
         else:
             self.logger.info(f"Launching {app_name} in new {terminal} terminal")
 
+        # Log SGTK-related environment variables for debugging file dialog issues
+        self._log_sgtk_env_vars()
+
+        # Log the raw command before terminal wrapping
+        logger.debug(f"Raw command to execute: {command}")
+
         # Build command for the detected terminal (or headless)
         term_cmd = self._build_terminal_command(terminal, command, has_rez_wrapper)
+
+        # Log the final terminal command
+        logger.debug(f"Final terminal command: {term_cmd}")
 
         try:
             # Spawn process

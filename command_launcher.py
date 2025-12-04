@@ -1063,6 +1063,14 @@ class CommandLauncher(LoggingMixin, QObject):
             else:
                 # Nuke and others accept file without flag
                 command = f"{command} {safe_file_path}"
+
+            # Log file launch details for debugging file dialog issues
+            self.logger.debug(
+                f"launch_with_file: app={app_name}, "
+                f"file_path={file_path}, "
+                f"safe_file_path={safe_file_path}, "
+                f"command={command}"
+            )
         except ValueError as e:
             self._emit_error(f"Invalid file path: {e!s}")
             return False
@@ -1107,6 +1115,14 @@ class CommandLauncher(LoggingMixin, QObject):
 
         # Add logging redirection for debugging
         full_command = CommandBuilder.add_logging(full_command, Config)
+
+        # Log the full command chain for debugging file dialog issues
+        self.logger.debug(
+            f"launch_with_file full command chain:\n"
+            f"  ws_command: {ws_command}\n"
+            f"  rez_wrapped: {should_wrap_rez}\n"
+            f"  full_command: {full_command}"
+        )
 
         # Log the command
         timestamp = self.timestamp
