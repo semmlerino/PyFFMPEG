@@ -11,6 +11,7 @@ requires-python = ">=3.11"
 # Core business logic is fully typed; this trade-off keeps signal-to-noise high
 exclude = [
     "tests/**",
+    "scripts/**",  # VFX tool scripts (tde4, sgtk) - can't type-check without external deps
     "**/node_modules",
     "**/__pycache__",
     ".venv/**",

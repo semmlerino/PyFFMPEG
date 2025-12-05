@@ -266,10 +266,14 @@ class ThreeDESceneWorker(ThreadSafeWorker):
         Uses the thread-safe base class stop mechanism.
         """
         self.logger.debug("Stop requested for 3DE scene worker")
-        # Wake up paused thread so it can exit
-        self.resume()
-        # Use base class thread-safe stop
+        # Use base class thread-safe stop FIRST (sets _stop_requested = True)
         _ = self.request_stop()
+        # Then wake up paused thread so it can check stop condition and exit
+        self._pause_mutex.lock()
+        try:
+            self._pause_condition.wakeAll()
+        finally:
+            self._pause_mutex.unlock()
 
     def pause(self) -> None:
         """Request the worker to pause processing."""
