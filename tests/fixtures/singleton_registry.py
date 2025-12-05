@@ -80,6 +80,17 @@ class SingletonRegistry:
             cleanup_order: Lower values clean up first (default: 50)
             description: Optional description for debugging
         """
+        # Check for duplicate cleanup orders (can cause unpredictable cleanup sequence)
+        existing_orders = {e.cleanup_order: e.import_path for e in cls._entries}
+        if cleanup_order in existing_orders:
+            _logger.warning(
+                "Duplicate cleanup order %d: existing=%s, new=%s. "
+                "Consider adjusting cleanup_order for deterministic cleanup sequence.",
+                cleanup_order,
+                existing_orders[cleanup_order],
+                import_path,
+            )
+
         entry = SingletonEntry(
             import_path=import_path,
             cleanup_order=cleanup_order,

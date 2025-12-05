@@ -27,12 +27,15 @@ from pathlib import Path
 # during tests, which causes crashes in WSL and resource exhaustion.
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-# Create unique XDG runtime directory per worker (0700 perms to avoid Qt6 warnings/races)
+# Create unique XDG runtime directory per worker
+# IMPORTANT: 0o700 permissions are REQUIRED by Qt6 - it warns/fails if XDG_RUNTIME_DIR
+# has permissive permissions (security requirement from XDG Base Directory spec).
+# Per-worker isolation also prevents race conditions when running with pytest-xdist.
 run_id = os.environ.get("PYTEST_XDIST_TESTRUNUID", "solo")
 worker = os.environ.get("PYTEST_XDIST_WORKER", "master")
 base_tmp = Path(tempfile.gettempdir())
 xdg_path = base_tmp / f"xdg-{run_id}-{worker}"
-xdg_path.mkdir(mode=0o700, parents=True, exist_ok=True)
+xdg_path.mkdir(mode=0o700, parents=True, exist_ok=True)  # 0o700 required by Qt6
 os.environ.setdefault("XDG_RUNTIME_DIR", str(xdg_path))
 
 # Direct custom launcher persistence into a writable, per-test directory
@@ -342,7 +345,8 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
                 module_name = item.module.__name__ if item.module else "unknown"
                 if module_name not in auto_detected_modules:
                     auto_detected_modules.add(module_name)
-                    _conftest_logger.info(
+                    # DEBUG level to reduce console noise - auto-detection is normal behavior
+                    _conftest_logger.debug(
                         "Auto-detected PySide6 import in %s (no fixture/marker). "
                         "Applying Qt cleanup automatically.",
                         module_name,

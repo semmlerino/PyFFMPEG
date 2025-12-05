@@ -72,11 +72,14 @@ def _clear_config_files() -> None:
             except OSError:
                 pass  # Best-effort cleanup
         elif item.is_dir():
-            # Warn about unexpected directories - don't recursively delete
+            # Clear unexpected directories recursively for complete isolation
+            import shutil
+
             _logger.warning(
-                "Unexpected directory in config dir (not cleared): %s",
+                "Clearing unexpected config directory (potential state leak): %s",
                 item.name,
             )
+            shutil.rmtree(item, ignore_errors=True)
 
 
 def _clear_stat_caches() -> None:
@@ -138,30 +141,26 @@ def _clear_disk_cache_files() -> None:
 
         for item in subdir.iterdir():
             if item.is_file():
-                # Clear ALL json files (not just known ones)
-                if item.suffix == ".json":
-                    if item.name not in known_files:
-                        _logger.warning(
-                            "Clearing unexpected cache file (potential state leak): %s",
-                            item.name,
-                        )
-                    try:
-                        item.unlink()
-                    except OSError:
-                        pass  # Best-effort cleanup
-                else:
-                    # Non-JSON files are unexpected
+                # Clear ALL files (not just .json) for complete test isolation
+                if item.name not in known_files:
                     _logger.warning(
-                        "Unexpected non-JSON file in cache dir (not cleared): %s",
-                        item,
-                    )
-            elif item.is_dir():
-                # Warn about unexpected directories (except known ones)
-                if item.name not in known_dirs:
-                    _logger.warning(
-                        "Unexpected directory in cache (potential state leak): %s",
+                        "Clearing unexpected cache file (potential state leak): %s",
                         item.name,
                     )
+                try:
+                    item.unlink()
+                except OSError:
+                    pass  # Best-effort cleanup
+            elif item.is_dir():
+                # Clear unexpected directories (except known ones like thumbnails)
+                if item.name not in known_dirs:
+                    import shutil
+
+                    _logger.warning(
+                        "Clearing unexpected directory (potential state leak): %s",
+                        item.name,
+                    )
+                    shutil.rmtree(item, ignore_errors=True)
 
 # Strict mode fails on cleanup exceptions (auto-enabled in CI)
 STRICT_CLEANUP = (

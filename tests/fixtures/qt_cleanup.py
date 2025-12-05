@@ -43,8 +43,12 @@ STRICT_CLEANUP = (
 # STRICT_CLEANUP only logs warnings; FAIL_ON_THREAD_LEAK makes tests fail
 FAIL_ON_THREAD_LEAK = os.environ.get("SHOTBOT_TEST_FAIL_ON_THREAD_LEAK", "0") == "1"
 
-# Thread count tolerance - daemon threads and pytest internals can vary slightly
-_THREAD_TOLERANCE = 2
+# Thread count tolerance - reduced from 2 to 1 to catch single-thread leaks
+# Daemon threads and pytest internals may vary, but tolerance of 2 masked leaks
+_THREAD_TOLERANCE = 1
+
+# Thread wait timeout in ms - configurable via env var for slow CI runners
+_THREAD_WAIT_TIMEOUT_MS = int(os.environ.get("SHOTBOT_TEST_THREAD_WAIT_MS", "100"))
 
 # Session-level leak tracking (populated in CI/strict mode)
 # Collects leak info for summary at session end instead of per-test spam
@@ -155,7 +159,7 @@ def qt_cleanup(qapp: QApplication, request: pytest.FixtureRequest) -> Iterator[N
         # Clear Qt caches to prevent memory accumulation
         QPixmapCache.clear()
     except (RuntimeError, SystemError) as e:
-        _logger.debug("Qt cleanup before-test exception (swallowed): %s", e)
+        _logger.warning("Qt cleanup before-test exception (check for orphaned Qt objects): %s", e)
         if STRICT_CLEANUP:
             raise
 
@@ -169,7 +173,7 @@ def qt_cleanup(qapp: QApplication, request: pytest.FixtureRequest) -> Iterator[N
         # Cancel pending runnables from queue (if supported - some Qt builds may lack clear())
         if hasattr(pool, "clear"):
             pool.clear()
-        pool.waitForDone(100)  # Reduced from 2000ms → 100ms for performance
+        pool.waitForDone(_THREAD_WAIT_TIMEOUT_MS)  # Configurable via SHOTBOT_TEST_THREAD_WAIT_MS
 
     # Also wait for any Python threading.Thread instances to complete
     # Some tests use threading.Thread in addition to QThreadPool
@@ -184,7 +188,7 @@ def qt_cleanup(qapp: QApplication, request: pytest.FixtureRequest) -> Iterator[N
                 QCoreApplication.processEvents()
                 QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
             except (RuntimeError, SystemError) as e:
-                _logger.debug("Qt cleanup thread-wait exception (swallowed): %s", e)
+                _logger.warning("Qt cleanup thread-wait exception (check for deleted Qt objects): %s", e)
                 if STRICT_CLEANUP:
                     raise
                 break
@@ -205,7 +209,7 @@ def qt_cleanup(qapp: QApplication, request: pytest.FixtureRequest) -> Iterator[N
         QCoreApplication.processEvents()
         QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
     except (RuntimeError, SystemError) as e:
-        _logger.debug("Qt cleanup after-test exception (swallowed): %s", e)
+        _logger.warning("Qt cleanup after-test exception (check for orphaned Qt objects): %s", e)
         if STRICT_CLEANUP:
             raise
 
