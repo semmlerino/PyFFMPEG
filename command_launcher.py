@@ -10,6 +10,7 @@ from __future__ import annotations
 
 # Standard library imports
 import os
+import shlex
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -1077,7 +1078,7 @@ class CommandLauncher(LoggingMixin, QObject):
                     "e.change_context(c) if c and c.task and not e.context.task else None"
                 )
                 deferred_cmd = f'python("import maya.cmds; maya.cmds.evalDeferred(\\"{context_script}\\")")'
-                command = f'{command} -file {safe_file_path} -c "{deferred_cmd}"'
+                command = f"{command} -file {safe_file_path} -c {shlex.quote(deferred_cmd)}"
             elif app_name == "nuke":
                 # Nuke: Set NUKE_PATH to include our scripts dir for init.py
                 # The init.py registers an onScriptLoad callback that updates context
