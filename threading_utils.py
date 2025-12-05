@@ -546,37 +546,21 @@ class ThreadPoolManager(LoggingMixin):
         self._entered = False
 
     def _shutdown_executor(self) -> None:
-        """Shutdown executor with proper timeout and cleanup."""
+        """Shutdown executor with proper cleanup.
+
+        Uses Python 3.11+ shutdown with cancel_futures=True for clean termination.
+        This is blocking but acceptable during application shutdown.
+        """
         if not self.executor:
             return
 
-        self.logger.debug(
-            f"ThreadPoolManager shutting down executor (timeout={self.shutdown_timeout}s)"
-        )
+        self.logger.debug("ThreadPoolManager shutting down executor")
 
         try:
-            # Graceful shutdown with manual timeout handling
-            start_time = time.time()
-            self.executor.shutdown(wait=False)  # Signal shutdown but don't wait
-
-            # Wait for threads to complete with timeout
-            while time.time() - start_time < self.shutdown_timeout:
-                # Check if all threads have finished
-                # Access internal thread set (this is implementation-dependent but works)
-                if hasattr(self.executor, "_threads") and not self.executor._threads:
-                    self.logger.debug("All executor threads completed")
-                    break
-
-                time.sleep(0.05)  # Short polling interval
-            else:
-                # Timeout reached - use debug level to be less noisy
-                self.logger.debug(
-                    f"Executor shutdown timeout after {self.shutdown_timeout}s, some threads may still be running (this is usually not critical)"
-                )
-
-            self.logger.debug(
-                "ThreadPoolManager executor shutdown completed gracefully"
-            )
+            # Python 3.11+: cancel_futures=True cancels pending (not running) futures
+            # wait=True blocks until running tasks complete - acceptable during shutdown
+            self.executor.shutdown(wait=True, cancel_futures=True)
+            self.logger.debug("ThreadPoolManager executor shutdown completed")
         except Exception as e:
             self.logger.error(f"ThreadPoolManager executor shutdown failed: {e}")
         finally:

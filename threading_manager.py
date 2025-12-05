@@ -107,16 +107,14 @@ class ThreadingManager(QObject):
             self._current_threede_worker = None
             _ = self._workers.pop("threede_discovery", None)
 
-        # Phase 2: Stop old worker OUTSIDE lock (non-blocking via QTimer)
+        # Phase 2: Stop old worker OUTSIDE lock (non-blocking cleanup)
         if old_worker is not None:
             worker_to_cleanup = old_worker  # Capture for lambda (typed narrowing)
             if worker_to_cleanup.isRunning():
                 logger.debug("Stopping existing 3DE worker")
                 worker_to_cleanup.stop()
-                # Defer blocking wait to event loop - avoids UI freeze
-                QTimer.singleShot(
-                    0, lambda: self._wait_and_cleanup_worker(worker_to_cleanup)
-                )
+                # Non-blocking cleanup using signals - never blocks UI thread
+                self._schedule_worker_cleanup_with_timeout(worker_to_cleanup)
             else:
                 worker_to_cleanup.deleteLater()
 
@@ -176,17 +174,43 @@ class ThreadingManager(QObject):
             logger.error(f"Failed to start 3DE discovery: {e}")
             return False
 
-    def _wait_and_cleanup_worker(self, worker: QThread) -> None:
-        """Wait for worker to stop and clean up.
+    def _schedule_worker_cleanup_with_timeout(self, worker: QThread) -> None:
+        """Non-blocking cleanup using finished signal + timeout fallback.
 
-        Called via QTimer.singleShot to avoid blocking the UI thread.
+        This method is truly non-blocking - it uses Qt signals instead of
+        worker.wait() which would block the UI thread.
 
         Args:
-            worker: The worker thread to wait for and clean up
+            worker: The worker thread to clean up
         """
-        if not worker.wait(5000):  # 5 second timeout
-            logger.warning("3DE worker did not stop gracefully within timeout")
-        worker.deleteLater()
+        # Connect finished signal for cleanup (safe even if already finished)
+        _ = worker.finished.connect(worker.deleteLater)
+
+        if not worker.isRunning():
+            # Already finished, schedule deletion
+            worker.deleteLater()
+            return
+
+        # Set up timeout fallback - if worker doesn't finish in time, track as zombie
+        cleanup_timer = QTimer()
+        cleanup_timer.setSingleShot(True)
+
+        def on_timeout() -> None:
+            cleanup_timer.deleteLater()
+            if worker.isRunning():
+                logger.warning("3DE worker did not stop gracefully within timeout")
+                with QMutexLocker(self._mutex):
+                    self._zombie_workers.append(worker)
+            # Note: deleteLater already connected to finished signal
+
+        def on_finished() -> None:
+            # Worker finished before timeout - stop the timer
+            cleanup_timer.stop()
+            cleanup_timer.deleteLater()
+
+        _ = cleanup_timer.timeout.connect(on_timeout)
+        _ = worker.finished.connect(on_finished)
+        cleanup_timer.start(5000)  # 5 second timeout
 
     def _on_progress_update(
         self,
@@ -361,9 +385,17 @@ class ThreadingManager(QObject):
             if worker.isRunning():
                 logger.debug(f"Waiting for {name} thread to finish")
                 if not worker.wait(3000):  # 3 second timeout per thread
-                    logger.warning(f"Thread {name} did not finish gracefully")
+                    logger.warning(
+                        f"Thread {name} did not finish gracefully - tracking as zombie"
+                    )
+                    # Track as zombie like remove_worker() does
+                    with QMutexLocker(self._mutex):
+                        self._zombie_workers.append(worker)
+                    # DON'T call deleteLater on still-running thread - it will be
+                    # cleaned up in Phase 3 or by periodic zombie cleanup
+                    continue
 
-            # Schedule for deletion
+            # Only deleteLater if actually stopped
             worker.deleteLater()
 
         # Phase 3: Force-cleanup any zombie workers from previous operations

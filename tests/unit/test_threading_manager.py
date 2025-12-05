@@ -646,13 +646,14 @@ class TestCleanupAndShutdown:
                 mock_threede_model, mock_shot_model
             )
 
-        # Process Qt events to execute QTimer.singleShot cleanup callback
+        # Process Qt events for non-blocking cleanup
         process_qt_events()
 
-        # Verify first worker was cleaned up
+        # Verify first worker cleanup was initiated (non-blocking approach)
+        # New implementation uses signals instead of blocking wait()
         first_worker.stop.assert_called()
-        first_worker.wait.assert_called()
-        first_worker.deleteLater.assert_called()
+        # finished.connect(deleteLater) is called for cleanup
+        first_worker.finished.connect.assert_called()
 
     def test_start_discovery_handles_cleanup_timeout(
         self,
@@ -703,11 +704,12 @@ class TestCleanupAndShutdown:
                 mock_threede_model, mock_shot_model
             )
 
-        # Process Qt events to execute QTimer.singleShot cleanup callback
+        # Process Qt events for non-blocking cleanup
         process_qt_events()
 
-        # Verify first worker was cleaned up despite timeout
-        first_worker.deleteLater.assert_called()
+        # Verify first worker cleanup was initiated (non-blocking approach)
+        # With new signal-based cleanup, finished.connect(deleteLater) is used
+        first_worker.finished.connect.assert_called()
 
     def test_shutdown_all_threads_stops_all_workers(
         self, threading_manager: ThreadingManager
@@ -893,6 +895,8 @@ class TestEdgeCasesAndErrorHandling:
         old_worker.stop = Mock()
         old_worker.wait = Mock(return_value=True)
         old_worker.deleteLater = Mock()
+        old_worker.finished = Mock()
+        old_worker.finished.connect = Mock()
 
         threading_manager._current_threede_worker = old_worker
         threading_manager._workers["threede_discovery"] = old_worker
@@ -904,12 +908,13 @@ class TestEdgeCasesAndErrorHandling:
                 mock_threede_model, mock_shot_model
             )
 
-        # Process Qt events to execute QTimer.singleShot cleanup callback
+        # Process Qt events for non-blocking cleanup
         process_qt_events()
 
-        # Old worker should be cleaned up
+        # Old worker cleanup was initiated (non-blocking approach)
+        # Uses finished signal instead of blocking wait()
         old_worker.stop.assert_called_once()
-        old_worker.deleteLater.assert_called_once()
+        old_worker.finished.connect.assert_called()
 
     def test_shutdown_with_no_workers(
         self, threading_manager: ThreadingManager

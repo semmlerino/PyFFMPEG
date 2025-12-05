@@ -137,14 +137,23 @@ class ThreadSafeThumbnailCache:
     def get_image(self, key: str) -> QImage | None:
         """Get QImage for processing (thread-safe).
 
+        Returns a COPY of the cached image to prevent cross-thread mutation races.
+        The copy uses Qt's implicit sharing (copy-on-write) so the overhead is
+        minimal if the caller doesn't modify the image.
+
         Args:
             key: Cache key to look up
 
         Returns:
-            QImage if available, None if not found
+            QImage copy if available, None if not found
         """
         with QMutexLocker(self._cache_lock):
-            return self._image_cache.get(key)
+            image = self._image_cache.get(key)
+            if image is not None:
+                # Return copy to prevent mutation race across threads
+                # Qt uses COW so this is cheap if image isn't modified
+                return image.copy()
+            return None
 
     def has_image(self, key: str) -> bool:
         """Check if image exists in cache (thread-safe).

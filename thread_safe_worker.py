@@ -84,7 +84,8 @@ class ThreadSafeWorker(LoggingMixin, QThread):
     _zombie_timestamps: ClassVar[dict[int, float]] = {}  # Track when zombified
     _zombie_mutex: ClassVar[QMutex] = QMutex()  # Protects _zombie_threads access
     _zombie_cleanup_timer: ClassVar[QTimer | None] = None  # Periodic cleanup timer
-    _MAX_ZOMBIE_AGE_SECONDS: ClassVar[int] = 60  # Try cleanup after 60s
+    _MAX_ZOMBIE_AGE_SECONDS: ClassVar[int] = 60  # Log warning after 60s
+    _ZOMBIE_TERMINATE_AGE_SECONDS: ClassVar[int] = 300  # Force terminate after 5 min
     _ZOMBIE_CLEANUP_INTERVAL_MS: ClassVar[int] = 60000  # Cleanup every 60s
 
     def __init__(self, parent: QObject | None = None) -> None:
@@ -610,11 +611,12 @@ class ThreadSafeWorker(LoggingMixin, QThread):
 
     @classmethod
     def cleanup_old_zombies(cls) -> int:
-        """Attempt to clean up old zombie threads.
+        """Attempt to clean up old zombie threads with escalating cleanup policy.
 
-        Retries waiting on zombies that have been in the collection for
-        more than _MAX_ZOMBIE_AGE_SECONDS. Removes threads that have
-        finished naturally.
+        Cleanup stages:
+        1. Threads that finished naturally are removed immediately
+        2. After _MAX_ZOMBIE_AGE_SECONDS (60s), logs warning
+        3. After _ZOMBIE_TERMINATE_AGE_SECONDS (300s), force terminates
 
         This method should be called periodically to prevent unbounded
         memory growth from zombie thread accumulation.
@@ -622,6 +624,10 @@ class ThreadSafeWorker(LoggingMixin, QThread):
         Returns:
             Number of zombies cleaned up
         """
+        # Import logging here to avoid issues during shutdown
+        import logging
+
+        logger = logging.getLogger(__name__)
         cleaned = 0
         current_time = time.time()
 
@@ -635,18 +641,28 @@ class ThreadSafeWorker(LoggingMixin, QThread):
                 zombie_id = id(zombie)
                 age = current_time - cls._zombie_timestamps.get(zombie_id, current_time)
 
-                if age > cls._MAX_ZOMBIE_AGE_SECONDS:
-                    # Retry wait on old zombies
-                    if not zombie.isRunning():
-                        # Thread finished naturally, safe to remove
-                        _ = cls._zombie_timestamps.pop(zombie_id, None)
-                        cleaned += 1
-                    else:
-                        # Still running, keep as zombie
-                        zombies_to_keep.append(zombie)
+                if not zombie.isRunning():
+                    # Thread finished naturally, safe to remove
+                    _ = cls._zombie_timestamps.pop(zombie_id, None)
+                    cleaned += 1
+                    logger.info(f"Zombie {zombie_id} finished naturally after {age:.0f}s")
+                elif age > cls._ZOMBIE_TERMINATE_AGE_SECONDS:
+                    # Force terminate after extended period
+                    logger.warning(
+                        f"Force-terminating zombie {zombie_id} after {age:.0f}s"
+                    )
+                    zombie.terminate()
+                    _ = zombie.wait(1000)  # Brief wait after terminate
+                    _ = cls._zombie_timestamps.pop(zombie_id, None)
+                    cleaned += 1
                 else:
-                    # Too young to retry cleanup
+                    # Keep tracking
                     zombies_to_keep.append(zombie)
+                    if age > cls._MAX_ZOMBIE_AGE_SECONDS:
+                        logger.warning(
+                            f"Zombie {zombie_id} still running after {age:.0f}s "
+                            f"(will terminate at {cls._ZOMBIE_TERMINATE_AGE_SECONDS}s)"
+                        )
 
             cls._zombie_threads = zombies_to_keep
 

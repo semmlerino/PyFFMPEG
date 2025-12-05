@@ -103,10 +103,55 @@ class TestZombieCleanupTimer:
             worker.deleteLater()
 
     def test_timer_doesnt_clean_young_zombies(self, qtbot: QtBot) -> None:
-        """Test that timer doesn't clean up recently added zombies."""
+        """Test that timer doesn't terminate recently added still-running zombies.
+
+        Note: Finished zombies ARE removed immediately regardless of age (correct behavior).
+        This test verifies that young RUNNING zombies are not terminated.
+        """
         ThreadSafeWorker.stop_zombie_cleanup_timer()
 
-        # Create finished worker
+        # Create a worker that stays running (uses wait condition)
+        class BlockingWorker(ThreadSafeWorker):
+            def do_work(self) -> None:
+                # Block until stop is requested
+                while not self.should_stop():
+                    self.msleep(10)
+
+        worker = BlockingWorker()
+
+        try:
+            worker.start()
+            # Wait for worker to start running
+            qtbot.waitUntil(worker.isRunning, timeout=1000)
+
+            # Add as fresh zombie (age = 0) while still running
+            ThreadSafeWorker._zombie_threads.append(worker)
+            ThreadSafeWorker._zombie_timestamps[id(worker)] = time.time()
+
+            assert len(ThreadSafeWorker._zombie_threads) == 1
+            assert worker.isRunning()
+
+            # Try cleanup - should NOT remove or terminate (too young AND still running)
+            cleaned = ThreadSafeWorker.cleanup_old_zombies()
+            assert cleaned == 0
+            assert len(ThreadSafeWorker._zombie_threads) == 1
+            assert worker.isRunning()  # Still running, not terminated
+
+            # Cleanup manually
+            ThreadSafeWorker._zombie_threads.clear()
+            ThreadSafeWorker._zombie_timestamps.clear()
+        finally:
+            # Ensure QThread cleanup
+            if worker.isRunning():
+                worker.request_stop()
+                worker.wait(2000)
+            worker.deleteLater()
+
+    def test_timer_cleans_finished_zombies_regardless_of_age(self, qtbot: QtBot) -> None:
+        """Test that finished zombies are removed immediately regardless of age."""
+        ThreadSafeWorker.stop_zombie_cleanup_timer()
+
+        # Create a worker that finishes quickly
         class QuickWorker(ThreadSafeWorker):
             def do_work(self) -> None:
                 pass
@@ -116,26 +161,19 @@ class TestZombieCleanupTimer:
         try:
             worker.start()
             assert worker.wait(1000)
+            assert not worker.isRunning()  # Worker has finished
 
-            # Add as fresh zombie (age = 0)
+            # Add as fresh zombie (age = 0) - but already finished
             ThreadSafeWorker._zombie_threads.append(worker)
             ThreadSafeWorker._zombie_timestamps[id(worker)] = time.time()
 
             assert len(ThreadSafeWorker._zombie_threads) == 1
 
-            # Try cleanup - should NOT remove (too young)
+            # Cleanup should remove finished zombie immediately
             cleaned = ThreadSafeWorker.cleanup_old_zombies()
-            assert cleaned == 0
-            assert len(ThreadSafeWorker._zombie_threads) == 1
-
-            # Cleanup manually
-            ThreadSafeWorker._zombie_threads.clear()
-            ThreadSafeWorker._zombie_timestamps.clear()
+            assert cleaned == 1  # Finished zombies removed regardless of age
+            assert len(ThreadSafeWorker._zombie_threads) == 0
         finally:
-            # Ensure QThread cleanup even if assertions fail
-            if worker.isRunning():
-                worker.request_stop()
-                worker.wait(1000)
             worker.deleteLater()
 
     def test_stop_timer_when_not_running(self, qtbot: QtBot) -> None:
