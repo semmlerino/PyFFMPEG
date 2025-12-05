@@ -1059,7 +1059,17 @@ class CommandLauncher(LoggingMixin, QObject):
             if app_name == "3de":
                 command = f"{command} -open {safe_file_path}"
             elif app_name == "maya":
-                command = f"{command} -file {safe_file_path}"
+                # Add deferred command to update SGTK context after file loads
+                # This triggers full app loading (publish, loader, etc.)
+                context_script = (
+                    "import sgtk; "
+                    "e=sgtk.platform.current_engine(); "
+                    "p=__import__('maya.cmds',fromlist=['']).file(q=1,sn=1); "
+                    "c=e.sgtk.context_from_path(p) if p else None; "
+                    "e.change_context(c) if c and c.task and not e.context.task else None"
+                )
+                deferred_cmd = f'python("import maya.cmds; maya.cmds.evalDeferred(\\"{context_script}\\")")'
+                command = f'{command} -file {safe_file_path} -c "{deferred_cmd}"'
             else:
                 # Nuke and others accept file without flag
                 command = f"{command} {safe_file_path}"
