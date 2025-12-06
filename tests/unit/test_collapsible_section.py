@@ -4,8 +4,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QLabel
+
+# Qt tests must be grouped for parallel execution
+pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
 from collapsible_section import CollapsibleSection
 from tests.test_helpers import process_qt_events

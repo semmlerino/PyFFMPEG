@@ -21,6 +21,9 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+# Qt tests must be grouped for parallel execution
+pytestmark = [pytest.mark.unit, pytest.mark.qt]
+
 from filesystem_scanner import FileSystemScanner
 from shot_model import Shot
 from threede_scene_worker import ThreeDESceneWorker

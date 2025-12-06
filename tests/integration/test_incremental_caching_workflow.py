@@ -17,7 +17,8 @@ from shot_model import ShotModel
 
 
 pytestmark = [
-    pytest.mark.integration,  # CRITICAL: Qt state must be serialized
+    pytest.mark.integration,
+    pytest.mark.qt,  # CRITICAL: Qt state must be serialized
 ]
 
 

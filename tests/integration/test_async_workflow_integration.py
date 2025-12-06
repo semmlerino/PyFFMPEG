@@ -29,6 +29,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # Local application imports
 from base_item_model import BaseItemRole as UnifiedRole
 from cache_manager import CacheManager
+from runnable_tracker import get_tracker
 from shot_info_panel import ShotInfoPanel
 from shot_item_model import ShotItemModel
 from shot_model import Shot
@@ -50,6 +51,10 @@ class TestAsyncWorkflowIntegration:
     def cleanup_qt_state(self, qtbot: QtBot) -> Any:
         """Autouse fixture to ensure Qt state is cleaned up after each test."""
         yield
+        # Wait for all background QRunnables (InfoPanelPixmapLoader) to complete
+        # CRITICAL: Without this, deleteLater() may delete widgets while
+        # background threads are still emitting signals, causing segfaults
+        get_tracker().wait_for_all(timeout_ms=2000)
         process_qt_events()  # Process pending Qt events
 
     @pytest.fixture
@@ -152,7 +157,8 @@ class TestAsyncWorkflowIntegration:
         loading_state = item_model._loading_states.get(test_shots[0].full_name)
         assert loading_state in ["loading", "loaded", "failed"]
 
-        # Cleanup
+        # Cleanup - wait for background threads before deleting widgets
+        get_tracker().wait_for_all(timeout_ms=2000)
         item_model.clear_thumbnail_cache()
         item_model.deleteLater()
         info_panel.deleteLater()
@@ -225,7 +231,8 @@ class TestAsyncWorkflowIntegration:
         assert item_model.rowCount() == 1
         assert info_panel._current_shot is not None
 
-        # Cleanup - process events and delete components
+        # Cleanup - wait for background threads, then process events and delete
+        get_tracker().wait_for_all(timeout_ms=2000)
         process_qt_events()
         item_model.clear_thumbnail_cache()
         item_model.deleteLater()
@@ -400,6 +407,10 @@ class TestAsyncCallbackIntegration:
     def cleanup_qt_state(self, qtbot: QtBot) -> Any:
         """Autouse fixture to ensure Qt state is cleaned up after each test."""
         yield
+        # Wait for all background QRunnables (InfoPanelPixmapLoader) to complete
+        # CRITICAL: Without this, deleteLater() may delete widgets while
+        # background threads are still emitting signals, causing segfaults
+        get_tracker().wait_for_all(timeout_ms=2000)
         process_qt_events()  # Process pending Qt events
 
     def test_model_reset_during_async_callbacks(

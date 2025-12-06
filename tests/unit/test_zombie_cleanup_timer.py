@@ -7,6 +7,9 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+# Qt tests must be grouped for parallel execution
+pytestmark = [pytest.mark.unit, pytest.mark.qt]
+
 from thread_safe_worker import ThreadSafeWorker
 
 

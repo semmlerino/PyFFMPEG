@@ -10,6 +10,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 from PySide6.QtWidgets import QApplication
 
+# Qt tests must be grouped for parallel execution
+pytestmark = [pytest.mark.unit, pytest.mark.qt]
+
 from controllers.threede_controller import ThreeDEController
 from threede_grid_view import ThreeDEGridView
 from threede_item_model import ThreeDEItemModel

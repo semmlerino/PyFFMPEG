@@ -18,6 +18,9 @@ from typing import TYPE_CHECKING
 # Third-party imports
 import pytest
 
+# Qt tests must be grouped for parallel execution
+pytestmark = [pytest.mark.unit, pytest.mark.qt]
+
 # Local application imports
 from cache_manager import ShotMergeResult
 from config import Config

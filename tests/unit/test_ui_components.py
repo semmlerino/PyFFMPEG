@@ -6,8 +6,13 @@ UNIFIED_TESTING_GUIDE.md principles.
 
 from __future__ import annotations
 
+import pytest
+
 # Third-party imports
 from PySide6.QtWidgets import QWidget
+
+# Qt tests must be grouped for parallel execution
+pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
 # Local application imports
 from ui_components import (

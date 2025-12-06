@@ -7,8 +7,13 @@ that only manifest as runtime warnings.
 import sys
 from io import StringIO
 
+import pytest
 from PySide6.QtCore import Qt, Signal
+
 from PySide6.QtWidgets import QApplication
+
+# Qt tests must be grouped for parallel execution
+pytestmark = [pytest.mark.unit, pytest.mark.qt]
 
 from thread_safe_worker import ThreadSafeWorker
 from typing_compat import override

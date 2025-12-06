@@ -19,6 +19,9 @@ from typing import TYPE_CHECKING
 # Third-party imports
 import pytest
 
+# Qt tests must be grouped for parallel execution
+pytestmark = [pytest.mark.unit, pytest.mark.qt]
+
 
 if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot

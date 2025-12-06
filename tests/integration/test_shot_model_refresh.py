@@ -19,6 +19,9 @@ from pathlib import Path
 import pytest
 from PySide6.QtTest import QSignalSpy
 
+# Qt tests must be grouped for parallel execution
+pytestmark = [pytest.mark.integration, pytest.mark.qt]
+
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 

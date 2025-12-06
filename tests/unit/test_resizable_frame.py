@@ -7,6 +7,9 @@ from typing import TYPE_CHECKING
 import pytest
 from PySide6.QtWidgets import QLabel, QWidget
 
+# Qt tests must be grouped for parallel execution
+pytestmark = [pytest.mark.unit, pytest.mark.qt]
+
 from resizable_frame import ResizableFrame
 from tests.test_helpers import process_qt_events
 

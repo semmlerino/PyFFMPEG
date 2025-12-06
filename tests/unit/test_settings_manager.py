@@ -25,6 +25,7 @@ if TYPE_CHECKING:
 pytestmark = [
     pytest.mark.unit,
     pytest.mark.qt,  # Critical for parallel execution safety
+    pytest.mark.xdist_group("settings_manager"),  # Batch on same worker to avoid setup overhead
 ]
 
 
