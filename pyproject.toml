@@ -5,6 +5,10 @@ name = "shotbot"
 version = "0.0.0"  # Placeholder - actual versioning via git tags
 requires-python = ">=3.11"
 
+# Explicit "do not package" signal for uv - just manage deps, don't build/install
+[tool.uv]
+package = false
+
 [tool.basedpyright]
 # Check all Python files in the project (no include list = check everything)
 # NOTE: tests excluded from type checking (test utilities have untyped decorators and generics)
@@ -134,15 +138,11 @@ ignore = [
     "E501",    # line-too-long (let formatter handle it)
     "E203",    # whitespace-before-punctuation (conflicts with Black)
 
-    # Type annotation flexibility
-    "ANN401",  # any-type (Any is useful in generic code)
-
     # Import placement
     "E402",    # module-level-import-not-at-top-of-file (sometimes needed for Qt apps)
     "TC003",   # typing-only-standard-library-import (prefer consistency)
 
     # Qt-specific patterns
-    "SLF001",  # private-member-access (common in Qt testing and subclassing)
     "ARG002",  # unused-method-argument (Qt callbacks often have unused args)
     "N802",    # function-name-should-be-lowercase (Qt methods must be camelCase)
     "N815",    # variable-in-class-scope-should-not-be-mixedcase (Qt properties must be mixedCase)
@@ -162,29 +162,17 @@ ignore = [
     "TRY003",  # raise-vanilla-args (vanilla exceptions are often fine)
     "TRY004",  # prefer-type-error (ValueError/Exception acceptable for type issues)
     "TRY300",  # try-consider-else (not always clearer)
-    "BLE001",  # blind-except (sometimes needed for cleanup)
     "TRY400",  # error-instead-of-exception (Error is fine in Python 3)
-
-    # Boolean arguments (common in GUI apps)
-    "FBT001",  # boolean-type-hint-positional-argument
-    "FBT002",  # boolean-default-value-positional-argument
 
     # Simplification preferences (explicit code is often clearer)
     "SIM102",  # collapsible-if (nested ifs can be more readable)
     "SIM105",  # suppressible-exception (try/except/pass is explicit)
-    "FBT003",  # boolean-positional-value-in-call
 
     # Print statements (useful for debugging and CLI output)
     "T201",    # print (we use print intentionally in some places)
 
     # Commented-out code detection (too many false positives on documentation comments)
     "ERA001",  # found-commented-out-code (flags doc comments like "# - method_name()" as code)
-
-    # Logging (f-strings are readable)
-    "G004",    # logging-f-string (f-strings are fine for our use case)
-
-    # Docstrings (we have our own standards)
-    "D",       # pydocstyle (too opinionated, we follow our own style)
 
     # Magic values (sometimes clearer than named constants)
     "PLR2004", # magic-value-comparison
@@ -197,11 +185,9 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 # Tests have different standards
 "tests/**/*.py" = [
-    "S101",    # assert (asserts are the point of tests)
     "ARG001",  # unused-function-argument (pytest fixtures)
     "PLR2004", # magic-value-comparison (test data can be literal)
     "PLR0913", # too-many-arguments (pytest fixtures often need many params)
-    "S108",    # hardcoded-temp-file (fine in tests)
     "DTZ001",  # call-datetime-without-tzinfo (tests don't need tz)
     "B018",    # useless-expression (testing expressions)
 ]
@@ -234,6 +220,13 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+
+# Required plugins (ensures config options like --dist, timeout, qt_api don't silently half-work)
+required_plugins = [
+    "pytest-xdist",
+    "pytest-timeout",
+    "pytest-qt",
+]
 
 # Test execution options
 # NOTE: Coverage is disabled by default for faster local runs.
