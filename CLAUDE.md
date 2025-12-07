@@ -276,6 +276,15 @@ shotbot/
 └── encoded_releases/ # Local copy of encoded bundles
 ```
 
+## Threading Architecture
+
+For detailed threading and concurrency documentation, see [docs/THREADING_ARCHITECTURE.md](./docs/THREADING_ARCHITECTURE.md).
+
+Key threading components:
+- **QThread workers**: `ThreadSafeWorker`, `ThreeDESceneWorker` for background tasks
+- **ThreadPoolExecutor**: `ProcessPoolManager` for shell commands, filesystem scanning
+- **Synchronization**: QMutex, threading.Lock, QWaitCondition for thread safety
+
 ## Type Safety
 
 The project uses basedpyright for type checking with strict settings:
@@ -423,7 +432,7 @@ process_qt_events()  # ✅ Execute deleteLater
 ```
 
 ### Current Test Status
-- **2,600+ tests passing** (`pytest tests/ -n auto --dist=loadgroup`)
+- **3,500+ tests passing** (`pytest tests/ -n auto --dist=loadgroup`)
 - Grouped-parallel runs match serial reliability thanks to the early QApplication
   bootstrap, qtbot wait patch, and xdist grouping
 - Comprehensive coverage across:

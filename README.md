@@ -169,13 +169,11 @@ Settings are stored in `~/.shotbot/settings.json` and include:
 
 ```bash
 # Run linting
-source venv/bin/activate
-ruff check .
-ruff format .
+~/.local/bin/uv run ruff check .
+~/.local/bin/uv run ruff format .
 
 # Type checking with basedpyright
-source venv/bin/activate
-python -m basedpyright
+~/.local/bin/uv run basedpyright
 
 # Or use the convenience script
 ./typecheck.sh
@@ -200,7 +198,7 @@ python -m basedpyright
 > `coverage_html/` after any `pytest` invocation using the default config.
 
 For deeper guidance (Qt hygiene, fixture behavior, debugging tips) see
-[UNIFIED_TESTING_V2.md](./UNIFIED_TESTING_V2.md) and [docs/TEST_FIXTURES_GUIDE.md](./docs/TEST_FIXTURES_GUIDE.md).
+[UNIFIED_TESTING_V2.md](./UNIFIED_TESTING_V2.md).
 
 ## Customization
 

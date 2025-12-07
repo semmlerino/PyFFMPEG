@@ -1,10 +1,6 @@
 # Shotbot Architecture - Quick Reference
 
-## Purpose
-GUI application for a **single Matchmove artist at BlueBolt** supporting the pipeline:
-```
-3DEqualizer (tracking) → Maya (finalize/playblast) → Nuke (review) → Nuke (publish)
-```
+> **Note**: See `CLAUDE.md` for project overview and matchmove pipeline context. This memory provides detailed architecture analysis for AI context loading.
 
 ## Executive Summary
 - **47K LOC** across **1,050 files**
@@ -70,7 +66,7 @@ Generic infrastructure:
 
 ## Complexity Hotspots (Top 3)
 
-### 🔴 TIER 1: Central Orchestrators
+### TIER 1: Central Orchestrators
 
 **MainWindow** (1,563 LOC, 49 methods)
 - Coordinates ALL subsystems
@@ -90,32 +86,10 @@ Generic infrastructure:
 - Session creation/reuse/cleanup
 - Issue: Complex initialization
 
-### 🟡 TIER 2: Data Pipeline Coordinators
+### TIER 2: Data Pipeline Coordinators
 
 **ShotModel** (825 LOC) - Async loading coordination
 **BaseItemModel[T]** (838 LOC) - Generic Qt model + lazy loading
-
----
-
-## Module Cohesion Assessment
-
-### ✅ Excellent (95%+)
-- Finder classes (threede_scene_finder.py)
-- Mixin classes (LoggingMixin, etc.)
-- Type definitions, configuration
-
-### ✅ Very Good (85-94%)
-- CacheManager (90%)
-- ProcessPoolManager (92%)
-- ShotModel (85%)
-- BaseItemModel[T] (88%)
-
-### ⚠️ Good (75-84%)
-- MainWindow (75%) - Orchestrator, acceptable
-
-- RefreshOrchestrator (70%) - Multiple models
-
-**Overall SRP Adherence: 92%** ✓
 
 ---
 
@@ -145,60 +119,42 @@ TIER 6: Support
 
 ---
 
-## File Size Distribution
-
-| File | LOC | Purpose |
-|------|-----|---------|
-| main_window.py | 1,563 | UI orchestration |
-| cache_manager.py | 1,151 | Multi-level caching |
-| base_item_model.py | 838 | Generic Qt model |
-| shot_model.py | 825 | Shot data loading |
-| process_pool_manager.py | 746 | Subprocess pool |
-| Top 5 Total | 5,123 | ~11% of codebase |
-
----
-
 ## Key Architectural Decisions
 
-### ✓ Three Independent Pipelines
+### Three Independent Pipelines
 - Separate models for My Shots, 3DE Scenes, Previous Shots
 - Explicit > implicit, allows independent optimization
 - Clear data flow for each pipeline
 
-### ✓ Generic Base Classes
+### Generic Base Classes
 - BaseItemModel[T], BaseShotModel, BaseGridView
 - 70-80% code reuse across similar components
 - Maintainable without excessive indirection
 
-### ✓ Singleton Process Pool
+### Singleton Process Pool
 - Centralized subprocess management
 - Round-robin load balancing
 - Command result caching
 - Single point of control
 
-### ✓ Multi-Level Caching
+### Multi-Level Caching
 - Memory cache (runtime thumbnails)
 - Disk cache (persistent JSON)
 - Different TTL strategies per cache type
 - Incremental merge for historical data
 
-### ✓ Qt Signal/Slot Communication
-- Thread-safe cross-component communication
-- Loose coupling between layers
-- Automatic signal cleanup
-
 ---
 
 ## Strengths
 
-✅ Clear separation of concerns (5 distinct layers)
-✅ Excellent extensibility (plugin architecture foundation)
-✅ High testability (2,300+ tests, mocks available)
-✅ Strong type safety (comprehensive annotations)
-✅ Good error handling (ErrorHandlingMixin)
-✅ Performance optimized (caching, lazy loading, async)
-✅ Thread-safe (Qt signals, QMutex)
-✅ Reusable patterns (70-80% code reuse)
+- Clear separation of concerns (5 distinct layers)
+- Excellent extensibility (plugin architecture foundation)
+- High testability (3,500+ tests, mocks available)
+- Strong type safety (comprehensive annotations)
+- Good error handling (ErrorHandlingMixin)
+- Performance optimized (caching, lazy loading, async)
+- Thread-safe (Qt signals, QMutex)
+- Reusable patterns (70-80% code reuse)
 
 ---
 
@@ -214,40 +170,6 @@ TIER 6: Support
 - **Recommendation**: Create TTLCache, IncrementalCache, ThumbnailCache classes
 - **Target**: Reduce to ~700 LOC (facade)
 
-### RefreshOrchestrator Mixing (Multiple models)
-- **Issue**: Coordinates unrelated model refreshes
-- **Recommendation**: Each model handles its refresh, orchestrator coordinates
-- **Target**: Clearer separation
-
-### ProcessPoolManager Singleton Complexity
-- **Issue**: Difficult to reset in tests
-- **Recommendation**: Extract SessionPool class for round-robin logic
-- **Target**: Easier testing, code reuse
-
----
-
-## Testing Architecture
-
-```
-Unit Tests (isolated components):
-  - test_cache_manager.py (cache strategies)
-  - test_shot_model.py (async loading)
-  - test_base_item_model.py (generic model)
-  - test_launcher_controller.py (coordination)
-
-Integration Tests (multi-component):
-  - test_shot_loading_pipeline.py
-  - test_app_launch_flow.py
-  - test_tab_switching.py
-  - test_3de_discovery_pipeline.py
-
-Fixtures (support):
-  - conftest.py (Qt setup, singleton reset)
-  - test_doubles.py (mocks)
-
-Result: 2,300+ tests passing ✓
-```
-
 ---
 
 ## Performance Characteristics
@@ -257,12 +179,6 @@ Result: 2,300+ tests passing ✓
 - **Previous Shots**: Persistent (no expiration)
 - **3DE Scenes**: Persistent + incremental merge
 - **Thumbnails**: Persistent, lazy loaded
-
-### Threading
-- **Main Thread**: UI updates, signal processing
-- **Worker Threads**: Background loading, filesystem scan
-- **Process Pool**: Workspace command execution
-- **Signal/Slot**: Cross-thread communication
 
 ### Optimization Techniques
 - Viewport-aware lazy thumbnail loading
@@ -275,21 +191,10 @@ Result: 2,300+ tests passing ✓
 
 ## Extensibility Points
 
-1. **New Tab/Data Source**
-   - Implement Model, ItemModel, GridView
-   - Register in MainWindow
-
-2. **Custom Launchers**
-   - Add to config JSON
-   - Or implement custom finder
-
-3. **New Cache Type**
-   - Add to CacheManager
-   - Define TTL + merge strategy
-
-4. **New Controller**
-   - Create controller class
-   - Register signals in MainWindow
+1. **New Tab/Data Source** - Implement Model, ItemModel, GridView; register in MainWindow
+2. **Custom Launchers** - Add to config JSON or implement custom finder
+3. **New Cache Type** - Add to CacheManager; define TTL + merge strategy
+4. **New Controller** - Create controller class; register signals in MainWindow
 
 ---
 
@@ -302,43 +207,15 @@ Result: 2,300+ tests passing ✓
 | Hotspots | 3 | Manageable |
 | Design Patterns | 10+ | Comprehensive |
 | SRP Adherence | 92% | Excellent |
-| Test Coverage | 2,300+ tests | Comprehensive |
-| Type Safety | Strict (basedpyright) | ✓ 0 errors |
+| Test Coverage | 3,500+ tests | Comprehensive |
+| Type Safety | Strict (basedpyright) | 0 errors |
 | Architecture Rating | A- (92/100) | Very Good |
 
 ---
 
-## Deployment Architecture
+## Related Documentation
 
-```
-Development (master)
-  ↓
-Post-commit Hook (auto-encode, lint, type check)
-  ↓
-Encoded Bundle
-  ├── Base64-encoded tar.gz
-  └── Metadata JSON
-  ↓
-GitHub (encoded-releases branch)
-  ↓
-Remote VFX Server
-  ├── Pull bundle
-  ├── Decode
-  └── Extract & run
-```
-
----
-
-## Summary
-
-Shotbot is a **well-architected, production-ready VFX application** with:
-- Strong layered design
-- Excellent code reuse
-- Comprehensive design patterns
-- High test coverage
-- Clear extension points
-- Mature resource management
-
-**Suitable for**: Production pipelines, team collaboration, long-running sessions, future enhancements
-
-**Areas for Improvement**: Reduce MainWindow complexity, split CacheManager strategies, improve deployment documentation
+- See `CLAUDE.md` for project overview and development standards
+- See `docs/THREADING_ARCHITECTURE.md` for threading details
+- See `SGTK_BLUEBOLT_PIPELINE_SETUP.md` for SGTK configuration
+- See `BLUEBOLT_VFX_ENVIRONMENT.md` for VFX environment setup
