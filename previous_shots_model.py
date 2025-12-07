@@ -113,10 +113,10 @@ class PreviousShotsModel(LoggingMixin, QObject):
         # Wait with timeout (prevent hanging)
         if not worker.wait(2000):
             self.logger.warning("Worker did not stop gracefully within 2s")
-            # Force termination if necessary
+            # Use safe_terminate which captures diagnostics and avoids raw terminate()
             if worker.isRunning():
-                worker.terminate()
-                _ = worker.wait(1000)
+                worker.safe_terminate()
+                # safe_terminate already handles waiting and zombie tracking
 
         # Disconnect all signals to prevent late emissions
         # Note: We check receivers() before disconnecting to avoid RuntimeWarnings

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 # Standard library imports
+import os
 import time
 from enum import Enum
 from typing import TYPE_CHECKING, ClassVar, final
@@ -92,6 +93,9 @@ class ThreadSafeWorker(LoggingMixin, QThread):
     _zombie_created_count: ClassVar[int] = 0  # Total zombies created this session
     _zombie_recovered_count: ClassVar[int] = 0  # Zombies that finished naturally
     _zombie_terminated_count: ClassVar[int] = 0  # Zombies force-terminated
+
+    # Thread start times for diagnostics (track when each thread started)
+    _thread_start_times: ClassVar[dict[int, float]] = {}
 
     def __init__(self, parent: QObject | None = None) -> None:
         """Initialize thread-safe worker.
@@ -332,9 +336,13 @@ class ThreadSafeWorker(LoggingMixin, QThread):
 
         Override do_work() in subclasses to implement actual functionality.
         """
+        # Track start time for diagnostics
+        ThreadSafeWorker._thread_start_times[id(self)] = time.time()
+
         # Transition to STARTING
         if not self.set_state(WorkerState.STARTING):
             self.logger.error(f"Worker {id(self)}: Failed to start - invalid state")
+            _ = ThreadSafeWorker._thread_start_times.pop(id(self), None)
             return
 
         # Check if stop was requested before we even started
@@ -400,6 +408,9 @@ class ThreadSafeWorker(LoggingMixin, QThread):
             except (SystemError, RuntimeError):
                 # Can occur during Python shutdown when enum module is being unloaded
                 pass
+            finally:
+                # Clean up start time tracking
+                _ = ThreadSafeWorker._thread_start_times.pop(id(self), None)
 
     def do_work(self) -> None:
         """Override this method with actual work implementation.
@@ -594,11 +605,21 @@ class ThreadSafeWorker(LoggingMixin, QThread):
                 if not self.wait(
                     ThreadingConfig.WORKER_TERMINATE_TIMEOUT_MS * 3,
                 ):  # Extended timeout
+                    # CAPTURE DIAGNOSTICS BEFORE ABANDONMENT
+                    # Import here to avoid circular imports
+                    from thread_diagnostics import ThreadDiagnostics
+
+                    start_time = ThreadSafeWorker._thread_start_times.get(id(self))
+                    report = ThreadDiagnostics.capture_thread_state(self, start_time)
+                    ThreadDiagnostics.log_abandonment(
+                        self,
+                        f"Failed to stop after {ThreadingConfig.WORKER_STOP_TIMEOUT_MS + ThreadingConfig.WORKER_TERMINATE_TIMEOUT_MS * 3}ms",
+                        report,
+                    )
+
                     self.logger.error(
-
-                            f"Worker {id(self)}: Failed to stop gracefully after 5s total. "
-                            "Thread will be abandoned (NOT terminated) to prevent crashes."
-
+                        f"Worker {id(self)}: Failed to stop gracefully after 5s total. "
+                        "Thread will be abandoned (NOT terminated) to prevent crashes."
                     )
                     # DO NOT call terminate() - it's unsafe!
                     # Instead, mark as zombie and add to class collection to prevent GC
@@ -618,11 +639,9 @@ class ThreadSafeWorker(LoggingMixin, QThread):
                         zombie_count = len(ThreadSafeWorker._zombie_threads)
 
                     self.logger.warning(
-
-                            f"Worker {id(self)}: Added to zombie collection "
-                            f"({zombie_count} total zombies). "
-                            "Periodic cleanup will attempt recovery."
-
+                        f"Worker {id(self)}: Added to zombie collection "
+                        f"({zombie_count} total zombies). "
+                        "Periodic cleanup will attempt recovery."
                     )
                 else:
                     # Thread actually stopped - NOW set state to STOPPED
@@ -678,15 +697,40 @@ class ThreadSafeWorker(LoggingMixin, QThread):
                     cleaned += 1
                     logger.info(f"Zombie {zombie_id} finished naturally after {age:.0f}s")
                 elif age > cls._ZOMBIE_TERMINATE_AGE_SECONDS:
-                    # Force terminate after extended period
-                    logger.warning(
-                        f"Force-terminating zombie {zombie_id} after {age:.0f}s"
+                    # CAPTURE DIAGNOSTICS BEFORE ANY TERMINATE
+                    # Import here to avoid issues during shutdown
+                    from thread_diagnostics import ThreadDiagnostics
+
+                    start_time = cls._thread_start_times.get(zombie_id)
+                    report = ThreadDiagnostics.capture_thread_state(zombie, start_time)
+                    ThreadDiagnostics.log_abandonment(
+                        zombie,
+                        f"Zombie timeout after {age:.0f}s",
+                        report,
                     )
-                    zombie.terminate()
-                    _ = zombie.wait(1000)  # Brief wait after terminate
-                    _ = cls._zombie_timestamps.pop(zombie_id, None)
-                    cls._zombie_terminated_count += 1  # Track force terminations
-                    cleaned += 1
+
+                    # Only terminate in test mode - production leaves zombies to be
+                    # killed on process exit (safer than terminate() which can crash)
+                    allow_terminate = os.environ.get("SHOTBOT_TEST_MODE", "0") == "1"
+
+                    if allow_terminate:
+                        # Test mode: force terminate to prevent CI hangs
+                        logger.warning(
+                            f"Force-terminating zombie {zombie_id} after {age:.0f}s (TEST MODE)"
+                        )
+                        zombie.terminate()
+                        _ = zombie.wait(1000)  # Brief wait after terminate
+                        _ = cls._zombie_timestamps.pop(zombie_id, None)
+                        cls._zombie_terminated_count += 1  # Track force terminations
+                        cleaned += 1
+                    else:
+                        # Production: log but don't terminate (process exit will clean up)
+                        logger.warning(
+                            f"Zombie {zombie_id} exceeded {cls._ZOMBIE_TERMINATE_AGE_SECONDS}s "
+                            "but terminate disabled in production. "
+                            "Will be cleaned on process exit."
+                        )
+                        zombies_to_keep.append(zombie)
                 else:
                     # Keep tracking
                     zombies_to_keep.append(zombie)

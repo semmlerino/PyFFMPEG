@@ -8,6 +8,7 @@ from __future__ import annotations
 
 # Standard library imports
 import logging
+import os
 from typing import TYPE_CHECKING, Protocol, cast, final
 
 # Third-party imports
@@ -415,11 +416,27 @@ class ThreadingManager(QObject):
 
         if zombies_to_cleanup:
             logger.info(f"Cleaning up {len(zombies_to_cleanup)} zombie worker(s)")
+            # Only terminate in test mode - production leaves zombies to be
+            # killed on process exit (safer than terminate() which can crash)
+            allow_terminate = os.environ.get("SHOTBOT_TEST_MODE", "0") == "1"
+
             for zombie in zombies_to_cleanup:
                 if zombie.isRunning():
-                    logger.warning("Force-terminating zombie worker")
-                    zombie.terminate()
-                    _ = zombie.wait(1000)  # Brief wait after terminate
+                    # Capture diagnostics before any action
+                    from thread_diagnostics import ThreadDiagnostics
+
+                    report = ThreadDiagnostics.capture_thread_state(zombie)
+                    ThreadDiagnostics.log_abandonment(zombie, "Shutdown cleanup", report)
+
+                    if allow_terminate:
+                        logger.warning("Force-terminating zombie worker (TEST MODE)")
+                        zombie.terminate()
+                        _ = zombie.wait(1000)  # Brief wait after terminate
+                    else:
+                        logger.warning(
+                            "Zombie worker still running at shutdown - "
+                            "will be killed on process exit"
+                        )
                 zombie.deleteLater()
 
         logger.info("All worker threads shutdown complete")

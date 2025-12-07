@@ -17,12 +17,14 @@ import concurrent.futures
 import hashlib
 import logging
 import os
+import selectors
 import subprocess
 import sys
 import threading
 import time
+from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Final, final
+from typing import TYPE_CHECKING, Callable, Final, cast, final
 
 # Third-party imports
 from PySide6.QtCore import (
@@ -77,6 +79,147 @@ if HAS_DEBUG_UTILS:
     from debug_utils import setup_enhanced_debugging
 
     setup_enhanced_debugging()
+
+
+@dataclass
+class CancellableResult:
+    """Result from cancellable subprocess execution.
+
+    Attributes:
+        returncode: Process return code (None if cancelled/timeout)
+        stdout: Captured standard output
+        stderr: Captured standard error
+        status: "ok", "cancelled", or "timeout"
+    """
+
+    returncode: int | None
+    stdout: str
+    stderr: str
+    status: str
+
+
+@final
+class CancellableSubprocess:
+    """Wrapper for subprocess.Popen with cancellation support.
+
+    This class provides a cancellable alternative to subprocess.run() by using
+    Popen with a polling loop and optional cancel_flag callback.
+
+    Based on the proven pattern from filesystem_scanner._run_subprocess_with_streaming_read()
+    """
+
+    def __init__(
+        self,
+        cmd: list[str],
+        *,
+        shell: bool = False,
+        text: bool = True,
+    ) -> None:
+        """Initialize cancellable subprocess.
+
+        Args:
+            cmd: Command to execute as list of arguments
+            shell: If True, run through shell (not recommended)
+            text: If True, use text mode for stdout/stderr
+        """
+        self._cmd = cmd
+        self._shell = shell
+        self._text = text
+        self._process: subprocess.Popen[str] | None = None
+        self._cancel_requested = threading.Event()
+
+    def run(
+        self,
+        timeout: float = 120.0,
+        poll_interval: float = 0.1,
+        cancel_flag: Callable[[], bool] | None = None,
+    ) -> CancellableResult:
+        """Run subprocess with cancellation support.
+
+        Args:
+            timeout: Maximum time to wait for command (seconds)
+            poll_interval: How often to check for cancellation/timeout (seconds)
+            cancel_flag: Optional callback that returns True if execution should be cancelled
+
+        Returns:
+            CancellableResult with returncode, stdout, stderr, and status
+        """
+        stdout_chunks: list[str] = []
+        stderr_chunks: list[str] = []
+
+        self._process = subprocess.Popen(
+            self._cmd,
+            shell=self._shell,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=self._text,
+        )
+
+        # Register stdout and stderr for non-blocking reads
+        sel = selectors.DefaultSelector()
+        try:
+            if self._process.stdout:
+                _ = sel.register(self._process.stdout, selectors.EVENT_READ, "stdout")
+            if self._process.stderr:
+                _ = sel.register(self._process.stderr, selectors.EVENT_READ, "stderr")
+
+            elapsed_time = 0.0
+
+            while self._process.poll() is None:
+                # Check cancellation (both internal flag and external callback)
+                if self._cancel_requested.is_set() or (cancel_flag and cancel_flag()):
+                    logger.info("Subprocess cancelled")
+                    self._process.kill()
+                    _ = self._process.wait()
+                    return CancellableResult(None, "", "", "cancelled")
+
+                # Check timeout
+                if elapsed_time >= timeout:
+                    logger.error(f"Subprocess timed out after {timeout} seconds")
+                    self._process.kill()
+                    _ = self._process.wait()
+                    return CancellableResult(None, "", "", "timeout")
+
+                # Read available data (selector handles timeout for responsiveness)
+                ready = sel.select(timeout=poll_interval)
+                for key, _ in ready:
+                    # Read available data in chunks to avoid blocking
+                    data = cast("str", key.fileobj.read(8192))  # type: ignore[union-attr]
+                    if data:
+                        if key.data == "stdout":
+                            stdout_chunks.append(data)
+                        else:
+                            stderr_chunks.append(data)
+
+                elapsed_time += poll_interval
+
+            # Process exited - drain any remaining buffered data
+            for key, _ in sel.select(timeout=0):
+                remaining = cast("str", key.fileobj.read())  # type: ignore[union-attr]
+                if remaining:
+                    if key.data == "stdout":
+                        stdout_chunks.append(remaining)
+                    else:
+                        stderr_chunks.append(remaining)
+
+            return CancellableResult(
+                self._process.returncode,
+                "".join(stdout_chunks),
+                "".join(stderr_chunks),
+                "ok",
+            )
+
+        finally:
+            sel.close()
+
+    def cancel(self) -> None:
+        """Request cancellation of the running subprocess.
+
+        If the subprocess is running, this will trigger a kill on the next poll cycle.
+        """
+        self._cancel_requested.set()
+        if self._process and self._process.poll() is None:
+            self._process.kill()
 
 
 @final
@@ -234,6 +377,20 @@ class ProcessPoolManager(LoggingMixin, QObject):
     The "pool" in ProcessPoolManager refers to the thread pool for parallelism,
     not bash session pooling. Each command spawns a fresh subprocess, with
     caching providing the primary performance optimization.
+
+    Singleton Pattern Notes:
+        This class uses a custom singleton pattern instead of SingletonMixin because:
+        1. It inherits from QObject for Qt signals (LoggingMixin + QObject MRO)
+        2. Uses threading.Lock (not RLock) - simpler for this use case
+        3. Calls __init__ manually inside __new__ under lock to prevent race
+           conditions where another thread gets an uninitialized instance
+
+        CAUTION: The Lock (not RLock) prevents re-entrant access. If cleanup code
+        needs to access ProcessPoolManager.get_instance() while already holding
+        the lock, it could deadlock. Current code avoids this pattern.
+
+        The reset() method is called by SingletonRegistry during test cleanup
+        to ensure proper test isolation.
     """
 
     # Singleton instance
@@ -318,8 +475,9 @@ class ProcessPoolManager(LoggingMixin, QObject):
         cache_ttl: int = 30,
         timeout: int | None = None,
         use_login_shell: bool = False,
+        cancel_flag: Callable[[], bool] | None = None,
     ) -> str:
-        """Execute workspace command with caching and session reuse.
+        """Execute workspace command with caching and cancellation support.
 
         Args:
             command: Command to execute
@@ -327,12 +485,16 @@ class ProcessPoolManager(LoggingMixin, QObject):
             timeout: Command execution timeout in seconds (default 120s)
             use_login_shell: If True, use bash -l (login) instead of bash -i (interactive)
                            Login shell sources workspace functions without blocking on terminal
+            cancel_flag: Optional callback that returns True if execution should be cancelled.
+                        The subprocess will be killed on the next poll cycle if this returns True.
 
         Returns:
             Command output
 
         Raises:
-            RuntimeError: If called from the main thread (UI thread) or after shutdown
+            RuntimeError: If called from the main thread (UI thread), after shutdown, or if cancelled
+            subprocess.CalledProcessError: If command returns non-zero exit code
+            subprocess.TimeoutExpired: If command exceeds timeout
         """
         # CRITICAL BUG FIX #29: Check shutdown flag before executing
         # Without this check, commands submitted after shutdown() cause RuntimeError
@@ -381,17 +543,46 @@ class ProcessPoolManager(LoggingMixin, QObject):
         # Execute command using subprocess
         start_time = time.time()
         try:
-            # Choose shell mode:
-            # -l (login): Sources workspace functions, doesn't block on terminal (for warming)
-            # -i (interactive): Full interactive features, may block on terminal init (for user commands)
+            # Shell mode selection for ws command execution:
+            #
+            # -i (interactive, default): Required because 'ws' is a shell function defined
+            #    in .bashrc, which is only sourced in interactive shells. Interactive mode
+            #    may emit banner/MOTD noise, but the parser in base_shot_model.py handles
+            #    this by skipping non-matching lines (logged at DEBUG level).
+            #
+            # -l (login): Used for cache warming (use_login_shell=True). Avoids terminal
+            #    blocking during shell init. Works if .bash_profile sources .bashrc.
+            #
+            # Note: Production launcher uses -ilc (combined) for reliability. Here we use
+            # separate flags because the parser tolerates banner noise, and -l is faster
+            # for cache warming where terminal interaction isn't needed.
             shell_flag = "-l" if use_login_shell else "-i"
-            proc_result = subprocess.run(
-                ["/bin/bash", shell_flag, "-c", command],
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-                check=True,
+            cmd = ["/bin/bash", shell_flag, "-c", command]
+
+            # Use CancellableSubprocess for cancellation support
+            cancellable = CancellableSubprocess(cmd)
+            proc_result = cancellable.run(
+                timeout=float(timeout),
+                cancel_flag=cancel_flag,
             )
+
+            # Handle cancellation
+            if proc_result.status == "cancelled":
+                raise RuntimeError(f"Command cancelled: {command[:50]}...")
+
+            # Handle timeout
+            if proc_result.status == "timeout":
+                raise subprocess.TimeoutExpired(cmd, timeout)
+
+            # Handle non-zero exit code
+            if proc_result.returncode != 0:
+                raise subprocess.CalledProcessError(
+                    proc_result.returncode or 1,
+                    cmd,
+                    proc_result.stdout,
+                    proc_result.stderr,
+                )
+
             result = proc_result.stdout
 
             # Cache result
@@ -644,11 +835,25 @@ class ProcessPoolManager(LoggingMixin, QObject):
                 self.logger.debug("ThreadPoolExecutor shutdown completed within timeout")
             else:
                 # Timeout reached - force shutdown
+                # Note: Python threads cannot be forcibly terminated. shutdown(wait=False)
+                # abandons running threads but they will continue until completion.
+                # cancel_futures=True cancels pending (not-yet-started) tasks.
                 self.logger.warning(
                     f"Executor shutdown timed out after {timeout}s, forcing non-blocking shutdown"
                 )
                 try:
-                    self._executor.shutdown(wait=False)
+                    self._executor.shutdown(wait=False, cancel_futures=True)
+
+                    # Log any threads still running after timeout (helps diagnose leaks)
+                    if hasattr(self._executor, "_threads"):
+                        alive_threads = [
+                            t for t in self._executor._threads if t.is_alive()
+                        ]
+                        if alive_threads:
+                            thread_names = [t.name for t in alive_threads]
+                            self.logger.warning(
+                                f"Abandoned {len(alive_threads)} threads after timeout: {thread_names}"
+                            )
                 except Exception as e:
                     self.logger.debug(f"Force shutdown exception: {e}")
 

@@ -43,6 +43,9 @@ config_dir = Path(tempfile.mkdtemp(prefix=f"shotbot-config-{run_id}-{worker}-"))
 os.environ.setdefault("SHOTBOT_CONFIG_DIR", str(config_dir))
 os.environ.setdefault("SHOTBOT_SECURE_EXECUTOR_MODE", "mock")
 
+# Enable test mode for threading - allows terminate() on zombie threads to prevent CI hangs
+os.environ["SHOTBOT_TEST_MODE"] = "1"
+
 # Per-worker cache isolation (eliminates race conditions on shared ~/.shotbot/cache_test)
 cache_dir = base_tmp / f"shotbot_test_cache_{run_id}_{worker}"
 cache_dir.mkdir(parents=True, exist_ok=True)
