@@ -48,6 +48,7 @@ class SingletonEntry:
     import_path: str  # e.g., "notification_manager.NotificationManager"
     cleanup_order: int  # Lower = earlier cleanup
     description: str = ""
+    depends_on: frozenset[str] = frozenset()  # Singletons that must be cleaned AFTER this one
 
 
 class SingletonRegistry:
@@ -61,6 +62,7 @@ class SingletonRegistry:
 
     Attributes:
         _entries: List of registered singleton entries (immutable after init)
+
     """
 
     # Static registry - populated at import time
@@ -72,6 +74,7 @@ class SingletonRegistry:
         import_path: str,
         cleanup_order: int = 50,
         description: str = "",
+        depends_on: frozenset[str] | None = None,
     ) -> None:
         """Register a singleton for cleanup.
 
@@ -79,22 +82,35 @@ class SingletonRegistry:
             import_path: Fully qualified path like "module.ClassName"
             cleanup_order: Lower values clean up first (default: 50)
             description: Optional description for debugging
+            depends_on: Optional set of singleton import paths that must be
+                cleaned up AFTER this singleton (higher cleanup_order)
+
+        Raises:
+            ValueError: If cleanup_order is already used (non-deterministic cleanup)
+            ValueError: If import_path cannot be resolved to a valid class
+
         """
-        # Check for duplicate cleanup orders (can cause unpredictable cleanup sequence)
+        # FAIL-FAST: Duplicate cleanup orders cause non-deterministic cleanup sequence
         existing_orders = {e.cleanup_order: e.import_path for e in cls._entries}
         if cleanup_order in existing_orders:
-            _logger.warning(
-                "Duplicate cleanup order %d: existing=%s, new=%s. "
-                "Consider adjusting cleanup_order for deterministic cleanup sequence.",
-                cleanup_order,
-                existing_orders[cleanup_order],
-                import_path,
+            msg = (
+                f"Duplicate cleanup order {cleanup_order}: "
+                f"existing={existing_orders[cleanup_order]}, new={import_path}. "
+                f"Use a unique cleanup_order for deterministic cleanup sequence."
             )
+            raise ValueError(msg)
+
+        # FAIL-FAST: Validate import path resolves to a real class
+        singleton_cls = cls._get_class(import_path)
+        if singleton_cls is None:
+            msg = f"Cannot import singleton class: {import_path}"
+            raise ValueError(msg)
 
         entry = SingletonEntry(
             import_path=import_path,
             cleanup_order=cleanup_order,
             description=description,
+            depends_on=depends_on or frozenset(),
         )
         cls._entries.append(entry)
         # Keep sorted by cleanup_order
@@ -110,6 +126,7 @@ class SingletonRegistry:
 
         Returns:
             The class, or None if import failed
+
         """
         try:
             module_name, class_name = import_path.rsplit(".", 1)
@@ -128,6 +145,7 @@ class SingletonRegistry:
 
         Returns:
             List of (import_path, exception) tuples for any failures
+
         """
         errors: list[tuple[str, Exception]] = []
 
@@ -153,6 +171,7 @@ class SingletonRegistry:
 
         Returns:
             List of import paths for singletons missing reset() method
+
         """
         missing: list[str] = []
 
@@ -175,9 +194,72 @@ class SingletonRegistry:
         return list(cls._entries)
 
     @classmethod
+    def validate_dependency_order(cls) -> list[str]:
+        """Validate that cleanup order respects declared dependencies.
+
+        If singleton A declares depends_on={B}, then B must have a higher
+        cleanup_order than A (i.e., B is cleaned up AFTER A).
+
+        Returns:
+            List of violation messages (empty if valid)
+
+        """
+        violations: list[str] = []
+        order_map = {e.import_path: e.cleanup_order for e in cls._entries}
+
+        for entry in cls._entries:
+            for dep in entry.depends_on:
+                if dep in order_map:
+                    # Dependency must be cleaned AFTER this entry (higher order number)
+                    if order_map[dep] <= entry.cleanup_order:
+                        violations.append(
+                            f"{entry.import_path} (order={entry.cleanup_order}) depends on "
+                            f"{dep} (order={order_map[dep]}), but dependency cleans up first!"
+                        )
+                else:
+                    # Dependency not registered - might be intentional (optional dep)
+                    _logger.debug(
+                        "Dependency %s of %s is not registered",
+                        dep,
+                        entry.import_path,
+                    )
+
+        return violations
+
+    @classmethod
     def clear(cls) -> None:
         """Clear all entries (for testing the registry itself)."""
         cls._entries.clear()
+
+    @classmethod
+    def verify_all_singletons_registered(cls) -> list[str]:
+        """Check that all SingletonMixin subclasses are registered.
+
+        This catches cases where a developer creates a new SingletonMixin
+        subclass but forgets to register it in the registry.
+
+        Returns:
+            List of fully qualified class names that are unregistered
+
+        """
+        from singleton_mixin import SingletonMixin
+
+        # Get all registered class names (just the class name, not full path)
+        registered_names = {e.import_path.split(".")[-1] for e in cls._entries}
+
+        unregistered: list[str] = []
+        for subclass in SingletonMixin._known_subclasses:
+            # Skip abstract or test classes
+            if subclass.__module__.startswith("tests."):
+                continue
+
+            class_name = subclass.__name__
+            # Check if this class is registered (by class name)
+            if class_name not in registered_names:
+                full_path = f"{subclass.__module__}.{class_name}"
+                unregistered.append(full_path)
+
+        return unregistered
 
 
 # =============================================================================

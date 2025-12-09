@@ -5,6 +5,97 @@ Provides common test fixtures and utilities for unit and integration tests
 specific to the ShotBot VFX asset management application.
 
 Fixture modules are loaded via pytest_plugins for better organization.
+
+ARCHITECTURE OVERVIEW
+=====================
+This module implements sophisticated test infrastructure for a PySide6/Qt application
+with 3,500+ tests running in parallel via pytest-xdist. The design addresses several
+Qt-specific challenges that cause hard-to-diagnose crashes.
+
+KEY DESIGN DECISIONS
+--------------------
+
+1. EARLY QT BOOTSTRAP (lines 94-107)
+   WHY: PySide6 crashes if QApplication is created after certain imports or if
+   multiple QApplication instances exist. By creating the QApplication at module
+   import time (before pytest_plugins loads), we ensure a stable Qt environment.
+   HOW: Create global _GLOBAL_QAPP at import time with offscreen platform.
+   FALLBACK: If offscreen fails, falls back to "minimal" platform.
+
+2. QTBOT.WAIT() MONKEYPATCH (lines 131-207)
+   WHY: pytest-qt's wait() can cause re-entrant event loop crashes when called
+   with very short timeouts during fixture cleanup.
+   HOW: Intercept wait(0) and wait(1), replace with process_qt_events().
+   Waits of 2ms+ use original timing.
+   OPT-OUT: @pytest.mark.real_timing or SHOTBOT_TEST_NO_WAIT_PATCH=1
+
+3. AST-BASED QT DETECTION (lines 302-419)
+   WHY: Tests that import PySide6 directly (without qtbot fixture) still need
+   proper cleanup. Without detection, they leak Qt state.
+   HOW: Parse test module source with AST, detect PySide6 imports (excluding
+   TYPE_CHECKING blocks), and auto-apply cleanup fixtures.
+
+4. XDIST GROUPING STRATEGY (lines 494-510)
+   WHY: Qt tests sharing QApplication must run on the same worker to prevent
+   crashes from Qt state contamination.
+   HOW: Module-based grouping via xdist_group markers. Tests in the same module
+   share a worker; different modules can run in parallel.
+   HEAVY TESTS: @pytest.mark.qt_heavy → dedicated "qt_heavy" worker group.
+
+5. SINGLETON REGISTRY VALIDATION (lines 675-710)
+   WHY: Singleton state leaks between tests cause flaky failures. All singletons
+   must implement reset() and be registered for proper cleanup.
+   HOW: pytest_configure validates that all SingletonMixin subclasses are
+   registered and have reset() methods. Fails fast if not.
+
+FIXTURE EXECUTION ORDER
+-----------------------
+For Qt tests, fixtures execute in this order:
+
+  BEFORE TEST:
+    1. reset_caches      (autouse)  → Clear in-memory and disk caches
+    2. reset_singletons  (Qt tests) → Reset all registered singletons
+    3. qt_cleanup        (Qt tests) → Clean Qt threads, pixmaps, events
+
+  TEST RUNS
+
+  AFTER TEST:
+    4. qt_cleanup        (Qt tests) → Detect thread leaks, clean Qt state
+    5. reset_singletons  (Qt tests) → Reset singletons again (safety)
+    6. reset_caches      (autouse)  → gc.collect() if SHOTBOT_TEST_AGGRESSIVE_GC=1
+
+IMPORTANT MARKERS
+-----------------
+- @pytest.mark.qt                    Force Qt cleanup fixtures
+- @pytest.mark.qt_heavy              Isolate on single dedicated worker
+- @pytest.mark.real_timing           Bypass wait() patch (timing-sensitive tests)
+- @pytest.mark.skip_if_parallel      Skip test in parallel execution
+- @pytest.mark.enforce_unique_connections  Prevent duplicate signal connections
+- @pytest.mark.real_subprocess       Execute with real subprocess (bypass mocks)
+
+GLOBAL STATE
+------------
+- _current_test_item: Set by pytest_runtest_setup, used by wait() patch to
+  check @pytest.mark.real_timing. Cleared by pytest_runtest_teardown.
+- _qt_detection_cache: Module name → bool cache for AST detection performance.
+- _GLOBAL_QAPP: Session-scoped QApplication created at import time.
+
+ENVIRONMENT VARIABLES
+---------------------
+- QT_QPA_PLATFORM=offscreen          Prevent real widgets appearing (auto-set)
+- SHOTBOT_TEST_NO_WAIT_PATCH=1       Disable qtbot.wait() interception
+- SHOTBOT_TEST_WAIT_DIAG=1           Log when short waits are intercepted
+- SHOTBOT_TEST_AGGRESSIVE_GC=1       Force gc.collect() after each test
+- SHOTBOT_SKIP_SMOKE=1               Skip smoke tests that need external deps
+
+DEBUGGING TIPS
+--------------
+1. Test hangs? Check for blocking Qt event loops (use PYTHONFAULTHANDLER=1)
+2. Thread leaks? Run with -v and check qt_cleanup warnings
+3. Flaky failures? Check singleton state - use reset_singletons fixture
+4. Qt crashes? Verify --dist=loadgroup is used with pytest-xdist
+
+See also: UNIFIED_TESTING_V2.md for comprehensive testing guidance.
 """
 
 from __future__ import annotations
@@ -253,6 +344,7 @@ def _fixture_uses_pyside6(item: pytest.Item, fixture_name: str) -> bool:
 
     Returns:
         True if the fixture imports PySide6, False otherwise
+
     """
     try:
         # Get fixture manager from session
@@ -317,6 +409,7 @@ def _module_imports_pyside6(module) -> bool:
 
     Returns:
         True if the module imports from PySide6, False otherwise
+
     """
     if module is None:
         return False
@@ -704,6 +797,17 @@ def pytest_configure(config: pytest.Config) -> None:
             f"        cleanup_order=XX,  # Lower = earlier cleanup (10-19: UI, 20-29: Workers, 30-39: Pools)\n"
             f'        description="Description of the singleton",\n'
             f"    )",
+            pytrace=False,
+        )
+
+    # FAIL-FAST: Verify singleton dependency order is correct
+    # This catches cases where cleanup order doesn't match declared dependencies
+    dep_violations = SingletonRegistry.validate_dependency_order()
+    if dep_violations:
+        pytest.fail(
+            "SINGLETON DEPENDENCY ORDER VIOLATION:\n"
+            + "\n".join(f"  - {v}" for v in dep_violations)
+            + "\n\nFix: Adjust cleanup_order values so dependencies clean up AFTER dependents.",
             pytrace=False,
         )
 

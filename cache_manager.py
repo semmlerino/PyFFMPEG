@@ -1001,66 +1001,70 @@ class CacheManager(LoggingMixin, QObject):
             SceneMergeResult with merged list, statistics, and pruned count
 
         Thread Safety:
-            Protected by internal mutex to prevent concurrent merge operations
-            that could produce inconsistent results.
+            Lock scope minimized to data copy only. CPU-bound dict operations
+            happen outside the lock since they operate on local copies.
 
         """
-        with QMutexLocker(self._lock):
-            now = datetime.now(UTC).timestamp()
-            cutoff = now - (max_age_days * 24 * 60 * 60)
+        now = datetime.now(UTC).timestamp()
+        cutoff = now - (max_age_days * 24 * 60 * 60)
 
-            # Convert to dicts using helper
+        # Phase 1: Brief lock for data copy only
+        # This protects against concurrent modification of input sequences
+        with QMutexLocker(self._lock):
             cached_dicts = [_scene_to_dict(s) for s in (cached or [])]
             fresh_dicts = [_scene_to_dict(s) for s in fresh]
 
-            # Build lookups using shot-level key (O(1) operations)
-            cached_by_key: dict[tuple[str, str, str], ThreeDESceneDict] = {
-                _get_scene_key(scene): scene for scene in cached_dicts
-            }
-            fresh_keys = {_get_scene_key(scene) for scene in fresh_dicts}
+        # Phase 2: All CPU-bound dict operations OUTSIDE lock
+        # These operate on local copies, no shared state mutation
 
-            # Merge: fresh scenes override cached (UPDATE or ADD)
-            updated_by_key: dict[tuple[str, str, str], ThreeDESceneDict] = {}
-            new_scenes: list[ThreeDESceneDict] = []
-            pruned_count = 0
+        # Build lookups using shot-level key (O(1) operations)
+        cached_by_key: dict[tuple[str, str, str], ThreeDESceneDict] = {
+            _get_scene_key(scene): scene for scene in cached_dicts
+        }
+        fresh_keys = {_get_scene_key(scene) for scene in fresh_dicts}
 
-            # Process fresh scenes (always include, update last_seen)
-            for fresh_scene in fresh_dicts:
-                fresh_key = _get_scene_key(fresh_scene)
-                if fresh_key not in cached_by_key:
-                    new_scenes.append(fresh_scene)
-                # Update last_seen and add to result
-                updated_scene = dict(fresh_scene)
-                updated_scene["last_seen"] = now
-                updated_by_key[fresh_key] = cast("ThreeDESceneDict", updated_scene)
+        # Merge: fresh scenes override cached (UPDATE or ADD)
+        updated_by_key: dict[tuple[str, str, str], ThreeDESceneDict] = {}
+        new_scenes: list[ThreeDESceneDict] = []
+        pruned_count = 0
 
-            # Process cached scenes not in fresh (apply age-based pruning)
-            removed_keys = set(cached_by_key.keys()) - fresh_keys
-            removed_scenes: list[ThreeDESceneDict] = []
+        # Process fresh scenes (always include, update last_seen)
+        for fresh_scene in fresh_dicts:
+            fresh_key = _get_scene_key(fresh_scene)
+            if fresh_key not in cached_by_key:
+                new_scenes.append(fresh_scene)
+            # Update last_seen and add to result
+            updated_scene = dict(fresh_scene)
+            updated_scene["last_seen"] = now
+            updated_by_key[fresh_key] = cast("ThreeDESceneDict", updated_scene)
 
-            for key in removed_keys:
-                cached_scene = cached_by_key[key]
-                # Get last_seen (default to now for legacy cache entries)
-                scene_last_seen = cached_scene.get("last_seen", now)
-                if scene_last_seen >= cutoff:
-                    # Within retention window - keep it
-                    updated_by_key[key] = cached_scene
-                    removed_scenes.append(cached_scene)  # Track as "not in fresh"
-                else:
-                    # Too old - prune it
-                    pruned_count += 1
+        # Process cached scenes not in fresh (apply age-based pruning)
+        removed_keys = set(cached_by_key.keys()) - fresh_keys
+        removed_scenes: list[ThreeDESceneDict] = []
 
-            # All scenes (kept + updated + new)
-            updated_scenes = list(updated_by_key.values())
-            has_changes = bool(new_scenes or removed_scenes or pruned_count > 0)
+        for key in removed_keys:
+            cached_scene = cached_by_key[key]
+            # Get last_seen (default to now for legacy cache entries)
+            scene_last_seen = cached_scene.get("last_seen", now)
+            if scene_last_seen >= cutoff:
+                # Within retention window - keep it
+                updated_by_key[key] = cached_scene
+                removed_scenes.append(cached_scene)  # Track as "not in fresh"
+            else:
+                # Too old - prune it
+                pruned_count += 1
 
-            return SceneMergeResult(
-                updated_scenes=updated_scenes,
-                new_scenes=new_scenes,
-                removed_scenes=removed_scenes,
-                has_changes=has_changes,
-                pruned_count=pruned_count,
-            )
+        # All scenes (kept + updated + new)
+        updated_scenes = list(updated_by_key.values())
+        has_changes = bool(new_scenes or removed_scenes or pruned_count > 0)
+
+        return SceneMergeResult(
+            updated_scenes=updated_scenes,
+            new_scenes=new_scenes,
+            removed_scenes=removed_scenes,
+            has_changes=has_changes,
+            pruned_count=pruned_count,
+        )
 
     # ========================================================================
     # Latest File Cache Methods (Maya/3DE scene paths per workspace)

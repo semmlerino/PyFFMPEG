@@ -870,11 +870,10 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         # Note: Auto-refresh removed from PreviousShotsModel (persistent incremental caching)
         # Previous shots now only refresh on explicit user action via "Refresh" button
-
-        # Trigger initial refresh for previous shots ONLY after shots are loaded
-        # This prevents the "No target shows found" warning when shots haven't loaded yet
-        _ = self.shot_model.shots_loaded.connect(self._trigger_previous_shots_refresh)
-        _ = self.shot_model.shots_changed.connect(self._trigger_previous_shots_refresh)
+        #
+        # NOTE: Previous shots refresh is now triggered by _on_shots_loaded and
+        # _on_shots_changed handlers rather than separate signal connections.
+        # This prevents double-refresh and keeps signal handling centralized.
 
         # If shots are already loaded from cache, trigger refresh immediately
         if self.shot_model.shots:
@@ -917,6 +916,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         """
         # Delegate to RefreshOrchestrator
         self.refresh_orchestrator.handle_shots_loaded(shots)
+        # Also trigger previous shots refresh (consolidated from duplicate connection)
+        self._trigger_previous_shots_refresh(shots)
 
     def _on_shots_changed(self, shots: list[Shot]) -> None:
         """Handle shots changed signal from model.
@@ -927,6 +928,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         """
         # Delegate to RefreshOrchestrator
         self.refresh_orchestrator.handle_shots_changed(shots)
+        # Also trigger previous shots refresh (consolidated from duplicate connection)
+        self._trigger_previous_shots_refresh(shots)
 
     def _on_refresh_started(self) -> None:
         """Handle refresh started signal from model."""
