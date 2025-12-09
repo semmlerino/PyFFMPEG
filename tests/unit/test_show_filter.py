@@ -46,7 +46,7 @@ class TestBaseShotModelFiltering:
     @pytest.fixture
     def mock_shot_model(self, tmp_path: Path) -> ShotModel:
         """Create a ShotModel with test process pool."""
-        process_pool = TestProcessPool()
+        process_pool = TestProcessPool(allow_main_thread=True)
         model = ShotModel(cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"), load_cache=False)
         model._process_pool = process_pool
         return model
@@ -143,7 +143,7 @@ class TestShotItemModelFiltering:
     def shot_model(self, tmp_path: Path) -> ShotModel:
         """Create a ShotModel with test process pool."""
         model = ShotModel(cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"), load_cache=False)
-        model._process_pool = TestProcessPool()
+        model._process_pool = TestProcessPool(allow_main_thread=True)
         return model
 
     @pytest.fixture
@@ -224,7 +224,7 @@ class TestPreviousShotsModelFiltering:
     def shot_model(self, tmp_path: Path) -> ShotModel:
         """Create a base ShotModel."""
         model = ShotModel(cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"), load_cache=False)
-        model._process_pool = TestProcessPool()
+        model._process_pool = TestProcessPool(allow_main_thread=True)
         return model
 
     @pytest.fixture
@@ -286,7 +286,7 @@ class TestShotGridViewShowFilter:
     def shot_model(self, tmp_path: Path) -> ShotModel:
         """Create a ShotModel."""
         model = ShotModel(cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"), load_cache=False)
-        model._process_pool = TestProcessPool()
+        model._process_pool = TestProcessPool(allow_main_thread=True)
         return model
 
     @pytest.fixture
@@ -368,7 +368,7 @@ class TestPreviousShotsViewShowFilter:
     ) -> Generator[PreviousShotsModel, None, None]:
         """Create PreviousShotsModel."""
         shot_model = ShotModel(cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"), load_cache=False)
-        shot_model._process_pool = TestProcessPool()
+        shot_model._process_pool = TestProcessPool(allow_main_thread=True)
         model = PreviousShotsModel(shot_model, cache_manager=TestCacheManager(cache_dir=tmp_path / "cache2"))
         yield model
         # Note: Auto-refresh removed from PreviousShotsModel (persistent incremental caching)
@@ -474,7 +474,7 @@ class TestMainWindowFilterHandlers:
         window.shot_model = ShotModel(
             cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"), load_cache=False
         )
-        window.shot_model._process_pool = TestProcessPool()
+        window.shot_model._process_pool = TestProcessPool(allow_main_thread=True)
 
         window.shot_item_model = ShotItemModel(cache_manager=TestCacheManager(cache_dir=tmp_path / "cache2"))
 
@@ -505,6 +505,10 @@ class TestMainWindowFilterHandlers:
         from unittest.mock import Mock
         window.status_bar = Mock()
 
+        # Add FilterCoordinator (filter methods moved from MainWindow)
+        from controllers.filter_coordinator import FilterCoordinator
+        window.filter_coordinator = FilterCoordinator(window)
+
         # Logger is already provided by LoggingMixin
 
         return window
@@ -514,11 +518,6 @@ class TestMainWindowFilterHandlers:
 
     def test_on_shot_show_filter_requested(self, mock_main_window: Any) -> None:
         """Test the handler for My Shots show filter request."""
-        # Local application imports
-        from main_window import (
-            MainWindow,
-        )
-
         # Set up test shots
         test_shots = [
             Shot("show1", "seq1", "shot1", "/workspace/show1/seq1/shot1"),
@@ -528,25 +527,20 @@ class TestMainWindowFilterHandlers:
         mock_main_window.shot_model.shots = test_shots
         mock_main_window.shot_item_model.set_shots(test_shots)
 
-        # Call the handler
-        MainWindow._on_shot_show_filter_requested(mock_main_window, "show1")
+        # Call the handler (method is now on FilterCoordinator)
+        mock_main_window.filter_coordinator._on_shot_show_filter_requested("show1")
 
         # Verify the filter was applied
         assert mock_main_window.shot_model.get_show_filter() == "show1"
         assert mock_main_window.shot_item_model.rowCount() == 2
 
         # Test clearing filter
-        MainWindow._on_shot_show_filter_requested(mock_main_window, "")
+        mock_main_window.filter_coordinator._on_shot_show_filter_requested("")
         assert mock_main_window.shot_model.get_show_filter() is None
         assert mock_main_window.shot_item_model.rowCount() == 3
 
     def test_on_previous_show_filter_requested(self, mock_main_window: Any) -> None:
         """Test the handler for Previous Shots show filter request."""
-        # Local application imports
-        from main_window import (
-            MainWindow,
-        )
-
         # Set up test previous shots
         test_shots = [
             Shot("showA", "seq10", "shot10", "/workspace/showA/seq10/shot10"),
@@ -556,8 +550,8 @@ class TestMainWindowFilterHandlers:
         mock_main_window.previous_shots_model._previous_shots = test_shots
         mock_main_window.previous_shots_item_model._shots = test_shots
 
-        # Call the handler
-        MainWindow._on_previous_show_filter_requested(mock_main_window, "showA")
+        # Call the handler (method is now on FilterCoordinator)
+        mock_main_window.filter_coordinator._on_previous_show_filter_requested("showA")
 
         # Verify the filter was applied
         assert mock_main_window.previous_shots_model.get_show_filter() == "showA"
@@ -598,11 +592,6 @@ class TestMainWindowFilterHandlers:
 
     def test_on_previous_shots_updated(self, mock_main_window: Any) -> None:
         """Test the handler for previous shots updated signal."""
-        # Local application imports
-        from main_window import (
-            MainWindow,
-        )
-
         # Set up test previous shots
         test_shots = [
             Shot("showX", "seq1", "shot1", "/workspace/showX/seq1/shot1"),
@@ -610,8 +599,8 @@ class TestMainWindowFilterHandlers:
         ]
         mock_main_window.previous_shots_model._previous_shots = test_shots
 
-        # Call the handler
-        MainWindow._on_previous_shots_updated(mock_main_window)
+        # Call the handler (method is now on FilterCoordinator)
+        mock_main_window.filter_coordinator._on_previous_shots_updated()
 
         # Check that show filter was populated
         assert (
@@ -626,11 +615,6 @@ class TestMainWindowFilterHandlers:
 
     def test_filter_updates_status_bar(self, mock_main_window: Any) -> None:
         """Test that applying show filter updates status bar with count."""
-        # Local application imports
-        from main_window import (
-            MainWindow,
-        )
-
         # Set up test shots
         test_shots = [
             Shot("show1", "seq1", "shot1", "/workspace/show1/seq1/shot1"),
@@ -640,8 +624,8 @@ class TestMainWindowFilterHandlers:
         mock_main_window.shot_model.shots = test_shots
         mock_main_window.shot_item_model.set_shots(test_shots)
 
-        # Call the handler
-        MainWindow._on_shot_show_filter_requested(mock_main_window, "show1")
+        # Call the handler (method is now on FilterCoordinator)
+        mock_main_window.filter_coordinator._on_shot_show_filter_requested("show1")
 
         # Verify status bar was updated with filter result
         mock_main_window.status_bar.showMessage.assert_called()

@@ -52,7 +52,7 @@ import time
 from typing import TYPE_CHECKING, Any, cast, final
 
 # Third-party imports
-from PySide6.QtCore import QObject, QRunnable, Qt, QThreadPool, QTimer, Signal, Slot
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QAction, QCloseEvent, QKeySequence
 from PySide6.QtWidgets import (
     QGroupBox,
@@ -79,7 +79,7 @@ if TYPE_CHECKING:
     from cache_manager import CacheManager
     from command_launcher import CommandLauncher
     from protocols import ProcessPoolInterface
-    from scene_file import FileType, SceneFile
+    from scene_file import SceneFile
     from settings_dialog import SettingsDialog
     from type_definitions import ShotDict
 
@@ -89,12 +89,17 @@ from cache_manager import CacheManager  # Need at runtime for instantiation
 from cleanup_manager import CleanupManager  # Extracted cleanup logic
 from command_launcher import CommandLauncher  # Need at runtime
 from config import Config
+from controllers.filter_coordinator import FilterCoordinator
 from controllers.settings_controller import (
     SettingsController,  # Refactored settings handling
+)
+from controllers.shot_selection_controller import (
+    ShotSelectionController,  # Refactored shot selection management
 )
 from controllers.threede_controller import (
     ThreeDEController,  # Refactored 3DE scene management
 )
+from controllers.thumbnail_size_manager import ThumbnailSizeManager
 from design_system import design_system
 from log_viewer import LogViewer
 from logging_mixin import LoggingMixin, get_module_logger
@@ -107,7 +112,7 @@ from progress_manager import ProgressManager
 from qt_widget_mixin import QtWidgetMixin
 from refresh_orchestrator import RefreshOrchestrator  # Extracted refresh logic
 from right_panel import RightPanelWidget  # New redesigned right panel
-from scene_file import FileType, SceneFile
+from scene_file import SceneFile
 from settings_manager import SettingsManager
 from shot_grid_view import ShotGridView  # Model/View implementation
 from shot_item_model import ShotItemModel
@@ -171,77 +176,6 @@ class SessionWarmer(ThreadSafeWorker):
         except Exception as e:
             # Don't fail the app if pre-warming fails
             logger.warning(f"Session pre-warming failed (non-critical): {e}")
-
-
-@final
-class ShotDiscoverySignals(QObject):
-    """Signals for ShotDiscoveryWorker."""
-
-    finished: Signal = Signal(object)  # dict with plates and files
-    error: Signal = Signal(str)
-
-
-@final
-class ShotDiscoveryWorker(QRunnable):
-    """Background worker for discovering shot files and plates.
-
-    This worker runs filesystem operations off the main thread to prevent
-    UI freezes during shot selection.
-    """
-
-    shot: Shot
-    signals: ShotDiscoverySignals
-    _cancelled: bool
-
-    def __init__(self, shot: Shot) -> None:
-        """Initialize discovery worker.
-
-        Args:
-            shot: Shot to discover files for
-
-        """
-        super().__init__()
-        self.shot = shot
-        self.signals = ShotDiscoverySignals()
-        self._cancelled = False
-
-    def cancel(self) -> None:
-        """Cancel the discovery operation."""
-        self._cancelled = True
-
-    @override
-    def run(self) -> None:
-        """Run discovery in background thread."""
-        if self._cancelled:
-            return
-
-        try:
-            # Import here to avoid circular imports
-            from plate_discovery import PlateDiscovery
-            from shot_file_finder import ShotFileFinder
-
-            # Discover plates
-            plates: list[str] = []
-            if not self._cancelled:
-                plates = PlateDiscovery.get_available_plates(self.shot.workspace_path)
-
-            # Discover files (result is dict[FileType, list[SceneFile]])
-            files_by_type = {}
-            if not self._cancelled:
-                file_finder = ShotFileFinder()
-                files_by_type = file_finder.find_all_files(self.shot)
-
-            # Emit results
-            if not self._cancelled:
-                self.signals.finished.emit({
-                    "shot": self.shot,
-                    "plates": plates,
-                    "files": files_by_type,
-                })
-        except Exception as e:
-            if not self._cancelled:
-                logger.error(f"Shot discovery failed: {e}")
-                self.signals.error.emit(str(e))
 
 
 @final
@@ -390,7 +324,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         self._closing = False  # Track shutdown state
         self._session_warmer: SessionWarmer | None = None  # Initialize session warmer
-        self._discovery_worker: ShotDiscoveryWorker | None = None  # Async file discovery
         self._last_selected_shot_name: str | None = (
             None  # Initialize last selected shot
         )
@@ -408,6 +341,18 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             # MainWindow implements ThreeDETarget protocol functionally at runtime
             # QMainWindow position-only params differ from Protocol
             self.threede_controller = ThreeDEController(self)  # pyright: ignore[reportArgumentType]
+
+        # Initialize shot selection controller after UI widgets are created
+        # MainWindow implements ShotSelectionTarget protocol functionally at runtime
+        self.shot_selection_controller: ShotSelectionController = ShotSelectionController(self)  # pyright: ignore[reportArgumentType]
+
+        # Initialize filter coordinator for My Shots and Previous Shots filtering
+        # MainWindow implements FilterTarget protocol functionally at runtime
+        self.filter_coordinator: FilterCoordinator = FilterCoordinator(self)  # pyright: ignore[reportArgumentType]
+
+        # Initialize thumbnail size manager for size synchronization across tabs
+        # MainWindow implements ThumbnailSizeTarget protocol functionally at runtime
+        self.thumbnail_size_manager: ThumbnailSizeManager = ThumbnailSizeManager(self)  # pyright: ignore[reportArgumentType]
 
         self._setup_menu()
         self._setup_accessibility()  # Add accessibility support
@@ -602,12 +547,12 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         increase_size_action = QAction("&Increase Thumbnail Size", self)
         increase_size_action.setShortcut(QKeySequence.StandardKey.ZoomIn)
-        _ = increase_size_action.triggered.connect(self._increase_thumbnail_size)
+        _ = increase_size_action.triggered.connect(self.thumbnail_size_manager.increase_size)
         view_menu.addAction(increase_size_action)
 
         decrease_size_action = QAction("&Decrease Thumbnail Size", self)
         decrease_size_action.setShortcut(QKeySequence.StandardKey.ZoomOut)
-        _ = decrease_size_action.triggered.connect(self._decrease_thumbnail_size)
+        _ = decrease_size_action.triggered.connect(self.thumbnail_size_manager.decrease_size)
         view_menu.addAction(decrease_size_action)
 
         _ = view_menu.addSeparator()
@@ -700,20 +645,11 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             self._on_shots_migrated, Qt.ConnectionType.QueuedConnection
         )
 
-        # Shot selection
-        _ = self.shot_grid.shot_selected.connect(self._on_shot_selected)
-        _ = self.shot_grid.shot_double_clicked.connect(self._on_shot_double_clicked)
+        # Shot selection - handled by ShotSelectionController when active
+        # Controller handles shot_selected, shot_double_clicked, recover_crashes_requested
+        # Filter signals handled by FilterCoordinator
         _ = self.shot_grid.app_launch_requested.connect(
             self.command_launcher.launch_app
-        )
-        _ = self.shot_grid.show_filter_requested.connect(
-            self._on_shot_show_filter_requested
-        )
-        _ = self.shot_grid.text_filter_requested.connect(
-            self._on_shot_text_filter_requested
-        )
-        _ = self.shot_grid.recover_crashes_requested.connect(
-            self._on_shot_recover_crashes_requested
         )
 
         # 3DE scene selection - handled by controller
@@ -727,22 +663,11 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # 3DE show filter - handled by controller
         # Controller handles show filter in its own signal setup
 
-        # Previous shots selection
-        _ = self.previous_shots_grid.shot_selected.connect(self._on_shot_selected)
-        _ = self.previous_shots_grid.shot_double_clicked.connect(
-            self._on_shot_double_clicked
-        )
+        # Previous shots selection - handled by ShotSelectionController when active
+        # Controller handles shot_selected and shot_double_clicked
+        # Filter signals handled by FilterCoordinator
         _ = self.previous_shots_grid.app_launch_requested.connect(
             self.command_launcher.launch_app
-        )
-        _ = self.previous_shots_grid.show_filter_requested.connect(
-            self._on_previous_show_filter_requested
-        )
-        _ = self.previous_shots_grid.text_filter_requested.connect(
-            self._on_previous_text_filter_requested
-        )
-        _ = self.previous_shots_item_model.shots_updated.connect(
-            self._on_previous_shots_updated
         )
 
         # Tab widget - handle tab changes to update shot context
@@ -759,14 +684,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
             lambda: self.right_panel.set_search_pending(False)
         )
 
-        # Synchronize thumbnail sizes between tabs
-        _ = self.shot_grid.size_slider.valueChanged.connect(self._sync_thumbnail_sizes)
-        _ = self.threede_shot_grid.size_slider.valueChanged.connect(
-            self._sync_thumbnail_sizes,
-        )
-        _ = self.previous_shots_grid.size_slider.valueChanged.connect(
-            self._sync_thumbnail_sizes,
-        )
+        # Thumbnail size synchronization handled by ThumbnailSizeManager
 
         # Sort order changes - connect view signals to model and settings persistence
         _ = self.threede_shot_grid.sort_order_changed.connect(
@@ -1032,12 +950,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         if index == 0:  # My Shots tab
             # Get the current selection from My Shots
             selected_shot = self.shot_grid.selected_shot
-            if selected_shot:
-                # Re-apply the shot selection to update context
-                self._on_shot_selected(selected_shot)
-            else:
-                # Clear selection
-                self._on_shot_selected(None)
+            self.shot_selection_controller.on_shot_selected(selected_shot)
 
         elif index == 1:  # Other 3DE scenes tab
             # Get the current selection from 3DE scenes
@@ -1054,12 +967,7 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         elif index == 2:  # Previous Shots tab
             # Get the current selection from Previous Shots
             selected_shot = self.previous_shots_grid.selected_shot
-            if selected_shot:
-                # Re-apply the shot selection to update context
-                self._on_shot_selected(selected_shot)
-            else:
-                # Clear selection
-                self._on_shot_selected(None)
+            self.shot_selection_controller.on_shot_selected(selected_shot)
 
     def _update_tab_accent_color(self, index: int) -> None:
         """Update tab styling with distinct background color based on selected tab.
@@ -1194,103 +1102,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # Apply stylesheet to tab bar only (preserves design system defaults)
         self.tab_widget.tabBar().setStyleSheet(tab_stylesheet)
 
-    def _on_shot_selected(self, shot: Shot | None) -> None:
-        """Handle shot selection or deselection.
-
-        Args:
-            shot: Shot object or None to clear selection
-
-        """
-        # Cancel any pending discovery
-        if self._discovery_worker is not None:
-            self._discovery_worker.cancel()
-            self._discovery_worker = None
-
-        if shot is None:
-            # Handle deselection
-            self.command_launcher.set_current_shot(None)
-            self.right_panel.set_shot(None, discover_files=False)
-
-            # Clear plate selectors
-            self.right_panel.set_available_plates([])
-
-            # Reset window title
-            self.setWindowTitle(Config.APP_NAME)
-
-            # Update status
-            self._update_status("No shot selected")
-
-            # Clear saved selection
-            self._last_selected_shot_name = None
-            self.settings_controller.save_settings()
-        else:
-            # Handle selection
-            self.command_launcher.set_current_shot(shot)
-
-            # Update right panel immediately (without file discovery - that's async)
-            self.right_panel.set_shot(shot, discover_files=False)
-
-            # Update window title
-            self.setWindowTitle(f"{Config.APP_NAME} - {shot.full_name} ({shot.show})")
-
-            # Update status
-            self._update_status(f"Selected: {shot.full_name} ({shot.show})")
-
-            # Save selection
-            self._last_selected_shot_name = shot.full_name
-            self.settings_controller.save_settings()
-
-            # Start async discovery for plates and files (non-blocking)
-            self._discovery_worker = ShotDiscoveryWorker(shot)
-            _ = self._discovery_worker.signals.finished.connect(self._on_discovery_complete)
-            _ = self._discovery_worker.signals.error.connect(self._on_discovery_error)
-            QThreadPool.globalInstance().start(self._discovery_worker)
-
-    @Slot(object)
-    def _on_discovery_complete(self, result: dict[str, object]) -> None:
-        """Handle completed shot discovery.
-
-        Args:
-            result: Dictionary with 'shot', 'plates', and 'files' keys
-
-        """
-        shot = result.get("shot")
-        plates = result.get("plates", [])
-        files = result.get("files", {})
-
-        # Verify this result is for the currently selected shot (may have changed)
-        current_shot = self.command_launcher.current_shot
-        if current_shot is None or not isinstance(shot, Shot):
-            return
-        if current_shot.full_name != shot.full_name:
-            # Shot changed while discovery was running - discard result
-            return
-
-        # Update plates
-        if isinstance(plates, list):
-            self.right_panel.set_available_plates(cast("list[str]", plates))
-
-        # Update files
-        if isinstance(files, dict):
-            self.right_panel.set_files(cast("dict[FileType, list[SceneFile]]", files))
-
-        # Discover RV sequences (Maya playblasts, Nuke renders)
-        self.right_panel.discover_rv_sequences(shot)
-
-    @Slot(str)
-    def _on_discovery_error(self, error_message: str) -> None:
-        """Handle discovery error.
-
-        Args:
-            error_message: Error description
-
-        """
-        self.logger.warning(f"Shot discovery failed: {error_message}")
-
-    def _on_shot_double_clicked(self, _shot: Shot) -> None:
-        """Handle shot double click - launch default app."""
-        _ = self.command_launcher.launch_app(Config.DEFAULT_APP)
-
     def _launch_app_with_scene_context(
         self, app_name: str, scene: ThreeDEScene
     ) -> None:
@@ -1374,209 +1185,8 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
 
         return None
 
-    def _apply_show_filter(
-        self, item_model: object, model: object, show: str, tab_name: str
-    ) -> None:
-        """Generic show filter handler for all tabs.
-
-        Args:
-            item_model: The item model to apply the filter to (ShotItemModel, ThreeDEItemModel, or PreviousShotsItemModel)
-            model: The data model to pass to the item model (ShotModel, ThreeDESceneModel, or PreviousShotsModel)
-            show: Show name to filter by, or empty string for all shows
-            tab_name: Human-readable tab name for logging
-
-        """
-        # Convert empty string back to None for the model
-        show_filter = show if show else None
-
-        # Apply filter to item model
-        # Different item models have varying set_show_filter signatures:
-        # - ShotItemModel.set_show_filter(BaseShotModel, str | None)
-        # - PreviousShotsItemModel.set_show_filter(PreviousShotsModel, str | None)
-        # We use object types for generic handling across all tabs
-        item_model.set_show_filter(model, show_filter)  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
-
-        # Get filtered count for status (cast to int since item_model type is generic object)
-        filtered_count = int(item_model.rowCount())  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType, reportUnknownArgumentType]
-        filter_desc = show if show else "All Shows"
-        self.status_bar.showMessage(f"{tab_name}: {filtered_count} shots ({filter_desc})", 2500)
-
-        self.logger.info(
-            f"Applied {tab_name} show filter: {show if show else 'All Shows'}"
-        )
-
-    def _on_shot_show_filter_requested(self, show: str) -> None:
-        """Handle show filter request from My Shots grid view."""
-        self._apply_show_filter(self.shot_item_model, self.shot_model, show, "My Shots")
-
-    def _on_shot_text_filter_requested(self, text: str) -> None:
-        """Handle text filter request from My Shots grid view."""
-        filter_text = text.strip() if text else None
-        # Cast to BaseShotModel to access inherited methods
-        base_model = cast("BaseShotModel", self.shot_model)
-        base_model.set_text_filter(filter_text)
-
-        # Update item model with filtered shots
-        filtered_shots = base_model.get_filtered_shots()
-        # Use set_shots() to apply pin-aware sorting
-        self.shot_item_model.set_shots(filtered_shots)
-
-        # Show brief status with filter result
-        total_shots = len(self.shot_model.shots)
-        filtered_count = len(filtered_shots)
-        if filter_text:
-            self.status_bar.showMessage(
-                f"My Shots: {filtered_count} of {total_shots} (filter: '{filter_text}')", 2500
-            )
-        else:
-            self.status_bar.showMessage(f"My Shots: {total_shots} shots", 2500)
-
-        self.logger.debug(
-            f"My Shots text filter applied: '{filter_text}' - {len(filtered_shots)} shots"
-        )
-
-    @Slot()
-    def _on_shot_recover_crashes_requested(self) -> None:
-        """Handle recovery crashes request from My Shots grid view.
-
-        Scans for crash files in the current shot's workspace and presents
-        a recovery dialog if any are found.
-        """
-        # Get current shot or scene
-        # Check both since either can provide workspace context
-        current_shot = self.command_launcher.current_shot
-        current_scene = self.threede_shot_grid.selected_scene
-
-        if not current_shot and not current_scene:
-            # Local application imports
-            from notification_manager import NotificationManager
-            NotificationManager.warning(
-                "No Shot Selected",
-                "Please select a shot before attempting crash recovery."
-            )
-            return
-
-        # Use shot if available, otherwise derive from scene
-        # At this point, at least one must be non-None due to guard above
-        if current_shot:
-            workspace_path = current_shot.workspace_path
-            full_name = current_shot.full_name
-        else:
-            # current_scene must be non-None here
-            assert current_scene is not None  # Type narrowing
-            workspace_path = current_scene.workspace_path
-            full_name = current_scene.full_name
-        self.logger.info(f"Scanning for crash files in shot workspace: {workspace_path}")
-
-        # Import recovery components
-        from threede_recovery import CrashFileInfo, ThreeDERecoveryManager
-        from threede_recovery_dialog import (
-            ThreeDERecoveryDialog,
-            ThreeDERecoveryResultDialog,
-        )
-
-        # Create recovery manager
-        recovery_manager = ThreeDERecoveryManager()
-
-        # Find crash files in workspace
-        try:
-            crash_files = recovery_manager.find_crash_files(workspace_path, recursive=True)
-        except Exception as e:
-            self.logger.error(f"Error scanning for crash files: {e}")
-            # Local application imports
-            from notification_manager import NotificationManager
-            NotificationManager.error(
-                "Scan Error",
-                f"Failed to scan for crash files: {e}"
-            )
-            return
-
-        if not crash_files:
-            # Local application imports
-            from notification_manager import NotificationManager
-            message = f"No 3DE crash files found in workspace for {full_name}."
-            NotificationManager.info(message)
-            return
-
-        # Show recovery dialog
-        self.logger.info(f"Found {len(crash_files)} crash file(s), showing recovery dialog")
-        dialog = ThreeDERecoveryDialog(crash_files, parent=self.shot_grid)
-
-        # Connect recovery signal
-        def on_recovery_requested(crash_info: CrashFileInfo) -> None:  # type: ignore[name-defined]
-            self.logger.info(f"Recovery requested for: {crash_info.crash_path.name}")
-            try:
-                # Perform recovery and archiving
-                recovered_path, archived_path = recovery_manager.recover_and_archive(crash_info)
-
-                # Show success result
-                result_dialog = ThreeDERecoveryResultDialog(
-                    success=True,
-                    recovered_path=recovered_path,
-                    archived_path=archived_path,
-                    parent=self.shot_grid,
-                )
-                _ = result_dialog.exec()
-
-                # Local application imports
-                from notification_manager import NotificationManager, NotificationType
-                NotificationManager.toast(
-                    f"Recovered: {recovered_path.name}",
-                    NotificationType.SUCCESS
-                )
-
-            except Exception as e:
-                self.logger.error(f"Failed to recover crash file: {e}")
-                # Show error result
-                result_dialog = ThreeDERecoveryResultDialog(
-                    success=False,
-                    error_message=str(e),
-                    parent=self.shot_grid,
-                )
-                _ = result_dialog.exec()
-
-        _ = dialog.recovery_requested.connect(on_recovery_requested)
-        _ = dialog.exec()
-
-    def _on_previous_show_filter_requested(self, show: str) -> None:
-        """Handle show filter request from Previous Shots grid view."""
-        self._apply_show_filter(
-            self.previous_shots_item_model,
-            self.previous_shots_model,
-            show,
-            "Previous Shots",
-        )
-
-    def _on_previous_text_filter_requested(self, text: str) -> None:
-        """Handle text filter request from Previous Shots grid view."""
-        filter_text = text.strip() if text else None
-        self.previous_shots_model.set_text_filter(filter_text)
-
-        # Update item model with filtered shots
-        filtered_shots = self.previous_shots_model.get_filtered_shots()
-        # Use set_shots() to apply pin-aware sorting
-        self.previous_shots_item_model.set_shots(filtered_shots)
-
-        # Show brief status with filter result
-        total_shots = len(self.previous_shots_model.get_shots())
-        filtered_count = len(filtered_shots)
-        if filter_text:
-            self.status_bar.showMessage(
-                f"Previous Shots: {filtered_count} of {total_shots} (filter: '{filter_text}')",
-                2500,
-            )
-        else:
-            self.status_bar.showMessage(f"Previous Shots: {total_shots} shots", 2500)
-
-        self.logger.debug(
-            f"Previous Shots text filter applied: '{filter_text}' - {len(filtered_shots)} shots"
-        )
-
-    def _on_previous_shots_updated(self) -> None:
-        """Handle previous shots updated signal."""
-        # Populate show filter with available shows
-        self.previous_shots_grid.populate_show_filter(self.previous_shots_model)
-        self.logger.debug("Previous shots updated, refreshed show filter")
+    # Filter methods moved to FilterCoordinator
+    # Size methods moved to ThumbnailSizeManager
 
     def _on_threede_sort_order_changed(self, order: str) -> None:
         """Handle sort order change from 3DE grid view.
@@ -1603,81 +1213,6 @@ class MainWindow(QtWidgetMixin, LoggingMixin, QMainWindow):
         # Persist to settings
         self.settings_manager.set_sort_order("previous_shots", order)
         self.logger.info(f"Previous shots sort order changed to: {order}")
-
-    def _increase_thumbnail_size(self) -> None:
-        """Increase thumbnail size."""
-        # Get current size from active tab
-        tab_index = self.tab_widget.currentIndex()
-        if tab_index == 0:
-            current = self.shot_grid.size_slider.value()
-        elif tab_index == 1:
-            current = self.threede_shot_grid.size_slider.value()
-        else:
-            current = self.previous_shots_grid.size_slider.value()
-
-        new_size = min(current + 20, Config.MAX_THUMBNAIL_SIZE)
-        # This will trigger _sync_thumbnail_sizes to update all grids
-        if tab_index == 0:
-            self.shot_grid.size_slider.setValue(new_size)
-        elif tab_index == 1:
-            self.threede_shot_grid.size_slider.setValue(new_size)
-        else:
-            self.previous_shots_grid.size_slider.setValue(new_size)
-
-    def _decrease_thumbnail_size(self) -> None:
-        """Decrease thumbnail size."""
-        # Get current size from active tab
-        tab_index = self.tab_widget.currentIndex()
-        if tab_index == 0:
-            current = self.shot_grid.size_slider.value()
-        elif tab_index == 1:
-            current = self.threede_shot_grid.size_slider.value()
-        else:
-            current = self.previous_shots_grid.size_slider.value()
-
-        new_size = max(current - 20, Config.MIN_THUMBNAIL_SIZE)
-        # This will trigger _sync_thumbnail_sizes to update all grids
-        if tab_index == 0:
-            self.shot_grid.size_slider.setValue(new_size)
-        elif tab_index == 1:
-            self.threede_shot_grid.size_slider.setValue(new_size)
-        else:
-            self.previous_shots_grid.size_slider.setValue(new_size)
-
-    def _sync_thumbnail_sizes(self, value: int) -> None:
-        """Synchronize thumbnail sizes between all tabs."""
-        # Use signal blocking instead of disconnection to prevent race conditions
-        # This is thread-safe and guaranteed to work
-
-        # Block signals temporarily to prevent recursion
-        shot_grid_was_blocked = self.shot_grid.size_slider.blockSignals(True)
-        threede_grid_was_blocked = self.threede_shot_grid.size_slider.blockSignals(True)
-        previous_grid_was_blocked = self.previous_shots_grid.size_slider.blockSignals(
-            True
-        )
-
-        try:
-            # Update all sliders without triggering signals
-            self.shot_grid.size_slider.setValue(value)
-            self.threede_shot_grid.size_slider.setValue(value)
-            self.previous_shots_grid.size_slider.setValue(value)
-
-            # All grids now use Model/View, size change is handled by delegates
-
-            # Update size labels
-            self.shot_grid.size_label.setText(f"{value}px")
-            self.threede_shot_grid.size_label.setText(f"{value}px")
-            self.previous_shots_grid.size_label.setText(f"{value}px")
-        finally:
-            # Always restore signal state, even if an exception occurs
-            # This prevents leaving signals permanently blocked
-            _ = self.shot_grid.size_slider.blockSignals(shot_grid_was_blocked)
-            _ = self.threede_shot_grid.size_slider.blockSignals(
-                threede_grid_was_blocked
-            )
-            _ = self.previous_shots_grid.size_slider.blockSignals(
-                previous_grid_was_blocked
-            )
 
     def _update_status(self, message: str) -> None:
         """Update status bar."""

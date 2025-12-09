@@ -54,7 +54,7 @@ class TestBaseShotModelTextFiltering:
     @pytest.fixture
     def mock_shot_model(self, tmp_path: Path) -> ShotModel:
         """Create a ShotModel with test process pool."""
-        process_pool = TestProcessPool()
+        process_pool = TestProcessPool(allow_main_thread=True)
         model = ShotModel(cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"), load_cache=False)
         model._process_pool = process_pool
         return model
@@ -268,7 +268,7 @@ class TestPreviousShotsModelTextFiltering:
     def shot_model(self, tmp_path: Path) -> ShotModel:
         """Create a base ShotModel."""
         model = ShotModel(cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"), load_cache=False)
-        model._process_pool = TestProcessPool()
+        model._process_pool = TestProcessPool(allow_main_thread=True)
         return model
 
     @pytest.fixture
@@ -386,7 +386,7 @@ class TestBaseGridViewTextFilterUI:
     def test_text_filter_in_previous_shots_view(self, tmp_path: Path, qtbot: QtBot) -> None:
         """Test that text filter also exists in PreviousShotsView."""
         shot_model = ShotModel(cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"), load_cache=False)
-        shot_model._process_pool = TestProcessPool()
+        shot_model._process_pool = TestProcessPool(allow_main_thread=True)
         previous_model = PreviousShotsModel(
             shot_model, cache_manager=TestCacheManager(cache_dir=tmp_path / "cache2")
         )
@@ -426,7 +426,7 @@ class TestMainWindowTextFilterHandlers:
         window.shot_model = ShotModel(
             cache_manager=TestCacheManager(cache_dir=tmp_path / "cache"), load_cache=False
         )
-        window.shot_model._process_pool = TestProcessPool()
+        window.shot_model._process_pool = TestProcessPool(allow_main_thread=True)
 
         window.shot_item_model = ShotItemModel(cache_manager=TestCacheManager(cache_dir=tmp_path / "cache2"))
 
@@ -448,6 +448,25 @@ class TestMainWindowTextFilterHandlers:
         from unittest.mock import Mock
         window.status_bar = Mock()
 
+        # Add mock grid views for FilterCoordinator signal connections
+        # Mock signals with connect() method that does nothing
+        mock_signal = Mock()
+        mock_signal.connect = Mock(return_value=None)
+
+        mock_shot_grid = Mock()
+        mock_shot_grid.show_filter_requested = mock_signal
+        mock_shot_grid.text_filter_requested = mock_signal
+        window.shot_grid = mock_shot_grid
+
+        mock_previous_grid = Mock()
+        mock_previous_grid.show_filter_requested = mock_signal
+        mock_previous_grid.text_filter_requested = mock_signal
+        window.previous_shots_grid = mock_previous_grid
+
+        # Add FilterCoordinator for filter handling
+        from controllers.filter_coordinator import FilterCoordinator
+        window.filter_coordinator = FilterCoordinator(window)  # pyright: ignore[reportArgumentType]
+
         return window
 
         # Cleanup
@@ -455,11 +474,6 @@ class TestMainWindowTextFilterHandlers:
 
     def test_on_shot_text_filter_requested(self, mock_main_window: MainWindow) -> None:
         """Test the handler for My Shots text filter request."""
-        # Local application imports
-        from main_window import (
-            MainWindow,
-        )
-
         # Set up test shots
         test_shots = [
             Shot("show1", "seq1", "dm_001", "/workspace/show1/seq1/dm_001"),
@@ -469,25 +483,20 @@ class TestMainWindowTextFilterHandlers:
         mock_main_window.shot_model.shots = test_shots
         mock_main_window.shot_item_model.set_items(test_shots)
 
-        # Call the handler with "dm" filter
-        MainWindow._on_shot_text_filter_requested(mock_main_window, "dm")
+        # Call the handler with "dm" filter via filter_coordinator
+        mock_main_window.filter_coordinator._on_shot_text_filter_requested("dm")
 
         # Verify the filter was applied
         assert mock_main_window.shot_model.get_text_filter() == "dm"
         assert mock_main_window.shot_item_model.rowCount() == 2
 
         # Test clearing filter
-        MainWindow._on_shot_text_filter_requested(mock_main_window, "")
+        mock_main_window.filter_coordinator._on_shot_text_filter_requested("")
         assert mock_main_window.shot_model.get_text_filter() is None
         assert mock_main_window.shot_item_model.rowCount() == 3
 
     def test_on_previous_text_filter_requested(self, mock_main_window: MainWindow) -> None:
         """Test the handler for Previous Shots text filter request."""
-        # Local application imports
-        from main_window import (
-            MainWindow,
-        )
-
         # Set up test previous shots
         test_shots = [
             Shot("showA", "seq10", "dm_010", "/workspace/showA/seq10/dm_010"),
@@ -497,8 +506,8 @@ class TestMainWindowTextFilterHandlers:
         mock_main_window.previous_shots_model._previous_shots = test_shots
         mock_main_window.previous_shots_item_model.set_items(test_shots)
 
-        # Call the handler with "dm" filter
-        MainWindow._on_previous_text_filter_requested(mock_main_window, "dm")
+        # Call the handler with "dm" filter via filter_coordinator
+        mock_main_window.filter_coordinator._on_previous_text_filter_requested("dm")
 
         # Verify the filter was applied
         assert mock_main_window.previous_shots_model.get_text_filter() == "dm"
@@ -506,11 +515,6 @@ class TestMainWindowTextFilterHandlers:
 
     def test_text_and_show_filters_together(self, mock_main_window: MainWindow) -> None:
         """Test that text and show filters work together."""
-        # Local application imports
-        from main_window import (
-            MainWindow,
-        )
-
         # Set up test shots
         test_shots = [
             Shot("show1", "seq1", "dm_001", "/workspace/show1/seq1/dm_001"),
@@ -521,12 +525,12 @@ class TestMainWindowTextFilterHandlers:
         mock_main_window.shot_model.shots = test_shots
         mock_main_window.shot_item_model.set_items(test_shots)
 
-        # Apply show filter first
-        MainWindow._on_shot_show_filter_requested(mock_main_window, "show1")
+        # Apply show filter first via filter_coordinator
+        mock_main_window.filter_coordinator._on_shot_show_filter_requested("show1")
         assert mock_main_window.shot_item_model.rowCount() == 2
 
-        # Then apply text filter
-        MainWindow._on_shot_text_filter_requested(mock_main_window, "dm")
+        # Then apply text filter via filter_coordinator
+        mock_main_window.filter_coordinator._on_shot_text_filter_requested("dm")
         # Should show only show1 shots with "dm"
         assert mock_main_window.shot_item_model.rowCount() == 2
         filtered = [
@@ -540,11 +544,6 @@ class TestMainWindowTextFilterHandlers:
 
     def test_text_filter_updates_status_bar(self, mock_main_window: MainWindow) -> None:
         """Test that applying text filter updates status bar with count."""
-        # Local application imports
-        from main_window import (
-            MainWindow,
-        )
-
         # Set up test shots
         test_shots = [
             Shot("show1", "seq1", "dm_001", "/workspace/show1/seq1/dm_001"),
@@ -554,8 +553,8 @@ class TestMainWindowTextFilterHandlers:
         mock_main_window.shot_model.shots = test_shots
         mock_main_window.shot_item_model.set_items(test_shots)
 
-        # Call the handler with "dm" filter
-        MainWindow._on_shot_text_filter_requested(mock_main_window, "dm")
+        # Call the handler with "dm" filter via filter_coordinator
+        mock_main_window.filter_coordinator._on_shot_text_filter_requested("dm")
 
         # Verify status bar was updated with filter result
         mock_main_window.status_bar.showMessage.assert_called()

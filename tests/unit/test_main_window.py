@@ -158,7 +158,7 @@ class TestShotSelection:
         shot = Shot("test_show", "seq01", "0010", f"{shows_root}/test/seq01/0010")
 
         # Simulate shot selection
-        main_window._on_shot_selected(shot)
+        main_window.shot_selection_controller.on_shot_selected(shot)
 
         # Now DCC section launch buttons should be enabled
         for section in main_window.right_panel._dcc_accordion._sections.values():
@@ -178,20 +178,21 @@ class TestShotSelection:
         # Select a shot first
         shows_root = Config.SHOWS_ROOT
         shot = Shot("test_show", "seq01", "0010", f"{shows_root}/test/seq01/0010")
-        main_window._on_shot_selected(shot)
+        main_window.shot_selection_controller.on_shot_selected(shot)
 
         # Verify DCC section launch buttons are enabled
         for section in main_window.right_panel._dcc_accordion._sections.values():
             assert section._launch_btn.isEnabled()
 
         # Deselect shot
-        main_window._on_shot_selected(None)
+        main_window.shot_selection_controller.on_shot_selected(None)
 
         # DCC section launch buttons should be disabled again
         for section in main_window.right_panel._dcc_accordion._sections.values():
             assert not section._launch_btn.isEnabled()
 
 
+@pytest.mark.allow_main_thread  # Tests call refresh_shots() synchronously from main thread
 class TestShotRefresh:
     """Test shot refresh functionality."""
 
@@ -241,6 +242,7 @@ class TestShotRefresh:
         assert len(main_window.shot_model.shots) == 2
 
 
+@pytest.mark.allow_main_thread  # Tests call refresh_shots() synchronously from main thread
 class TestApplicationLaunching:
     """Test application launching functionality."""
 
@@ -318,7 +320,7 @@ class TestApplicationLaunching:
         shot = main_window.shot_model.shots[0]
 
         # Select the shot
-        main_window._on_shot_selected(shot)
+        main_window.shot_selection_controller.on_shot_selected(shot)
 
         # Verify DCC section launch buttons enabled (test behavior)
         assert "nuke" in main_window.right_panel._dcc_accordion._sections
@@ -353,7 +355,7 @@ class TestSignalConnections:
         shot = Shot("test_show", "seq01", "0010", f"{shows_root}/test/seq01/0010")
 
         # Trigger signal and verify handler is called
-        main_window._on_shot_selected(shot)
+        main_window.shot_selection_controller.on_shot_selected(shot)
 
         # Verify command launcher has the shot
         assert main_window.command_launcher.current_shot == shot
@@ -427,8 +429,8 @@ class TestStatusBar:
         main_window.shot_model.shots = test_shots
         main_window.shot_item_model.set_shots(test_shots)
 
-        # Apply filter via the generic handler
-        main_window._apply_show_filter(
+        # Apply filter via the filter coordinator
+        main_window.filter_coordinator._apply_show_filter(
             main_window.shot_item_model,
             main_window.shot_model,
             "TestShow",
@@ -456,6 +458,7 @@ class TestThumbnailSizeControl:
         assert hasattr(main_window.previous_shots_grid, "size_slider")
 
 
+@pytest.mark.allow_main_thread  # Tests call refresh_shots() synchronously from main thread
 class TestMainWindowIntegration:
     """Integration tests for MainWindow end-to-end workflows."""
 
@@ -508,7 +511,7 @@ class TestMainWindowIntegration:
         shot = main_window.shot_model.shots[0]
 
         # Select the shot
-        main_window._on_shot_selected(shot)
+        main_window.shot_selection_controller.on_shot_selected(shot)
 
         # Verify DCC section launch buttons enabled (test behavior)
         assert "nuke" in main_window.right_panel._dcc_accordion._sections
@@ -547,7 +550,7 @@ class TestCrashRecovery:
         # Create and select a shot (simulates clicking in "My Shots" tab)
         shows_root = Config.SHOWS_ROOT
         shot = Shot("test_show", "seq01", "0010", f"{shows_root}/test/seq01/0010")
-        main_window._on_shot_selected(shot)
+        main_window.shot_selection_controller.on_shot_selected(shot)
 
         # Verify shot is set and scene is None (important for the bug fix)
         assert main_window.command_launcher.current_shot == shot
@@ -567,7 +570,7 @@ class TestCrashRecovery:
                 mock_dialog.exec.return_value = 0  # Dialog rejected
 
                 # Trigger crash recovery
-                main_window._on_shot_recover_crashes_requested()
+                main_window.shot_selection_controller.on_recover_crashes_requested()
 
                 # Verify recovery manager was called with shot's workspace_path
                 mock_manager.find_crash_files.assert_called_once_with(
@@ -621,7 +624,7 @@ class TestCrashRecovery:
                 mock_dialog.exec.return_value = 0
 
                 # Trigger crash recovery
-                main_window._on_shot_recover_crashes_requested()
+                main_window.shot_selection_controller.on_recover_crashes_requested()
 
                 # Verify recovery manager was called with scene's workspace_path
                 # (since current_shot is None, we fall back to scene)
@@ -647,7 +650,7 @@ class TestCrashRecovery:
         # Mock NotificationManager to capture warning
         with patch("notification_manager.NotificationManager") as mock_notif:
             # Trigger crash recovery
-            main_window._on_shot_recover_crashes_requested()
+            main_window.shot_selection_controller.on_recover_crashes_requested()
 
             # Verify warning was shown
             mock_notif.warning.assert_called_once_with(
@@ -666,7 +669,7 @@ class TestCrashRecovery:
         # Create and select a shot
         shows_root = Config.SHOWS_ROOT
         shot = Shot("test_show", "seq01", "0010", f"{shows_root}/test/seq01/0010")
-        main_window._on_shot_selected(shot)
+        main_window.shot_selection_controller.on_shot_selected(shot)
 
         # Mock recovery manager to return no crash files
         with patch("threede_recovery.ThreeDERecoveryManager") as mock_manager_class:
@@ -675,7 +678,7 @@ class TestCrashRecovery:
 
             with patch("notification_manager.NotificationManager") as mock_notif:
                 # Trigger crash recovery
-                main_window._on_shot_recover_crashes_requested()
+                main_window.shot_selection_controller.on_recover_crashes_requested()
 
                 # Verify info message was shown
                 mock_notif.info.assert_called_once()
@@ -694,7 +697,7 @@ class TestCrashRecovery:
         # Create and select a shot
         shows_root = Config.SHOWS_ROOT
         shot = Shot("test_show", "seq01", "0010", f"{shows_root}/test/seq01/0010")
-        main_window._on_shot_selected(shot)
+        main_window.shot_selection_controller.on_shot_selected(shot)
 
         # Mock recovery manager to raise an error
         with patch("threede_recovery.ThreeDERecoveryManager") as mock_manager_class:
@@ -703,7 +706,7 @@ class TestCrashRecovery:
 
             with patch("notification_manager.NotificationManager") as mock_notif:
                 # Trigger crash recovery
-                main_window._on_shot_recover_crashes_requested()
+                main_window.shot_selection_controller.on_recover_crashes_requested()
 
                 # Verify error was shown
                 mock_notif.error.assert_called_once()
@@ -731,7 +734,7 @@ class TestRightPanelFileLaunch:
         # Select a shot (provides workspace context)
         shows_root = Config.SHOWS_ROOT
         shot = Shot("test_show", "seq01", "0010", f"{shows_root}/test/seq01/0010")
-        main_window._on_shot_selected(shot)
+        main_window.shot_selection_controller.on_shot_selected(shot)
 
         # Create a SceneFile to simulate file selection in DCC panel
         from datetime import datetime
@@ -850,7 +853,7 @@ class TestRightPanelFileLaunch:
         # Select a shot for context
         shows_root = Config.SHOWS_ROOT
         shot = Shot("test_show", "seq01", "0010", f"{shows_root}/test/seq01/0010")
-        main_window._on_shot_selected(shot)
+        main_window.shot_selection_controller.on_shot_selected(shot)
 
         # Mock both launch methods
         with patch.object(
@@ -881,7 +884,7 @@ class TestGetCurrentWorkspacePath:
         # Select a shot
         shows_root = Config.SHOWS_ROOT
         shot = Shot("test_show", "seq01", "0010", f"{shows_root}/test/seq01/0010")
-        main_window._on_shot_selected(shot)
+        main_window.shot_selection_controller.on_shot_selected(shot)
 
         # Verify workspace path comes from shot
         result = main_window._get_current_workspace_path()
@@ -932,7 +935,7 @@ class TestGetCurrentWorkspacePath:
             plate="FG01",
             scene_path=Path(f"{shows_root}/scene/workspace/track.3de"),
         )
-        main_window._on_shot_selected(shot)
+        main_window.shot_selection_controller.on_shot_selected(shot)
         main_window.threede_shot_grid._selected_scene = scene
 
         # Verify shot workspace is preferred
