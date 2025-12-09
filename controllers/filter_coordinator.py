@@ -15,16 +15,17 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Protocol, final
 
 from PySide6.QtCore import Slot
-from PySide6.QtWidgets import QStatusBar
 
 from logging_mixin import LoggingMixin
 
 
 if TYPE_CHECKING:
+    from PySide6.QtWidgets import QStatusBar
+
     from base_shot_model import BaseShotModel
+    from previous_shots_item_model import PreviousShotsItemModel
     from previous_shots_model import PreviousShotsModel
     from previous_shots_view import PreviousShotsView
-    from previous_shots_item_model import PreviousShotsItemModel
     from shot_grid_view import ShotGridView
     from shot_item_model import ShotItemModel
     from shot_model import ShotModel

@@ -103,10 +103,7 @@ class TestProgressManager:
     def start_operation(self, config: Any) -> TestProgressContext:
         """Track operation start. Accepts ProgressConfig or string for compatibility."""
         # Handle both ProgressConfig object and string for backward compatibility
-        if hasattr(config, "title"):
-            operation_id = config.title
-        else:
-            operation_id = str(config)
+        operation_id = config.title if hasattr(config, "title") else str(config)
         self._next_operation_id += 1
         key = f"{operation_id}_{self._next_operation_id}"
         self.operations.append({"type": "start", "id": operation_id})
@@ -245,7 +242,8 @@ def main_window_with_real_components(
     monkeypatch.setenv("SHOTBOT_USE_LEGACY_MODEL", "1")
 
     # Replace ProcessPoolManager.get_instance() to return our test double
-    test_pool = TestProcessPool(ttl_aware=True)
+    # allow_main_thread=True because MainWindow tests call refresh synchronously
+    test_pool = TestProcessPool(ttl_aware=True, allow_main_thread=True)
     test_pool.set_outputs("workspace /test/path")
 
     def mock_get_instance() -> TestProcessPool:
@@ -457,7 +455,7 @@ class TestMainWindowUICoordination:
         window.shot_model.shots = [test_shot]
 
         # Call the actual selection handler (this is what the signal connection does)
-        window._on_shot_selected(test_shot)
+        window.shot_selection_controller.on_shot_selected(test_shot)
 
         # Process events
         qtbot.wait(1)  # Minimal event processing
@@ -556,7 +554,7 @@ workspace /shows/test/shots/seq01/shot02""")
         # Select a shot using the actual handler
         test_shot = Shot("testshow", "seq01", "shot01", str(workspace_path))
         window.shot_model.shots = [test_shot]
-        window._on_shot_selected(
+        window.shot_selection_controller.on_shot_selected(
             test_shot
         )  # This enables buttons and sets current shot
 
@@ -640,7 +638,7 @@ workspace /shows/test/shots/seq01/shot02""")
         assert hasattr(window, "_on_shots_changed")
         assert hasattr(window, "_on_refresh_started")
         assert hasattr(window, "_on_refresh_finished")
-        assert hasattr(window, "_on_shot_selected")
+        assert hasattr(window.shot_selection_controller, "on_shot_selected")
 
     @pytest.mark.usefixtures("qtbot", "tmp_path")
     def test_settings_persistence(
@@ -719,7 +717,7 @@ class TestMainWindowKeyboardShortcuts:
         # Select a shot first using the actual handler
         test_shot = Shot("test", "seq01", "shot01", "/test")
         window.shot_model.shots = [test_shot]
-        window._on_shot_selected(test_shot)
+        window.shot_selection_controller.on_shot_selected(test_shot)
 
         # Test F5 for refresh - since keyboard shortcuts in Qt can be complex,
         # let's test that the shortcut is properly configured and trigger the action directly
