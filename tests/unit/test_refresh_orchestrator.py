@@ -74,9 +74,13 @@ def mock_progress_manager() -> Generator[Mock, None, None]:
     with patch("refresh_orchestrator.ProgressManager") as mock:
         progress_op = Mock()
         progress_op.set_indeterminate = Mock()
+
+        # Support both old context manager pattern and new manual pattern
+        mock.start_operation = Mock(return_value=progress_op)
+        mock.finish_operation = Mock()
+        # Legacy support for any remaining context manager tests
         progress_op.__enter__ = Mock(return_value=progress_op)
         progress_op.__exit__ = Mock(return_value=False)
-
         mock.operation = Mock(return_value=progress_op)
         yield mock
 
@@ -198,12 +202,16 @@ def test_refresh_shots_uses_progress_manager(
     mock_main_window: Mock,
     mock_progress_manager: Mock,
 ) -> None:
-    """Test _refresh_shots uses ProgressManager context."""
+    """Test _refresh_shots starts a progress operation manually (async pattern)."""
     orchestrator._refresh_shots()
 
-    mock_progress_manager.operation.assert_called_once_with(
-        "Refreshing shots", cancelable=False
-    )
+    # Now uses start_operation() instead of context manager for async operations
+    mock_progress_manager.start_operation.assert_called_once()
+    # Verify the config passed has correct title
+    call_args = mock_progress_manager.start_operation.call_args
+    config = call_args[0][0]  # First positional argument
+    assert config.title == "Refreshing shots"
+    assert config.cancelable is False
 
 
 def test_refresh_shots_sets_indeterminate_progress(
@@ -214,7 +222,8 @@ def test_refresh_shots_sets_indeterminate_progress(
     """Test _refresh_shots sets indeterminate progress."""
     orchestrator._refresh_shots()
 
-    progress_op = mock_progress_manager.operation.return_value
+    # Progress operation returned by start_operation() should have set_indeterminate called
+    progress_op = mock_progress_manager.start_operation.return_value
     progress_op.set_indeterminate.assert_called_once()
 
 
@@ -229,32 +238,51 @@ def test_refresh_shots_calls_model_refresh(
     mock_main_window.shot_model.refresh_shots.assert_called_once()
 
 
-def test_refresh_shots_emits_finished_signal_on_success(
+def test_refresh_shots_does_not_emit_finished_signal_directly(
     orchestrator: RefreshOrchestrator,
     mock_main_window: Mock,
     mock_progress_manager: Mock,
     qtbot: QtBot,
 ) -> None:
-    """Test _refresh_shots emits refresh_finished with success=True."""
+    """Test _refresh_shots does NOT emit refresh_finished directly.
+
+    The signal is now emitted by handle_refresh_finished() when ShotModel's
+    async operation completes, not immediately from _refresh_shots().
+    """
     mock_main_window.shot_model.refresh_shots.return_value = (True, True)
 
+    signal_received = []
+    orchestrator.refresh_finished.connect(lambda idx, s: signal_received.append((idx, s)))
+
+    orchestrator._refresh_shots()
+
+    # Signal should NOT have been emitted directly
+    assert signal_received == [], "refresh_finished should not be emitted directly from _refresh_shots"
+
+
+def test_handle_refresh_finished_emits_signal_on_success(
+    orchestrator: RefreshOrchestrator,
+    mock_main_window: Mock,
+    qtbot: QtBot,
+) -> None:
+    """Test handle_refresh_finished emits refresh_finished with success=True."""
+    mock_main_window.shot_model.shots = []
+
     with qtbot.waitSignal(orchestrator.refresh_finished) as blocker:
-        orchestrator._refresh_shots()
+        orchestrator.handle_refresh_finished(success=True, has_changes=False)
 
     assert blocker.args == [0, True]
 
 
-def test_refresh_shots_emits_finished_signal_on_failure(
+@pytest.mark.allow_dialogs
+def test_handle_refresh_finished_emits_signal_on_failure(
     orchestrator: RefreshOrchestrator,
     mock_main_window: Mock,
-    mock_progress_manager: Mock,
     qtbot: QtBot,
 ) -> None:
-    """Test _refresh_shots emits refresh_finished with success=False."""
-    mock_main_window.shot_model.refresh_shots.return_value = (False, False)
-
+    """Test handle_refresh_finished emits refresh_finished with success=False."""
     with qtbot.waitSignal(orchestrator.refresh_finished) as blocker:
-        orchestrator._refresh_shots()
+        orchestrator.handle_refresh_finished(success=False, has_changes=False)
 
     assert blocker.args == [0, False]
 
@@ -726,7 +754,6 @@ def test_refresh_shot_display_debounces_rapid_calls(
     Issue #2 fix: Prevents duplicate set_shots() and populate_show_filter()
     when both shots_loaded and shots_changed signals fire rapidly within 500ms.
     """
-
     # Track call count
     call_count = 0
     original_set_shots = mock_main_window.shot_item_model.set_shots

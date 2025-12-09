@@ -78,6 +78,7 @@ class ProcessExecutor(QObject):
         Args:
             config: Application configuration class
             parent: Optional Qt parent object
+
         """
         super().__init__(parent)
         self.config: type[Config] = config
@@ -98,6 +99,9 @@ class ProcessExecutor(QObject):
         # "Signal source deleted" errors when ProcessExecutor is cleaned up
         self._shutdown_flag: threading.Event = threading.Event()
 
+        # Track verification threads for cleanup
+        self._verification_threads: list[threading.Thread] = []
+
     def is_gui_app(self, app_name: str) -> bool:
         """Check if an application is a GUI application.
 
@@ -110,6 +114,7 @@ class ProcessExecutor(QObject):
         Notes:
             GUI apps are typically backgrounded when launched so they don't
             block the terminal. Non-GUI apps run in foreground for interactivity.
+
         """
         return app_name.lower() in self.GUI_APPS
 
@@ -153,6 +158,7 @@ class ProcessExecutor(QObject):
             to ensure shell functions (like 'ws') are available inside the rez
             environment. Using 'sh -c' for the outer shell avoids double-loading
             of .bashrc and reduces startup latency.
+
         """
         # When rez wrapper is present, use sh -c for outer shell (faster, ~50ms saved)
         # The inner bash -ilc inside rez provides the interactive context for ws
@@ -208,6 +214,7 @@ class ProcessExecutor(QObject):
             - Uses bash -ilc for interactive login shell (loads workspace functions)
             - When has_rez_wrapper=True, uses sh -c for outer shell (~50ms faster)
             - Schedules process verification after 100ms
+
         """
         if terminal is None:
             self.logger.warning(
@@ -289,6 +296,7 @@ class ProcessExecutor(QObject):
             - Called via QTimer.singleShot after 100ms
             - Emits error signals if process crashed
             - Shows notification on failure
+
         """
         exit_code = process.poll()
         if exit_code is not None:
@@ -369,6 +377,13 @@ class ProcessExecutor(QObject):
         self._reap_zombie_processes()
         self._spawned_processes.clear()
 
+        # Join verification threads with brief timeout (don't block forever)
+        # Threads check _shutdown_flag and will exit cleanly
+        for thread in self._verification_threads:
+            if thread.is_alive():
+                thread.join(timeout=0.5)  # Brief wait per thread
+        self._verification_threads.clear()
+
         # Stop and clean up all pending timers
         for timer in self._pending_timers:
             try:
@@ -402,6 +417,7 @@ class ProcessExecutor(QObject):
             app_verified: When process is found (with PID)
             app_verification_timeout: When timeout reached without finding process
             app_verification_failed: On errors
+
         """
         if not self.config.LAUNCH_VERIFICATION_ENABLED:
             self.logger.debug("Launch verification disabled")
@@ -427,7 +443,9 @@ class ProcessExecutor(QObject):
             target=self._verify_app_thread,
             args=(app_name, enqueue_time, timeout_sec, poll_interval_sec),
             daemon=True,
+            name=f"AppVerify-{app_name}",
         )
+        self._verification_threads.append(thread)
         thread.start()
 
     def _verify_app_thread(
@@ -445,6 +463,7 @@ class ProcessExecutor(QObject):
         Note:
             Checks _shutdown_flag before emitting signals to avoid
             "Signal source deleted" errors when ProcessExecutor is cleaned up.
+
         """
         # Map app names to possible process names
         app_process_names: dict[str, list[str]] = {

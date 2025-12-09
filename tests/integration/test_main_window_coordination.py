@@ -94,28 +94,39 @@ class TestProgressManager:
         """Initialize test progress manager."""
         self.operations: list[dict[str, Any]] = []
         self.active_operations: dict[str, TestProgressContext] = {}
+        self._next_operation_id = 0
 
     def operation(self, *args: Any, **kwargs: Any) -> TestProgressContext:
         """Create a test progress context."""
         return TestProgressContext(*args, **kwargs)
 
-    def start_operation(self, operation_id: str, total: int = 100) -> None:
-        """Track operation start."""
-        self.operations.append({"type": "start", "id": operation_id, "total": total})
-        self.active_operations[operation_id] = TestProgressContext()
+    def start_operation(self, config: Any) -> TestProgressContext:
+        """Track operation start. Accepts ProgressConfig or string for compatibility."""
+        # Handle both ProgressConfig object and string for backward compatibility
+        if hasattr(config, "title"):
+            operation_id = config.title
+        else:
+            operation_id = str(config)
+        self._next_operation_id += 1
+        key = f"{operation_id}_{self._next_operation_id}"
+        self.operations.append({"type": "start", "id": operation_id})
+        ctx = TestProgressContext()
+        self.active_operations[key] = ctx
+        return ctx
 
-    def finish_operation(self, operation_id: str = "", success: bool = True) -> None:
+    def finish_operation(self, success: bool = True, error_message: str = "") -> None:
         """Track operation finish."""
-        self.operations.append(
-            {"type": "finish", "id": operation_id, "success": success}
-        )
-        if operation_id in self.active_operations:
-            del self.active_operations[operation_id]
+        self.operations.append({"type": "finish", "success": success})
+        # Clean up the most recent operation
+        if self.active_operations:
+            key = list(self.active_operations.keys())[-1]
+            del self.active_operations[key]
 
     def clear(self) -> None:
         """Clear operation history."""
         self.operations.clear()
         self.active_operations.clear()
+        self._next_operation_id = 0
 
 
 class TestNotificationManager:
@@ -299,17 +310,20 @@ def main_window_with_real_components(
     # Create mock classes for CommandLauncher's internal imports with required methods
     class MockNukeScriptGenerator:
         """Mock for NukeScriptGenerator."""
+
         @staticmethod
         def create_plate_script(*_args: Any, **_kwargs: Any) -> str | None:
             return None
 
     class MockThreeDELatestFinder:
         """Mock for ThreeDELatestFinder."""
+
         def find_latest_threede_scene(self, *_args: Any, **_kwargs: Any) -> str | None:
             return None
 
     class MockMayaLatestFinder:
         """Mock for MayaLatestFinder."""
+
         def find_latest_maya_scene(self, *_args: Any, **_kwargs: Any) -> str | None:
             return None
 

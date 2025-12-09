@@ -494,7 +494,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
         Args:
             command: Command to execute
             cache_ttl: Cache time-to-live in seconds
-            timeout: Command execution timeout in seconds (default 120s)
+            timeout: Command execution timeout in seconds (default: ThreadingConfig.SUBPROCESS_TIMEOUT)
             use_login_shell: If True, use bash -l (login) instead of bash -i (interactive)
                            Login shell sources workspace functions without blocking on terminal
             cancel_flag: Optional callback that returns True if execution should be cancelled.
@@ -684,6 +684,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
                 cmd,
                 cache_ttl,
                 session_type,
+                timeout,  # Pass timeout to subprocess
             )
             futures[future] = cmd
 
@@ -711,6 +712,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
         command: str,
         _cache_ttl: int,
         _session_type: str,
+        timeout: float | None = None,
     ) -> str:
         """Execute command using session pool for true parallelism.
 
@@ -720,11 +722,16 @@ class ProcessPoolManager(LoggingMixin, QObject):
             command: Command to execute
             cache_ttl: Cache time-to-live
             session_type: Type of session pool
+            timeout: Command timeout in seconds (default: ThreadingConfig.SUBPROCESS_TIMEOUT)
 
         Returns:
             Command output
 
         """
+        # Use default timeout if not specified
+        if timeout is None:
+            timeout = ThreadingConfig.SUBPROCESS_TIMEOUT
+
         # Execute shell command using subprocess
         start_time = time.time()
         try:
@@ -734,7 +741,7 @@ class ProcessPoolManager(LoggingMixin, QObject):
                 shell=True,
                 capture_output=True,
                 text=True,
-                timeout=30,
+                timeout=timeout,
                 check=True,
             )
             result = proc_result.stdout

@@ -218,6 +218,7 @@ class InjectableProcessPoolManager(ProcessPoolManager):
         command: str,
         cache_ttl: int,
         session_type: str,
+        timeout: float | None = None,
     ) -> str:
         """Override to use test session for batch execution."""
         if self._test_session:
@@ -225,8 +226,13 @@ class InjectableProcessPoolManager(ProcessPoolManager):
             # Standard library imports
             import time
 
+            from config import ThreadingConfig
+
+            # Use provided timeout or default
+            actual_timeout = timeout if timeout is not None else ThreadingConfig.SUBPROCESS_TIMEOUT
+
             start_time = time.time()
-            result = self._test_session.execute(command, timeout=30)
+            result = self._test_session.execute(command, timeout=int(actual_timeout))
 
             # Update metrics
             elapsed = (time.time() - start_time) * 1000
@@ -235,7 +241,7 @@ class InjectableProcessPoolManager(ProcessPoolManager):
 
             return result
         # Use parent implementation
-        return super()._execute_with_session_pool(command, cache_ttl, session_type)
+        return super()._execute_with_session_pool(command, cache_ttl, session_type, timeout)
 
     def _get_bash_session(self, session_type: str):
         """Override to return injected test session when available."""

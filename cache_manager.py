@@ -22,7 +22,7 @@ Incremental Merging:
   robust merge/dedup algorithms in cache operations
 
 Simplifications:
-- Opt-in file locking via SHOTBOT_FILE_LOCKING=enabled (basic QMutex by default)
+- File locking enabled by default (opt-out via SHOTBOT_FILE_LOCKING=disabled)
 - No memory manager/LRU eviction
 - No failure tracker with exponential backoff
 - No storage backend abstraction
@@ -85,9 +85,9 @@ THUMBNAIL_QUALITY = 85
 STAT_CACHE_TTL = 2.0  # Cache stat results for 2 seconds to reduce filesystem I/O
 STAT_CACHE_MAX_SIZE = 1000  # Maximum entries in stat cache (LRU eviction)
 
-# File locking configuration (opt-in via environment variable)
-# Enable with: SHOTBOT_FILE_LOCKING=enabled
-FILE_LOCKING_ENABLED = os.getenv("SHOTBOT_FILE_LOCKING", "").lower() == "enabled"
+# File locking configuration (enabled by default, opt-out via environment variable)
+# Disable with: SHOTBOT_FILE_LOCKING=disabled
+FILE_LOCKING_ENABLED = os.getenv("SHOTBOT_FILE_LOCKING", "enabled").lower() != "disabled"
 
 # Check if fcntl is available (not on Windows)
 # Import as optional module to avoid type errors

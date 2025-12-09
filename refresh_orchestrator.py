@@ -11,7 +11,7 @@ from PySide6.QtCore import QObject, Signal
 
 from logging_mixin import LoggingMixin
 from notification_manager import NotificationManager
-from progress_manager import ProgressManager
+from progress_manager import ProgressConfig, ProgressManager, ProgressType
 
 
 if TYPE_CHECKING:
@@ -56,12 +56,14 @@ class RefreshOrchestrator(QObject, LoggingMixin):
 
         Args:
             main_window: The MainWindow instance to coordinate refreshes for
+
         """
         super().__init__()
         LoggingMixin.__init__(self)
         self.main_window: RefreshOrchestratorMainWindowProtocol = main_window
         self._last_refresh_time: float = 0.0  # Debounce duplicate display refreshes
         self._refresh_debounce_interval: float = 0.5  # 500ms debounce window
+        self._shots_refresh_in_progress: bool = False  # Track async refresh state
         self.logger.debug("RefreshOrchestrator initialized")
 
     def refresh_current_tab(self) -> None:
@@ -74,6 +76,7 @@ class RefreshOrchestrator(QObject, LoggingMixin):
 
         Args:
             index: Tab index (0=My Shots, 1=Other 3DE, 2=Previous)
+
         """
         self.refresh_started.emit(index)
 
@@ -85,13 +88,31 @@ class RefreshOrchestrator(QObject, LoggingMixin):
             self._refresh_previous()
 
     def _refresh_shots(self) -> None:
-        """Refresh shot list with progress indication."""
-        with ProgressManager.operation(
-            "Refreshing shots", cancelable=False
-        ) as progress:
-            progress.set_indeterminate()
-            success, _ = self.main_window.shot_model.refresh_shots()
-            self.refresh_finished.emit(0, success)
+        """Refresh shot list with progress indication.
+
+        Always bypasses ws command cache for user-initiated refresh.
+        Note: Does NOT emit refresh_finished here - that's handled by
+        handle_refresh_finished() when ShotModel's async operation completes.
+
+        Progress dialog is started here and closed in handle_refresh_finished()
+        to ensure the dialog stays open during the entire async operation.
+        """
+        # Start progress operation manually (don't use context manager for async)
+        # The operation will be finished in handle_refresh_finished()
+        config = ProgressConfig(
+            title="Refreshing shots",
+            cancelable=False,
+            progress_type=ProgressType.AUTO,
+        )
+        operation = ProgressManager.start_operation(config)
+        operation.set_indeterminate()
+        self._shots_refresh_in_progress = True
+
+        # force_fresh=True bypasses ws -sg cache for user-initiated refresh
+        # ShotModel.refresh_shots() returns immediately; async loader continues.
+        # refresh_finished will be emitted by handle_refresh_finished() when
+        # ShotModel emits its refresh_finished signal after async completes.
+        self.main_window.shot_model.refresh_shots(force_fresh=True)
 
     def _refresh_threede(self) -> None:
         """Refresh Other 3DE scenes."""
@@ -122,6 +143,7 @@ class RefreshOrchestrator(QObject, LoggingMixin):
 
         Args:
             shots: List of loaded Shot objects
+
         """
         self.logger.info(f"Shots loaded signal received: {len(shots)} shots")
         self._refresh_shot_display()
@@ -133,6 +155,7 @@ class RefreshOrchestrator(QObject, LoggingMixin):
 
         Args:
             shots: List of updated Shot objects
+
         """
         self.logger.info(f"Shots changed signal received: {len(shots)} shots")
         self._refresh_shot_display()
@@ -147,10 +170,20 @@ class RefreshOrchestrator(QObject, LoggingMixin):
     def handle_refresh_finished(self, success: bool, has_changes: bool) -> None:
         """Handle refresh finished signal from model.
 
+        This is called when ShotModel's async loading completes.
+        Emits refresh_finished(0, success) to notify that the shots tab refresh is done.
+        Also closes the progress dialog that was started in _refresh_shots().
+
         Args:
             success: Whether the refresh was successful
             has_changes: Whether the shot list changed
+
         """
+        # Close progress dialog that was started in _refresh_shots()
+        if self._shots_refresh_in_progress:
+            ProgressManager.finish_operation(success=success)
+            self._shots_refresh_in_progress = False
+
         if success:
             if has_changes:
                 # UI update already handled by shots_changed signal
@@ -182,6 +215,9 @@ class RefreshOrchestrator(QObject, LoggingMixin):
                 "Make sure the 'ws -sg' command is available and you're in a valid workspace.",
             )
 
+        # Emit refresh_finished for shots tab (index 0) now that async is complete
+        self.refresh_finished.emit(0, success)
+
     def trigger_previous_shots_refresh(self, shots: list[Shot]) -> None:
         """Trigger previous shots refresh only after shots are loaded.
 
@@ -190,6 +226,7 @@ class RefreshOrchestrator(QObject, LoggingMixin):
 
         Args:
             shots: The loaded shots (from signal)
+
         """
         if shots:  # Only refresh if we actually have shots
             self.logger.info(
@@ -231,6 +268,7 @@ class RefreshOrchestrator(QObject, LoggingMixin):
 
         Args:
             message: The status message to display
+
         """
         if hasattr(self.main_window, "update_status"):
             self.main_window.update_status(message)
