@@ -4,7 +4,7 @@ Settings Panel Module for PyMPEG
 Handles all UI controls and settings management
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, ClassVar, Dict, Optional
 
 from PySide6.QtCore import QObject, QSettings, Signal
 from PySide6.QtWidgets import (
@@ -29,6 +29,23 @@ class SettingsPanel(QObject):
     # Signals for settings changes
     settings_changed = Signal(dict)  # Emitted when any setting changes
     auto_balance_toggled = Signal(bool)  # Emitted when auto-balance is toggled
+
+    # Hardware-optimized defaults for RTX 4090 + i9-14900HX
+    HARDWARE_OPTIMIZED_DEFAULTS: ClassVar[Dict[str, Any]] = {
+        "codec_idx": 0,           # H.264 NVENC
+        "preset_idx": 0,          # Standard quality
+        "hwdecode_idx": 1,        # NVIDIA CUDA
+        "crf_value": EncodingConfig.DEFAULT_CRF_H264,  # 16 - high quality
+        "threads": ProcessConfig.OPTIMAL_CPU_THREADS,  # 32 threads
+        "parallel_enabled": True,
+        "max_parallel": ProcessConfig.MAX_PARALLEL_HIGH_END,  # 14
+        "delete_source": False,   # Safety default
+        "overwrite_mode": True,
+        "smart_buffer": True,
+        "auto_balance": True,     # 85% GPU / 15% CPU distribution
+        "priority_idx": 0,        # Normal
+        "hevc_10bit": False,
+    }
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -168,11 +185,12 @@ class SettingsPanel(QObject):
 
         self.threads_spinbox = QSpinBox()
         max_threads = os.cpu_count() or 4
-        self.threads_spinbox.setRange(1, max_threads)
+        self.threads_spinbox.setRange(0, max_threads)  # 0 = auto-detect
+        self.threads_spinbox.setSpecialValueText("Auto")  # Display "Auto" when value is 0
         optimal_threads = min(ProcessConfig.OPTIMAL_CPU_THREADS, max_threads)
         self.threads_spinbox.setValue(optimal_threads)
         self.threads_spinbox.setAccelerated(True)
-        self.threads_spinbox.setToolTip("Number of threads for encoding")
+        self.threads_spinbox.setToolTip("Number of threads for encoding (Auto = let FFmpeg decide)")
         threads_layout.addWidget(self.threads_spinbox)
         layout.addLayout(threads_layout)
 
@@ -279,6 +297,16 @@ class SettingsPanel(QObject):
         self.nvenc_settings_button.clicked.connect(self._show_nvenc_settings)
         nvenc_button_layout.addWidget(self.nvenc_settings_button)
         layout.addLayout(nvenc_button_layout)
+
+        # Reset to Defaults Button
+        reset_button_layout = QHBoxLayout()
+        reset_btn = QPushButton("Reset to Defaults")
+        reset_btn.setToolTip(
+            "Reset all settings to hardware-optimized defaults for RTX 4090 + i9-14900HX"
+        )
+        reset_btn.clicked.connect(self._reset_to_defaults)
+        reset_button_layout.addWidget(reset_btn)
+        layout.addLayout(reset_button_layout)
 
         return group
 
@@ -397,6 +425,17 @@ class SettingsPanel(QObject):
         """Handle auto-balance toggle"""
         self.auto_balance_toggled.emit(enabled)
         self._on_settings_changed()  # Also emit general settings change
+
+    def _reset_to_defaults(self) -> None:
+        """Reset all settings to hardware-optimized defaults."""
+        self.set_settings(self.HARDWARE_OPTIMIZED_DEFAULTS)
+        # Also reset NVENC advanced settings
+        self.nvenc_b_adapt = 2
+        self.nvenc_ref_frames = 4
+        self.nvenc_rc_mode = "vbr"
+        self.nvenc_aq_strength = 1
+        # Emit signal and save
+        self._on_settings_changed()
 
     def get_current_settings(self) -> Dict[str, Any]:
         """Get current settings from UI controls"""
@@ -661,12 +700,17 @@ class SettingsPanel(QObject):
         settings = self.get_current_settings()
 
         # Check if AV1 is selected on non-RTX 40 systems
-        if settings.get("codec_idx") == 2 and not CodecHelpers.detect_rtx40_series():
-            return (
-                False,
-                "AV1 NVENC requires RTX 40 series GPU. "
-                "Please select a different codec or use an RTX 40 series GPU.",
-            )
+        # Use cached result only to avoid blocking UI (returns None if not yet cached)
+        if settings.get("codec_idx") == 2:
+            rtx40_cached = CodecHelpers.is_rtx40_cached()
+            # Only reject if cache explicitly shows no RTX40 (False)
+            # If cache is None (not yet determined), allow it - detection will run at conversion time
+            if rtx40_cached is False:
+                return (
+                    False,
+                    "AV1 NVENC requires RTX 40 series GPU. "
+                    "Please select a different codec or use an RTX 40 series GPU.",
+                )
 
         # Check parallel processing limits
         if (
