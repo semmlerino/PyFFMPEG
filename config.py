@@ -119,7 +119,7 @@ class HardwareConfig:
     RTX40_MODELS = ("RTX 40", "4090", "4080", "4070")  # Tuple for immutability
 
     # Hardware acceleration timeout
-    GPU_DETECTION_TIMEOUT = 10  # Seconds to wait for GPU detection
+    GPU_DETECTION_TIMEOUT = 2  # Seconds to wait for GPU detection (reduced to prevent UI freeze)
 
 
 # File and Path Constants
@@ -140,6 +140,20 @@ class FileConfig:
     SIZE_FACTOR_PRORES_422 = 50  # ProRes 422 estimated size
     SIZE_FACTOR_PRORES_4444 = 80  # ProRes 4444 estimated size
     SIZE_FACTOR_DEFAULT = 10  # Default fallback size factor
+
+
+# Pre-flight Validation Constants
+class ValidationConfig:
+    """Pre-flight validation and safety check constants"""
+
+    # Disk space validation
+    DISK_SPACE_SAFETY_MARGIN = 0.8  # Require 20% extra free space beyond estimate
+    MIN_FREE_SPACE_BYTES = 100 * 1024 * 1024  # Minimum 100MB free space required
+
+    # Output integrity verification
+    FFPROBE_VERIFY_TIMEOUT = 10  # Seconds to wait for ffprobe verification
+    MIN_OUTPUT_SIZE_BYTES = 1024  # Minimum 1KB output to consider valid
+    MIN_OUTPUT_SIZE_RATIO = 0.01  # Minimum 1% of input size
 
 
 # Application Settings

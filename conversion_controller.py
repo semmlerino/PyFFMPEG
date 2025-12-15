@@ -4,14 +4,17 @@ Conversion Controller Module for PyMPEG
 Handles the core conversion logic, process management, and conversion workflow
 """
 
+import contextlib
 import os
+import shutil
+import subprocess
 import time
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from PySide6.QtCore import QObject, QProcess, QRunnable, QThreadPool, Signal
 
 from codec_helpers import CodecHelpers
-from config import EncodingConfig
+from config import EncodingConfig, ValidationConfig
 from logging_config import get_logger
 from process_manager import ProcessManager
 from progress_tracker import ProcessProgressTracker
@@ -129,6 +132,12 @@ class ConversionController(QObject):
             self.log_message.emit("⚠️ No files selected for conversion")
             return False
 
+        # Pre-flight validation: check file accessibility and disk space
+        valid, error_msg = self._validate_conversion_ready(file_paths)
+        if not valid:
+            self.log_message.emit(f"❌ Pre-flight check failed: {error_msg}")
+            return False
+
         self.is_converting = True
         self.queue = list(file_paths)
         self.batch_start_time = time.time()
@@ -183,6 +192,135 @@ class ConversionController(QObject):
         # Wait for any in-flight prep workers to finish
         self._prep_thread_pool.waitForDone(5000)
 
+    def _validate_conversion_ready(self, file_paths: List[str]) -> Tuple[bool, str]:
+        """Validate that conversion can proceed safely.
+
+        Performs pre-flight checks:
+        1. File accessibility - ensures all source files can be read
+        2. Disk space - ensures sufficient space for estimated output
+
+        Args:
+            file_paths: List of files to convert
+
+        Returns:
+            Tuple of (success, error_message). If success is False,
+            error_message contains the reason.
+        """
+        # Check 1: File accessibility
+        inaccessible_files: List[str] = []
+        for path in file_paths:
+            if not os.access(path, os.R_OK):
+                inaccessible_files.append(os.path.basename(path))
+
+        if inaccessible_files:
+            if len(inaccessible_files) <= 3:
+                files_str = ", ".join(inaccessible_files)
+            else:
+                files_str = f"{inaccessible_files[0]}, {inaccessible_files[1]}, ... (+{len(inaccessible_files) - 2} more)"
+            return False, f"Cannot read files: {files_str}"
+
+        # Check 2: Disk space validation
+        # Get the output directory (use first file's directory as reference)
+        if not file_paths:
+            return True, ""
+
+        output_dir = os.path.dirname(file_paths[0])
+        if not output_dir:
+            output_dir = os.getcwd()
+
+        # Estimate total output size based on input sizes
+        # For re-encoding, output is typically similar or smaller than input
+        # Use a conservative estimate of same size as input
+        total_input_size = 0
+        for path in file_paths:
+            with contextlib.suppress(OSError):
+                total_input_size += os.path.getsize(path)
+
+        estimated_output_size = total_input_size
+
+        # Check available disk space
+        try:
+            disk_usage = shutil.disk_usage(output_dir)
+            free_space = disk_usage.free
+        except OSError as e:
+            return False, f"Cannot check disk space: {e}"
+
+        # Require output estimate + safety margin
+        required_space = int(
+            estimated_output_size / ValidationConfig.DISK_SPACE_SAFETY_MARGIN
+        )
+        required_space = max(required_space, ValidationConfig.MIN_FREE_SPACE_BYTES)
+
+        if free_space < required_space:
+            free_gb = free_space / (1024 ** 3)
+            required_gb = required_space / (1024 ** 3)
+            return (
+                False,
+                f"Insufficient disk space: {free_gb:.1f}GB free, need ~{required_gb:.1f}GB",
+            )
+
+        return True, ""
+
+    def _verify_output_integrity(self, output_path: str, input_size: int) -> bool:
+        """Verify output file integrity using ffprobe.
+
+        Checks:
+        1. File exists and meets minimum size requirements
+        2. ffprobe can read the file and extract duration (valid container)
+
+        Args:
+            output_path: Path to the output video file
+            input_size: Size of the input file in bytes
+
+        Returns:
+            True if output is valid, False otherwise
+        """
+        # Check file exists and size
+        try:
+            output_stat = os.stat(output_path)
+            output_size = output_stat.st_size
+        except (FileNotFoundError, OSError):
+            return False
+
+        # Minimum size check
+        min_size = max(
+            ValidationConfig.MIN_OUTPUT_SIZE_BYTES,
+            int(input_size * ValidationConfig.MIN_OUTPUT_SIZE_RATIO),
+        )
+        if output_size < min_size:
+            return False
+
+        # ffprobe verification - check if we can read duration (proves valid container)
+        try:
+            result = subprocess.run(
+                [
+                    "ffprobe",
+                    "-v", "error",
+                    "-show_entries", "format=duration",
+                    "-of", "default=noprint_wrappers=1:nokey=1",
+                    output_path,
+                ],
+                capture_output=True,
+                text=True,
+                timeout=ValidationConfig.FFPROBE_VERIFY_TIMEOUT,
+                check=False,
+            )
+            # If ffprobe returns successfully and we get a duration, file is valid
+            if result.returncode == 0 and result.stdout.strip():
+                try:
+                    duration = float(result.stdout.strip())
+                    return duration > 0
+                except ValueError:
+                    return False
+            return False
+        except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError):
+            # If ffprobe fails, fall back to size-only check (already passed above)
+            # Log warning but allow deletion if size check passed
+            self.log_message.emit(
+                "⚠️ ffprobe verification skipped (unavailable), using size check only"
+            )
+            return True
+
     def _process_next(self) -> None:
         """Process the next file in the queue"""
         if not self.is_converting or not self.queue:
@@ -192,8 +330,8 @@ class ConversionController(QObject):
 
         # For parallel processing, process multiple files up to the limit
         while self.queue and self.parallel_enabled:
-            # Check if we can start more processes
-            active_count = len(self.process_manager.processes)
+            # Check if we can start more processes (include pending prep jobs)
+            active_count = len(self.process_manager.processes) + len(self._pending_preps)
             if active_count >= self.max_parallel:
                 break  # Wait for a process to finish
 
@@ -202,7 +340,7 @@ class ConversionController(QObject):
 
         # For non-parallel processing, process just one file
         if not self.parallel_enabled and self.queue:
-            active_count = len(self.process_manager.processes)
+            active_count = len(self.process_manager.processes) + len(self._pending_preps)
             if active_count < self.max_parallel:
                 self._process_single_file()
 
@@ -214,10 +352,12 @@ class ConversionController(QObject):
         # Pre-flight check: Verify FFmpeg is available BEFORE popping from queue
         if not self.process_manager.is_ffmpeg_available():
             self.log_message.emit("❌ FFmpeg not found in PATH - cannot process files")
-            # Mark all remaining files as failed
+            # Mark all remaining files as failed and update progress tracking
             for remaining_path in self.queue:
                 if self.file_list_widget:
                     self.file_list_widget.set_status(remaining_path, "failed")
+                # Count as failed (not skipped) for accurate progress breakdown
+                self.process_manager.progress_tracker.mark_file_failed()
             self.queue.clear()
             self._finish_conversion()
             return
@@ -243,6 +383,8 @@ class ConversionController(QObject):
                 )
                 if self.file_list_widget:
                     self.file_list_widget.set_status(file_path, "skipped")
+                # Mark as completed for progress tracking (skipped counts toward total)
+                self.process_manager.progress_tracker.mark_file_skipped()
                 self._process_next()
                 return
 
@@ -276,14 +418,19 @@ class ConversionController(QObject):
 
         self.log_message.emit(f"🚀 Starting: {os.path.basename(file_path)}")
 
+        # Extract output path from ffmpeg_args (last element) for post-process verification
+        output_path = ffmpeg_args[-1] if ffmpeg_args else None
+
         # Start the process with pre-probed duration to avoid another blocking call
         process = self.process_manager.start_process(
-            file_path, ffmpeg_args, codec_idx, duration=duration
+            file_path, ffmpeg_args, codec_idx, duration=duration, output_path=output_path
         )
 
         # Apply process priority if process started successfully
         if process.state() != QProcess.ProcessState.NotRunning:
-            priority_names = {0: "high", 1: "normal", 2: "low"}
+            # Map UI ComboBox indices to priority names
+            # UI order: Normal (0), Low (1), High (2)
+            priority_names = {0: "normal", 1: "low", 2: "high"}
             priority = priority_names.get(self.priority_idx, "normal")
             self.process_manager.set_process_priority(process, priority)
 
@@ -440,44 +587,41 @@ class ConversionController(QObject):
                 self.file_list_widget.update_progress(process_path, 100)
                 self.file_list_widget.set_status(process_path, "completed")
 
-            # Handle source file deletion if enabled - with output verification
+            # Handle source file deletion if enabled - with ffprobe output verification
             if self.delete_source:
-                # Build expected output path to verify it exists
-                codec_idx = self.process_manager.codec_map.get(process_path, self.codec_idx)
-                output_ext = CodecHelpers.get_output_extension(codec_idx)
-                input_name = os.path.splitext(os.path.basename(process_path))[0]
-                output_path = os.path.join(
-                    os.path.dirname(process_path), f"{input_name}_RC{output_ext}"
-                )
+                # Use stored output path if available, otherwise reconstruct (fallback)
+                output_path = self.process_manager.output_map.get(process_path)
+                if not output_path:
+                    # Fallback reconstruction (for backwards compatibility)
+                    codec_idx = self.process_manager.codec_map.get(
+                        process_path, self.codec_idx
+                    )
+                    output_ext = CodecHelpers.get_output_extension(codec_idx)
+                    input_name = os.path.splitext(os.path.basename(process_path))[0]
+                    output_path = os.path.join(
+                        os.path.dirname(process_path), f"{input_name}_RC{output_ext}"
+                    )
 
-                # Verify output exists and has reasonable size before deleting source
-                if os.path.exists(output_path):
-                    output_size = os.path.getsize(output_path)
+                # Get input size for verification
+                try:
+                    input_size = os.path.getsize(process_path)
+                except OSError:
+                    input_size = 0
+
+                # Verify output integrity using ffprobe before deleting source
+                if self._verify_output_integrity(output_path, input_size):
                     try:
-                        input_size = os.path.getsize(process_path)
-                    except OSError:
-                        input_size = 0
-                    # Output should be at least 1KB or 1% of input (whichever is larger)
-                    min_size = max(1024, int(input_size * 0.01))
-
-                    if output_size >= min_size:
-                        try:
-                            os.remove(process_path)
-                            self.log_message.emit(
-                                f"🗑️ Deleted source: {os.path.basename(process_path)}"
-                            )
-                        except OSError as e:
-                            self.log_message.emit(
-                                f"⚠️ Could not delete {process_path}: {e}"
-                            )
-                    else:
+                        os.remove(process_path)
                         self.log_message.emit(
-                            f"⚠️ Output too small ({output_size}B), keeping source: "
-                            f"{os.path.basename(process_path)}"
+                            f"🗑️ Deleted source: {os.path.basename(process_path)}"
+                        )
+                    except OSError as e:
+                        self.log_message.emit(
+                            f"⚠️ Could not delete {process_path}: {e}"
                         )
                 else:
                     self.log_message.emit(
-                        f"⚠️ Output not found, keeping source: "
+                        f"⚠️ Output verification failed, keeping source: "
                         f"{os.path.basename(process_path)}"
                     )
         else:

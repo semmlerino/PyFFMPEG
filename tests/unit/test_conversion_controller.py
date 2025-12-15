@@ -65,7 +65,9 @@ class TestConversionWorkflow:
         """Test successful conversion start"""
         file_paths = ["/test/video1.ts", "/test/video2.ts"]
 
-        with patch.object(self.controller, "_process_next") as mock_process_next:
+        with patch.object(
+            self.controller, "_validate_conversion_ready", return_value=(True, "")
+        ), patch.object(self.controller, "_process_next") as mock_process_next:
             result = self.controller.start_conversion(
                 file_paths=file_paths,
                 codec_idx=0,  # H.264 NVENC
@@ -560,27 +562,31 @@ class TestSourceFileDeletion:
 
     @patch("os.remove")
     @patch("os.path.getsize")
-    @patch("os.path.exists")
+    @patch("os.stat")
     @patch("codec_helpers.CodecHelpers.get_output_extension")
     def test_delete_source_file_success(
-        self, mock_ext, mock_exists, mock_getsize, mock_remove
+        self, mock_ext, mock_stat, mock_getsize, mock_remove
     ):
         """Test successful source file deletion in process finished handler"""
         file_path = "/test/video.ts"
+        output_path = "/test/video_RC.mp4"
         mock_process = Mock()
 
-        # Mock output file verification (new requirement for deletion)
+        # Mock output file verification using os.stat (atomic check)
         mock_ext.return_value = ".mp4"
-        mock_exists.return_value = True  # Output file exists
-        mock_getsize.side_effect = lambda p: 10000 if "_RC.mp4" in p else 100000
+        mock_stat_result = Mock()
+        mock_stat_result.st_size = 10000  # Output file size
+        mock_stat.return_value = mock_stat_result
+        mock_getsize.return_value = 100000  # Input file size
 
         # Simulate successful conversion with delete_source enabled
         self.controller.delete_source = True
         self.controller.parallel_enabled = False  # Set required attribute
         self.controller.queue = []  # Set required attribute
         self.controller.file_list_widget = None  # Set required attribute
-        # Mock codec_map for the process_manager
+        # Mock codec_map and output_map for the process_manager
         self.mock_process_manager.codec_map = {file_path: 0}
+        self.mock_process_manager.output_map = {file_path: output_path}
         self.controller._on_process_finished(mock_process, 0, file_path)
 
         # Should attempt to delete the source file
@@ -588,22 +594,25 @@ class TestSourceFileDeletion:
 
     @patch("os.remove")
     @patch("os.path.getsize")
-    @patch("os.path.exists")
+    @patch("os.stat")
     @patch("codec_helpers.CodecHelpers.get_output_extension")
     def test_delete_source_file_not_exists(
-        self, mock_ext, mock_exists, mock_getsize, mock_remove
+        self, mock_ext, mock_stat, mock_getsize, mock_remove
     ):
         """Test source file deletion when file doesn't exist"""
         # os.remove will raise FileNotFoundError if file doesn't exist
         mock_remove.side_effect = FileNotFoundError("File not found")
 
         file_path = "/test/video.ts"
+        output_path = "/test/video_RC.mp4"
         mock_process = Mock()
 
-        # Mock output file verification
+        # Mock output file verification using os.stat (atomic check)
         mock_ext.return_value = ".mp4"
-        mock_exists.return_value = True  # Output file exists
-        mock_getsize.side_effect = lambda p: 10000 if "_RC.mp4" in p else 100000
+        mock_stat_result = Mock()
+        mock_stat_result.st_size = 10000  # Output file size
+        mock_stat.return_value = mock_stat_result
+        mock_getsize.return_value = 100000  # Input file size
 
         # Set required attributes
         self.controller.delete_source = True
@@ -611,6 +620,7 @@ class TestSourceFileDeletion:
         self.controller.queue = []
         self.controller.file_list_widget = None
         self.mock_process_manager.codec_map = {file_path: 0}
+        self.mock_process_manager.output_map = {file_path: output_path}
 
         # Should handle the exception gracefully
         self.controller._on_process_finished(mock_process, 0, file_path)
@@ -619,21 +629,24 @@ class TestSourceFileDeletion:
 
     @patch("os.remove")
     @patch("os.path.getsize")
-    @patch("os.path.exists")
+    @patch("os.stat")
     @patch("codec_helpers.CodecHelpers.get_output_extension")
     def test_delete_source_file_permission_error(
-        self, mock_ext, mock_exists, mock_getsize, mock_remove
+        self, mock_ext, mock_stat, mock_getsize, mock_remove
     ):
         """Test source file deletion with permission error"""
         mock_remove.side_effect = PermissionError("Access denied")
 
         file_path = "/test/video.ts"
+        output_path = "/test/video_RC.mp4"
         mock_process = Mock()
 
-        # Mock output file verification
+        # Mock output file verification using os.stat (atomic check)
         mock_ext.return_value = ".mp4"
-        mock_exists.return_value = True  # Output file exists
-        mock_getsize.side_effect = lambda p: 10000 if "_RC.mp4" in p else 100000
+        mock_stat_result = Mock()
+        mock_stat_result.st_size = 10000  # Output file size
+        mock_stat.return_value = mock_stat_result
+        mock_getsize.return_value = 100000  # Input file size
 
         # Set required attributes
         self.controller.delete_source = True
@@ -641,6 +654,7 @@ class TestSourceFileDeletion:
         self.controller.queue = []
         self.controller.file_list_widget = None
         self.mock_process_manager.codec_map = {file_path: 0}
+        self.mock_process_manager.output_map = {file_path: output_path}
 
         # Should handle exception gracefully
         self.controller._on_process_finished(mock_process, 0, file_path)
@@ -674,7 +688,9 @@ class TestConversionSignals:
 
     def test_log_message_emission(self):
         """Test log message signal emission"""
-        with patch.object(self.controller, "log_message") as mock_signal:
+        with patch.object(
+            self.controller, "_validate_conversion_ready", return_value=(True, "")
+        ), patch.object(self.controller, "log_message") as mock_signal:
             # Start conversion to trigger log messages
             self.controller.start_conversion(
                 file_paths=["/test/video.ts"],
@@ -687,17 +703,19 @@ class TestConversionSignals:
                 overwrite_mode=True,
             )
 
-        # Should emit log message about starting conversion
-        mock_signal.emit.assert_called()
+            # Should emit log message about starting conversion
+            mock_signal.emit.assert_called()
 
-        # Check that some message was emitted
-        calls = mock_signal.emit.call_args_list
-        assert len(calls) > 0
-        assert any("Starting conversion" in str(call) for call in calls)
+            # Check that some message was emitted
+            calls = mock_signal.emit.call_args_list
+            assert len(calls) > 0
+            assert any("Starting conversion" in str(call) for call in calls)
 
     def test_conversion_started_emission(self):
         """Test conversion started signal emission"""
-        with patch.object(self.controller, "conversion_started") as mock_signal:
+        with patch.object(
+            self.controller, "_validate_conversion_ready", return_value=(True, "")
+        ), patch.object(self.controller, "conversion_started") as mock_signal:
             self.controller.start_conversion(
                 file_paths=["/test/video.ts"],
                 codec_idx=0,
@@ -709,7 +727,7 @@ class TestConversionSignals:
                 overwrite_mode=True,
             )
 
-        mock_signal.emit.assert_called_once()
+            mock_signal.emit.assert_called_once()
 
     def test_conversion_stopped_emission(self):
         """Test conversion stopped signal emission"""
@@ -736,16 +754,19 @@ class TestConversionValidation:
         """Test validation of valid conversion parameters"""
         file_paths = ["/test/video.ts"]
 
-        result = self.controller.start_conversion(
-            file_paths=file_paths,
-            codec_idx=0,  # Valid codec
-            hwdecode_idx=1,  # Valid hardware decode
-            crf_value=18,  # Valid CRF
-            parallel_enabled=True,
-            max_parallel=4,  # Valid parallel count
-            delete_source=False,
-            overwrite_mode=True,
-        )
+        with patch.object(
+            self.controller, "_validate_conversion_ready", return_value=(True, "")
+        ):
+            result = self.controller.start_conversion(
+                file_paths=file_paths,
+                codec_idx=0,  # Valid codec
+                hwdecode_idx=1,  # Valid hardware decode
+                crf_value=18,  # Valid CRF
+                parallel_enabled=True,
+                max_parallel=4,  # Valid parallel count
+                delete_source=False,
+                overwrite_mode=True,
+            )
 
         assert result
 
@@ -755,16 +776,19 @@ class TestConversionValidation:
         # This test documents expected behavior
         file_paths = ["/test/video.ts"]
 
-        result = self.controller.start_conversion(
-            file_paths=file_paths,
-            codec_idx=0,
-            hwdecode_idx=0,
-            crf_value=18,
-            parallel_enabled=True,
-            max_parallel=0,  # Invalid parallel count
-            delete_source=False,
-            overwrite_mode=True,
-        )
+        with patch.object(
+            self.controller, "_validate_conversion_ready", return_value=(True, "")
+        ):
+            result = self.controller.start_conversion(
+                file_paths=file_paths,
+                codec_idx=0,
+                hwdecode_idx=0,
+                crf_value=18,
+                parallel_enabled=True,
+                max_parallel=0,  # Invalid parallel count
+                delete_source=False,
+                overwrite_mode=True,
+            )
 
         # Current implementation allows this - consider adding validation
         assert result
@@ -773,17 +797,20 @@ class TestConversionValidation:
         """Test with extreme CRF values"""
         file_paths = ["/test/video.ts"]
 
-        # Test very high CRF
-        result = self.controller.start_conversion(
-            file_paths=file_paths,
-            codec_idx=0,
-            hwdecode_idx=0,
-            crf_value=100,  # Very high CRF
-            parallel_enabled=False,
-            max_parallel=1,
-            delete_source=False,
-            overwrite_mode=True,
-        )
+        with patch.object(
+            self.controller, "_validate_conversion_ready", return_value=(True, "")
+        ):
+            # Test very high CRF
+            result = self.controller.start_conversion(
+                file_paths=file_paths,
+                codec_idx=0,
+                hwdecode_idx=0,
+                crf_value=100,  # Very high CRF
+                parallel_enabled=False,
+                max_parallel=1,
+                delete_source=False,
+                overwrite_mode=True,
+            )
 
         # Should still work (encoder config handles clamping)
         assert result
@@ -803,25 +830,28 @@ class TestConversionControllerEdgeCases:
         """Test concurrent start and stop operations"""
         file_paths = ["/test/video.ts"]
 
-        # Start conversion
-        result = self.controller.start_conversion(
-            file_paths=file_paths,
-            codec_idx=0,
-            hwdecode_idx=0,
-            crf_value=18,
-            parallel_enabled=False,
-            max_parallel=1,
-            delete_source=False,
-            overwrite_mode=True,
-        )
+        with patch.object(
+            self.controller, "_validate_conversion_ready", return_value=(True, "")
+        ):
+            # Start conversion
+            result = self.controller.start_conversion(
+                file_paths=file_paths,
+                codec_idx=0,
+                hwdecode_idx=0,
+                crf_value=18,
+                parallel_enabled=False,
+                max_parallel=1,
+                delete_source=False,
+                overwrite_mode=True,
+            )
 
-        assert result
-        assert self.controller.is_converting
+            assert result
+            assert self.controller.is_converting
 
-        # Immediately stop
-        self.controller.stop_conversion()
+            # Immediately stop
+            self.controller.stop_conversion()
 
-        assert not self.controller.is_converting
+            assert not self.controller.is_converting
 
     def test_process_finish_race_condition(self):
         """Test race condition in process finish handling"""
@@ -882,27 +912,30 @@ class TestConversionControllerEdgeCases:
         mock_processes = [Mock() for _ in range(8)]  # Simulate max_parallel processes
         self.mock_process_manager.processes = mock_processes
 
-        result = self.controller.start_conversion(
-            file_paths=large_file_list,
-            codec_idx=0,
-            hwdecode_idx=0,
-            crf_value=18,
-            parallel_enabled=True,
-            max_parallel=8,
-            delete_source=False,
-            overwrite_mode=True,
-        )
+        with patch.object(
+            self.controller, "_validate_conversion_ready", return_value=(True, "")
+        ):
+            result = self.controller.start_conversion(
+                file_paths=large_file_list,
+                codec_idx=0,
+                hwdecode_idx=0,
+                crf_value=18,
+                parallel_enabled=True,
+                max_parallel=8,
+                delete_source=False,
+                overwrite_mode=True,
+            )
 
-        assert result
-        # With our fix, the queue will be reduced by the number of processes that could be started
-        # Since we simulate 8 active processes, no new processes will start
-        assert len(self.controller.queue) == 1000
+            assert result
+            # With our fix, the queue will be reduced by the number of processes that could be started
+            # Since we simulate 8 active processes, no new processes will start
+            assert len(self.controller.queue) == 1000
 
-        # Stop conversion
-        self.controller.stop_conversion()
+            # Stop conversion
+            self.controller.stop_conversion()
 
-        # Memory should be cleaned up
-        assert not self.controller.is_converting
+            # Memory should be cleaned up
+            assert not self.controller.is_converting
 
 
 @pytest.mark.unit
@@ -932,19 +965,22 @@ class TestConversionControllerIntegration:
         # Mock stop_all_processes to return a list
         self.mock_process_manager.stop_all_processes.return_value = []
 
-        # Start conversion
-        result = self.controller.start_conversion(
-            file_paths=file_paths,
-            codec_idx=0,
-            hwdecode_idx=1,
-            crf_value=18,
-            parallel_enabled=True,
-            max_parallel=2,
-            delete_source=False,
-            overwrite_mode=True,
-        )
+        with patch.object(
+            self.controller, "_validate_conversion_ready", return_value=(True, "")
+        ):
+            # Start conversion
+            result = self.controller.start_conversion(
+                file_paths=file_paths,
+                codec_idx=0,
+                hwdecode_idx=1,
+                crf_value=18,
+                parallel_enabled=True,
+                max_parallel=2,
+                delete_source=False,
+                overwrite_mode=True,
+            )
 
-        assert result
+            assert result
 
         # Verify process manager integration
         self.mock_process_manager.start_batch.assert_called_once_with(
@@ -960,3 +996,257 @@ class TestConversionControllerIntegration:
         self.controller.stop_conversion()
 
         assert not self.controller.is_converting
+
+
+@pytest.mark.unit
+class TestPriorityMapping:
+    """Test priority index mapping between UI and process priority.
+
+    BUG FIX: The UI ComboBox has items in order ["Normal", "Low", "High"]
+    (indices 0, 1, 2) and the mapping must correctly translate these to
+    priority strings.
+    """
+
+    def setup_method(self):
+        self.mock_process_manager = create_mock_process_manager()
+        self.controller = ConversionController(self.mock_process_manager)
+
+    def test_priority_index_0_maps_to_normal(self):
+        """Test that UI index 0 (Normal) maps to 'normal' priority"""
+        # UI ComboBox: ["Normal", "Low", "High"] -> index 0 = Normal
+        priority_names = {0: "normal", 1: "low", 2: "high"}
+        assert priority_names[0] == "normal"
+
+    def test_priority_index_1_maps_to_low(self):
+        """Test that UI index 1 (Low) maps to 'low' priority"""
+        priority_names = {0: "normal", 1: "low", 2: "high"}
+        assert priority_names[1] == "low"
+
+    def test_priority_index_2_maps_to_high(self):
+        """Test that UI index 2 (High) maps to 'high' priority"""
+        priority_names = {0: "normal", 1: "low", 2: "high"}
+        assert priority_names[2] == "high"
+
+    @patch("codec_helpers.CodecHelpers.get_hardware_acceleration_args")
+    @patch("codec_helpers.CodecHelpers.get_encoder_configuration")
+    @patch("codec_helpers.CodecHelpers.get_output_extension")
+    def test_priority_applied_correctly_on_process_start(
+        self, mock_ext, mock_encoder, mock_hw
+    ):
+        """Test that priority is correctly applied when starting a process.
+
+        This is the critical integration test - when user selects "High"
+        in the UI (index 2), the process should receive "high" priority.
+        """
+        mock_hw.return_value = ([], "")
+        mock_encoder.return_value = (["-c:v", "libx264"], "")
+        mock_ext.return_value = ".mp4"
+
+        # Create a mock process that's in "running" state
+        mock_process = Mock()
+        mock_process.state.return_value = QProcess.ProcessState.Running
+        self.mock_process_manager.start_process.return_value = mock_process
+
+        # Set priority to High (index 2)
+        self.controller.priority_idx = 2
+
+        # Simulate prep completion which triggers process start
+        self.controller.is_converting = True
+        self.controller._pending_preps = {"/test/video.ts": 0}
+        self.controller._on_prep_complete(
+            "/test/video.ts", 600.0, ["-c:a", "copy"], ""
+        )
+
+        # Verify set_process_priority was called with "high"
+        self.mock_process_manager.set_process_priority.assert_called_once()
+        call_args = self.mock_process_manager.set_process_priority.call_args
+        assert call_args[0][1] == "high", (
+            f"Expected 'high' but got '{call_args[0][1]}'. "
+            "Priority mapping may be inverted!"
+        )
+
+
+@pytest.mark.unit
+class TestTOCTOURaceConditionHandling:
+    """Test handling of TOCTOU race conditions in source file deletion.
+
+    BUG FIX: The original code used os.path.exists() followed by
+    os.path.getsize() which could fail if the file was deleted between
+    calls. Now uses atomic os.stat().
+    """
+
+    def setup_method(self):
+        self.mock_process_manager = create_mock_process_manager()
+        self.controller = ConversionController(self.mock_process_manager)
+
+    @patch("os.remove")
+    @patch("os.path.getsize")
+    @patch("os.stat")
+    def test_stat_filenotfound_handled_gracefully(
+        self, mock_stat, mock_getsize, mock_remove
+    ):
+        """Test that FileNotFoundError from os.stat is handled gracefully.
+
+        Simulates the race condition where output file is deleted between
+        conversion completion and source deletion verification.
+        """
+        file_path = "/test/video.ts"
+        output_path = "/test/video_RC.mp4"
+        mock_process = Mock()
+
+        # Simulate output file deleted between check (TOCTOU race)
+        mock_stat.side_effect = FileNotFoundError("File deleted by another process")
+
+        self.controller.delete_source = True
+        self.controller.parallel_enabled = False
+        self.controller.queue = []
+        self.controller.file_list_widget = None
+        self.mock_process_manager.output_map = {file_path: output_path}
+
+        # Should NOT raise exception - handle gracefully
+        self.controller._on_process_finished(mock_process, 0, file_path)
+
+        # Source file should NOT be deleted (output verification failed)
+        mock_remove.assert_not_called()
+
+    @patch("os.remove")
+    @patch("os.path.getsize")
+    @patch("os.stat")
+    def test_stat_oserror_handled_gracefully(
+        self, mock_stat, mock_getsize, mock_remove
+    ):
+        """Test that OSError from os.stat is handled gracefully.
+
+        Simulates scenarios like permission denied, I/O errors, etc.
+        """
+        file_path = "/test/video.ts"
+        output_path = "/test/video_RC.mp4"
+        mock_process = Mock()
+
+        # Simulate OS-level error (permission denied, I/O error, etc.)
+        mock_stat.side_effect = OSError("Permission denied")
+
+        self.controller.delete_source = True
+        self.controller.parallel_enabled = False
+        self.controller.queue = []
+        self.controller.file_list_widget = None
+        self.mock_process_manager.output_map = {file_path: output_path}
+
+        # Should NOT raise exception - handle gracefully
+        self.controller._on_process_finished(mock_process, 0, file_path)
+
+        # Source file should NOT be deleted (output verification failed)
+        mock_remove.assert_not_called()
+
+    @patch("os.remove")
+    @patch("os.path.getsize")
+    @patch("os.stat")
+    def test_atomic_stat_used_for_output_verification(
+        self, mock_stat, mock_getsize, mock_remove
+    ):
+        """Test that os.stat is used atomically for output verification."""
+        file_path = "/test/video.ts"
+        output_path = "/test/video_RC.mp4"
+        mock_process = Mock()
+
+        # Mock stat result with valid size
+        mock_stat_result = Mock()
+        mock_stat_result.st_size = 10000
+        mock_stat.return_value = mock_stat_result
+        mock_getsize.return_value = 100000  # Input file size
+
+        self.controller.delete_source = True
+        self.controller.parallel_enabled = False
+        self.controller.queue = []
+        self.controller.file_list_widget = None
+        self.mock_process_manager.output_map = {file_path: output_path}
+
+        self.controller._on_process_finished(mock_process, 0, file_path)
+
+        # Verify os.stat was called with output path
+        mock_stat.assert_called_once_with(output_path)
+
+        # Source should be deleted since output verification passed
+        mock_remove.assert_called_once_with(file_path)
+
+
+@pytest.mark.unit
+class TestOutputMapUsage:
+    """Test that output_map is used instead of path reconstruction.
+
+    BUG FIX: Output path was being reconstructed in _on_process_finished,
+    which could produce wrong paths if codec settings changed mid-batch.
+    Now uses stored output_map.
+    """
+
+    def setup_method(self):
+        self.mock_process_manager = create_mock_process_manager()
+        self.controller = ConversionController(self.mock_process_manager)
+
+    @patch("os.remove")
+    @patch("os.path.getsize")
+    @patch("os.stat")
+    @patch("codec_helpers.CodecHelpers.get_output_extension")
+    def test_output_map_used_over_reconstruction(
+        self, mock_ext, mock_stat, mock_getsize, mock_remove
+    ):
+        """Test that output_map is preferred over path reconstruction."""
+        file_path = "/test/video.ts"
+        stored_output_path = "/test/video_RC.mp4"
+        mock_process = Mock()
+
+        # Mock stat to succeed
+        mock_stat_result = Mock()
+        mock_stat_result.st_size = 10000
+        mock_stat.return_value = mock_stat_result
+        mock_getsize.return_value = 100000
+
+        # Store output path in output_map
+        self.mock_process_manager.output_map = {file_path: stored_output_path}
+        self.mock_process_manager.codec_map = {file_path: 0}
+
+        self.controller.delete_source = True
+        self.controller.parallel_enabled = False
+        self.controller.queue = []
+        self.controller.file_list_widget = None
+
+        self.controller._on_process_finished(mock_process, 0, file_path)
+
+        # Should use stored output path, NOT call get_output_extension
+        mock_stat.assert_called_once_with(stored_output_path)
+        # get_output_extension should NOT be called when output_map has the path
+        mock_ext.assert_not_called()
+
+    @patch("os.remove")
+    @patch("os.path.getsize")
+    @patch("os.stat")
+    @patch("codec_helpers.CodecHelpers.get_output_extension")
+    def test_fallback_to_reconstruction_when_output_map_empty(
+        self, mock_ext, mock_stat, mock_getsize, mock_remove
+    ):
+        """Test fallback to path reconstruction when output_map is empty."""
+        file_path = "/test/video.ts"
+        mock_process = Mock()
+
+        mock_ext.return_value = ".mp4"
+        mock_stat_result = Mock()
+        mock_stat_result.st_size = 10000
+        mock_stat.return_value = mock_stat_result
+        mock_getsize.return_value = 100000
+
+        # Empty output_map - should fallback to reconstruction
+        self.mock_process_manager.output_map = {}
+        self.mock_process_manager.codec_map = {file_path: 0}
+
+        self.controller.delete_source = True
+        self.controller.parallel_enabled = False
+        self.controller.queue = []
+        self.controller.file_list_widget = None
+
+        self.controller._on_process_finished(mock_process, 0, file_path)
+
+        # Should call get_output_extension as fallback
+        mock_ext.assert_called_once()
+        # Reconstructed path should be used
+        expected_path = "/test/video_RC.mp4"
+        mock_stat.assert_called_once_with(expected_path)
