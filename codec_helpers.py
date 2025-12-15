@@ -60,9 +60,9 @@ class GPUDetectionWorker(QRunnable):
         try:
             result = subprocess.run(
                 ["ffmpeg", "-encoders"],
-                capture_output=True,
-                text=True,
+                stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
+                text=True,
                 timeout=ProcessConfig.SUBPROCESS_TIMEOUT,
                 check=False,
             )
