@@ -37,9 +37,6 @@ class ProcessProgressTracker:
             UIConfig.FORCE_UPDATE_INTERVAL
         )  # Force ETA update every N seconds even with small progress
 
-        # Track processes that need special ffmpeg flags
-        self.needs_genpts: Dict[str, bool] = {}  # Process IDs that need -fflags +genpts
-
         # Initialize output buffer manager for optimized processing
         self.output_manager = ProcessOutputManager(batch_interval=0.1)
 
@@ -53,6 +50,15 @@ class ProcessProgressTracker:
         self.completed_count = 0
         self.failed_count = 0
         self.total_count = total_files
+
+        # Reset ETA smoothing state to prevent stale data from previous batches
+        self.prev_eta_values.clear()
+        self.last_progress_time = 0
+        self.last_progress_value = 0
+
+        # Clear stale tracking data from previous batch
+        self._last_overall_calc_time = 0.0
+        self._last_overall_result = {}
 
     def register_process(self, process_id: str, path: str, duration: float):
         """Register a new process to track"""
@@ -71,26 +77,6 @@ class ProcessProgressTracker:
                 "last_progress_value": 0,
             }
             return self.processes[process_id]
-
-    def mark_needs_genpts(self, process_id: str) -> None:
-        """Mark a process as needing the genpts ffmpeg flag.
-
-        Args:
-            process_id: Must be in format 'process_N' from ProcessManager._get_process_id()
-
-        Raises:
-            ValueError: If process_id format is invalid
-        """
-        if not process_id.startswith("process_"):
-            raise ValueError(
-                f"Invalid process_id format: '{process_id}'. "
-                f"Expected 'process_N'. Use ProcessManager._get_process_id()."
-            )
-        self.needs_genpts[process_id] = True
-
-    def needs_genpts_flag(self, process_id: str) -> bool:
-        """Check if a process needs the genpts ffmpeg flag"""
-        return self.needs_genpts.get(process_id, False)
 
     def force_progress_to_100(self, process_id: str):
         """Force a process progress to 100% for final display"""
@@ -115,11 +101,27 @@ class ProcessProgressTracker:
 
                 del self.processes[process_id]
 
-                # Clean up genpts tracking
-                self.needs_genpts.pop(process_id, None)
-
                 # Clean up output buffer
                 self.output_manager.remove_buffer(process_id)
+
+    def mark_file_skipped(self) -> None:
+        """Mark a file as skipped (counts toward completion for progress tracking).
+
+        Use this when a file is skipped without creating an FFmpeg process
+        (e.g., output already exists with overwrite disabled).
+        """
+        with self._lock:
+            self.completed_count += 1
+
+    def mark_file_failed(self) -> None:
+        """Mark a file as failed (counts toward completion AND failure tracking).
+
+        Use this when a file fails before an FFmpeg process is created
+        (e.g., FFmpeg not available, invalid input file).
+        """
+        with self._lock:
+            self.completed_count += 1
+            self.failed_count += 1
 
     def process_output(self, process_id: str, chunk: str) -> Dict[str, Any]:
         """

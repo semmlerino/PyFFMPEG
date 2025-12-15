@@ -143,6 +143,8 @@ Progress calculation uses regex parsing of FFmpeg output:
 - `TIME_RE = re.compile(r'time=(\d{2}):(\d{2}):(\d{2}\.\d{2})')` for time progress
 - `FPS_RE = re.compile(r'fps=\s*(\d+)')` for frames per second
 - ETA smoothing using weighted moving averages with configurable window sizes
+- Batch state reset in `initialize_batch()` prevents stale ETA data between conversion runs
+- Pre-process tracking via `mark_file_skipped()` and `mark_file_failed()` for files that don't spawn FFmpeg processes
 
 ### Hardware Acceleration Detection
 `CodecHelpers` class provides cached hardware detection:
@@ -153,6 +155,7 @@ Progress calculation uses regex parsing of FFmpeg output:
 
 ### Thread Optimization
 Thread allocation managed by `CodecHelpers.optimize_threads_for_codec()`:
+- Default UI setting: 0 (Auto - let FFmpeg decide optimal thread count)
 - NVENC encoders: 2 threads (minimal CPU usage)
 - Single CPU job: 0 (auto-detect, uses all threads)
 - Parallel CPU jobs: `(cpu_count() or ProcessConfig.OPTIMAL_CPU_THREADS) // cpu_jobs` (evenly distributed with None safety)
@@ -160,11 +163,11 @@ Thread allocation managed by `CodecHelpers.optimize_threads_for_codec()`:
 ### Error Handling and Reliability
 The application includes comprehensive error handling:
 - All subprocess calls use `ProcessConfig.SUBPROCESS_TIMEOUT` (30s) to prevent hangs
-- MPEGTS timing issues automatically trigger `-fflags +genpts` flag
+- MPEGTS timing issues are detected and logged with a warning suggesting `-fflags +genpts`
 - Process failures are tracked and displayed in the UI with status indicators
 - Hardware acceleration gracefully falls back to software encoding on detection failures
 - Process state race conditions resolved with `QProcess.waitForStarted()`
-- Guaranteed resource cleanup prevents memory leaks
+- Guaranteed resource cleanup prevents memory leaks (FileListWidget overrides `clear()` to clean internal caches)
 
 ## UI Components and Architecture
 
@@ -176,10 +179,10 @@ The application includes comprehensive error handling:
 - **Status Bar**: Real-time status updates and conversion statistics
 
 ### Component Responsibilities
-- **SettingsPanel**: Manages all codec options, threading controls, and hardware acceleration settings with type-safe validation
+- **SettingsPanel**: Manages all codec options, threading controls, and hardware acceleration settings with type-safe validation. Includes "Reset to Defaults" button for restoring hardware-optimized settings
 - **ProcessMonitor**: Creates individual monitoring widgets for each active process with automatic cleanup
 - **ConversionController**: Orchestrates the conversion workflow and auto-balance logic
-- **FileListWidget**: Handles file management with status tracking (pending, processing, completed, failed)
+- **FileListWidget**: Handles file management with status tracking (pending, processing, completed, failed, skipped)
 
 ### Process Monitoring System
 Each encoding process gets its own dedicated widget displaying:

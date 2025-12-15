@@ -36,7 +36,7 @@ class SettingsPanel(QObject):
         "preset_idx": 0,          # Standard quality
         "hwdecode_idx": 1,        # NVIDIA CUDA
         "crf_value": EncodingConfig.DEFAULT_CRF_H264,  # 16 - high quality
-        "threads": ProcessConfig.OPTIMAL_CPU_THREADS,  # 32 threads
+        "threads": 0,  # Auto (let FFmpeg decide)
         "parallel_enabled": True,
         "max_parallel": ProcessConfig.MAX_PARALLEL_HIGH_END,  # 14
         "delete_source": False,   # Safety default
@@ -187,8 +187,7 @@ class SettingsPanel(QObject):
         max_threads = os.cpu_count() or 4
         self.threads_spinbox.setRange(0, max_threads)  # 0 = auto-detect
         self.threads_spinbox.setSpecialValueText("Auto")  # Display "Auto" when value is 0
-        optimal_threads = min(ProcessConfig.OPTIMAL_CPU_THREADS, max_threads)
-        self.threads_spinbox.setValue(optimal_threads)
+        self.threads_spinbox.setValue(0)  # Default to Auto
         self.threads_spinbox.setAccelerated(True)
         self.threads_spinbox.setToolTip("Number of threads for encoding (Auto = let FFmpeg decide)")
         threads_layout.addWidget(self.threads_spinbox)
@@ -648,8 +647,6 @@ class SettingsPanel(QObject):
 
     def _restore_settings(self) -> None:
         """Restore settings from QSettings"""
-        import os
-
         saved_settings = {
             "codec_idx": self.settings.value("codec_idx", 0, type=int),
             "preset_idx": self.settings.value(
@@ -663,7 +660,7 @@ class SettingsPanel(QObject):
             ),  # Match original key
             "threads": self.settings.value(
                 "threads",
-                min(ProcessConfig.OPTIMAL_CPU_THREADS, os.cpu_count() or 4),
+                0,  # Default to Auto
                 type=int,
             ),
             "parallel_enabled": self.settings.value(

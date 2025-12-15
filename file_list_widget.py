@@ -167,6 +167,7 @@ class FileListWidget(QListWidget):
                 row = self.row(item)
                 self.takeItem(row)
                 self.path_items.pop(path, None)
+                self.metadata_cache.pop(path, None)
 
     def mouseDoubleClickEvent(self, event):
         item = self.itemAt(event.pos())
@@ -320,6 +321,17 @@ class FileListWidget(QListWidget):
         for path in file_paths:
             self.add_path(path)
 
+    def clear(self) -> None:
+        """Clear all items and reset internal tracking state.
+
+        Overrides QListWidget.clear() to also clean up path_items and
+        metadata_cache dictionaries, preventing memory leaks and ensuring
+        files can be re-added after clearing.
+        """
+        self.path_items.clear()
+        self.metadata_cache.clear()
+        super().clear()
+
     def remove_selected(self) -> int:
         """Remove selected items and return count of removed items"""
         selected_items = self.selectedItems()
@@ -329,6 +341,7 @@ class FileListWidget(QListWidget):
             path = item.data(Qt.ItemDataRole.UserRole)
             if path in self.path_items:
                 del self.path_items[path]
+                self.metadata_cache.pop(path, None)
                 self.takeItem(self.row(item))
                 removed_count += 1
 
@@ -483,6 +496,9 @@ class FileListWidget(QListWidget):
         elif status == "failed":
             # Show failed status
             display_text = f"❌ {fname} — Failed"
+        elif status == "skipped":
+            # Show skipped status
+            display_text = f"⏭️ {fname} — Skipped"
         else:
             display_text = fname
 

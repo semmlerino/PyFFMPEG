@@ -334,6 +334,152 @@ class TestFileListWidget:
         # (actual menu testing would require more Qt event simulation)
 
 
+class TestFileListWidgetMemoryManagement:
+    """Test suite for memory management and cleanup in FileListWidget"""
+
+    @pytest.fixture(autouse=True)
+    def setup_widget(self, qtbot):
+        """Create FileListWidget instance for each test"""
+        self.widget = FileListWidget()
+        qtbot.addWidget(self.widget)
+        self.qtbot = qtbot
+
+    def test_clear_resets_path_items_and_metadata_cache(self):
+        """Test that clear() properly resets both path_items and metadata_cache"""
+        paths = ["/test/file1.ts", "/test/file2.ts"]
+
+        # Add files with metadata
+        with patch("file_list_widget.QFileInfo") as mock_fileinfo:
+            for i, path in enumerate(paths):
+                mock_fileinfo.return_value.fileName.return_value = f"file{i + 1}.ts"
+                self.widget.add_path(path)
+
+        # Simulate metadata loaded
+        for path in paths:
+            self.widget._on_metadata_loaded(path, {"duration": "00:01:00"})
+
+        # Verify data is present
+        assert len(self.widget.path_items) == 2
+        assert len(self.widget.metadata_cache) == 2
+        assert self.widget.count() == 2
+
+        # Clear the widget
+        self.widget.clear()
+
+        # Verify everything is cleaned up
+        assert len(self.widget.path_items) == 0
+        assert len(self.widget.metadata_cache) == 0
+        assert self.widget.count() == 0
+
+    def test_clear_allows_files_to_be_readded(self):
+        """Test that files can be re-added after clear() (regression test for bug #2)"""
+        test_path = "/test/video.ts"
+
+        # Add file
+        with patch("file_list_widget.QFileInfo") as mock_fileinfo:
+            mock_fileinfo.return_value.fileName.return_value = "video.ts"
+            self.widget.add_path(test_path)
+
+        assert self.widget.count() == 1
+
+        # Clear
+        self.widget.clear()
+        assert self.widget.count() == 0
+
+        # Re-add the same file - this should work now
+        with patch("file_list_widget.QFileInfo") as mock_fileinfo:
+            mock_fileinfo.return_value.fileName.return_value = "video.ts"
+            self.widget.add_path(test_path)
+
+        # File should be added successfully
+        assert self.widget.count() == 1
+        assert test_path in self.widget.path_items
+
+    def test_remove_selected_cleans_metadata_cache(self):
+        """Test that remove_selected() also cleans metadata_cache (regression test for bug #3)"""
+        paths = ["/test/file1.ts", "/test/file2.ts", "/test/file3.ts"]
+
+        # Add files
+        with patch("file_list_widget.QFileInfo") as mock_fileinfo:
+            for i, path in enumerate(paths):
+                mock_fileinfo.return_value.fileName.return_value = f"file{i + 1}.ts"
+                self.widget.add_path(path)
+
+        # Simulate metadata loaded
+        for path in paths:
+            self.widget._on_metadata_loaded(path, {"duration": "00:01:00"})
+
+        assert len(self.widget.metadata_cache) == 3
+
+        # Select and remove first two items
+        self.widget.item(0).setSelected(True)
+        self.widget.item(1).setSelected(True)
+        removed = self.widget.remove_selected()
+
+        assert removed == 2
+        # Verify metadata_cache is also cleaned
+        assert len(self.widget.metadata_cache) == 1
+        assert paths[0] not in self.widget.metadata_cache
+        assert paths[1] not in self.widget.metadata_cache
+        assert paths[2] in self.widget.metadata_cache
+
+    def test_clear_completed_files_cleans_metadata_cache(self):
+        """Test that clear_completed_files() cleans metadata_cache"""
+        paths = ["/test/file1.ts", "/test/file2.ts", "/test/file3.ts"]
+
+        # Add files
+        with patch("file_list_widget.QFileInfo") as mock_fileinfo:
+            for i, path in enumerate(paths):
+                mock_fileinfo.return_value.fileName.return_value = f"file{i + 1}.ts"
+                self.widget.add_path(path)
+
+        # Simulate metadata loaded
+        for path in paths:
+            self.widget._on_metadata_loaded(path, {"duration": "00:01:00"})
+
+        # Set statuses
+        self.widget.set_status(paths[0], "completed")
+        self.widget.set_status(paths[1], "failed")
+        self.widget.set_status(paths[2], "completed")
+
+        removed = self.widget.clear_completed_files()
+
+        assert removed == 2
+        # Verify metadata_cache is cleaned for completed files
+        assert len(self.widget.metadata_cache) == 1
+        assert paths[0] not in self.widget.metadata_cache
+        assert paths[2] not in self.widget.metadata_cache
+        assert paths[1] in self.widget.metadata_cache
+
+    def test_remove_failed_files_cleans_metadata_cache(self):
+        """Test that remove_failed_files() cleans metadata_cache"""
+        paths = ["/test/file1.ts", "/test/file2.ts", "/test/file3.ts"]
+
+        # Add files
+        with patch("file_list_widget.QFileInfo") as mock_fileinfo:
+            for i, path in enumerate(paths):
+                mock_fileinfo.return_value.fileName.return_value = f"file{i + 1}.ts"
+                self.widget.add_path(path)
+
+        # Simulate metadata loaded
+        for path in paths:
+            self.widget._on_metadata_loaded(path, {"duration": "00:01:00"})
+
+        # Set statuses
+        self.widget.set_status(paths[0], "failed")
+        self.widget.set_status(paths[1], "completed")
+        self.widget.set_status(paths[2], "failed")
+
+        removed = self.widget.remove_failed_files()
+
+        assert removed == 2
+        # Verify metadata_cache is cleaned for failed files
+        assert len(self.widget.metadata_cache) == 1
+        assert paths[0] not in self.widget.metadata_cache
+        assert paths[2] not in self.widget.metadata_cache
+        assert paths[1] in self.widget.metadata_cache
+
+
 class TestMetadataWorker:
     """Test suite for MetadataWorker class"""
 

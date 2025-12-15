@@ -584,6 +584,126 @@ class TestFailureTracking:
         assert self.tracker.completed_count == 0
 
 
+@pytest.mark.unit
+class TestMarkFileSkippedVsFailed:
+    """Test distinction between skipped and failed file tracking.
+
+    BUG FIX: mark_file_skipped() was used for both skipped files (output exists)
+    AND failed files (FFmpeg unavailable). Now mark_file_failed() properly
+    increments failed_count for actual failures.
+    """
+
+    def setup_method(self):
+        self.tracker = ProcessProgressTracker()
+
+    def test_mark_file_skipped_increments_completed_only(self):
+        """Test mark_file_skipped() only increments completed_count."""
+        self.tracker.start_batch(5)
+
+        self.tracker.mark_file_skipped()
+
+        assert self.tracker.completed_count == 1
+        assert self.tracker.failed_count == 0, (
+            "mark_file_skipped should NOT increment failed_count"
+        )
+
+    def test_mark_file_failed_increments_both_counters(self):
+        """Test mark_file_failed() increments both completed and failed counts."""
+        self.tracker.start_batch(5)
+
+        self.tracker.mark_file_failed()
+
+        assert self.tracker.completed_count == 1
+        assert self.tracker.failed_count == 1, (
+            "mark_file_failed MUST increment failed_count"
+        )
+
+    def test_skipped_vs_failed_distinction_in_progress(self):
+        """Test that skipped and failed files are distinguished in progress."""
+        self.tracker.start_batch(10)
+
+        # 3 skipped (output already exists - not failures)
+        self.tracker.mark_file_skipped()
+        self.tracker.mark_file_skipped()
+        self.tracker.mark_file_skipped()
+
+        # 2 failed (FFmpeg unavailable - actual failures)
+        self.tracker.mark_file_failed()
+        self.tracker.mark_file_failed()
+
+        progress = self.tracker.get_overall_progress()
+
+        # Total completed should be 5
+        assert progress["completed_count"] == 5
+
+        # Only the 2 mark_file_failed calls should count as failures
+        assert progress["failed_count"] == 2
+
+        # Success count = completed - failed = 5 - 2 = 3 (the skipped ones)
+        assert progress["success_count"] == 3
+
+    def test_multiple_skips_no_failures(self):
+        """Test that multiple skips don't affect failure count."""
+        self.tracker.start_batch(100)
+
+        for _ in range(50):
+            self.tracker.mark_file_skipped()
+
+        assert self.tracker.completed_count == 50
+        assert self.tracker.failed_count == 0
+
+    def test_multiple_failures_counted_correctly(self):
+        """Test that multiple failures are all counted."""
+        self.tracker.start_batch(100)
+
+        for _ in range(25):
+            self.tracker.mark_file_failed()
+
+        assert self.tracker.completed_count == 25
+        assert self.tracker.failed_count == 25
+
+    def test_mixed_processing_scenario(self):
+        """Test realistic scenario with mixed successes, skips, and failures.
+
+        Scenario: 10 files total
+        - 4 converted successfully (complete_process with success=True)
+        - 2 skipped (output already exists)
+        - 3 failed during conversion (complete_process with success=False)
+        - 1 failed before starting (FFmpeg unavailable)
+        """
+        self.tracker.start_batch(10)
+
+        # Register 7 processes (the other 3 never start)
+        for i in range(7):
+            self.tracker.register_process(f"proc_{i}", f"/test/video_{i}.ts", 600.0)
+
+        # 4 successful conversions
+        for i in range(4):
+            self.tracker.complete_process(f"proc_{i}", success=True)
+
+        # 3 failed during conversion
+        for i in range(4, 7):
+            self.tracker.complete_process(f"proc_{i}", success=False)
+
+        # 2 skipped (output exists)
+        self.tracker.mark_file_skipped()
+        self.tracker.mark_file_skipped()
+
+        # 1 failed before starting (FFmpeg unavailable)
+        self.tracker.mark_file_failed()
+
+        progress = self.tracker.get_overall_progress()
+
+        # Total: 4 + 3 + 2 + 1 = 10 completed
+        assert progress["completed_count"] == 10
+
+        # Failures: 3 (conversion failures) + 1 (pre-start failure) = 4
+        assert progress["failed_count"] == 4
+
+        # Successes: 4 (conversions) + 2 (skips) = 6
+        assert progress["success_count"] == 6
+
+
 class TestCodecDistribution:
     """Test codec distribution tracking for GPU/CPU workloads"""
 
