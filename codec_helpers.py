@@ -9,6 +9,7 @@ import contextlib
 import json
 import os
 import subprocess
+import time
 from typing import Any, Dict, List, Optional, Tuple
 
 from config import EncodingConfig, FileConfig, HardwareConfig, ProcessConfig
@@ -17,10 +18,23 @@ from config import EncodingConfig, FileConfig, HardwareConfig, ProcessConfig
 class CodecHelpers:
     """Helper class for codec selection, hardware acceleration, and encoder configuration"""
 
-    # Cache for expensive detection operations
+    # Cache TTL settings (in seconds)
+    # Success cache is longer - hardware doesn't change often
+    _CACHE_TTL_SUCCESS: float = 300.0  # 5 minutes for successful detection
+    # Failure cache is shorter - allows retry after transient errors
+    _CACHE_TTL_FAILURE: float = 30.0  # 30 seconds for failed detection
+
+    # Cache for expensive detection operations (with timestamps)
     _encoder_cache: Optional[str] = None
+    _encoder_cache_time: float = 0.0
+    _encoder_cache_success: bool = False
+
     _gpu_info_cache: Optional[str] = None
+    _gpu_info_cache_time: float = 0.0
+    _gpu_info_cache_success: bool = False
+
     _rtx40_detection_cache: Optional[bool] = None
+    _rtx40_detection_cache_time: float = 0.0
 
     @staticmethod
     def get_output_extension(codec_idx: int) -> str:
@@ -415,9 +429,22 @@ class CodecHelpers:
 
     @staticmethod
     def _get_available_encoders() -> str:
-        """Get available encoders with caching for performance"""
+        """Get available encoders with TTL-based caching for performance.
+
+        Uses different TTLs for success vs failure to allow retry after transient errors
+        while avoiding repeated expensive calls during normal operation.
+        """
+        now = time.time()
+
+        # Check if cache is still valid
         if CodecHelpers._encoder_cache is not None:
-            return CodecHelpers._encoder_cache
+            ttl = (
+                CodecHelpers._CACHE_TTL_SUCCESS
+                if CodecHelpers._encoder_cache_success
+                else CodecHelpers._CACHE_TTL_FAILURE
+            )
+            if (now - CodecHelpers._encoder_cache_time) < ttl:
+                return CodecHelpers._encoder_cache
 
         try:
             encoders_output = subprocess.check_output(
@@ -427,49 +454,96 @@ class CodecHelpers:
                 timeout=ProcessConfig.SUBPROCESS_TIMEOUT,
             )
             CodecHelpers._encoder_cache = encoders_output.lower()
+            CodecHelpers._encoder_cache_time = now
+            CodecHelpers._encoder_cache_success = True
             return CodecHelpers._encoder_cache
         except (subprocess.TimeoutExpired, subprocess.CalledProcessError, OSError):
-            # Cache the failure to avoid repeated attempts
+            # Cache the failure with shorter TTL to allow retry
             CodecHelpers._encoder_cache = ""
+            CodecHelpers._encoder_cache_time = now
+            CodecHelpers._encoder_cache_success = False
             return ""
 
     @staticmethod
     def _get_gpu_info() -> str:
-        """Get GPU information with caching"""
+        """Get GPU information with TTL-based caching.
+
+        Uses different TTLs for success vs failure to allow retry after transient errors.
+        """
+        now = time.time()
+
+        # Check if cache is still valid
         if CodecHelpers._gpu_info_cache is not None:
-            return CodecHelpers._gpu_info_cache
+            ttl = (
+                CodecHelpers._CACHE_TTL_SUCCESS
+                if CodecHelpers._gpu_info_cache_success
+                else CodecHelpers._CACHE_TTL_FAILURE
+            )
+            if (now - CodecHelpers._gpu_info_cache_time) < ttl:
+                return CodecHelpers._gpu_info_cache
 
         try:
             gpu_info = subprocess.check_output(
                 ["nvidia-smi", "-q"], timeout=HardwareConfig.GPU_DETECTION_TIMEOUT
             ).decode("utf-8")
             CodecHelpers._gpu_info_cache = gpu_info
+            CodecHelpers._gpu_info_cache_time = now
+            CodecHelpers._gpu_info_cache_success = True
             return gpu_info
         except (subprocess.TimeoutExpired, subprocess.CalledProcessError, OSError):
             CodecHelpers._gpu_info_cache = ""
+            CodecHelpers._gpu_info_cache_time = now
+            CodecHelpers._gpu_info_cache_success = False
             return ""
 
     @staticmethod
     def detect_rtx40_series() -> bool:
-        """Detect if system has RTX 40 series GPU for AV1 encoding support with caching"""
-        if CodecHelpers._rtx40_detection_cache is not None:
+        """Detect if system has RTX 40 series GPU for AV1 encoding support with TTL caching.
+
+        Cache inherits TTL from _get_gpu_info() since it depends on that data.
+        """
+        now = time.time()
+
+        # Check if cache is still valid (use same TTL as GPU info since it depends on it)
+        if (
+            CodecHelpers._rtx40_detection_cache is not None
+            and (now - CodecHelpers._rtx40_detection_cache_time) < CodecHelpers._CACHE_TTL_SUCCESS
+        ):
             return CodecHelpers._rtx40_detection_cache
 
         try:
             gpu_info = CodecHelpers._get_gpu_info()
             has_rtx40 = any(gpu in gpu_info for gpu in HardwareConfig.RTX40_MODELS)
             CodecHelpers._rtx40_detection_cache = has_rtx40
+            CodecHelpers._rtx40_detection_cache_time = now
             return has_rtx40
         except Exception:
             CodecHelpers._rtx40_detection_cache = False
+            CodecHelpers._rtx40_detection_cache_time = now
             return False
+
+    @staticmethod
+    def is_rtx40_cached() -> Optional[bool]:
+        """Check if RTX40 detection result is cached (returns None if not cached).
+
+        Use this for UI validation to avoid blocking the main thread.
+        Returns True/False if cached, None if detection hasn't run yet.
+        """
+        return CodecHelpers._rtx40_detection_cache
 
     @staticmethod
     def clear_cache() -> None:
         """Clear all cached detection results - useful for testing or system changes"""
         CodecHelpers._encoder_cache = None
+        CodecHelpers._encoder_cache_time = 0.0
+        CodecHelpers._encoder_cache_success = False
+
         CodecHelpers._gpu_info_cache = None
+        CodecHelpers._gpu_info_cache_time = 0.0
+        CodecHelpers._gpu_info_cache_success = False
+
         CodecHelpers._rtx40_detection_cache = None
+        CodecHelpers._rtx40_detection_cache_time = 0.0
 
     @staticmethod
     def extract_video_metadata(file_path: str) -> Optional[Dict[str, Any]]:

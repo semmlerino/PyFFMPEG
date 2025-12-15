@@ -7,13 +7,57 @@ Handles the creation, management, and monitoring of FFmpeg processes
 import os
 import subprocess
 from collections import deque
-from typing import Any, Dict, List, Optional, Tuple
+from threading import RLock
+from typing import Any, Dict, List, Optional, Set, Tuple
 
-from PySide6.QtCore import QObject, QProcess, Signal
+from PySide6.QtCore import QObject, QProcess, QRunnable, QThreadPool, Signal
 
 from config import ProcessConfig
 from logging_config import get_logger
 from progress_tracker import ProcessProgressTracker
+
+
+class FFmpegDetectionSignals(QObject):
+    """Signals for FFmpeg detection worker."""
+
+    detection_complete = Signal(bool, str)  # available, ffmpeg_path or error message
+
+
+class FFmpegDetectionWorker(QRunnable):
+    """Worker to detect FFmpeg availability in a background thread.
+
+    Prevents UI freezes when probing multiple FFmpeg locations on first use.
+    """
+
+    def __init__(self, signals: FFmpegDetectionSignals):
+        super().__init__()
+        self.signals = signals
+
+    def run(self) -> None:
+        """Probe FFmpeg locations and emit result."""
+        ffmpeg_commands = [
+            "ffmpeg",
+            "ffmpeg.exe",
+            r"C:\ffmpeg\bin\ffmpeg.exe",
+            r"C:\Program Files\ffmpeg\bin\ffmpeg.exe",
+            r"C:\Program Files (x86)\ffmpeg\bin\ffmpeg.exe",
+        ]
+
+        for cmd in ffmpeg_commands:
+            try:
+                result = subprocess.run(
+                    [cmd, "-version"],
+                    check=False,
+                    capture_output=True,
+                    timeout=2,
+                )
+                if result.returncode == 0:
+                    self.signals.detection_complete.emit(True, cmd)
+                    return
+            except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+                continue
+
+        self.signals.detection_complete.emit(False, "FFmpeg not found")
 
 
 class ProcessManager(QObject):
@@ -27,6 +71,9 @@ class ProcessManager(QObject):
 
     # Signal emitted when overall progress should be updated
     update_progress = Signal()
+
+    # Signal emitted when FFmpeg detection completes (async)
+    ffmpeg_detected = Signal(bool, str)  # available, path or error message
 
     # Class-level cache for FFmpeg path
     _ffmpeg_command_cache: Optional[str] = None
@@ -52,6 +99,8 @@ class ProcessManager(QObject):
         self._current_max_log_lines = (
             500  # Dynamically adjusted based on active processes
         )
+        # Lock to protect buffer operations during resize (prevents race condition)
+        self._buffer_lock = RLock()
 
         # Map QProcess to unique IDs
         self.process_ids: Dict[QProcess, str] = {}
@@ -67,6 +116,7 @@ class ProcessManager(QObject):
         # Progress tracking
         self.progress_tracker = ProcessProgressTracker()
         self.codec_map: Dict[str, int] = {}  # Maps file paths to codec indices
+        self.output_map: Dict[str, str] = {}  # Maps input paths to output paths
 
         # Timer management (simplified with UI update manager)
         self._last_activity_time = 0
@@ -75,6 +125,43 @@ class ProcessManager(QObject):
         self.stopping = False
         self.parallel_enabled = False
         self.max_parallel = 1
+
+        # FFmpeg detection signals for async detection
+        self._detection_signals: Optional[FFmpegDetectionSignals] = None
+
+        # Guard against double-cleanup of processes (race condition prevention)
+        self._finished_processes: Set[QProcess] = set()
+
+    def detect_ffmpeg_async(self) -> None:
+        """Detect FFmpeg availability in a background thread.
+
+        Call this at application startup to avoid UI freezes on first conversion.
+        Emits ffmpeg_detected(available, path_or_error) when complete.
+        """
+        # Skip if already cached
+        if ProcessManager._ffmpeg_command_cache is not None:
+            self.ffmpeg_detected.emit(True, ProcessManager._ffmpeg_command_cache)
+            return
+        if ProcessManager._ffmpeg_available_cache is False:
+            self.ffmpeg_detected.emit(False, "FFmpeg not found (cached)")
+            return
+
+        # Run detection in background
+        self._detection_signals = FFmpegDetectionSignals()
+        self._detection_signals.detection_complete.connect(self._on_ffmpeg_detected)
+        worker = FFmpegDetectionWorker(self._detection_signals)
+        QThreadPool.globalInstance().start(worker)
+
+    def _on_ffmpeg_detected(self, available: bool, path_or_error: str) -> None:
+        """Handle FFmpeg detection result from background thread."""
+        if available:
+            ProcessManager._ffmpeg_command_cache = path_or_error
+            ProcessManager._ffmpeg_available_cache = True
+            self.logger.info(f"Found FFmpeg at: {path_or_error}")
+        else:
+            ProcessManager._ffmpeg_available_cache = False
+            self.logger.warning(path_or_error)
+        self.ffmpeg_detected.emit(available, path_or_error)
 
     def start_batch(
         self,
@@ -101,7 +188,11 @@ class ProcessManager(QObject):
         return self.process_ids[process]
 
     def _adjust_buffer_sizes(self):
-        """Dynamically adjust buffer sizes based on number of active processes"""
+        """Dynamically adjust buffer sizes based on number of active processes.
+
+        Uses RLock to prevent race condition where _handle_process_output writes
+        to old deque reference while this method replaces it.
+        """
         active_count = len(self.processes)
 
         if active_count >= 10:
@@ -114,32 +205,34 @@ class ProcessManager(QObject):
             # Few processes - use full buffer
             self._current_max_log_lines = self._base_max_log_lines
 
-        # Resize existing buffers if needed
-        for process in list(self.process_logs.keys()):
-            if (
-                process in self.process_logs
-                and self.process_logs[process].maxlen != self._current_max_log_lines
-            ):
-                # Create new deque with adjusted size and copy last N items
-                old_data = list(self.process_logs[process])[
-                    -self._current_max_log_lines :
-                ]
-                self.process_logs[process] = deque(
-                    old_data, maxlen=self._current_max_log_lines
-                )
+        # Resize existing buffers if needed (protected by lock)
+        with self._buffer_lock:
+            for process in list(self.process_logs.keys()):
+                if (
+                    process in self.process_logs
+                    and self.process_logs[process].maxlen != self._current_max_log_lines
+                ):
+                    # Create new deque with adjusted size and copy last N items
+                    old_data = list(self.process_logs[process])[
+                        -self._current_max_log_lines :
+                    ]
+                    self.process_logs[process] = deque(
+                        old_data, maxlen=self._current_max_log_lines
+                    )
 
-        for process in list(self.process_outputs.keys()):
-            if (
-                process in self.process_outputs
-                and self.process_outputs[process].maxlen != self._current_max_log_lines
-            ):
-                # Create new deque with adjusted size and copy last N items
-                old_data = list(self.process_outputs[process])[
-                    -self._current_max_log_lines :
-                ]
-                self.process_outputs[process] = deque(
-                    old_data, maxlen=self._current_max_log_lines
-                )
+            for process in list(self.process_outputs.keys()):
+                if (
+                    process in self.process_outputs
+                    and self.process_outputs[process].maxlen
+                    != self._current_max_log_lines
+                ):
+                    # Create new deque with adjusted size and copy last N items
+                    old_data = list(self.process_outputs[process])[
+                        -self._current_max_log_lines :
+                    ]
+                    self.process_outputs[process] = deque(
+                        old_data, maxlen=self._current_max_log_lines
+                    )
 
     def start_process(
         self,
@@ -147,6 +240,7 @@ class ProcessManager(QObject):
         ffmpeg_args: List[str],
         codec_idx: int = -1,
         duration: Optional[float] = None,
+        output_path: Optional[str] = None,
     ) -> QProcess:
         """
         Start a new FFmpeg process for the given file
@@ -156,6 +250,7 @@ class ProcessManager(QObject):
             ffmpeg_args: List of FFmpeg command arguments
             codec_idx: The codec index used (0-6 for GPU/CPU encoders, -1 if unknown)
             duration: Pre-probed duration in seconds. If None, will probe (blocking)
+            output_path: Path to the output file. Stored for post-process verification.
 
         Returns the created process object
         """
@@ -205,6 +300,17 @@ class ProcessManager(QObject):
         # Log the actual arguments being passed
         self.logger.debug(f"Starting {ffmpeg_cmd} with args: {ffmpeg_args}")
 
+        # Add to tracking structures BEFORE starting process
+        self.processes.append((process, path))
+
+        # Adjust buffer sizes for current process count
+        self._adjust_buffer_sizes()
+
+        # Initialize circular buffers BEFORE starting process to prevent race condition
+        # (readyReadStandardOutput can fire immediately after start())
+        self.process_logs[process] = deque(maxlen=self._current_max_log_lines)
+        self.process_outputs[process] = deque(maxlen=self._current_max_log_lines)
+
         # Start process without manual quoting - Qt handles this automatically
         process.start(ffmpeg_cmd, ffmpeg_args)
 
@@ -215,16 +321,6 @@ class ProcessManager(QObject):
                 ProcessConfig.PROCESS_START_TIMEOUT,
             )
             # Still continue with tracking so we can handle the error properly
-
-        # Add to tracking structures
-        self.processes.append((process, path))
-
-        # Adjust buffer sizes for current process count
-        self._adjust_buffer_sizes()
-
-        # Initialize circular buffers for this process with adjusted size
-        self.process_logs[process] = deque(maxlen=self._current_max_log_lines)
-        self.process_outputs[process] = deque(maxlen=self._current_max_log_lines)
 
         # Register with progress tracker (use 0.0 for unknown duration)
         # Use pre-probed duration if provided, otherwise probe (blocking call)
@@ -237,6 +333,10 @@ class ProcessManager(QObject):
         # Store codec information for this file (using passed codec_idx, not parsed from args)
         if codec_idx >= 0:
             self.codec_map[path] = codec_idx
+
+        # Store output path for post-process verification (avoids reconstruction errors)
+        if output_path:
+            self.output_map[path] = output_path
 
         return process
 
@@ -260,7 +360,10 @@ class ProcessManager(QObject):
     # Duplicate process_finished removed to resolve mypy no-redef error.
 
     def _handle_process_output(self, process: QProcess):
-        """Process output from an FFmpeg process"""
+        """Process output from an FFmpeg process.
+
+        Uses RLock to prevent race condition during buffer resize operations.
+        """
         if process.bytesAvailable() > 0:
             data = process.readAllStandardOutput()
             # Ensure data.data() is bytes before decoding to satisfy mypy
@@ -270,26 +373,25 @@ class ProcessManager(QObject):
             else:
                 chunk = buf.decode("utf-8", errors="replace")
 
-            # Check for MPEGTS timing errors
-            if (
-                "start time for stream" in chunk
-                and "is not set in estimate_timings_from_pts" in chunk
-            ):
-                # Log this warning for UI display
-                self.process_logs[process].append(
-                    "⚠️ MPEGTS timing warning detected. Adding -fflags +genpts to improve timestamps."
-                )
+            # Protected buffer writes to prevent race with _adjust_buffer_sizes
+            with self._buffer_lock:
+                # Check if process buffers still exist (may have been cleaned up)
+                if process not in self.process_logs or process not in self.process_outputs:
+                    return
 
-                # Store this detection for future process restarts if needed
-                path = next((p for proc, p in self.processes if proc == process), None)
-                if path:
-                    # Mark this file as needing genpts flag for potential restart
-                    process_id = self._get_process_id(process)
-                    self.progress_tracker.mark_needs_genpts(process_id)
+                # Check for MPEGTS timing errors
+                if (
+                    "start time for stream" in chunk
+                    and "is not set in estimate_timings_from_pts" in chunk
+                ):
+                    # Log this warning for UI display
+                    self.process_logs[process].append(
+                        "⚠️ MPEGTS timing warning detected. Consider adding -fflags +genpts to source."
+                    )
 
-            # Store the output
-            self.process_outputs[process].append(chunk)
-            self.process_logs[process].append(chunk)
+                # Store the output
+                self.process_outputs[process].append(chunk)
+                self.process_logs[process].append(chunk)
 
             # Process the output with the progress tracker
             path = next((p for proc, p in self.processes if proc == process), None)
@@ -455,7 +557,18 @@ class ProcessManager(QObject):
     def mark_process_finished(
         self, process: QProcess, process_path: str, exit_code: int
     ) -> None:
-        """Mark process as finished, update tracker, and emit finished signal."""
+        """Mark process as finished, update tracker, and emit finished signal.
+
+        This method is guarded against double-cleanup: if the process has already
+        been marked as finished (e.g., from both errorOccurred and finished signals),
+        subsequent calls are no-ops.
+        """
+        # Guard against double-cleanup race condition
+        # This can happen when both errorOccurred (FailedToStart) and finished signals fire
+        if process in self._finished_processes:
+            return
+        self._finished_processes.add(process)
+
         process_id = self._get_process_id(process)
 
         # For successful completion, force progress to 100% and emit update before cleanup
@@ -513,9 +626,16 @@ class ProcessManager(QObject):
         if process_path and process_path in self.codec_map:
             del self.codec_map[process_path]
 
+        # Remove from output mapping
+        if process_path and process_path in self.output_map:
+            del self.output_map[process_path]
+
         # Remove process ID mapping
         if process in self.process_ids:
             del self.process_ids[process]
+
+        # Clean up finished guard set (prevents memory leak over many conversions)
+        self._finished_processes.discard(process)
 
     def cleanup_all_resources(self) -> None:
         """Emergency cleanup of all resources - called on shutdown"""
@@ -530,8 +650,10 @@ class ProcessManager(QObject):
         self.process_logs.clear()
         self.process_outputs.clear()
         self.codec_map.clear()
+        self.output_map.clear()
         self.process_ids.clear()
         self.process_connections.clear()
+        self._finished_processes.clear()
 
     def get_available_vram(self) -> int:
         """Get available GPU VRAM in MB. Returns 0 if unable to detect."""
