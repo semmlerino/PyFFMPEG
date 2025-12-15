@@ -112,6 +112,8 @@ select = [
     "PLC", # Pylint conventions
     "PLE", # Pylint errors
     "PLW", # Pylint warnings
+    "ARG", # flake8-unused-arguments
+    "ERA", # eradicate (commented-out code)
 ]
 ignore = [
     "E501",    # Line too long (handled by formatter)
@@ -127,12 +129,15 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]  # Unused imports in __init__.py
 "PyMPEG.py" = ["ALL"]  # Ignore legacy file completely
+"codec_helpers_backup.py" = ["ALL"]  # Backup file, not active code
 "tests/**/*.py" = [
     "N802", "N803",  # Test functions can have any name style
     "PLR2004",  # Magic values OK in tests
     "PT004",  # Fixtures don't always return
     "PT011",  # pytest.raises too broad is OK in tests
     "A001", "A002",  # Shadowing builtins OK in test fixtures
+    "ARG001", "ARG002",  # Unused args common with @patch decorators
+    "ERA001",  # Commented code OK in tests for documentation
 ]
 
 [tool.ruff.format]

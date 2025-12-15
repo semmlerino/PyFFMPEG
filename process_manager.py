@@ -8,9 +8,10 @@ import os
 import subprocess
 from collections import deque
 from threading import RLock
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, ClassVar, Dict, List, Optional, Set, Tuple
 
 from PySide6.QtCore import QObject, QProcess, QRunnable, QThreadPool, Signal
+from typing_extensions import override
 
 from config import ProcessConfig
 from logging_config import get_logger
@@ -20,7 +21,7 @@ from progress_tracker import ProcessProgressTracker
 class FFmpegDetectionSignals(QObject):
     """Signals for FFmpeg detection worker."""
 
-    detection_complete = Signal(bool, str)  # available, ffmpeg_path or error message
+    detection_complete: ClassVar[Signal] = Signal(bool, str)  # available, ffmpeg_path or error message
 
 
 class FFmpegDetectionWorker(QRunnable):
@@ -33,6 +34,7 @@ class FFmpegDetectionWorker(QRunnable):
         super().__init__()
         self.signals = signals
 
+    @override
     def run(self) -> None:
         """Probe FFmpeg locations and emit result."""
         ffmpeg_commands = [
@@ -64,16 +66,16 @@ class ProcessManager(QObject):
     """Manages FFmpeg processes for video conversion"""
 
     # Signal emitted when process output is available
-    output_ready = Signal(QProcess, str)
+    output_ready: ClassVar[Signal] = Signal(QProcess, str)
 
     # Signal emitted when process has finished
-    process_finished = Signal(QProcess, int, str)
+    process_finished: ClassVar[Signal] = Signal(QProcess, int, str)
 
     # Signal emitted when overall progress should be updated
-    update_progress = Signal()
+    update_progress: ClassVar[Signal] = Signal()
 
     # Signal emitted when FFmpeg detection completes (async)
-    ffmpeg_detected = Signal(bool, str)  # available, path or error message
+    ffmpeg_detected: ClassVar[Signal] = Signal(bool, str)  # available, path or error message
 
     # Class-level cache for FFmpeg path
     _ffmpeg_command_cache: Optional[str] = None
@@ -276,7 +278,7 @@ class ProcessManager(QObject):
         connections.append(("errorOccurred", error_handler))
 
         # Finished handling connection - this is critical for marking completion
-        def finished_handler(exit_code, exit_status, p=process, process_path=path):
+        def finished_handler(exit_code, _exit_status, p=process, process_path=path):
             return self.mark_process_finished(p, process_path, exit_code)
 
         process.finished.connect(finished_handler)

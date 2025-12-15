@@ -7,11 +7,12 @@ A custom QListWidget with drag & drop support for TS files
 import os
 import subprocess
 import sys
-from typing import Any, Dict, Optional
+from typing import Any, ClassVar, Dict, Optional
 
 from PySide6.QtCore import QFileInfo, QObject, QRunnable, QSize, Qt, QThreadPool, Signal
 from PySide6.QtGui import QColor, QCursor
 from PySide6.QtWidgets import QAbstractItemView, QListWidget, QListWidgetItem, QMenu
+from typing_extensions import override
 
 from codec_helpers import CodecHelpers
 
@@ -19,7 +20,7 @@ from codec_helpers import CodecHelpers
 class MetadataSignals(QObject):
     """Signals for metadata loading worker"""
 
-    metadata_loaded = Signal(str, object)  # file_path, metadata_dict
+    metadata_loaded: ClassVar[Signal] = Signal(str, object)  # file_path, metadata_dict
 
 
 class MetadataWorker(QRunnable):
@@ -30,6 +31,7 @@ class MetadataWorker(QRunnable):
         self.file_path = file_path
         self.signals = signals
 
+    @override
     def run(self):
         """Extract metadata and emit signal"""
         metadata = CodecHelpers.extract_video_metadata(self.file_path)
@@ -42,7 +44,7 @@ class FileListWidget(QListWidget):
     """
 
     # Signal emitted when file order changes
-    order_changed = Signal()
+    order_changed: ClassVar[Signal] = Signal()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -96,6 +98,7 @@ class FileListWidget(QListWidget):
         # Start metadata loading in background
         self._load_metadata_async(path)
 
+    @override
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
             event.acceptProposedAction()
@@ -105,6 +108,7 @@ class FileListWidget(QListWidget):
     # Supported video extensions (aligned with main_window file dialog)
     SUPPORTED_EXTENSIONS = (".ts", ".mp4", ".m4v", ".mov", ".avi", ".mkv")
 
+    @override
     def dropEvent(self, event):
         if event.mimeData().hasUrls():
             # External file drop - add new files
@@ -123,7 +127,8 @@ class FileListWidget(QListWidget):
             # Emit signal when order changed
             self.order_changed.emit()
 
-    def contextMenuEvent(self, event):
+    @override
+    def contextMenuEvent(self, _event):
         menu = QMenu(self)
         selected_items = self.selectedItems()
 
@@ -169,6 +174,7 @@ class FileListWidget(QListWidget):
                 self.path_items.pop(path, None)
                 self.metadata_cache.pop(path, None)
 
+    @override
     def mouseDoubleClickEvent(self, event):
         item = self.itemAt(event.pos())
         if item:
@@ -177,6 +183,7 @@ class FileListWidget(QListWidget):
                 self._open_folder(folder)
         super().mouseDoubleClickEvent(event)
 
+    @override
     def keyPressEvent(self, event):
         """Handle keyboard shortcuts for reordering"""
         # Ctrl+Up - Move selected items up
@@ -321,6 +328,7 @@ class FileListWidget(QListWidget):
         for path in file_paths:
             self.add_path(path)
 
+    @override
     def clear(self) -> None:
         """Clear all items and reset internal tracking state.
 

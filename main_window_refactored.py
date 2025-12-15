@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from typing_extensions import override
 
 from codec_helpers import GPUDetector
 from config import AppConfig, LogConfig
@@ -107,7 +108,7 @@ class MainWindow(QMainWindow):
                 self.status_bar.showMessage("FFmpeg not found - conversion disabled")
 
     def _on_gpu_detected(
-        self, has_gpu: bool, gpu_name: str, available_encoders: str
+        self, has_gpu: bool, gpu_name: str, _available_encoders: str
     ) -> None:
         """Handle GPU detection result from async check.
 
@@ -766,6 +767,7 @@ class MainWindow(QMainWindow):
         if window_state:
             self.restoreState(window_state)
 
+    @override
     def closeEvent(self, event):
         """Handle window close event"""
         # Stop any active conversions

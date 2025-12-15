@@ -6,7 +6,7 @@ Handles process widget creation, monitoring, and progress display
 
 import os
 import time
-from typing import Any, Dict
+from typing import Any, ClassVar, Dict
 
 from PySide6.QtCore import QObject, QProcess, QTimer, Signal
 from PySide6.QtWidgets import (
@@ -28,9 +28,9 @@ class ProcessMonitor(QObject):
     """Monitors and displays progress for active processes"""
 
     # Signals for UI updates
-    widget_created = Signal(QWidget, QProcess, str)  # widget, process, path
-    widget_removed = Signal(QWidget, QProcess)  # widget, process
-    progress_updated = Signal(dict)  # progress data
+    widget_created: ClassVar[Signal] = Signal(QWidget, QProcess, str)  # widget, process, path
+    widget_removed: ClassVar[Signal] = Signal(QWidget, QProcess)  # widget, process
+    progress_updated: ClassVar[Signal] = Signal(dict)  # progress data
 
     def __init__(
         self, process_manager: ProcessManager, scroll_area: QScrollArea, parent=None
@@ -320,7 +320,7 @@ class ProcessMonitor(QObject):
         del self.process_widgets[process]
 
     def _on_process_finished(
-        self, process: QProcess, exit_code: int, process_path: str
+        self, process: QProcess, _exit_code: int, _process_path: str
     ) -> None:
         """Handle process finished signal"""
         self.remove_process_widget(process)

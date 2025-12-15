@@ -27,8 +27,8 @@ class SettingsPanel(QObject):
     """Manages conversion settings and UI controls"""
 
     # Signals for settings changes
-    settings_changed = Signal(dict)  # Emitted when any setting changes
-    auto_balance_toggled = Signal(bool)  # Emitted when auto-balance is toggled
+    settings_changed: ClassVar[Signal] = Signal(dict)  # Emitted when any setting changes
+    auto_balance_toggled: ClassVar[Signal] = Signal(bool)  # Emitted when auto-balance is toggled
 
     # Hardware-optimized defaults for RTX 4090 + i9-14900HX
     HARDWARE_OPTIMIZED_DEFAULTS: ClassVar[Dict[str, Any]] = {

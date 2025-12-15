@@ -9,9 +9,10 @@ import os
 import shutil
 import subprocess
 import time
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, ClassVar, Dict, List, Optional, Tuple
 
 from PySide6.QtCore import QObject, QProcess, QRunnable, QThreadPool, Signal
+from typing_extensions import override
 
 if TYPE_CHECKING:
     from file_list_widget import FileListWidget
@@ -27,7 +28,7 @@ from progress_tracker import ProcessProgressTracker
 class PrepSignals(QObject):
     """Signals for ConversionPrepWorker to communicate with main thread."""
 
-    prep_complete = Signal(str, float, list, str)  # path, duration, audio_args, msg
+    prep_complete: ClassVar[Signal] = Signal(str, float, list, str)  # path, duration, audio_args, msg
 
 
 class ConversionPrepWorker(QRunnable):
@@ -43,6 +44,7 @@ class ConversionPrepWorker(QRunnable):
         self.codec_idx = codec_idx
         self.signals = PrepSignals()
 
+    @override
     def run(self) -> None:
         """Execute probe operations in background thread."""
         # These subprocess calls can take up to 30s each - run off main thread
@@ -59,11 +61,11 @@ class ConversionController(QObject):
     """Controls the conversion process workflow and codec management"""
 
     # Signals for communication with UI
-    conversion_started = Signal()
-    conversion_finished = Signal()
-    conversion_stopped = Signal()
-    log_message = Signal(str)  # For main log messages
-    progress_updated = Signal()  # For UI progress updates
+    conversion_started: ClassVar[Signal] = Signal()
+    conversion_finished: ClassVar[Signal] = Signal()
+    conversion_stopped: ClassVar[Signal] = Signal()
+    log_message: ClassVar[Signal] = Signal(str)  # For main log messages
+    progress_updated: ClassVar[Signal] = Signal()  # For UI progress updates
 
     def __init__(
         self,
@@ -593,7 +595,7 @@ class ConversionController(QObject):
         self.log_message.emit(f"📊 Balanced: {gpu_count} {gpu_name}, {cpu_count} x264 CPU")
 
     def _on_process_finished(
-        self, process: QProcess, exit_code: int, process_path: str
+        self, _process: QProcess, exit_code: int, process_path: str
     ) -> None:
         """Handle process completion"""
         if exit_code == 0:

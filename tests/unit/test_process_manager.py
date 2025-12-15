@@ -744,7 +744,7 @@ class TestProcessManagerIntegration:
 
         # Patch signals to prevent segfault when emitting with Mock objects
         with patch.object(self.manager, "output_ready") as mock_output_signal, \
-                patch.object(self.manager, "update_progress") as mock_update_signal:
+                patch.object(self.manager, "update_progress"):
             self.manager._handle_process_output(mock_process)
 
             # Verify signal was called

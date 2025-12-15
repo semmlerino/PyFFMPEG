@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, ClassVar, Dict, Optional
 
 from PySide6.QtCore import QObject, Signal
+from typing_extensions import override
 
 from config import AppConfig, LogConfig
 
@@ -81,6 +82,7 @@ class UserFriendlyFormatter(logging.Formatter):
         "CRITICAL": "🚨",
     }
 
+    @override
     def format(self, record):
         # Add color and emoji prefix
         if getattr(record, "no_color", False):
@@ -106,9 +108,9 @@ class PyFFMPEGLogger(QObject):
     """Main logger class for PyFFMPEG with Qt signal integration"""
 
     # Signals for UI integration
-    log_message = Signal(str, str)  # message, level
-    error_occurred = Signal(str, str)  # error_message, suggestion
-    performance_update = Signal(dict)  # performance metrics
+    log_message: ClassVar[Signal] = Signal(str, str)  # message, level
+    error_occurred: ClassVar[Signal] = Signal(str, str)  # error_message, suggestion
+    performance_update: ClassVar[Signal] = Signal(dict)  # performance metrics
 
     def __init__(self, name: str = "PyFFMPEG"):
         super().__init__()

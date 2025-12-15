@@ -10,9 +10,10 @@ import json
 import os
 import subprocess
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, ClassVar, Dict, List, Optional, Tuple
 
 from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal
+from typing_extensions import override
 
 from config import EncodingConfig, FileConfig, HardwareConfig, ProcessConfig
 
@@ -20,7 +21,7 @@ from config import EncodingConfig, FileConfig, HardwareConfig, ProcessConfig
 class GPUDetectionSignals(QObject):
     """Signals for GPU detection worker."""
 
-    detection_complete = Signal(bool, str, str)  # has_gpu, gpu_name, available_encoders
+    detection_complete: ClassVar[Signal] = Signal(bool, str, str)  # has_gpu, gpu_name, available_encoders
 
 
 class GPUDetectionWorker(QRunnable):
@@ -33,6 +34,7 @@ class GPUDetectionWorker(QRunnable):
         super().__init__()
         self.signals = signals
 
+    @override
     def run(self) -> None:
         """Probe GPU and encoders, then emit result."""
         gpu_name = ""
@@ -86,7 +88,7 @@ class GPUDetector(QObject):
     """
 
     # Signal emitted when detection completes
-    gpu_detected = Signal(bool, str, str)  # has_gpu, gpu_name, available_encoders
+    gpu_detected: ClassVar[Signal] = Signal(bool, str, str)  # has_gpu, gpu_name, available_encoders
 
     def __init__(self, parent: Optional[QObject] = None):
         super().__init__(parent)
@@ -98,18 +100,21 @@ class GPUDetector(QObject):
         If cache already exists, emits signal immediately.
         Otherwise runs detection in background thread.
         """
-        # Check if already cached
-        if CodecHelpers._gpu_info_cache is not None or CodecHelpers._encoder_cache is not None:
-            # Emit cached results
-            has_gpu = bool(CodecHelpers._gpu_info_cache)
+        # Check if already cached using public accessor
+        if CodecHelpers.has_cached_info():
+            # Emit cached results using public accessors
+            cached_gpu_info = CodecHelpers.get_cached_gpu_info()
+            has_gpu = bool(cached_gpu_info)
             gpu_name = ""
-            if has_gpu and CodecHelpers._gpu_info_cache:
+            if has_gpu and cached_gpu_info:
                 # Try to extract GPU name from cached info
                 for model in HardwareConfig.RTX40_MODELS:
-                    if model in CodecHelpers._gpu_info_cache:
+                    if model in cached_gpu_info:
                         gpu_name = model
                         break
-            self.gpu_detected.emit(has_gpu, gpu_name, CodecHelpers._encoder_cache or "")
+            self.gpu_detected.emit(
+                has_gpu, gpu_name, CodecHelpers.get_cached_encoder_info() or ""
+            )
             return
 
         # Run detection in background
@@ -148,6 +153,35 @@ class CodecHelpers:
 
     _rtx40_detection_cache: Optional[bool] = None
     _rtx40_detection_cache_time: float = 0.0
+
+    @staticmethod
+    def has_cached_info() -> bool:
+        """Check if GPU or encoder info has been cached.
+
+        Used by GPUDetector to avoid redundant detection if cache exists.
+        """
+        return (
+            CodecHelpers._gpu_info_cache is not None
+            or CodecHelpers._encoder_cache is not None
+        )
+
+    @staticmethod
+    def get_cached_gpu_info() -> Optional[str]:
+        """Get cached GPU info string.
+
+        Returns:
+            Cached GPU info or None if not cached.
+        """
+        return CodecHelpers._gpu_info_cache
+
+    @staticmethod
+    def get_cached_encoder_info() -> Optional[str]:
+        """Get cached encoder info string.
+
+        Returns:
+            Cached encoder string or None if not cached.
+        """
+        return CodecHelpers._encoder_cache
 
     @staticmethod
     def get_output_extension(codec_idx: int) -> str:
@@ -273,10 +307,10 @@ class CodecHelpers:
     def get_encoder_configuration(
         codec_idx: int,
         thread_count: int,
-        is_parallel_enabled: bool,
+        _is_parallel_enabled: bool,
         crf_value: int,
         hevc_10bit: bool = False,
-        nvenc_settings: Optional[Dict[str, Any]] = None,
+        _nvenc_settings: Optional[Dict[str, Any]] = None,
         preset_idx: int = 0,
     ) -> Tuple[List[str], str]:
         """Get encoder configuration arguments based on codec index
