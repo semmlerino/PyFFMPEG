@@ -12,7 +12,120 @@ import subprocess
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
+from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal
+
 from config import EncodingConfig, FileConfig, HardwareConfig, ProcessConfig
+
+
+class GPUDetectionSignals(QObject):
+    """Signals for GPU detection worker."""
+
+    detection_complete = Signal(bool, str, str)  # has_gpu, gpu_name, available_encoders
+
+
+class GPUDetectionWorker(QRunnable):
+    """Worker to detect GPU and available encoders in a background thread.
+
+    Prevents UI freezes when probing nvidia-smi and ffmpeg encoders on first use.
+    """
+
+    def __init__(self, signals: GPUDetectionSignals):
+        super().__init__()
+        self.signals = signals
+
+    def run(self) -> None:
+        """Probe GPU and encoders, then emit result."""
+        gpu_name = ""
+        has_gpu = False
+        available_encoders = ""
+
+        # Detect GPU via nvidia-smi
+        try:
+            result = subprocess.run(
+                ["nvidia-smi", "--query-gpu=name", "--format=csv,noheader,nounits"],
+                capture_output=True,
+                text=True,
+                timeout=HardwareConfig.GPU_DETECTION_TIMEOUT,
+                check=False,
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                gpu_name = result.stdout.strip().split("\n")[0]
+                has_gpu = True
+        except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+            pass
+
+        # Detect available encoders via ffmpeg
+        try:
+            result = subprocess.run(
+                ["ffmpeg", "-encoders"],
+                capture_output=True,
+                text=True,
+                stderr=subprocess.STDOUT,
+                timeout=ProcessConfig.SUBPROCESS_TIMEOUT,
+                check=False,
+            )
+            if result.returncode == 0:
+                available_encoders = result.stdout.lower()
+        except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+            pass
+
+        self.signals.detection_complete.emit(has_gpu, gpu_name, available_encoders)
+
+
+class GPUDetector(QObject):
+    """Async GPU and encoder detection to prevent UI freezes.
+
+    Usage:
+        detector = GPUDetector(parent)
+        detector.gpu_detected.connect(on_gpu_detected)
+        detector.detect_async()
+
+        def on_gpu_detected(has_gpu, gpu_name, encoders):
+            # Update CodecHelpers cache
+            CodecHelpers.update_gpu_cache(has_gpu, gpu_name, encoders)
+    """
+
+    # Signal emitted when detection completes
+    gpu_detected = Signal(bool, str, str)  # has_gpu, gpu_name, available_encoders
+
+    def __init__(self, parent: Optional[QObject] = None):
+        super().__init__(parent)
+        self._detection_signals: Optional[GPUDetectionSignals] = None
+
+    def detect_async(self) -> None:
+        """Start async GPU detection.
+
+        If cache already exists, emits signal immediately.
+        Otherwise runs detection in background thread.
+        """
+        # Check if already cached
+        if CodecHelpers._gpu_info_cache is not None or CodecHelpers._encoder_cache is not None:
+            # Emit cached results
+            has_gpu = bool(CodecHelpers._gpu_info_cache)
+            gpu_name = ""
+            if has_gpu and CodecHelpers._gpu_info_cache:
+                # Try to extract GPU name from cached info
+                for model in HardwareConfig.RTX40_MODELS:
+                    if model in CodecHelpers._gpu_info_cache:
+                        gpu_name = model
+                        break
+            self.gpu_detected.emit(has_gpu, gpu_name, CodecHelpers._encoder_cache or "")
+            return
+
+        # Run detection in background
+        self._detection_signals = GPUDetectionSignals()
+        self._detection_signals.detection_complete.connect(self._on_detection_complete)
+        worker = GPUDetectionWorker(self._detection_signals)
+        QThreadPool.globalInstance().start(worker)
+
+    def _on_detection_complete(
+        self, has_gpu: bool, gpu_name: str, available_encoders: str
+    ) -> None:
+        """Handle detection result and update cache."""
+        # Update CodecHelpers cache
+        CodecHelpers.update_gpu_cache(has_gpu, gpu_name, available_encoders)
+        # Emit signal for UI handling
+        self.gpu_detected.emit(has_gpu, gpu_name, available_encoders)
 
 
 class CodecHelpers:
@@ -544,6 +657,46 @@ class CodecHelpers:
 
         CodecHelpers._rtx40_detection_cache = None
         CodecHelpers._rtx40_detection_cache_time = 0.0
+
+    @staticmethod
+    def update_gpu_cache(has_gpu: bool, gpu_name: str, available_encoders: str) -> None:
+        """Update GPU and encoder caches from async detection results.
+
+        Called by GPUDetector after background detection completes.
+
+        Args:
+            has_gpu: Whether a GPU was detected
+            gpu_name: Name of the detected GPU (e.g., "RTX 4090")
+            available_encoders: Lowercase string of available encoders from ffmpeg
+        """
+        now = time.time()
+
+        # Update encoder cache
+        if available_encoders:
+            CodecHelpers._encoder_cache = available_encoders
+            CodecHelpers._encoder_cache_time = now
+            CodecHelpers._encoder_cache_success = True
+        else:
+            CodecHelpers._encoder_cache = ""
+            CodecHelpers._encoder_cache_time = now
+            CodecHelpers._encoder_cache_success = False
+
+        # Update GPU info cache - store GPU name if detected
+        if has_gpu and gpu_name:
+            CodecHelpers._gpu_info_cache = gpu_name
+            CodecHelpers._gpu_info_cache_time = now
+            CodecHelpers._gpu_info_cache_success = True
+
+            # Update RTX40 detection cache
+            is_rtx40 = any(model in gpu_name for model in HardwareConfig.RTX40_MODELS)
+            CodecHelpers._rtx40_detection_cache = is_rtx40
+            CodecHelpers._rtx40_detection_cache_time = now
+        else:
+            CodecHelpers._gpu_info_cache = ""
+            CodecHelpers._gpu_info_cache_time = now
+            CodecHelpers._gpu_info_cache_success = False
+            CodecHelpers._rtx40_detection_cache = False
+            CodecHelpers._rtx40_detection_cache_time = now
 
     @staticmethod
     def extract_video_metadata(file_path: str) -> Optional[Dict[str, Any]]:

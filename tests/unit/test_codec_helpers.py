@@ -976,3 +976,167 @@ class TestFileSizeFormatting:
         """Test file size formatting"""
         result = CodecHelpers.format_file_size(size_bytes)
         assert expected_contains in result
+
+
+class TestGPUDetectorAsync:
+    """Test GPU detection worker and detector classes"""
+
+    def setup_method(self):
+        """Clear cache before each test"""
+        CodecHelpers.clear_cache()
+
+    def teardown_method(self):
+        """Clear cache after each test"""
+        CodecHelpers.clear_cache()
+
+    @patch("codec_helpers.subprocess.run")
+    def test_gpu_detection_worker_finds_nvidia(self, mock_run):
+        """Test GPUDetectionWorker successfully finds NVIDIA GPU"""
+        from codec_helpers import GPUDetectionSignals, GPUDetectionWorker
+
+        # Mock successful GPU detection
+        gpu_result = Mock()
+        gpu_result.returncode = 0
+        gpu_result.stdout = "NVIDIA GeForce RTX 4090\n"
+
+        # Mock successful encoder detection
+        encoder_result = Mock()
+        encoder_result.returncode = 0
+        encoder_result.stdout = "h264_nvenc\nhevc_nvenc\nav1_nvenc"
+
+        mock_run.side_effect = [gpu_result, encoder_result]
+
+        signals = GPUDetectionSignals()
+        signal_received = []
+
+        def on_complete(has_gpu, gpu_name, encoders):
+            signal_received.append((has_gpu, gpu_name, encoders))
+
+        signals.detection_complete.connect(on_complete)
+
+        worker = GPUDetectionWorker(signals)
+        worker.run()
+
+        assert len(signal_received) == 1
+        has_gpu, gpu_name, encoders = signal_received[0]
+        assert has_gpu is True
+        assert "RTX 4090" in gpu_name
+        assert "nvenc" in encoders.lower()
+
+    @patch("codec_helpers.subprocess.run")
+    def test_gpu_detection_worker_no_gpu(self, mock_run):
+        """Test GPUDetectionWorker when no GPU is found"""
+        from codec_helpers import GPUDetectionSignals, GPUDetectionWorker
+
+        # Mock failed GPU detection
+        mock_run.side_effect = FileNotFoundError("nvidia-smi not found")
+
+        signals = GPUDetectionSignals()
+        signal_received = []
+
+        def on_complete(has_gpu, gpu_name, encoders):
+            signal_received.append((has_gpu, gpu_name, encoders))
+
+        signals.detection_complete.connect(on_complete)
+
+        worker = GPUDetectionWorker(signals)
+        worker.run()
+
+        assert len(signal_received) == 1
+        has_gpu, gpu_name, _ = signal_received[0]
+        assert has_gpu is False
+        assert gpu_name == ""
+
+    @patch("codec_helpers.subprocess.run")
+    def test_gpu_detection_worker_handles_timeout(self, mock_run):
+        """Test GPUDetectionWorker handles timeout gracefully"""
+        from codec_helpers import GPUDetectionSignals, GPUDetectionWorker
+
+        mock_run.side_effect = subprocess.TimeoutExpired("nvidia-smi", 2)
+
+        signals = GPUDetectionSignals()
+        signal_received = []
+
+        def on_complete(has_gpu, gpu_name, encoders):
+            signal_received.append((has_gpu, gpu_name, encoders))
+
+        signals.detection_complete.connect(on_complete)
+
+        worker = GPUDetectionWorker(signals)
+        worker.run()
+
+        assert len(signal_received) == 1
+        has_gpu, _, _ = signal_received[0]
+        assert has_gpu is False
+
+    def test_update_gpu_cache_with_gpu(self):
+        """Test update_gpu_cache populates caches correctly with GPU"""
+        CodecHelpers.update_gpu_cache(
+            has_gpu=True,
+            gpu_name="NVIDIA GeForce RTX 4090",
+            available_encoders="h264_nvenc\nhevc_nvenc\nav1_nvenc"
+        )
+
+        # Verify encoder cache
+        assert CodecHelpers._encoder_cache == "h264_nvenc\nhevc_nvenc\nav1_nvenc"
+        assert CodecHelpers._encoder_cache_success is True
+
+        # Verify GPU cache
+        assert CodecHelpers._gpu_info_cache == "NVIDIA GeForce RTX 4090"
+        assert CodecHelpers._gpu_info_cache_success is True
+
+        # Verify RTX40 detection
+        assert CodecHelpers._rtx40_detection_cache is True
+
+    def test_update_gpu_cache_without_gpu(self):
+        """Test update_gpu_cache populates caches correctly without GPU"""
+        CodecHelpers.update_gpu_cache(
+            has_gpu=False,
+            gpu_name="",
+            available_encoders=""
+        )
+
+        # Verify encoder cache
+        assert CodecHelpers._encoder_cache == ""
+        assert CodecHelpers._encoder_cache_success is False
+
+        # Verify GPU cache
+        assert CodecHelpers._gpu_info_cache == ""
+        assert CodecHelpers._gpu_info_cache_success is False
+
+        # Verify RTX40 detection
+        assert CodecHelpers._rtx40_detection_cache is False
+
+    def test_update_gpu_cache_rtx30_series(self):
+        """Test update_gpu_cache correctly detects RTX 30 series as not RTX40"""
+        CodecHelpers.update_gpu_cache(
+            has_gpu=True,
+            gpu_name="NVIDIA GeForce RTX 3090",
+            available_encoders="h264_nvenc\nhevc_nvenc"
+        )
+
+        # RTX 3090 should NOT be detected as RTX40
+        assert CodecHelpers._rtx40_detection_cache is False
+
+    def test_gpu_detector_uses_cached_result(self):
+        """Test GPUDetector uses cached result if available"""
+        from codec_helpers import GPUDetector
+
+        # Pre-populate cache
+        CodecHelpers._gpu_info_cache = "NVIDIA GeForce RTX 4090"
+        CodecHelpers._encoder_cache = "h264_nvenc"
+
+        detector = GPUDetector()
+        signal_received = []
+
+        def on_detected(has_gpu, gpu_name, encoders):
+            signal_received.append((has_gpu, gpu_name, encoders))
+
+        detector.gpu_detected.connect(on_detected)
+        detector.detect_async()
+
+        # Should emit immediately from cache without spawning worker
+        assert len(signal_received) == 1
+        has_gpu, _, encoders = signal_received[0]
+        assert has_gpu is True
+        assert "h264_nvenc" in encoders

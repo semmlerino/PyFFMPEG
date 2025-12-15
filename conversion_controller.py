@@ -9,9 +9,13 @@ import os
 import shutil
 import subprocess
 import time
-from typing import Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 from PySide6.QtCore import QObject, QProcess, QRunnable, QThreadPool, Signal
+
+if TYPE_CHECKING:
+    from file_list_widget import FileListWidget
+    from process_monitor import ProcessMonitor
 
 from codec_helpers import CodecHelpers
 from config import EncodingConfig, ValidationConfig
@@ -61,12 +65,26 @@ class ConversionController(QObject):
     log_message = Signal(str)  # For main log messages
     progress_updated = Signal()  # For UI progress updates
 
-    def __init__(self, process_manager: ProcessManager, parent=None):
+    def __init__(
+        self,
+        process_manager: ProcessManager,
+        parent=None,
+        process_monitor: Optional["ProcessMonitor"] = None,
+        file_list_widget: Optional["FileListWidget"] = None,
+    ):
+        """Initialize the conversion controller.
+
+        Args:
+            process_manager: The process manager for FFmpeg process handling
+            parent: Optional Qt parent object
+            process_monitor: Optional process monitor for widget creation (can be set later)
+            file_list_widget: Optional file list widget for status updates (can be set later)
+        """
         super().__init__(parent)
         self.logger = get_logger()
         self.process_manager = process_manager
-        self.process_monitor = None  # Will be set later
-        self.file_list_widget = None  # Will be set later
+        self.process_monitor = process_monitor
+        self.file_list_widget = file_list_widget
 
         # Conversion state
         self.is_converting = False

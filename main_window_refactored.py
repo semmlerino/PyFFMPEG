@@ -5,7 +5,6 @@ Uses focused classes for better separation of concerns
 """
 
 import os
-import shutil
 import sys
 from typing import Any, Optional
 
@@ -28,6 +27,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from codec_helpers import GPUDetector
 from config import AppConfig, LogConfig
 from conversion_controller import ConversionController
 
@@ -48,7 +48,6 @@ class MainWindow(QMainWindow):
         self.resize(AppConfig.DEFAULT_WINDOW_WIDTH, AppConfig.DEFAULT_WINDOW_HEIGHT)
 
         self.settings = QSettings(AppConfig.SETTINGS_ORG, AppConfig.SETTINGS_APP)
-        self._check_ffmpeg()
 
         # State
         self.last_dir = self.settings.value("lastDir", os.getcwd())
@@ -56,8 +55,15 @@ class MainWindow(QMainWindow):
 
         # Initialize core components
         self.process_manager = ProcessManager(self)
+        self.process_manager.ffmpeg_detected.connect(self._on_ffmpeg_detected)
+        self.process_manager.detect_ffmpeg_async()  # Start async detection early
         self.conversion_controller = ConversionController(self.process_manager, self)
         self.settings_panel = SettingsPanel(self)
+
+        # Start async GPU detection to populate codec caches early
+        self.gpu_detector = GPUDetector(self)
+        self.gpu_detector.gpu_detected.connect(self._on_gpu_detected)
+        self.gpu_detector.detect_async()
 
         # Initialize UI update manager for efficient updates
         self.ui_update_manager = UIUpdateManager(self)
@@ -85,15 +91,39 @@ class MainWindow(QMainWindow):
         if self.file_list:
             self.conversion_controller.set_file_list_widget(self.file_list)
 
-    def _check_ffmpeg(self):
-        """Check if FFmpeg is available"""
-        if not shutil.which("ffmpeg"):
+    def _on_ffmpeg_detected(self, available: bool, path_or_error: str) -> None:
+        """Handle FFmpeg detection result from async check."""
+        if not available:
             QMessageBox.critical(
-                None,
+                self,
                 "FFmpeg Not Found",
-                "FFmpeg executable not found in PATH. Please install or add to PATH.",
+                f"FFmpeg executable not found. {path_or_error}\n\n"
+                "Please install FFmpeg or add it to PATH.",
             )
-            sys.exit(1)
+            # Disable conversion controls
+            if self.start_btn:
+                self.start_btn.setEnabled(False)
+            if hasattr(self, "status_bar") and self.status_bar:
+                self.status_bar.showMessage("FFmpeg not found - conversion disabled")
+
+    def _on_gpu_detected(
+        self, has_gpu: bool, gpu_name: str, available_encoders: str
+    ) -> None:
+        """Handle GPU detection result from async check.
+
+        Updates status bar with GPU information for user feedback.
+        The CodecHelpers cache is already updated by GPUDetector.
+        """
+        if has_gpu and gpu_name:
+            # Show brief GPU info in status if not converting
+            if not self.is_converting and hasattr(self, "status_bar") and self.status_bar:
+                current_msg = self.status_bar.currentMessage()
+                # Only update if showing "Ready" status
+                if current_msg.startswith("Ready"):
+                    self.status_bar.showMessage(f"Ready • {gpu_name} detected")
+            self._add_to_main_log(f"🎮 GPU detected: {gpu_name}")
+        else:
+            self._add_to_main_log("🎮 No GPU detected - using software encoding")
 
     def _init_ui(self):
         """Initialize the user interface"""
@@ -476,7 +506,7 @@ class MainWindow(QMainWindow):
         if self.file_list is None:
             raise RuntimeError("File list widget not initialized")
 
-        file_paths = self.file_list.get_file_paths_in_order()
+        file_paths = self.file_list.get_pending_files_in_order()
         if not file_paths:
             QMessageBox.warning(self, "No Files", "Please add files to convert first.")
             return
