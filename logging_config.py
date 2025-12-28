@@ -10,7 +10,7 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Any, ClassVar, Dict, Optional
+from typing import ClassVar, Dict, Optional, cast
 
 from PySide6.QtCore import QObject, Signal
 from typing_extensions import override
@@ -25,7 +25,7 @@ class PerformanceMetrics:
         self.conversion_times: Dict[str, float] = {}
         self.conversion_speeds: Dict[str, float] = {}  # MB/s
         self.error_counts: Dict[str, int] = {}
-        self.hardware_usage: Dict[str, Any] = {}
+        self.hardware_usage: Dict[str, object] = {}
 
     def start_conversion(self, file_path: str) -> None:
         """Start tracking conversion for a file"""
@@ -83,7 +83,7 @@ class UserFriendlyFormatter(logging.Formatter):
     }
 
     @override
-    def format(self, record):
+    def format(self, record: logging.LogRecord) -> str:
         # Add color and emoji prefix
         if getattr(record, "no_color", False):
             record.levelname = f"[{record.levelname}]"
@@ -114,9 +114,9 @@ class PyFFMPEGLogger(QObject):
 
     def __init__(self, name: str = "PyFFMPEG"):
         super().__init__()
-        self.name = name
-        self.logger = logging.getLogger(name)
-        self.metrics = PerformanceMetrics()
+        self.name: str = name
+        self.logger: logging.Logger = logging.getLogger(name)
+        self.metrics: PerformanceMetrics = PerformanceMetrics()
         self._setup_logging()
 
     def _setup_logging(self) -> None:
@@ -180,17 +180,17 @@ class PyFFMPEGLogger(QObject):
             except (PermissionError, OSError):
                 pass  # File logging disabled if handler creation fails
 
-    def debug(self, message: str, **kwargs) -> None:
+    def debug(self, message: str, **kwargs: object) -> None:
         """Log debug message"""
         self.logger.debug(message, extra=kwargs)
         self.log_message.emit(message, "DEBUG")
 
-    def info(self, message: str, **kwargs) -> None:
+    def info(self, message: str, **kwargs: object) -> None:
         """Log info message"""
         self.logger.info(message, extra=kwargs)
         self.log_message.emit(message, "INFO")
 
-    def warning(self, message: str, suggestion: Optional[str] = None, **kwargs) -> None:
+    def warning(self, message: str, suggestion: Optional[str] = None, **kwargs: object) -> None:
         """Log warning message with optional suggestion"""
         extra = kwargs.copy()
         if suggestion:
@@ -198,7 +198,7 @@ class PyFFMPEGLogger(QObject):
         self.logger.warning(message, extra=extra)
         self.log_message.emit(message, "WARNING")
 
-    def error(self, message: str, suggestion: Optional[str] = None, **kwargs) -> None:
+    def error(self, message: str, suggestion: Optional[str] = None, **kwargs: object) -> None:
         """Log error message with optional suggestion"""
         extra = kwargs.copy()
         if suggestion:
@@ -210,7 +210,7 @@ class PyFFMPEGLogger(QObject):
         )
         self.metrics.record_error("general")
 
-    def critical(self, message: str, suggestion: Optional[str] = None, **kwargs) -> None:
+    def critical(self, message: str, suggestion: Optional[str] = None, **kwargs: object) -> None:
         """Log critical message with optional suggestion"""
         extra = kwargs.copy()
         if suggestion:
@@ -225,7 +225,7 @@ class PyFFMPEGLogger(QObject):
         self.metrics.record_error("critical")
 
     def log_performance(
-        self, operation: str, duration: float, details: Optional[Dict[str, Any]] = None
+        self, operation: str, duration: float, details: Optional[Dict[str, object]] = None
     ) -> None:
         """Log performance metrics"""
         details = details or {}
@@ -305,7 +305,7 @@ class PyFFMPEGLogger(QObject):
         )
         self.metrics.record_error("timeout")
 
-    def get_metrics_summary(self) -> Dict[str, Any]:
+    def get_metrics_summary(self) -> Dict[str, object]:
         """Get current performance metrics summary"""
         return {
             "average_speed_mbps": self.metrics.get_average_speed(),
@@ -363,7 +363,7 @@ def log_shutdown() -> None:
         metrics,
     )
 
-    if metrics["total_conversions"] > 0:
+    if cast("int", metrics["total_conversions"]) > 0:
         logger.info(
             f"📊 Session summary: {metrics['total_conversions']} conversions, "
             f"{metrics['average_speed_mbps']:.1f} MB/s average speed, "

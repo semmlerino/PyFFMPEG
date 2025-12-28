@@ -4,11 +4,23 @@ Optimized Output Buffer for FFmpeg Processing
 Implements efficient batch processing and ring buffer for performance
 """
 
+from __future__ import annotations
+
 import re
 import threading
 import time
 from collections import deque
-from typing import Any, Dict, List, Optional, Pattern, Tuple
+from threading import Lock
+from typing import Pattern, TypedDict
+
+
+class ProgressData(TypedDict):
+    """Type definition for progress data returned by OutputBuffer"""
+
+    elapsed_sec: float
+    fps: int
+    frame: int
+    has_data: bool
 
 
 class OutputBuffer:
@@ -30,13 +42,13 @@ class OutputBuffer:
             batch_interval: Time interval for batch processing (seconds)
         """
         self.buffer: deque[str] = deque(maxlen=max_size)
-        self.pending_lines: List[str] = []
-        self.batch_interval = batch_interval
-        self.last_batch_time = time.time()
-        self.lock = threading.Lock()
+        self.pending_lines: list[str] = []
+        self.batch_interval: float = batch_interval
+        self.last_batch_time: float = time.time()
+        self.lock: Lock = threading.Lock()
 
         # Cached results
-        self.last_time_match: Optional[Tuple[int, int, float]] = None
+        self.last_time_match: tuple[int, int, float] | None = None
         self.last_fps: int = 0
         self.last_frame: int = 0
 
@@ -47,7 +59,7 @@ class OutputBuffer:
             lines = chunk.split("\n")
             self.pending_lines.extend(line for line in lines if line.strip())
 
-    def process_batch(self) -> Dict[str, Any]:
+    def process_batch(self) -> ProgressData:
         """
         Process pending lines in batch for better performance
 
@@ -92,12 +104,12 @@ class OutputBuffer:
 
         return self._get_cached_results()
 
-    def force_process(self) -> Dict[str, Any]:
+    def force_process(self) -> ProgressData:
         """Force immediate processing of pending data"""
         self.last_batch_time = 0  # Reset timer to force processing
         return self.process_batch()
 
-    def _get_cached_results(self) -> Dict[str, Any]:
+    def _get_cached_results(self) -> ProgressData:
         """Get cached results without processing"""
         if self.last_time_match:
             h, m, s = self.last_time_match
@@ -112,7 +124,7 @@ class OutputBuffer:
             "has_data": self.last_time_match is not None,
         }
 
-    def get_recent_lines(self, count: int = 50) -> List[str]:
+    def get_recent_lines(self, count: int = 50) -> list[str]:
         """Get recent output lines for display"""
         with self.lock:
             # Include both buffered and pending lines
@@ -133,9 +145,9 @@ class ProcessOutputManager:
     """Manages output buffers for multiple processes"""
 
     def __init__(self, batch_interval: float = 0.1):
-        self.buffers: Dict[str, OutputBuffer] = {}
-        self.base_batch_interval = batch_interval
-        self.lock = threading.Lock()
+        self.buffers: dict[str, OutputBuffer] = {}
+        self.base_batch_interval: float = batch_interval
+        self.lock: Lock = threading.Lock()
 
     def get_buffer(self, process_id: str) -> OutputBuffer:
         """Get or create buffer for process"""
@@ -162,11 +174,11 @@ class ProcessOutputManager:
     def remove_buffer(self, process_id: str) -> None:
         """Remove buffer for completed process"""
         with self.lock:
-            self.buffers.pop(process_id, None)
+            _ = self.buffers.pop(process_id, None)
 
-    def process_all_batches(self) -> Dict[str, Dict[str, Any]]:
+    def process_all_batches(self) -> dict[str, ProgressData]:
         """Process all pending batches and return results"""
-        results = {}
+        results: dict[str, ProgressData] = {}
         with self.lock:
             for process_id, buffer in self.buffers.items():
                 results[process_id] = buffer.process_batch()

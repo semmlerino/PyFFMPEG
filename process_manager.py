@@ -4,17 +4,20 @@ Process Manager Module for PyMPEG
 Handles the creation, management, and monitoring of FFmpeg processes
 """
 
+from __future__ import annotations
+
 import os
 import subprocess
 from collections import deque
+from collections.abc import Callable
 from threading import RLock
-from typing import Any, ClassVar, Dict, List, Optional, Set, Tuple
+from typing import ClassVar, Dict, List, Optional, Set, Tuple
 
 from PySide6.QtCore import QObject, QProcess, QRunnable, QThreadPool, Signal
 from typing_extensions import override
 
 from config import ProcessConfig
-from logging_config import get_logger
+from logging_config import PyFFMPEGLogger, get_logger
 from progress_tracker import ProcessProgressTracker
 
 
@@ -32,7 +35,7 @@ class FFmpegDetectionWorker(QRunnable):
 
     def __init__(self, signals: FFmpegDetectionSignals):
         super().__init__()
-        self.signals = signals
+        self.signals: FFmpegDetectionSignals = signals
 
     @override
     def run(self) -> None:
@@ -78,55 +81,56 @@ class ProcessManager(QObject):
     ffmpeg_detected: ClassVar[Signal] = Signal(bool, str)  # available, path or error message
 
     # Class-level cache for FFmpeg path
-    _ffmpeg_command_cache: Optional[str] = None
-    _ffmpeg_available_cache: Optional[bool] = None
+    _ffmpeg_command_cache: ClassVar[Optional[str]] = None
+    _ffmpeg_available_cache: ClassVar[Optional[bool]] = None
 
-    # Process ID counter to avoid collisions
-    _process_id_counter = 0
+    # Process ID counter to avoid collisions (thread-safe with lock)
+    _process_id_counter: ClassVar[int] = 0
+    _process_id_lock: ClassVar[RLock] = RLock()
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: Optional[QObject] = None):
         super().__init__(parent)
 
         # Initialize logger
-        self.logger = get_logger()
+        self.logger: PyFFMPEGLogger = get_logger()
 
         # Initialize process tracking
         self.processes: List[Tuple[QProcess, str]] = []
-        self.process_widgets: Dict[QProcess, Dict[str, Any]] = {}
+        self.process_widgets: Dict[QProcess, dict[str, object]] = {}
 
         # Use deque for memory-efficient circular buffers
         self.process_logs: Dict[QProcess, deque[str]] = {}  # Circular buffer for logs
         self.process_outputs: Dict[QProcess, deque[str]] = {}  # Circular buffer for outputs
-        self._base_max_log_lines = 500  # Base maximum lines per process log
-        self._current_max_log_lines = (
+        self._base_max_log_lines: int = 500  # Base maximum lines per process log
+        self._current_max_log_lines: int = (
             500  # Dynamically adjusted based on active processes
         )
         # Lock to protect buffer operations during resize (prevents race condition)
-        self._buffer_lock = RLock()
+        self._buffer_lock: RLock = RLock()
 
         # Map QProcess to unique IDs
         self.process_ids: Dict[QProcess, str] = {}
 
         # Track signal connections for proper cleanup
-        self.process_connections: Dict[QProcess, List[Any]] = {}
+        self.process_connections: Dict[QProcess, List[Tuple[str, Callable[..., None]]]] = {}
 
         # Queue management
         self.queue: List[str] = []
-        self.total = 0
-        self.completed = 0
+        self.total: int = 0
+        self.completed: int = 0
 
         # Progress tracking
-        self.progress_tracker = ProcessProgressTracker()
+        self.progress_tracker: ProcessProgressTracker = ProcessProgressTracker()
         self.codec_map: Dict[str, int] = {}  # Maps file paths to codec indices
         self.output_map: Dict[str, str] = {}  # Maps input paths to output paths
 
         # Timer management (simplified with UI update manager)
-        self._last_activity_time = 0
+        self._last_activity_time: float = 0
 
         # Conversion state
-        self.stopping = False
-        self.parallel_enabled = False
-        self.max_parallel = 1
+        self.stopping: bool = False
+        self.parallel_enabled: bool = False
+        self.max_parallel: int = 1
 
         # FFmpeg detection signals for async detection
         self._detection_signals: Optional[FFmpegDetectionSignals] = None
@@ -150,7 +154,7 @@ class ProcessManager(QObject):
 
         # Run detection in background
         self._detection_signals = FFmpegDetectionSignals()
-        self._detection_signals.detection_complete.connect(self._on_ffmpeg_detected)
+        _ = self._detection_signals.detection_complete.connect(self._on_ffmpeg_detected)
         worker = FFmpegDetectionWorker(self._detection_signals)
         QThreadPool.globalInstance().start(worker)
 
@@ -183,10 +187,13 @@ class ProcessManager(QObject):
         self.progress_tracker.start_batch(self.total)
 
     def _get_process_id(self, process: QProcess) -> str:
-        """Get or create a unique ID for a process"""
+        """Get or create a unique ID for a process (thread-safe)"""
         if process not in self.process_ids:
-            ProcessManager._process_id_counter += 1
-            self.process_ids[process] = f"process_{ProcessManager._process_id_counter}"
+            with ProcessManager._process_id_lock:
+                # Double-check inside lock to prevent race
+                if process not in self.process_ids:
+                    ProcessManager._process_id_counter += 1
+                    self.process_ids[process] = f"process_{ProcessManager._process_id_counter}"
         return self.process_ids[process]
 
     def _adjust_buffer_sizes(self):
@@ -261,27 +268,27 @@ class ProcessManager(QObject):
         process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
 
         # Set up signals and track connections for cleanup
-        connections = []
+        connections: List[Tuple[str, Callable[..., None]]] = []
 
         # Output handling connection
-        def output_handler(p=process):
+        def output_handler(p: QProcess = process) -> None:
             return self._handle_process_output(p)
 
-        process.readyReadStandardOutput.connect(output_handler)
+        _ = process.readyReadStandardOutput.connect(output_handler)
         connections.append(("readyReadStandardOutput", output_handler))
 
         # Error handling connection
-        def error_handler(error, p=process, path=path):
+        def error_handler(error: QProcess.ProcessError, p: QProcess = process, path: str = path) -> None:
             return self._handle_process_error(error, p, path)
 
-        process.errorOccurred.connect(error_handler)
+        _ = process.errorOccurred.connect(error_handler)
         connections.append(("errorOccurred", error_handler))
 
         # Finished handling connection - this is critical for marking completion
-        def finished_handler(exit_code, _exit_status, p=process, process_path=path):
+        def finished_handler(exit_code: int, _exit_status: QProcess.ExitStatus, p: QProcess = process, process_path: str = path) -> None:
             return self.mark_process_finished(p, process_path, exit_code)
 
-        process.finished.connect(finished_handler)
+        _ = process.finished.connect(finished_handler)
         connections.append(("finished", finished_handler))
 
         # Store connections for cleanup
@@ -330,7 +337,7 @@ class ProcessManager(QObject):
             duration = self.progress_tracker.probe_duration(path) or 0.0
         process_id = self._get_process_id(process)
         # Always register, even with unknown duration - this ensures progress reaches 100%
-        self.progress_tracker.register_process(process_id, path, duration)
+        _ = self.progress_tracker.register_process(process_id, path, duration)
 
         # Store codec information for this file (using passed codec_idx, not parsed from args)
         if codec_idx >= 0:
@@ -358,8 +365,6 @@ class ProcessManager(QObject):
         self.queue = []
 
         return self.processes.copy()
-
-    # Duplicate process_finished removed to resolve mypy no-redef error.
 
     def _handle_process_output(self, process: QProcess):
         """Process output from an FFmpeg process.
@@ -467,7 +472,7 @@ class ProcessManager(QObject):
         """
         return any(p is process for p, _ in self.processes)
 
-    def _handle_process_error(self, error, process: QProcess, path: str) -> None:
+    def _handle_process_error(self, error: QProcess.ProcessError, process: QProcess, path: str) -> None:
         """Enhanced error handling for process errors"""
         error_names = {
             QProcess.ProcessError.FailedToStart: "FailedToStart",
@@ -543,7 +548,7 @@ class ProcessManager(QObject):
             # Mark as failed and emit finished signal to continue queue
             self.mark_process_finished(process, path, -1)
 
-    def get_overall_progress(self) -> Dict[str, Any]:
+    def get_overall_progress(self) -> dict[str, object]:
         """Get overall progress information"""
         return self.progress_tracker.get_overall_progress()
 
@@ -551,7 +556,7 @@ class ProcessManager(QObject):
         """Get distribution of active encoders by type"""
         return self.progress_tracker.get_codec_distribution(self.codec_map)
 
-    def get_process_progress(self, process: QProcess) -> Optional[Dict[str, Any]]:
+    def get_process_progress(self, process: QProcess) -> Optional[dict[str, object]]:
         """Get progress information for a specific process"""
         process_id = self._get_process_id(process)
         return self.progress_tracker.get_process_progress(process_id)
@@ -601,11 +606,11 @@ class ProcessManager(QObject):
             try:
                 for signal_name, handler in self.process_connections[process]:
                     if signal_name == "readyReadStandardOutput":
-                        process.readyReadStandardOutput.disconnect(handler)
+                        _ = process.readyReadStandardOutput.disconnect(handler)
                     elif signal_name == "errorOccurred":
-                        process.errorOccurred.disconnect(handler)
+                        _ = process.errorOccurred.disconnect(handler)
                     elif signal_name == "finished":
-                        process.finished.disconnect(handler)
+                        _ = process.finished.disconnect(handler)
             except Exception as e:
                 self.logger.warning(f"Error disconnecting signals: {e}")
             finally:
@@ -619,10 +624,10 @@ class ProcessManager(QObject):
 
         # Clean up logs and outputs (deques automatically handle memory)
         if process in self.process_logs:
-            self.process_logs.pop(process)  # Deque is already size-limited
+            _ = self.process_logs.pop(process)  # Deque is already size-limited
 
         if process in self.process_outputs:
-            self.process_outputs.pop(process)  # Deque is already size-limited
+            _ = self.process_outputs.pop(process)  # Deque is already size-limited
 
         # Remove from codec mapping
         if process_path and process_path in self.codec_map:
@@ -645,7 +650,7 @@ class ProcessManager(QObject):
         for process, _ in self.processes:
             if process.state() != QProcess.ProcessState.NotRunning:
                 process.kill()
-                process.waitForFinished(3000)  # Wait up to 3 seconds
+                _ = process.waitForFinished(3000)  # Wait up to 3 seconds
 
         # Clear all tracking structures
         self.processes.clear()
@@ -669,7 +674,7 @@ class ProcessManager(QObject):
         """Set process priority. Priority can be 'high', 'normal', or 'low'."""
         try:
             if os.name == "nt":  # Windows
-                priority_classes = {
+                priority_classes = {  # pyright: ignore[reportUnreachable]
                     "high": subprocess.HIGH_PRIORITY_CLASS,
                     "normal": subprocess.NORMAL_PRIORITY_CLASS,
                     "low": subprocess.IDLE_PRIORITY_CLASS,

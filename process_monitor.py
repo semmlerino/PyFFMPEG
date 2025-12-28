@@ -4,9 +4,11 @@ Process Monitor Module for PyMPEG
 Handles process widget creation, monitoring, and progress display
 """
 
+from __future__ import annotations
+
 import os
 import time
-from typing import Any, ClassVar, Dict
+from typing import TYPE_CHECKING, ClassVar
 
 from PySide6.QtCore import QObject, QProcess, QTimer, Signal
 from PySide6.QtWidgets import (
@@ -21,7 +23,12 @@ from PySide6.QtWidgets import (
 
 from config import UIConfig
 from logging_config import get_logger
-from process_manager import ProcessManager
+
+if TYPE_CHECKING:
+    from logging_config import PyFFMPEGLogger
+    from process_manager import ProcessManager
+else:
+    from process_manager import ProcessManager
 
 
 class ProcessMonitor(QObject):
@@ -32,8 +39,14 @@ class ProcessMonitor(QObject):
     widget_removed: ClassVar[Signal] = Signal(QWidget, QProcess)  # widget, process
     progress_updated: ClassVar[Signal] = Signal(dict)  # progress data
 
+    logger: PyFFMPEGLogger
+    process_manager: ProcessManager
+    scroll_area: QScrollArea
+    process_widgets: dict[QProcess, dict[str, object]]
+    removal_timer: QTimer
+
     def __init__(
-        self, process_manager: ProcessManager, scroll_area: QScrollArea, parent=None
+        self, process_manager: ProcessManager, scroll_area: QScrollArea, parent: QWidget | None = None
     ):
         super().__init__(parent)
         self.logger = get_logger()
@@ -41,22 +54,24 @@ class ProcessMonitor(QObject):
         self.scroll_area = scroll_area
 
         # Track process widgets and their data
-        self.process_widgets: Dict[QProcess, Dict[str, Any]] = {}
+        self.process_widgets = {}
 
         # Widget removal timer
         self.removal_timer = QTimer()
-        self.removal_timer.timeout.connect(self._cleanup_old_widgets)
+        _ = self.removal_timer.timeout.connect(self._cleanup_old_widgets)
         self.removal_timer.start(UIConfig.WIDGET_REMOVAL_DELAY)
 
         # Connect to process manager signals
-        self.process_manager.update_progress.connect(self._update_all_progress)
-        self.process_manager.process_finished.connect(self._on_process_finished)
+        _ = self.process_manager.update_progress.connect(self._update_all_progress)
+        _ = self.process_manager.process_finished.connect(self._on_process_finished)
 
     def create_process_widget(self, process: QProcess, path: str) -> QWidget:
         """Create a progress widget for a process"""
         try:
             if process in self.process_widgets:
-                return self.process_widgets[process]["widget"]
+                widget = self.process_widgets[process]["widget"]
+                assert isinstance(widget, QWidget)
+                return widget
 
             # Create main widget
             widget = QFrame()
@@ -163,16 +178,18 @@ class ProcessMonitor(QObject):
         widget_data["cleanup_scheduled"] = True
 
         # Update status to show completion
-        status_label = widget_data["status_label"]
-        progress_bar = widget_data["progress_bar"]
+        status_label_obj = widget_data["status_label"]
+        progress_bar_obj = widget_data["progress_bar"]
+        assert isinstance(status_label_obj, QLabel)
+        assert isinstance(progress_bar_obj, QProgressBar)
 
         if process.exitCode() == 0:
-            status_label.setText("✅ Completed")
-            status_label.setStyleSheet(
+            status_label_obj.setText("✅ Completed")
+            status_label_obj.setStyleSheet(
                 "color: #27ae60; font-size: 11px; font-weight: bold;"
             )
-            progress_bar.setValue(100)
-            progress_bar.setStyleSheet("""
+            progress_bar_obj.setValue(100)
+            progress_bar_obj.setStyleSheet("""
                 QProgressBar {
                     border: 1px solid #27ae60;
                     border-radius: 3px;
@@ -185,11 +202,11 @@ class ProcessMonitor(QObject):
                 }
             """)
         else:
-            status_label.setText("❌ Failed")
-            status_label.setStyleSheet(
+            status_label_obj.setText("❌ Failed")
+            status_label_obj.setStyleSheet(
                 "color: #e74c3c; font-size: 11px; font-weight: bold;"
             )
-            progress_bar.setStyleSheet("""
+            progress_bar_obj.setStyleSheet("""
                 QProgressBar {
                     border: 1px solid #e74c3c;
                     border-radius: 3px;
@@ -203,7 +220,9 @@ class ProcessMonitor(QObject):
             """)
 
         # Emit signal
-        self.widget_removed.emit(widget_data["widget"], process)
+        widget_obj = widget_data["widget"]
+        assert isinstance(widget_obj, QWidget)
+        self.widget_removed.emit(widget_obj, process)
 
     def _update_all_progress(self) -> None:
         """Update progress for all active process widgets"""
@@ -225,36 +244,42 @@ class ProcessMonitor(QObject):
     def _update_process_widget(
         self,
         process: QProcess,
-        progress_data: Dict[str, Any],
-        widget_data: Dict[str, Any],
+        progress_data: dict[str, object],
+        widget_data: dict[str, object],
     ) -> None:
         """Update a specific process widget with progress data"""
         try:
-            pct = progress_data.get("current_pct", 0)
-            fps = progress_data.get("fps", 0)
-            elapsed_str = progress_data.get("elapsed_str", "00:00:00")
-            remain_str = progress_data.get("remain_str", "00:00:00")
+            pct_obj = progress_data.get("current_pct", 0)
+            fps_obj = progress_data.get("fps", 0)
+            elapsed_str_obj = progress_data.get("elapsed_str", "00:00:00")
+            remain_str_obj = progress_data.get("remain_str", "00:00:00")
+
+            # Type narrowing with assertions
+            pct = int(pct_obj) if isinstance(pct_obj, (int, float)) else 0
+            fps = float(fps_obj) if isinstance(fps_obj, (int, float)) else 0.0
+            elapsed_str = str(elapsed_str_obj) if isinstance(elapsed_str_obj, str) else "00:00:00"
+            remain_str = str(remain_str_obj) if isinstance(remain_str_obj, str) else "00:00:00"
 
             # Update progress bar
-            progress_bar = widget_data.get("progress_bar")
-            if progress_bar is not None:
-                progress_bar.setValue(pct)
+            progress_bar_obj = widget_data.get("progress_bar")
+            if isinstance(progress_bar_obj, QProgressBar):
+                progress_bar_obj.setValue(pct)
 
             # Update progress info
-            progress_info = widget_data.get("progress_info")
-            if progress_info is not None:
-                progress_info.setText(f"{pct}% • {fps} fps")
+            progress_info_obj = widget_data.get("progress_info")
+            if isinstance(progress_info_obj, QLabel):
+                progress_info_obj.setText(f"{pct}% • {fps} fps")
 
             # Update time info
-            time_info = widget_data.get("time_info")
-            if time_info is not None:
-                time_info.setText(f"{elapsed_str} / {remain_str}")
+            time_info_obj = widget_data.get("time_info")
+            if isinstance(time_info_obj, QLabel):
+                time_info_obj.setText(f"{elapsed_str} / {remain_str}")
 
             # Update status
-            status_label = widget_data.get("status_label")
-            if status_label is not None and pct > 0:
-                status_label.setText(f"Encoding ({pct}%)")
-                status_label.setStyleSheet("color: #3498db; font-size: 11px;")
+            status_label_obj = widget_data.get("status_label")
+            if isinstance(status_label_obj, QLabel) and pct > 0:
+                status_label_obj.setText(f"Encoding ({pct}%)")
+                status_label_obj.setStyleSheet("color: #3498db; font-size: 11px;")
 
         except Exception as e:
             self.logger.error(
@@ -285,14 +310,23 @@ class ProcessMonitor(QObject):
     def _cleanup_old_widgets(self) -> None:
         """Clean up widgets that have been finished for a while"""
         current_time = time.time()
-        widgets_to_remove = []
+        widgets_to_remove: list[QProcess] = []
+
+        # Convert WIDGET_REMOVAL_DELAY from ms to seconds for time.time() comparison
+        removal_delay_sec = UIConfig.WIDGET_REMOVAL_DELAY / 1000.0
 
         for process, widget_data in self.process_widgets.items():
+            cleanup_scheduled = widget_data.get("cleanup_scheduled")
+            finished_time_obj = widget_data.get("finished_time")
+
+            # Type narrowing
+            is_cleanup_scheduled = bool(cleanup_scheduled) if cleanup_scheduled is not None else False
+            finished_time = float(finished_time_obj) if isinstance(finished_time_obj, (int, float)) else None
+
             if (
-                widget_data["cleanup_scheduled"]
-                and widget_data["finished_time"]
-                and current_time - widget_data["finished_time"]
-                > UIConfig.WIDGET_REMOVAL_DELAY / 1000
+                is_cleanup_scheduled
+                and finished_time is not None
+                and current_time - finished_time > removal_delay_sec
             ):
                 widgets_to_remove.append(process)
 
@@ -305,16 +339,17 @@ class ProcessMonitor(QObject):
             return
 
         widget_data = self.process_widgets[process]
-        widget = widget_data["widget"]
+        widget_obj = widget_data["widget"]
+        assert isinstance(widget_obj, QWidget)
 
         # Remove from scroll area
         scroll_widget = self.scroll_area.widget()
         if scroll_widget:
             layout = scroll_widget.layout()
             if layout is not None:
-                layout.removeWidget(widget)
-                widget.setParent(None)
-                widget.deleteLater()
+                layout.removeWidget(widget_obj)
+                widget_obj.setParent(None)
+                widget_obj.deleteLater()
 
         # Remove from tracking
         del self.process_widgets[process]
@@ -345,7 +380,7 @@ class ProcessMonitor(QObject):
     def get_active_widget_count(self) -> int:
         """Get the number of active process widgets"""
         return len(
-            [w for w in self.process_widgets.values() if not w["cleanup_scheduled"]]
+            [w for w in self.process_widgets.values() if not w.get("cleanup_scheduled", False)]
         )
 
     def get_total_widget_count(self) -> int:

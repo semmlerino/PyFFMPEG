@@ -10,12 +10,24 @@ import json
 import os
 import subprocess
 import time
-from typing import Any, ClassVar, Dict, List, Optional, Tuple
+from typing import ClassVar, Dict, List, Optional, Tuple, TypedDict
 
 from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal
 from typing_extensions import override
 
-from config import EncodingConfig, FileConfig, HardwareConfig, ProcessConfig
+from config import CodecIndex, EncodingConfig, FileConfig, HardwareConfig, ProcessConfig
+
+
+class VideoMetadata(TypedDict):
+    """Type definition for video metadata extracted from ffprobe."""
+    duration: str
+    duration_seconds: float
+    width: int
+    height: int
+    codec: str
+    bitrate: str
+    bitrate_bps: Optional[int]
+    format_name: str
 
 
 class GPUDetectionSignals(QObject):
@@ -32,7 +44,7 @@ class GPUDetectionWorker(QRunnable):
 
     def __init__(self, signals: GPUDetectionSignals):
         super().__init__()
-        self.signals = signals
+        self.signals: GPUDetectionSignals = signals
 
     @override
     def run(self) -> None:
@@ -119,7 +131,7 @@ class GPUDetector(QObject):
 
         # Run detection in background
         self._detection_signals = GPUDetectionSignals()
-        self._detection_signals.detection_complete.connect(self._on_detection_complete)
+        _ = self._detection_signals.detection_complete.connect(self._on_detection_complete)
         worker = GPUDetectionWorker(self._detection_signals)
         QThreadPool.globalInstance().start(worker)
 
@@ -186,9 +198,9 @@ class CodecHelpers:
     @staticmethod
     def get_output_extension(codec_idx: int) -> str:
         """Determine output file extension based on codec index"""
-        if codec_idx in [0, 1, 2, 3, 5, 6]:  # H.264, HEVC, AV1, QSV, VAAPI
+        if codec_idx in CodecIndex.MP4_CODECS:
             return ".mp4"
-        if codec_idx == 4:  # ProRes
+        if codec_idx == CodecIndex.PRORES:
             return ".mov"
         return ".mp4"  # Default
 
@@ -229,7 +241,8 @@ class CodecHelpers:
                     message = "Using VAAPI hardware acceleration with surface output"
                 else:
                     # Windows fallback for VAAPI selection
-                    args.extend(["-hwaccel", "auto"])
+                    # Note: This appears unreachable on Linux but is needed for Windows
+                    args.extend(["-hwaccel", "auto"])  # pyright: ignore[reportUnreachable]
                     message = "VAAPI not available, falling back to auto"
         except (subprocess.TimeoutExpired, subprocess.CalledProcessError, OSError) as e:
             # If any error occurs, fall back to software decoding
@@ -275,7 +288,7 @@ class CodecHelpers:
                 message = f"Detected {audio_codec} audio - using passthrough"
             else:
                 # Handle ProRes special case, otherwise AAC
-                if codec_idx == 4:  # ProRes
+                if codec_idx == CodecIndex.PRORES:
                     args.extend(["-c:a", "pcm_s16le"])
                     message = "Using PCM audio for ProRes"
                 else:
@@ -290,7 +303,7 @@ class CodecHelpers:
                     message = f"Converting audio to AAC {EncodingConfig.AUDIO_BITRATE_DEFAULT}k"
         except (subprocess.TimeoutExpired, subprocess.CalledProcessError, OSError):
             # Fallback to default encoding on error
-            if codec_idx == 4:  # ProRes
+            if codec_idx == CodecIndex.PRORES:
                 args.extend(["-c:a", "pcm_s16le"])
                 message = "Fallback to PCM audio for ProRes"
             else:
@@ -310,20 +323,14 @@ class CodecHelpers:
         _is_parallel_enabled: bool,
         crf_value: int,
         hevc_10bit: bool = False,
-        _nvenc_settings: Optional[Dict[str, Any]] = None,
+        _nvenc_settings: Optional[object] = None,
         preset_idx: int = 0,
     ) -> Tuple[List[str], str]:
-        """Get encoder configuration arguments based on codec index
-        Returns a tuple of (args_list, message_for_log)
+        """Get encoder configuration arguments based on codec index.
 
-        Codec mapping:
-        0 = H.264 NVENC
-        1 = HEVC NVENC
-        2 = AV1 NVENC
-        3 = x264 CPU
-        4 = ProRes CPU
-        5 = H.264 QSV
-        6 = H.264 VAAPI
+        Returns a tuple of (args_list, message_for_log).
+
+        Codec indices are defined in CodecIndex class (config.py).
 
         Preset mapping (preset_idx from UI):
         0 = Standard, 1 = High Quality, 2 = Fast, 3 = Ultra Fast
@@ -347,7 +354,7 @@ class CodecHelpers:
             available_encoders = CodecHelpers._get_available_encoders()
 
             # H.264 NVENC
-            if codec_idx == 0 and "h264_nvenc" in available_encoders:
+            if codec_idx == CodecIndex.H264_NVENC and "h264_nvenc" in available_encoders:
                 args.extend(
                     [
                         "-c:v",
@@ -377,7 +384,7 @@ class CodecHelpers:
                 message = "Using H.264 NVENC hardware encoding"
 
             # HEVC NVENC
-            elif codec_idx == 1 and "hevc_nvenc" in available_encoders:
+            elif codec_idx == CodecIndex.HEVC_NVENC and "hevc_nvenc" in available_encoders:
                 args.extend(
                     [
                         "-c:v",
@@ -409,7 +416,7 @@ class CodecHelpers:
                 message = "Using HEVC NVENC hardware encoding"
 
             # AV1 NVENC
-            elif codec_idx == 2 and "av1_nvenc" in available_encoders:
+            elif codec_idx == CodecIndex.AV1_NVENC and "av1_nvenc" in available_encoders:
                 args.extend(
                     [
                         "-c:v",
@@ -435,7 +442,7 @@ class CodecHelpers:
                 message = "Using AV1 NVENC hardware encoding"
 
             # x264 CPU
-            elif codec_idx == 3:
+            elif codec_idx == CodecIndex.X264_CPU:
                 args.extend(
                     [
                         "-c:v",
@@ -453,7 +460,7 @@ class CodecHelpers:
                 message = "Using x264 CPU encoding"
 
             # ProRes
-            elif codec_idx == 4:
+            elif codec_idx == CodecIndex.PRORES:
                 args.extend(
                     [
                         "-c:v",
@@ -471,7 +478,7 @@ class CodecHelpers:
                 message = "Using ProRes 422 encoding"
 
             # H.264 QSV
-            elif codec_idx == 5 and "h264_qsv" in available_encoders:
+            elif codec_idx == CodecIndex.H264_QSV and "h264_qsv" in available_encoders:
                 # Full QSV pipeline: init device, set filter device, hwupload filter
                 args.extend(
                     [
@@ -486,7 +493,7 @@ class CodecHelpers:
                 message = "Using H.264 QSV hardware encoding with surface upload"
 
             # H.264 VAAPI
-            elif codec_idx == 6 and "h264_vaapi" in available_encoders:
+            elif codec_idx == CodecIndex.H264_VAAPI and "h264_vaapi" in available_encoders:
                 # Full VAAPI pipeline: device init and hwupload filter
                 vaapi_device = os.environ.get("VAAPI_DEVICE", "/dev/dri/renderD128")
                 args.extend(
@@ -733,7 +740,7 @@ class CodecHelpers:
             CodecHelpers._rtx40_detection_cache_time = now
 
     @staticmethod
-    def extract_video_metadata(file_path: str) -> Optional[Dict[str, Any]]:
+    def extract_video_metadata(file_path: str) -> Optional[VideoMetadata]:
         """Extract video metadata using ffprobe
 
         Returns:
@@ -762,59 +769,85 @@ class CodecHelpers:
             if result.returncode != 0:
                 return None
 
-            data = json.loads(result.stdout)
+            # Parse JSON with type safety
+            # json.loads returns object, validate structure with isinstance
+            # Note: Type checker cannot infer dict structure from json.loads,
+            # so we suppress type warnings after runtime validation
+            data_obj: object = json.loads(result.stdout)  # pyright: ignore[reportAny]
+            if not isinstance(data_obj, dict):
+                return None
 
             # Find video stream
-            video_stream = None
-            for stream in data.get("streams", []):
-                if stream.get("codec_type") == "video":
-                    video_stream = stream
+            streams_obj = data_obj.get("streams")  # pyright: ignore[reportUnknownMemberType,reportUnknownVariableType]
+            if not isinstance(streams_obj, list):
+                return None
+
+            video_stream_obj: Optional[object] = None
+            for stream_obj in streams_obj:  # pyright: ignore[reportUnknownVariableType]
+                if isinstance(stream_obj, dict) and stream_obj.get("codec_type") == "video":  # pyright: ignore[reportUnknownMemberType]
+                    video_stream_obj = stream_obj  # pyright: ignore[reportUnknownVariableType]
                     break
 
-            if not video_stream:
+            if not isinstance(video_stream_obj, dict):
                 return None
 
             # Extract format info
-            format_info = data.get("format", {})
+            format_info_obj = data_obj.get("format")  # pyright: ignore[reportUnknownMemberType,reportUnknownVariableType]
+            if not isinstance(format_info_obj, dict):
+                return None
 
             # Parse duration
-            duration_str = format_info.get("duration", "0")
+            duration_obj = format_info_obj.get("duration", "0")  # pyright: ignore[reportUnknownMemberType,reportUnknownVariableType]
+            duration_str = str(duration_obj) if duration_obj is not None else "0"  # pyright: ignore[reportUnknownArgumentType]
             try:
                 duration_seconds = float(duration_str)
                 duration_formatted = CodecHelpers._format_duration(duration_seconds)
             except (ValueError, TypeError):
                 duration_formatted = "Unknown"
-                duration_seconds = 0
+                duration_seconds = 0.0
 
-            # Extract video properties
-            width = video_stream.get("width", 0)
-            height = video_stream.get("height", 0)
-            codec_name = video_stream.get("codec_name", "Unknown")
+            # Extract video properties with type safety
+            width_obj = video_stream_obj.get("width", 0)  # pyright: ignore[reportUnknownMemberType,reportUnknownVariableType]
+            width = int(width_obj) if isinstance(width_obj, (int, float)) else 0
 
-            # Calculate bitrate
-            bitrate_bps = None
-            if "bit_rate" in video_stream:
-                with contextlib.suppress(ValueError, TypeError):
-                    bitrate_bps = int(video_stream["bit_rate"])
+            height_obj = video_stream_obj.get("height", 0)  # pyright: ignore[reportUnknownMemberType,reportUnknownVariableType]
+            height = int(height_obj) if isinstance(height_obj, (int, float)) else 0
 
-            if not bitrate_bps and "bit_rate" in format_info:
-                with contextlib.suppress(ValueError, TypeError):
-                    bitrate_bps = int(format_info["bit_rate"])
+            codec_name_obj = video_stream_obj.get("codec_name", "Unknown")  # pyright: ignore[reportUnknownMemberType,reportUnknownVariableType]
+            codec_name = str(codec_name_obj) if codec_name_obj is not None else "Unknown"  # pyright: ignore[reportUnknownArgumentType]
+
+            # Calculate bitrate with type safety
+            bitrate_bps: Optional[int] = None
+            if "bit_rate" in video_stream_obj:
+                bitrate_obj = video_stream_obj["bit_rate"]  # pyright: ignore[reportUnknownVariableType]
+                if isinstance(bitrate_obj, (int, str)):
+                    with contextlib.suppress(ValueError, TypeError):
+                        bitrate_bps = int(bitrate_obj)
+
+            if not bitrate_bps and "bit_rate" in format_info_obj:
+                bitrate_obj = format_info_obj["bit_rate"]  # pyright: ignore[reportUnknownVariableType]
+                if isinstance(bitrate_obj, (int, str)):
+                    with contextlib.suppress(ValueError, TypeError):
+                        bitrate_bps = int(bitrate_obj)
 
             bitrate_formatted = (
                 CodecHelpers._format_bitrate(bitrate_bps) if bitrate_bps else "Unknown"
             )
 
-            return {
-                "duration": duration_formatted,
-                "duration_seconds": duration_seconds,
-                "width": width,
-                "height": height,
-                "codec": codec_name.upper(),
-                "bitrate": bitrate_formatted,
-                "bitrate_bps": bitrate_bps,
-                "format_name": format_info.get("format_name", "Unknown"),
-            }
+            # Extract format name with type safety
+            format_name_obj = format_info_obj.get("format_name", "Unknown")  # pyright: ignore[reportUnknownMemberType,reportUnknownVariableType]
+            format_name = str(format_name_obj) if format_name_obj is not None else "Unknown"  # pyright: ignore[reportUnknownArgumentType]
+
+            return VideoMetadata(
+                duration=duration_formatted,
+                duration_seconds=duration_seconds,
+                width=width,
+                height=height,
+                codec=codec_name.upper(),
+                bitrate=bitrate_formatted,
+                bitrate_bps=bitrate_bps,
+                format_name=format_name,
+            )
 
         except (
             subprocess.TimeoutExpired,
@@ -856,7 +889,7 @@ class CodecHelpers:
 
     @staticmethod
     def estimate_output_size(
-        input_metadata: Dict[str, Any], codec_idx: int, crf_value: int
+        input_metadata: VideoMetadata, codec_idx: int, crf_value: int
     ) -> Optional[str]:
         """Estimate output file size based on input metadata and encoding settings
 

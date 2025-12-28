@@ -6,7 +6,7 @@ Implements efficient UI updates with dirty flags and batching
 
 import time
 from collections import defaultdict
-from typing import Any, Dict, Optional
+from typing import Optional, Union
 
 from PySide6.QtCore import QObject, QTimer, Signal
 from PySide6.QtWidgets import QWidget
@@ -22,14 +22,14 @@ class UIUpdateManager(QObject):
         super().__init__(parent)
 
         # Dirty flags for different UI components
-        self.dirty_flags: Dict[str, bool] = defaultdict(bool)
+        self.dirty_flags: dict[str, bool] = defaultdict(bool)
 
         # Pending updates to be batched
-        self.pending_updates: Dict[str, Any] = {}
+        self.pending_updates: dict[str, object] = {}
 
         # Track update frequencies for adaptive timing
-        self.update_stats: Dict[str, float] = defaultdict(float)
-        self.last_update_time: Dict[str, float] = defaultdict(float)
+        self.update_stats: dict[str, float] = defaultdict(float)
+        self.last_update_time: dict[str, float] = defaultdict(float)
 
         # Animation frame timing (60 FPS = 16.67ms)
         self.frame_time: float = 16.67 / 1000.0  # Convert to seconds
@@ -49,7 +49,7 @@ class UIUpdateManager(QObject):
         self.low_activity_threshold: float = 2.0  # seconds
 
         # Component priorities
-        self.component_priorities: Dict[str, int] = {
+        self.component_priorities: dict[str, int] = {
             "progress_bar": 1,
             "status_label": 2,
             "fps_display": 3,
@@ -86,7 +86,7 @@ class UIUpdateManager(QObject):
         # Trigger interval adjustment
         self._adjust_update_interval()
 
-    def mark_dirty(self, component: str, data: Optional[Any] = None) -> None:
+    def mark_dirty(self, component: str, data: Optional[object] = None) -> None:
         """Mark a component as needing update"""
         self.dirty_flags[component] = True
         if data is not None:
@@ -106,7 +106,7 @@ class UIUpdateManager(QObject):
             return
 
         # Collect updates to perform
-        updates_to_perform: Dict[str, Any] = {}
+        updates_to_perform: dict[str, object] = {}
         components_to_update: list[str] = []
 
         # Sort components by priority
@@ -132,7 +132,7 @@ class UIUpdateManager(QObject):
         # Clear dirty flags for updated components
         for component in components_to_update:
             self.dirty_flags[component] = False
-            self.pending_updates.pop(component, None)
+            _ = self.pending_updates.pop(component, None)
 
         # Emit updates if any
         if updates_to_perform:
@@ -180,7 +180,7 @@ class UIUpdateManager(QObject):
             if self.update_timer.isActive():
                 self.update_timer.setInterval(new_interval)
 
-    def batch_update(self, updates: Dict[str, Any]) -> None:
+    def batch_update(self, updates: "dict[str, object]") -> None:
         """Batch multiple updates together"""
         for component, data in updates.items():
             self.mark_dirty(component, data)
@@ -200,9 +200,9 @@ class UIUpdateManager(QObject):
         # Trigger immediate update
         self._process_updates()
 
-    def get_update_stats(self) -> Dict[str, Dict[str, float]]:
+    def get_update_stats(self) -> "dict[str, dict[str, Union[float, bool]]]":
         """Get statistics about update frequencies"""
-        stats = {}
+        stats: dict[str, dict[str, Union[float, bool]]] = {}
         current_time = time.time()
 
         for component in self.dirty_flags:

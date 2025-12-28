@@ -4,6 +4,8 @@ Conversion Controller Module for PyMPEG
 Handles the core conversion logic, process management, and conversion workflow
 """
 
+from __future__ import annotations
+
 import contextlib
 import os
 import shutil
@@ -20,7 +22,7 @@ if TYPE_CHECKING:
 
 from codec_helpers import CodecHelpers
 from config import EncodingConfig, ValidationConfig
-from logging_config import get_logger
+from logging_config import PyFFMPEGLogger, get_logger
 from process_manager import ProcessManager
 from progress_tracker import ProcessProgressTracker
 
@@ -40,9 +42,9 @@ class ConversionPrepWorker(QRunnable):
 
     def __init__(self, file_path: str, codec_idx: int):
         super().__init__()
-        self.file_path = file_path
-        self.codec_idx = codec_idx
-        self.signals = PrepSignals()
+        self.file_path: str = file_path
+        self.codec_idx: int = codec_idx
+        self.signals: PrepSignals = PrepSignals()
 
     @override
     def run(self) -> None:
@@ -70,9 +72,9 @@ class ConversionController(QObject):
     def __init__(
         self,
         process_manager: ProcessManager,
-        parent=None,
-        process_monitor: Optional["ProcessMonitor"] = None,
-        file_list_widget: Optional["FileListWidget"] = None,
+        parent: Optional[QObject] = None,
+        process_monitor: Optional[ProcessMonitor] = None,
+        file_list_widget: Optional[FileListWidget] = None,
     ):
         """Initialize the conversion controller.
 
@@ -83,14 +85,14 @@ class ConversionController(QObject):
             file_list_widget: Optional file list widget for status updates (can be set later)
         """
         super().__init__(parent)
-        self.logger = get_logger()
-        self.process_manager = process_manager
-        self.process_monitor = process_monitor
-        self.file_list_widget = file_list_widget
+        self.logger: PyFFMPEGLogger = get_logger()
+        self.process_manager: ProcessManager = process_manager
+        self.process_monitor: Optional[ProcessMonitor] = process_monitor
+        self.file_list_widget: Optional[FileListWidget] = file_list_widget
 
         # Conversion state
-        self.is_converting = False
-        self.auto_balance_enabled = False
+        self.is_converting: bool = False
+        self.auto_balance_enabled: bool = False
         self.file_codec_assignments: Dict[str, int] = {}
         self.queue: List[str] = []
         self.current_path: Optional[str] = None
@@ -111,19 +113,19 @@ class ConversionController(QObject):
         self.smart_buffer: bool = True
 
         # Thread pool for async prep work (probe duration, audio codec detection)
-        self._prep_thread_pool = QThreadPool()
+        self._prep_thread_pool: QThreadPool = QThreadPool()
         # Track pending prep workers: path -> (codec_idx, ...)
         self._pending_preps: Dict[str, int] = {}
 
         # Connect process manager signals
-        self.process_manager.process_finished.connect(self._on_process_finished)
-        self.process_manager.update_progress.connect(self.progress_updated.emit)
+        _ = self.process_manager.process_finished.connect(self._on_process_finished)
+        _ = self.process_manager.update_progress.connect(self.progress_updated.emit)
 
-    def set_process_monitor(self, process_monitor):
+    def set_process_monitor(self, process_monitor: ProcessMonitor) -> None:
         """Set the process monitor after it's created"""
         self.process_monitor = process_monitor
 
-    def set_file_list_widget(self, file_list_widget):
+    def set_file_list_widget(self, file_list_widget: FileListWidget) -> None:
         """Set the file list widget for status updates"""
         self.file_list_widget = file_list_widget
 
@@ -210,7 +212,7 @@ class ConversionController(QObject):
     def cleanup(self) -> None:
         """Clean up resources before destruction."""
         # Wait for any in-flight prep workers to finish
-        self._prep_thread_pool.waitForDone(5000)
+        _ = self._prep_thread_pool.waitForDone(5000)
 
     def _validate_conversion_ready(self, file_paths: List[str]) -> Tuple[bool, str]:
         """Validate that conversion can proceed safely.
@@ -375,7 +377,7 @@ class ConversionController(QObject):
             # Mark all remaining files as failed and update progress tracking
             for remaining_path in self.queue:
                 if self.file_list_widget:
-                    self.file_list_widget.set_status(remaining_path, "failed")
+                    _ = self.file_list_widget.set_status(remaining_path, "failed")
                 # Count as failed (not skipped) for accurate progress breakdown
                 self.process_manager.progress_tracker.mark_file_failed()
             self.queue.clear()
@@ -402,7 +404,7 @@ class ConversionController(QObject):
                     f"⏭️ Skipped (output exists): {os.path.basename(file_path)}"
                 )
                 if self.file_list_widget:
-                    self.file_list_widget.set_status(file_path, "skipped")
+                    _ = self.file_list_widget.set_status(file_path, "skipped")
                 # Mark as completed for progress tracking (skipped counts toward total)
                 self.process_manager.progress_tracker.mark_file_skipped()
                 self._process_next()
@@ -412,13 +414,13 @@ class ConversionController(QObject):
 
         # Update file list status to processing
         if self.file_list_widget:
-            self.file_list_widget.set_status(file_path, "processing")
+            _ = self.file_list_widget.set_status(file_path, "processing")
 
         # Queue async prep worker to avoid blocking UI with subprocess calls
         # Worker will probe duration and detect audio codec in background
         self._pending_preps[file_path] = codec_idx
         worker = ConversionPrepWorker(file_path, codec_idx)
-        worker.signals.prep_complete.connect(self._on_prep_complete)
+        _ = worker.signals.prep_complete.connect(self._on_prep_complete)
         self._prep_thread_pool.start(worker)
 
     def _on_prep_complete(
@@ -461,7 +463,7 @@ class ConversionController(QObject):
             and process.state() != QProcess.ProcessState.NotRunning
             and self.process_manager.is_process_tracked(process)
         ):
-            self.process_monitor.create_process_widget(process, file_path)
+            _ = self.process_monitor.create_process_widget(process, file_path)
 
     def _build_ffmpeg_args(self, input_path: str, codec_idx: int) -> List[str]:
         """Build FFmpeg command arguments for the given file and codec.
@@ -604,8 +606,8 @@ class ConversionController(QObject):
             # Update file list status to completed
             if self.file_list_widget:
                 # Ensure progress shows 100% before marking as completed
-                self.file_list_widget.update_progress(process_path, 100)
-                self.file_list_widget.set_status(process_path, "completed")
+                _ = self.file_list_widget.update_progress(process_path, 100)
+                _ = self.file_list_widget.set_status(process_path, "completed")
 
             # Handle source file deletion if enabled - with ffprobe output verification
             if self.delete_source:
@@ -651,7 +653,7 @@ class ConversionController(QObject):
 
             # Update file list status to failed
             if self.file_list_widget:
-                self.file_list_widget.set_status(process_path, "failed")
+                _ = self.file_list_widget.set_status(process_path, "failed")
 
         # Continue processing (handles both parallel and sequential modes)
         # Always call _process_next() to properly detect conversion completion

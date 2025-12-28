@@ -4,11 +4,13 @@ Refactored Main Window for PyMPEG
 Uses focused classes for better separation of concerns
 """
 
+from __future__ import annotations
+
 import os
 import sys
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Optional, cast
 
-from PySide6.QtCore import QSettings, Qt
+from PySide6.QtCore import QByteArray, QSettings, Qt
 from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import (
     QFileDialog,
@@ -39,6 +41,9 @@ from process_monitor import ProcessMonitor
 from settings_panel import SettingsPanel
 from ui_update_manager import UIUpdateManager
 
+if TYPE_CHECKING:
+    from PySide6.QtGui import QCloseEvent
+
 
 class MainWindow(QMainWindow):
     """Simplified main window using focused component classes"""
@@ -48,27 +53,27 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(f"{AppConfig.APP_NAME} - RTX Optimized")
         self.resize(AppConfig.DEFAULT_WINDOW_WIDTH, AppConfig.DEFAULT_WINDOW_HEIGHT)
 
-        self.settings = QSettings(AppConfig.SETTINGS_ORG, AppConfig.SETTINGS_APP)
+        self.settings: QSettings = QSettings(AppConfig.SETTINGS_ORG, AppConfig.SETTINGS_APP)
 
         # State
-        self.last_dir = self.settings.value("lastDir", os.getcwd())
-        self.is_converting = False
+        self.last_dir: str = cast("str", self.settings.value("lastDir", os.getcwd()))
+        self.is_converting: bool = False
 
         # Initialize core components
-        self.process_manager = ProcessManager(self)
-        self.process_manager.ffmpeg_detected.connect(self._on_ffmpeg_detected)
+        self.process_manager: ProcessManager = ProcessManager(self)
+        _ = self.process_manager.ffmpeg_detected.connect(self._on_ffmpeg_detected)
         self.process_manager.detect_ffmpeg_async()  # Start async detection early
-        self.conversion_controller = ConversionController(self.process_manager, self)
-        self.settings_panel = SettingsPanel(self)
+        self.conversion_controller: ConversionController = ConversionController(self.process_manager, self)
+        self.settings_panel: SettingsPanel = SettingsPanel(self)
 
         # Start async GPU detection to populate codec caches early
-        self.gpu_detector = GPUDetector(self)
-        self.gpu_detector.gpu_detected.connect(self._on_gpu_detected)
+        self.gpu_detector: GPUDetector = GPUDetector(self)
+        _ = self.gpu_detector.gpu_detected.connect(self._on_gpu_detected)
         self.gpu_detector.detect_async()
 
         # Initialize UI update manager for efficient updates
-        self.ui_update_manager = UIUpdateManager(self)
-        self.ui_update_manager.update_ui.connect(self._handle_ui_updates)
+        self.ui_update_manager: UIUpdateManager = UIUpdateManager(self)
+        _ = self.ui_update_manager.update_ui.connect(self._handle_ui_updates)
         self.ui_update_manager.start()
 
         # UI Components (will be created in _init_ui)
@@ -95,7 +100,7 @@ class MainWindow(QMainWindow):
     def _on_ffmpeg_detected(self, available: bool, path_or_error: str) -> None:
         """Handle FFmpeg detection result from async check."""
         if not available:
-            QMessageBox.critical(
+            _ = QMessageBox.critical(
                 self,
                 "FFmpeg Not Found",
                 f"FFmpeg executable not found. {path_or_error}\n\n"
@@ -178,46 +183,46 @@ class MainWindow(QMainWindow):
 
         add_files_action = QAction(QIcon.fromTheme("document-open"), "Add Files", self)
         add_files_action.setShortcut("Ctrl+O")
-        add_files_action.triggered.connect(self.add_files)
+        _ = add_files_action.triggered.connect(self.add_files)
 
         # Batch operations
         select_all_action = QAction("Select All", self)
         select_all_action.setShortcut("Ctrl+A")
-        select_all_action.triggered.connect(self.select_all_files)
+        _ = select_all_action.triggered.connect(self.select_all_files)
 
         clear_completed_action = QAction("Clear Completed", self)
         clear_completed_action.setShortcut("Ctrl+Shift+C")
-        clear_completed_action.triggered.connect(self.clear_completed_files)
+        _ = clear_completed_action.triggered.connect(self.clear_completed_files)
 
         remove_failed_action = QAction("Remove Failed", self)
         remove_failed_action.setShortcut("Ctrl+Shift+F")
-        remove_failed_action.triggered.connect(self.remove_failed_files)
+        _ = remove_failed_action.triggered.connect(self.remove_failed_files)
 
         exit_action = QAction(QIcon.fromTheme("application-exit"), "E&xit", self)
         exit_action.setShortcut("Ctrl+Q")
-        exit_action.triggered.connect(self.close)
+        _ = exit_action.triggered.connect(self.close)
 
-        file_menu.addAction(add_files_action)
-        file_menu.addSeparator()
-        file_menu.addAction(select_all_action)
-        file_menu.addAction(clear_completed_action)
-        file_menu.addAction(remove_failed_action)
-        file_menu.addSeparator()
-        file_menu.addAction(exit_action)
+        _ = file_menu.addAction(add_files_action)
+        _ = file_menu.addSeparator()
+        _ = file_menu.addAction(select_all_action)
+        _ = file_menu.addAction(clear_completed_action)
+        _ = file_menu.addAction(remove_failed_action)
+        _ = file_menu.addSeparator()
+        _ = file_menu.addAction(exit_action)
 
         # Tools menu
         tools_menu = menubar.addMenu("&Tools")
 
         clear_log_action = QAction(QIcon.fromTheme("edit-clear"), "Clear Log", self)
         clear_log_action.setShortcut("Ctrl+L")
-        clear_log_action.triggered.connect(self._clear_main_log)
-        tools_menu.addAction(clear_log_action)
+        _ = clear_log_action.triggered.connect(self._clear_main_log)
+        _ = tools_menu.addAction(clear_log_action)
 
         # Help menu
         help_menu = menubar.addMenu("&Help")
         about_action = QAction("&About", self)
-        about_action.triggered.connect(self._show_about)
-        help_menu.addAction(about_action)
+        _ = about_action.triggered.connect(self._show_about)
+        _ = help_menu.addAction(about_action)
 
     def _create_toolbar(self):
         """Create the toolbar"""
@@ -226,15 +231,15 @@ class MainWindow(QMainWindow):
 
         # Add files action
         add_action = QAction(QIcon.fromTheme("document-open"), "Add Files", self)
-        add_action.triggered.connect(self.add_files)
-        toolbar.addAction(add_action)
+        _ = add_action.triggered.connect(self.add_files)
+        _ = toolbar.addAction(add_action)
 
-        toolbar.addSeparator()
+        _ = toolbar.addSeparator()
 
         # Clear log action
         clear_action = QAction(QIcon.fromTheme("edit-clear"), "Clear Log", self)
-        clear_action.triggered.connect(self._clear_main_log)
-        toolbar.addAction(clear_action)
+        _ = clear_action.triggered.connect(self._clear_main_log)
+        _ = toolbar.addAction(clear_action)
 
     def _create_left_panel(self) -> QWidget:
         """Create the left panel with file list and settings"""
@@ -254,15 +259,15 @@ class MainWindow(QMainWindow):
         file_button_layout = QHBoxLayout()
 
         add_btn = QPushButton("Add Files")
-        add_btn.clicked.connect(self.add_files)
+        _ = add_btn.clicked.connect(self.add_files)
         file_button_layout.addWidget(add_btn)
 
         remove_btn = QPushButton("Remove Selected")
-        remove_btn.clicked.connect(self.remove_selected)
+        _ = remove_btn.clicked.connect(self.remove_selected)
         file_button_layout.addWidget(remove_btn)
 
         clear_btn = QPushButton("Clear All")
-        clear_btn.clicked.connect(self.clear_list)
+        _ = clear_btn.clicked.connect(self.clear_list)
         file_button_layout.addWidget(clear_btn)
 
         file_layout.addLayout(file_button_layout)
@@ -272,7 +277,7 @@ class MainWindow(QMainWindow):
 
         select_all_btn = QPushButton("📋 Select All")
         select_all_btn.setToolTip("Select all files in the list (Ctrl+A)")
-        select_all_btn.clicked.connect(self.select_all_files)
+        _ = select_all_btn.clicked.connect(self.select_all_files)
         batch_button_layout.addWidget(select_all_btn)
 
         clear_completed_btn = QPushButton("✅ Clear Completed")
@@ -286,7 +291,7 @@ class MainWindow(QMainWindow):
                 background-color: #e8f5e8;
             }
         """)
-        clear_completed_btn.clicked.connect(self.clear_completed_files)
+        _ = clear_completed_btn.clicked.connect(self.clear_completed_files)
         batch_button_layout.addWidget(clear_completed_btn)
 
         remove_failed_btn = QPushButton("❌ Remove Failed")
@@ -300,7 +305,7 @@ class MainWindow(QMainWindow):
                 background-color: #ffebee;
             }
         """)
-        remove_failed_btn.clicked.connect(self.remove_failed_files)
+        _ = remove_failed_btn.clicked.connect(self.remove_failed_files)
         batch_button_layout.addWidget(remove_failed_btn)
 
         file_layout.addLayout(batch_button_layout)
@@ -333,13 +338,13 @@ class MainWindow(QMainWindow):
             self.process_manager, process_scroll, self
         )
 
-        tabs.addTab(process_scroll, "🔄 Active Processes")
+        _ = tabs.addTab(process_scroll, "🔄 Active Processes")
 
         # Main log tab
         self.main_log = QPlainTextEdit()
         self.main_log.setReadOnly(True)
-        self.main_log.setMaximumBlockCount(LogConfig.MAIN_LOG_TRUNCATE_LINES * 10)
-        tabs.addTab(self.main_log, "📋 Conversion Log")
+        _ = self.main_log.setMaximumBlockCount(LogConfig.MAIN_LOG_TRUNCATE_LINES * 10)
+        _ = tabs.addTab(self.main_log, "📋 Conversion Log")
 
         layout.addWidget(tabs)
 
@@ -368,7 +373,7 @@ class MainWindow(QMainWindow):
                 background-color: #95a5a6;
             }
         """)
-        self.start_btn.clicked.connect(self._start_conversion)
+        _ = self.start_btn.clicked.connect(self._start_conversion)
         layout.addWidget(self.start_btn)
 
         self.stop_btn = QPushButton("🛑 Stop Conversion")
@@ -388,7 +393,7 @@ class MainWindow(QMainWindow):
                 background-color: #95a5a6;
             }
         """)
-        self.stop_btn.clicked.connect(self._stop_conversion)
+        _ = self.stop_btn.clicked.connect(self._stop_conversion)
         self.stop_btn.setEnabled(False)
         layout.addWidget(self.stop_btn)
 
@@ -396,39 +401,39 @@ class MainWindow(QMainWindow):
 
         return layout
 
-    def _connect_signals(self):
+    def _connect_signals(self) -> None:
         """Connect signals between components"""
         # Conversion controller signals
-        self.conversion_controller.conversion_started.connect(
+        _ = self.conversion_controller.conversion_started.connect(
             self._on_conversion_started
         )
-        self.conversion_controller.conversion_finished.connect(
+        _ = self.conversion_controller.conversion_finished.connect(
             self._on_conversion_finished
         )
-        self.conversion_controller.conversion_stopped.connect(
+        _ = self.conversion_controller.conversion_stopped.connect(
             self._on_conversion_stopped
         )
-        self.conversion_controller.log_message.connect(self._add_to_main_log)
-        self.conversion_controller.progress_updated.connect(
+        _ = self.conversion_controller.log_message.connect(self._add_to_main_log)
+        _ = self.conversion_controller.progress_updated.connect(
             self._update_overall_progress
         )
 
         # Settings panel signals
-        self.settings_panel.auto_balance_toggled.connect(
+        _ = self.settings_panel.auto_balance_toggled.connect(
             self.conversion_controller.enable_auto_balance
         )
-        self.settings_panel.settings_changed.connect(self._on_settings_changed)
-
-        # Process manager signals for logging
-        self.process_manager.output_ready.connect(self._log_process_output)
+        _ = self.settings_panel.settings_changed.connect(self._on_settings_changed)
 
         # Process monitor signals
         if self.process_monitor:
-            self.process_monitor.progress_updated.connect(self._update_overall_progress)
+            _ = self.process_monitor.progress_updated.connect(self._update_overall_progress)
 
         # Sync auto_balance state at startup (signals blocked during settings restore)
         settings = self.settings_panel.get_current_settings()
-        self.conversion_controller.enable_auto_balance(settings.get("auto_balance", False))
+        auto_balance_value = settings.get("auto_balance", False)
+        # Convert to bool (QSettings returns int | bool | str)
+        auto_balance = bool(auto_balance_value) if isinstance(auto_balance_value, (int, bool)) else False
+        self.conversion_controller.enable_auto_balance(auto_balance)
 
     def add_files(self):
         """Add files to the conversion list"""
@@ -509,7 +514,7 @@ class MainWindow(QMainWindow):
 
         file_paths = self.file_list.get_pending_files_in_order()
         if not file_paths:
-            QMessageBox.warning(self, "No Files", "Please add files to convert first.")
+            _ = QMessageBox.warning(self, "No Files", "Please add files to convert first.")
             return
 
         # Get settings from settings panel
@@ -518,30 +523,42 @@ class MainWindow(QMainWindow):
         # Validate settings
         is_valid, error_msg = self.settings_panel.validate_settings()
         if not is_valid:
-            QMessageBox.warning(self, "Invalid Settings", error_msg)
+            _ = QMessageBox.warning(self, "Invalid Settings", error_msg)
             return
+
+        # Extract and convert settings values (QSettings returns int | bool | str)
+        def get_int(key: str, default: int) -> int:
+            val = settings.get(key, default)
+            # QSettings value is int | bool | str, all are convertible to int
+            return int(val)
+
+        def get_bool(key: str, default: bool) -> bool:
+            val = settings.get(key, default)
+            # QSettings value is int | bool | str, all are convertible to bool
+            return bool(val)
 
         # Start conversion
         success = self.conversion_controller.start_conversion(
             file_paths=file_paths,
-            codec_idx=settings["codec_idx"],
-            hwdecode_idx=settings["hwdecode_idx"],
-            crf_value=settings["crf_value"],
-            parallel_enabled=settings["parallel_enabled"],
-            max_parallel=settings["max_parallel"],
-            delete_source=settings["delete_source"],
-            overwrite_mode=settings.get("overwrite_mode", True),
-            preset_idx=settings.get("preset_idx", 0),
-            hevc_10bit=settings.get("hevc_10bit", False),
-            threads=settings.get("threads", 0),
-            priority_idx=settings.get("priority_idx", 1),
-            smart_buffer=settings.get("smart_buffer", True),
+            codec_idx=get_int("codec_idx", 0),
+            hwdecode_idx=get_int("hwdecode_idx", 0),
+            crf_value=get_int("crf_value", 16),
+            parallel_enabled=get_bool("parallel_enabled", False),
+            max_parallel=get_int("max_parallel", 2),
+            delete_source=get_bool("delete_source", False),
+            overwrite_mode=get_bool("overwrite_mode", True),
+            preset_idx=get_int("preset_idx", 0),
+            hevc_10bit=get_bool("hevc_10bit", False),
+            threads=get_int("threads", 0),
+            priority_idx=get_int("priority_idx", 1),
+            smart_buffer=get_bool("smart_buffer", True),
         )
 
         if success:
             self.is_converting = True
             # Enable smart buffer mode if setting is enabled
-            smart_buffer = settings.get("smart_buffer", True)
+            smart_buffer_val = settings.get("smart_buffer", True)
+            smart_buffer = bool(smart_buffer_val) if isinstance(smart_buffer_val, (int, bool)) else True
             self.ui_update_manager.set_smart_buffer(smart_buffer)
 
     def _stop_conversion(self):
@@ -610,7 +627,7 @@ class MainWindow(QMainWindow):
         if self.file_list:
             self.file_list.refresh_drag_drop_state()
 
-    def _update_overall_progress(self, progress_data=None):
+    def _update_overall_progress(self, progress_data: dict[str, object] | None = None) -> None:
         """Mark progress components as dirty for efficient batch updates"""
         if progress_data:
             # Mark components as dirty with their data
@@ -620,18 +637,21 @@ class MainWindow(QMainWindow):
         # Update individual file progress in the file list
         self._update_file_list_progress()
 
-    def _update_file_list_progress(self):
+    def _update_file_list_progress(self) -> None:
         """Update file list widget with current progress for active processes"""
         if not self.file_list or not self.process_manager:
             return
 
-        # Get all active processes and their paths
-        for process, path in self.process_manager.processes:
+        # Snapshot the list to avoid modification-during-iteration issues
+        # (processes can finish and be removed while we're iterating)
+        processes_snapshot = list(self.process_manager.processes)
+        for process, path in processes_snapshot:
             # Get progress data for this specific process
             process_progress = self.process_manager.get_process_progress(process)
             if process_progress:
-                # Extract progress percentage
-                progress_pct = process_progress.get("current_pct", 0)
+                # Extract progress percentage (cast from object to int)
+                progress_pct_obj = process_progress.get("current_pct", 0)
+                progress_pct = int(progress_pct_obj) if isinstance(progress_pct_obj, (int, float)) else 0
 
                 # Only update status and progress for pending/processing files
                 # Don't overwrite completed/failed status
@@ -641,23 +661,34 @@ class MainWindow(QMainWindow):
                         self.file_list.set_status(path, "processing")
                     self.file_list.update_progress(path, progress_pct)
 
-    def _handle_ui_updates(self, updates: "dict[str, Any]"):
+    def _handle_ui_updates(self, updates: dict[str, object]) -> None:
         """Handle batched UI updates from the update manager"""
         # Update progress bar
         if "progress_bar" in updates and self.overall_progress_bar:
             progress_data = updates["progress_bar"]
-            if "weighted_pct" in progress_data:
-                pct = min(100, max(0, round(progress_data["weighted_pct"])))
-                self.overall_progress_bar.setValue(pct)
+            if isinstance(progress_data, dict) and "weighted_pct" in progress_data:
+                # Cast to dict[str, object] to avoid Unknown type from dict.get()
+                progress_dict = cast("dict[str, object]", progress_data)
+                weighted_pct_obj: object = progress_dict["weighted_pct"]
+                if isinstance(weighted_pct_obj, (int, float)):
+                    pct = min(100, max(0, round(weighted_pct_obj)))
+                    self.overall_progress_bar.setValue(pct)
 
         # Update status bar
         if "status_label" in updates and self.status_bar:
             progress_data = updates["status_label"]
-            if progress_data.get("eta_str"):
-                active_count = progress_data.get("active_count", 0)
-                completed_count = progress_data.get("completed_count", 0)
-                failed_count = progress_data.get("failed_count", 0)
-                total_count = progress_data.get("total_count", 0)
+            if isinstance(progress_data, dict) and cast("dict[str, object]", progress_data).get("eta_str"):
+                # Cast to dict[str, object] to avoid Unknown type from dict.get()
+                progress_dict = cast("dict[str, object]", progress_data)
+                active_count_obj: object = progress_dict.get("active_count", 0)
+                completed_count_obj: object = progress_dict.get("completed_count", 0)
+                failed_count_obj: object = progress_dict.get("failed_count", 0)
+                total_count_obj: object = progress_dict.get("total_count", 0)
+
+                active_count = int(active_count_obj) if isinstance(active_count_obj, (int, float)) else 0
+                completed_count = int(completed_count_obj) if isinstance(completed_count_obj, (int, float)) else 0
+                failed_count = int(failed_count_obj) if isinstance(failed_count_obj, (int, float)) else 0
+                total_count = int(total_count_obj) if isinstance(total_count_obj, (int, float)) else 0
 
                 # Show completion with failure breakdown if any failed
                 status_msg = f"Converting: {completed_count}/{total_count} completed"
@@ -665,19 +696,23 @@ class MainWindow(QMainWindow):
                     status_msg += f" ({failed_count} failed)"
                 status_msg += f", {active_count} active"
 
-                if progress_data["eta_str"] != "00:00:00":
-                    status_msg += f" • ETA: {progress_data['eta_str']}"
+                eta_str_obj: object = progress_dict["eta_str"]
+                if isinstance(eta_str_obj, str) and eta_str_obj != "00:00:00":
+                    status_msg += f" • ETA: {eta_str_obj}"
 
                 self.status_bar.showMessage(status_msg)
 
-    def _on_settings_changed(self, settings: "dict[str, Any]"):
+    def _on_settings_changed(self, settings: dict[str, object]) -> None:
         """Handle settings changes and update file size estimates"""
         if self.file_list is None or self.status_bar is None:
             return
 
         # Update file list with new estimates
-        codec_idx = settings.get("codec_idx", 0)
-        crf_value = settings.get("crf_value", 16)
+        codec_idx_obj = settings.get("codec_idx", 0)
+        crf_value_obj = settings.get("crf_value", 16)
+
+        codec_idx = int(codec_idx_obj) if isinstance(codec_idx_obj, (int, float)) else 0
+        crf_value = int(crf_value_obj) if isinstance(crf_value_obj, (int, float)) else 16
 
         # Update all file displays with new estimates
         self.file_list.update_all_display_with_settings(codec_idx, crf_value)
@@ -695,14 +730,18 @@ class MainWindow(QMainWindow):
             else:
                 self.status_bar.showMessage("Ready")
 
-    def _update_status_with_estimates(self):
+    def _update_status_with_estimates(self) -> None:
         """Update status bar with current file estimates"""
         if self.file_list is None or self.status_bar is None or self.is_converting:
             return
 
         settings = self.settings_panel.get_current_settings()
-        codec_idx = settings.get("codec_idx", 0)
-        crf_value = settings.get("crf_value", 16)
+        codec_idx_val = settings.get("codec_idx", 0)
+        crf_value_val = settings.get("crf_value", 16)
+
+        # Convert QSettings values to int (QSettings returns int | bool | str, all convertible)
+        codec_idx = int(codec_idx_val)
+        crf_value = int(crf_value_val)
 
         total_estimated = self.file_list.get_total_estimated_size(codec_idx, crf_value)
         file_count = self.file_list.get_file_count()
@@ -714,7 +753,7 @@ class MainWindow(QMainWindow):
         else:
             self.status_bar.showMessage("Ready")
 
-    def _add_to_main_log(self, message: str):
+    def _add_to_main_log(self, message: str) -> None:
         """Add message to main log"""
         if self.main_log is None:
             raise RuntimeError("Main log widget not initialized")
@@ -724,18 +763,13 @@ class MainWindow(QMainWindow):
         # Limit log size
         if self.main_log.blockCount() > LogConfig.MAIN_LOG_TRUNCATE_LINES:
             cursor = self.main_log.textCursor()
-            cursor.movePosition(cursor.MoveOperation.Start)
-            cursor.movePosition(
+            _ = cursor.movePosition(cursor.MoveOperation.Start)
+            _ = cursor.movePosition(
                 cursor.MoveOperation.Down,
                 cursor.MoveMode.KeepAnchor,
                 self.main_log.blockCount() - LogConfig.MAIN_LOG_TRUNCATE_LINES,
             )
             cursor.removeSelectedText()
-
-    def _log_process_output(self, process, chunk: str):
-        """Log process output (can be filtered/processed as needed)"""
-        # For now, we don't log raw FFmpeg output to main log to keep it clean
-        # The process monitor handles individual process progress
 
     def _clear_main_log(self):
         """Clear the main log"""
@@ -747,7 +781,7 @@ class MainWindow(QMainWindow):
 
     def _show_about(self):
         """Show about dialog"""
-        QMessageBox.about(
+        _ = QMessageBox.about(
             self,
             "About PyFFMPEG",
             f"{AppConfig.APP_NAME} v{AppConfig.APP_VERSION}\n"
@@ -755,20 +789,20 @@ class MainWindow(QMainWindow):
             "A high-performance video converter with RTX acceleration support.",
         )
 
-    def _restore_state(self):
+    def _restore_state(self) -> None:
         """Restore window state"""
-        # Restore window geometry if available
-        geometry = self.settings.value("geometry")
-        if geometry:
-            self.restoreGeometry(geometry)
+        # Restore window geometry if available (QSettings.value returns Any in PySide6 typings)
+        geometry_obj = cast("object", self.settings.value("geometry"))
+        if geometry_obj and isinstance(geometry_obj, (QByteArray, bytes)):
+            _ = self.restoreGeometry(cast("QByteArray", geometry_obj))
 
-        # Restore window state
-        window_state = self.settings.value("windowState")
-        if window_state:
-            self.restoreState(window_state)
+        # Restore window state (QSettings.value returns Any in PySide6 typings)
+        window_state_obj = cast("object", self.settings.value("windowState"))
+        if window_state_obj and isinstance(window_state_obj, (QByteArray, bytes)):
+            _ = self.restoreState(cast("QByteArray", window_state_obj))
 
     @override
-    def closeEvent(self, event):
+    def closeEvent(self, event: QCloseEvent) -> None:
         """Handle window close event"""
         # Stop any active conversions
         if self.is_converting:

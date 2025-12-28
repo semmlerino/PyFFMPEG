@@ -4,7 +4,10 @@ Settings Panel Module for PyMPEG
 Handles all UI controls and settings management
 """
 
-from typing import Any, ClassVar, Dict, Optional
+from __future__ import annotations
+
+import os
+from typing import ClassVar, cast
 
 from PySide6.QtCore import QObject, QSettings, Signal
 from PySide6.QtWidgets import (
@@ -31,7 +34,7 @@ class SettingsPanel(QObject):
     auto_balance_toggled: ClassVar[Signal] = Signal(bool)  # Emitted when auto-balance is toggled
 
     # Hardware-optimized defaults for RTX 4090 + i9-14900HX
-    HARDWARE_OPTIMIZED_DEFAULTS: ClassVar[Dict[str, Any]] = {
+    HARDWARE_OPTIMIZED_DEFAULTS: ClassVar[dict[str, int | bool]] = {
         "codec_idx": 0,           # H.264 NVENC
         "preset_idx": 0,          # Standard quality
         "hwdecode_idx": 1,        # NVIDIA CUDA
@@ -47,26 +50,26 @@ class SettingsPanel(QObject):
         "hevc_10bit": False,
     }
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
-        self.settings = QSettings(AppConfig.SETTINGS_ORG, AppConfig.SETTINGS_APP)
+        self.settings: QSettings = QSettings(AppConfig.SETTINGS_ORG, AppConfig.SETTINGS_APP)
 
         # UI Controls (will be set by create_settings_widget)
-        self.codec_combo: Optional[QComboBox] = None
-        self.preset_combo: Optional[QComboBox] = None
-        self.hwdecode_combo: Optional[QComboBox] = None
-        self.crf_spinbox: Optional[QSpinBox] = None
-        self.crf_label: Optional[QLabel] = None
-        self.threads_spinbox: Optional[QSpinBox] = None
-        self.parallel_checkbox: Optional[QCheckBox] = None
-        self.max_parallel_spinbox: Optional[QSpinBox] = None
-        self.delete_source_checkbox: Optional[QCheckBox] = None
-        self.overwrite_checkbox: Optional[QCheckBox] = None
-        self.smart_buffer_checkbox: Optional[QCheckBox] = None
-        self.auto_balance_checkbox: Optional[QCheckBox] = None
-        self.hevc_10bit_checkbox: Optional[QCheckBox] = None
-        self.nvenc_settings_button: Optional[QPushButton] = None
-        self.priority_combo: Optional[QComboBox] = None
+        self.codec_combo: QComboBox | None = None
+        self.preset_combo: QComboBox | None = None
+        self.hwdecode_combo: QComboBox | None = None
+        self.crf_spinbox: QSpinBox | None = None
+        self.crf_label: QLabel | None = None
+        self.threads_spinbox: QSpinBox | None = None
+        self.parallel_checkbox: QCheckBox | None = None
+        self.max_parallel_spinbox: QSpinBox | None = None
+        self.delete_source_checkbox: QCheckBox | None = None
+        self.overwrite_checkbox: QCheckBox | None = None
+        self.smart_buffer_checkbox: QCheckBox | None = None
+        self.auto_balance_checkbox: QCheckBox | None = None
+        self.hevc_10bit_checkbox: QCheckBox | None = None
+        self.nvenc_settings_button: QPushButton | None = None
+        self.priority_combo: QComboBox | None = None
 
         # Advanced NVENC settings
         self.nvenc_b_adapt: int = 2
@@ -74,7 +77,7 @@ class SettingsPanel(QObject):
         self.nvenc_rc_mode: str = "vbr"
         self.nvenc_aq_strength: int = 1
 
-        self._widget: Optional[QWidget] = None
+        self._widget: QWidget | None = None
 
     def create_settings_widget(self) -> QWidget:
         """Create and return the settings widget"""
@@ -180,8 +183,6 @@ class SettingsPanel(QObject):
         # Threads selector
         threads_layout = QHBoxLayout()
         threads_layout.addWidget(QLabel("Threads:"))
-
-        import os
 
         self.threads_spinbox = QSpinBox()
         max_threads = os.cpu_count() or 4
@@ -293,7 +294,7 @@ class SettingsPanel(QObject):
         # Advanced NVENC Settings Button
         nvenc_button_layout = QHBoxLayout()
         self.nvenc_settings_button = QPushButton("⚙️ Advanced NVENC Settings")
-        self.nvenc_settings_button.clicked.connect(self._show_nvenc_settings)
+        _ = self.nvenc_settings_button.clicked.connect(self._show_nvenc_settings)
         nvenc_button_layout.addWidget(self.nvenc_settings_button)
         layout.addLayout(nvenc_button_layout)
 
@@ -303,7 +304,7 @@ class SettingsPanel(QObject):
         reset_btn.setToolTip(
             "Reset all settings to hardware-optimized defaults for RTX 4090 + i9-14900HX"
         )
-        reset_btn.clicked.connect(self._reset_to_defaults)
+        _ = reset_btn.clicked.connect(self._reset_to_defaults)
         reset_button_layout.addWidget(reset_btn)
         layout.addLayout(reset_button_layout)
 
@@ -346,28 +347,28 @@ class SettingsPanel(QObject):
         assert self.hevc_10bit_checkbox is not None
 
         # Connect all controls to emit settings_changed
-        self.codec_combo.currentIndexChanged.connect(self._on_settings_changed)
-        self.preset_combo.currentIndexChanged.connect(self._on_settings_changed)
-        self.hwdecode_combo.currentIndexChanged.connect(self._on_settings_changed)
-        self.crf_spinbox.valueChanged.connect(self._on_settings_changed)
-        self.threads_spinbox.valueChanged.connect(self._on_settings_changed)
-        self.parallel_checkbox.toggled.connect(self._on_settings_changed)
-        self.max_parallel_spinbox.valueChanged.connect(self._on_settings_changed)
-        self.delete_source_checkbox.toggled.connect(self._on_settings_changed)
-        self.overwrite_checkbox.toggled.connect(self._on_settings_changed)
-        self.smart_buffer_checkbox.toggled.connect(self._on_settings_changed)
+        _ = self.codec_combo.currentIndexChanged.connect(self._on_settings_changed)
+        _ = self.preset_combo.currentIndexChanged.connect(self._on_settings_changed)
+        _ = self.hwdecode_combo.currentIndexChanged.connect(self._on_settings_changed)
+        _ = self.crf_spinbox.valueChanged.connect(self._on_settings_changed)
+        _ = self.threads_spinbox.valueChanged.connect(self._on_settings_changed)
+        _ = self.parallel_checkbox.toggled.connect(self._on_settings_changed)
+        _ = self.max_parallel_spinbox.valueChanged.connect(self._on_settings_changed)
+        _ = self.delete_source_checkbox.toggled.connect(self._on_settings_changed)
+        _ = self.overwrite_checkbox.toggled.connect(self._on_settings_changed)
+        _ = self.smart_buffer_checkbox.toggled.connect(self._on_settings_changed)
 
         # Special handling for auto-balance
-        self.auto_balance_checkbox.toggled.connect(self._on_auto_balance_toggled)
-        self.priority_combo.currentIndexChanged.connect(self._on_settings_changed)
-        self.hevc_10bit_checkbox.toggled.connect(self._on_settings_changed)
+        _ = self.auto_balance_checkbox.toggled.connect(self._on_auto_balance_toggled)
+        _ = self.priority_combo.currentIndexChanged.connect(self._on_settings_changed)
+        _ = self.hevc_10bit_checkbox.toggled.connect(self._on_settings_changed)
 
         # Enable/disable max parallel based on parallel checkbox
-        def update_max_parallel_enabled(enabled: bool):
+        def update_max_parallel_enabled(enabled: bool) -> None:
             assert self.max_parallel_spinbox is not None
             self.max_parallel_spinbox.setEnabled(enabled)
 
-        self.parallel_checkbox.toggled.connect(update_max_parallel_enabled)
+        _ = self.parallel_checkbox.toggled.connect(update_max_parallel_enabled)
 
     def _setup_codec_visibility(self) -> None:
         """Set up codec-dependent UI visibility"""
@@ -379,7 +380,7 @@ class SettingsPanel(QObject):
         assert self.crf_label is not None
         assert self.crf_spinbox is not None
 
-        def update_crf_visibility():
+        def update_crf_visibility() -> None:
             # CRF/CQ is relevant for all codecs except ProRes (index 4)
             # NVENC uses -cq, x264 uses -crf, QSV uses -global_quality, VAAPI uses -qp
             assert self.codec_combo is not None
@@ -409,7 +410,7 @@ class SettingsPanel(QObject):
                 )
 
         # Connect codec change to visibility update
-        self.codec_combo.currentIndexChanged.connect(update_crf_visibility)
+        _ = self.codec_combo.currentIndexChanged.connect(update_crf_visibility)
 
         # Set initial visibility
         update_crf_visibility()
@@ -427,7 +428,7 @@ class SettingsPanel(QObject):
 
     def _reset_to_defaults(self) -> None:
         """Reset all settings to hardware-optimized defaults."""
-        self.set_settings(self.HARDWARE_OPTIMIZED_DEFAULTS)
+        self.set_settings(cast("dict[str, object]", self.HARDWARE_OPTIMIZED_DEFAULTS))
         # Also reset NVENC advanced settings
         self.nvenc_b_adapt = 2
         self.nvenc_ref_frames = 4
@@ -436,7 +437,7 @@ class SettingsPanel(QObject):
         # Emit signal and save
         self._on_settings_changed()
 
-    def get_current_settings(self) -> Dict[str, Any]:
+    def get_current_settings(self) -> dict[str, int | bool | str]:
         """Get current settings from UI controls"""
         required_controls = [
             self.codec_combo,
@@ -492,7 +493,7 @@ class SettingsPanel(QObject):
             "nvenc_aq_strength": self.nvenc_aq_strength,
         }
 
-    def set_settings(self, settings: Dict[str, Any]) -> None:
+    def set_settings(self, settings: dict[str, object]) -> None:
         """Set UI controls from settings dictionary"""
         required_controls = [
             self.codec_combo,
@@ -532,47 +533,71 @@ class SettingsPanel(QObject):
         self._disconnect_signals()
 
         if "codec_idx" in settings:
-            self.codec_combo.setCurrentIndex(settings["codec_idx"])
+            value = settings["codec_idx"]
+            assert isinstance(value, int)
+            self.codec_combo.setCurrentIndex(value)
         if "preset_idx" in settings:
-            self.preset_combo.setCurrentIndex(settings["preset_idx"])
+            value = settings["preset_idx"]
+            assert isinstance(value, int)
+            self.preset_combo.setCurrentIndex(value)
         if "hwdecode_idx" in settings:
-            self.hwdecode_combo.setCurrentIndex(settings["hwdecode_idx"])
+            value = settings["hwdecode_idx"]
+            assert isinstance(value, int)
+            self.hwdecode_combo.setCurrentIndex(value)
         if "crf_value" in settings:
-            self.crf_spinbox.setValue(settings["crf_value"])
+            value = settings["crf_value"]
+            assert isinstance(value, int)
+            self.crf_spinbox.setValue(value)
         if "threads" in settings:
-            self.threads_spinbox.setValue(settings["threads"])
+            value = settings["threads"]
+            assert isinstance(value, int)
+            self.threads_spinbox.setValue(value)
         if "parallel_enabled" in settings:
-            self.parallel_checkbox.setChecked(settings["parallel_enabled"])
+            value = settings["parallel_enabled"]
+            assert isinstance(value, bool)
+            self.parallel_checkbox.setChecked(value)
         if "max_parallel" in settings:
-            self.max_parallel_spinbox.setValue(settings["max_parallel"])
+            value = settings["max_parallel"]
+            assert isinstance(value, int)
+            self.max_parallel_spinbox.setValue(value)
         if "delete_source" in settings:
-            self.delete_source_checkbox.setChecked(settings["delete_source"])
+            value = settings["delete_source"]
+            assert isinstance(value, bool)
+            self.delete_source_checkbox.setChecked(value)
         if "overwrite_mode" in settings:
-            self.overwrite_checkbox.setChecked(settings["overwrite_mode"])
+            value = settings["overwrite_mode"]
+            assert isinstance(value, bool)
+            self.overwrite_checkbox.setChecked(value)
         if "smart_buffer" in settings:
-            self.smart_buffer_checkbox.setChecked(settings["smart_buffer"])
+            value = settings["smart_buffer"]
+            assert isinstance(value, bool)
+            self.smart_buffer_checkbox.setChecked(value)
         if "auto_balance" in settings:
-            self.auto_balance_checkbox.setChecked(settings["auto_balance"])
+            value = settings["auto_balance"]
+            assert isinstance(value, bool)
+            self.auto_balance_checkbox.setChecked(value)
         if "priority_idx" in settings:
-            self.priority_combo.setCurrentIndex(settings["priority_idx"])
+            value = settings["priority_idx"]
+            assert isinstance(value, int)
+            self.priority_combo.setCurrentIndex(value)
 
         # Unblock signals that were blocked during loading
-        self.codec_combo.blockSignals(False)
-        self.preset_combo.blockSignals(False)
-        self.hwdecode_combo.blockSignals(False)
-        self.crf_spinbox.blockSignals(False)
-        self.threads_spinbox.blockSignals(False)
-        self.parallel_checkbox.blockSignals(False)
-        self.max_parallel_spinbox.blockSignals(False)
-        self.delete_source_checkbox.blockSignals(False)
-        self.overwrite_checkbox.blockSignals(False)
-        self.smart_buffer_checkbox.blockSignals(False)
-        self.auto_balance_checkbox.blockSignals(False)
-        self.priority_combo.blockSignals(False)
-        self.hevc_10bit_checkbox.blockSignals(False)
+        _ = self.codec_combo.blockSignals(False)
+        _ = self.preset_combo.blockSignals(False)
+        _ = self.hwdecode_combo.blockSignals(False)
+        _ = self.crf_spinbox.blockSignals(False)
+        _ = self.threads_spinbox.blockSignals(False)
+        _ = self.parallel_checkbox.blockSignals(False)
+        _ = self.max_parallel_spinbox.blockSignals(False)
+        _ = self.delete_source_checkbox.blockSignals(False)
+        _ = self.overwrite_checkbox.blockSignals(False)
+        _ = self.smart_buffer_checkbox.blockSignals(False)
+        _ = self.auto_balance_checkbox.blockSignals(False)
+        _ = self.priority_combo.blockSignals(False)
+        _ = self.hevc_10bit_checkbox.blockSignals(False)
 
-        # Reconnect signals
-        self._connect_signals()
+        # Note: Signals are already connected in __init__, no need to reconnect
+        # (blocking/unblocking is sufficient to prevent signals during value loading)
 
         # Update dependent controls
         self.max_parallel_spinbox.setEnabled(self.parallel_checkbox.isChecked())
@@ -615,19 +640,19 @@ class SettingsPanel(QObject):
 
         # Disconnect each signal individually to avoid issues
         # Block signals instead of disconnecting to avoid warnings
-        self.codec_combo.blockSignals(True)
-        self.preset_combo.blockSignals(True)
-        self.hwdecode_combo.blockSignals(True)
-        self.crf_spinbox.blockSignals(True)
-        self.threads_spinbox.blockSignals(True)
-        self.parallel_checkbox.blockSignals(True)
-        self.max_parallel_spinbox.blockSignals(True)
-        self.delete_source_checkbox.blockSignals(True)
-        self.overwrite_checkbox.blockSignals(True)
-        self.smart_buffer_checkbox.blockSignals(True)
-        self.auto_balance_checkbox.blockSignals(True)
-        self.priority_combo.blockSignals(True)
-        self.hevc_10bit_checkbox.blockSignals(True)
+        _ = self.codec_combo.blockSignals(True)
+        _ = self.preset_combo.blockSignals(True)
+        _ = self.hwdecode_combo.blockSignals(True)
+        _ = self.crf_spinbox.blockSignals(True)
+        _ = self.threads_spinbox.blockSignals(True)
+        _ = self.parallel_checkbox.blockSignals(True)
+        _ = self.max_parallel_spinbox.blockSignals(True)
+        _ = self.delete_source_checkbox.blockSignals(True)
+        _ = self.overwrite_checkbox.blockSignals(True)
+        _ = self.smart_buffer_checkbox.blockSignals(True)
+        _ = self.auto_balance_checkbox.blockSignals(True)
+        _ = self.priority_combo.blockSignals(True)
+        _ = self.hevc_10bit_checkbox.blockSignals(True)
 
     def _save_settings(self) -> None:
         """Save current settings to QSettings"""
@@ -692,13 +717,14 @@ class SettingsPanel(QObject):
             return self.create_settings_widget()
         return self._widget
 
-    def validate_settings(self) -> "tuple[bool, str]":
+    def validate_settings(self) -> tuple[bool, str]:
         """Validate current settings and return (is_valid, error_message)"""
         settings = self.get_current_settings()
 
         # Check if AV1 is selected on non-RTX 40 systems
         # Use cached result only to avoid blocking UI (returns None if not yet cached)
-        if settings.get("codec_idx") == 2:
+        codec_idx = settings.get("codec_idx", 0)
+        if isinstance(codec_idx, int) and codec_idx == 2:
             rtx40_cached = CodecHelpers.is_rtx40_cached()
             # Only reject if cache explicitly shows no RTX40 (False)
             # If cache is None (not yet determined), allow it - detection will run at conversion time
@@ -710,9 +736,12 @@ class SettingsPanel(QObject):
                 )
 
         # Check parallel processing limits
+        parallel_enabled = settings.get("parallel_enabled", False)
+        max_parallel = settings.get("max_parallel", 1)
         if (
-            settings.get("parallel_enabled")
-            and settings.get("max_parallel", 1) > ProcessConfig.MAX_PARALLEL_HIGH_END
+            parallel_enabled
+            and isinstance(max_parallel, int)
+            and max_parallel > ProcessConfig.MAX_PARALLEL_HIGH_END
         ):
             return (
                 False,
@@ -769,8 +798,8 @@ class SettingsPanel(QObject):
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
-        buttons.accepted.connect(dialog.accept)
-        buttons.rejected.connect(dialog.reject)
+        _ = buttons.accepted.connect(dialog.accept)
+        _ = buttons.rejected.connect(dialog.reject)
         layout.addRow(buttons)
 
         dialog.setLayout(layout)

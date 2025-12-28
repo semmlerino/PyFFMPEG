@@ -4,17 +4,28 @@ File List Widget Module for PyMPEG
 A custom QListWidget with drag & drop support for TS files
 """
 
+from __future__ import annotations
+
 import os
 import subprocess
 import sys
-from typing import Any, ClassVar, Dict, Optional
+from typing import TYPE_CHECKING, ClassVar, cast
 
 from PySide6.QtCore import QFileInfo, QObject, QRunnable, QSize, Qt, QThreadPool, Signal
 from PySide6.QtGui import QColor, QCursor
-from PySide6.QtWidgets import QAbstractItemView, QListWidget, QListWidgetItem, QMenu
+from PySide6.QtWidgets import (
+    QAbstractItemView,
+    QListWidget,
+    QListWidgetItem,
+    QMenu,
+    QWidget,
+)
 from typing_extensions import override
 
-from codec_helpers import CodecHelpers
+from codec_helpers import CodecHelpers, VideoMetadata
+
+if TYPE_CHECKING:
+    from PySide6.QtGui import QDragEnterEvent, QDropEvent, QKeyEvent, QMouseEvent
 
 
 class MetadataSignals(QObject):
@@ -28,8 +39,8 @@ class MetadataWorker(QRunnable):
 
     def __init__(self, file_path: str, signals: MetadataSignals):
         super().__init__()
-        self.file_path = file_path
-        self.signals = signals
+        self.file_path: str = file_path
+        self.signals: MetadataSignals = signals
 
     @override
     def run(self):
@@ -46,8 +57,8 @@ class FileListWidget(QListWidget):
     # Signal emitted when file order changes
     order_changed: ClassVar[Signal] = Signal()
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent)
         self.setAcceptDrops(True)
         self.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
         self.setAlternatingRowColors(True)
@@ -55,21 +66,21 @@ class FileListWidget(QListWidget):
         self.path_items: dict[str, QListWidgetItem] = {}
 
         # Enhanced colors for different states with better contrast
-        self.color_pending = QColor(64, 64, 64)  # Dark gray - neutral
-        self.color_processing = QColor(0, 122, 204)  # Professional blue
-        self.color_completed = QColor(34, 139, 34)  # Forest green - success
-        self.color_failed = QColor(220, 53, 69)  # Bootstrap red - error
-        self.color_skipped = QColor(255, 193, 7)  # Amber/yellow - skipped (output exists)
+        self.color_pending: QColor = QColor(64, 64, 64)  # Dark gray - neutral
+        self.color_processing: QColor = QColor(0, 122, 204)  # Professional blue
+        self.color_completed: QColor = QColor(34, 139, 34)  # Forest green - success
+        self.color_failed: QColor = QColor(220, 53, 69)  # Bootstrap red - error
+        self.color_skipped: QColor = QColor(255, 193, 7)  # Amber/yellow - skipped (output exists)
 
         # Set fixed height for items
         self.setIconSize(QSize(16, 16))
         self.setSpacing(2)
 
         # Metadata support
-        self.metadata_cache: Dict[str, Optional[Dict[str, Any]]] = {}
-        self.thread_pool = QThreadPool()
-        self.metadata_signals = MetadataSignals()
-        self.metadata_signals.metadata_loaded.connect(self._on_metadata_loaded)
+        self.metadata_cache: dict[str, VideoMetadata | None] = {}
+        self.thread_pool: QThreadPool = QThreadPool()
+        self.metadata_signals: MetadataSignals = MetadataSignals()
+        _ = self.metadata_signals.metadata_loaded.connect(self._on_metadata_loaded)
 
     def add_path(self, path: str):
         """Add a new file path to the list with pending status."""
@@ -92,24 +103,24 @@ class FileListWidget(QListWidget):
         # Set tooltip with file path
         item.setToolTip(f"Path: {path}")
 
-        self.addItem(item)
+        _ = self.addItem(item)
         self.path_items[path] = item
 
         # Start metadata loading in background
         self._load_metadata_async(path)
 
     @override
-    def dragEnterEvent(self, event):
+    def dragEnterEvent(self, event: QDragEnterEvent) -> None:
         if event.mimeData().hasUrls():
             event.acceptProposedAction()
         else:
             super().dragEnterEvent(event)
 
     # Supported video extensions (aligned with main_window file dialog)
-    SUPPORTED_EXTENSIONS = (".ts", ".mp4", ".m4v", ".mov", ".avi", ".mkv")
+    SUPPORTED_EXTENSIONS: tuple[str, ...] = (".ts", ".mp4", ".m4v", ".mov", ".avi", ".mkv")
 
     @override
-    def dropEvent(self, event):
+    def dropEvent(self, event: QDropEvent) -> None:
         if event.mimeData().hasUrls():
             # External file drop - add new files
             for url in event.mimeData().urls():
@@ -128,7 +139,7 @@ class FileListWidget(QListWidget):
             self.order_changed.emit()
 
     @override
-    def contextMenuEvent(self, _event):
+    def contextMenuEvent(self, _event: object) -> None:
         menu = QMenu(self)
         selected_items = self.selectedItems()
 
@@ -136,7 +147,7 @@ class FileListWidget(QListWidget):
             # Reordering options
             move_up_action = menu.addAction("Move Up")
             move_down_action = menu.addAction("Move Down")
-            menu.addSeparator()
+            _ = menu.addSeparator()
 
             # File operations
             open_action = menu.addAction("Open Containing Folder")
@@ -163,28 +174,30 @@ class FileListWidget(QListWidget):
             self.move_selected_down()
         elif chosen == open_action:
             for item in selected_items:
-                folder = os.path.dirname(item.data(Qt.ItemDataRole.UserRole))
+                folder: str = cast("str", item.data(Qt.ItemDataRole.UserRole))
+                folder = os.path.dirname(folder)
                 if os.path.isdir(folder):
                     self._open_folder(folder)
         elif chosen == remove_action:
             for item in selected_items:
-                path = item.data(Qt.ItemDataRole.UserRole)
+                path: str = cast("str", item.data(Qt.ItemDataRole.UserRole))
                 row = self.row(item)
-                self.takeItem(row)
-                self.path_items.pop(path, None)
-                self.metadata_cache.pop(path, None)
+                _ = self.takeItem(row)
+                _ = self.path_items.pop(path, None)
+                _ = self.metadata_cache.pop(path, None)
 
     @override
-    def mouseDoubleClickEvent(self, event):
+    def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:
         item = self.itemAt(event.pos())
         if item:
-            folder = os.path.dirname(item.data(Qt.ItemDataRole.UserRole))
+            path: str = cast("str", item.data(Qt.ItemDataRole.UserRole))
+            folder: str = os.path.dirname(path)
             if os.path.isdir(folder):
                 self._open_folder(folder)
         super().mouseDoubleClickEvent(event)
 
     @override
-    def keyPressEvent(self, event):
+    def keyPressEvent(self, event: QKeyEvent) -> None:
         """Handle keyboard shortcuts for reordering"""
         # Ctrl+Up - Move selected items up
         if (
@@ -204,7 +217,7 @@ class FileListWidget(QListWidget):
             return
         # Delete - Remove selected items
         if event.key() == Qt.Key.Key_Delete:
-            self.remove_selected()
+            _ = self.remove_selected()
             event.accept()
             return
 
@@ -213,31 +226,31 @@ class FileListWidget(QListWidget):
 
     def _open_folder(self, folder: str):
         """Open folder in file manager - cross-platform"""
+        # Validate folder exists before attempting to open
+        if not os.path.isdir(folder):
+            return
+
         try:
             if sys.platform == "win32":
-                os.startfile(folder)
+                # Windows - use explorer
+                _ = subprocess.Popen(["explorer", folder], shell=True)  # pyright: ignore[reportUnreachable]
             elif sys.platform == "darwin":
-                subprocess.Popen(["open", folder])
+                # macOS - use open
+                _ = subprocess.Popen(["open", folder])  # pyright: ignore[reportUnreachable]
             else:
-                # Linux/Unix - try different file managers
+                # Linux/Unix - try xdg-open first, then fall back to common file managers
                 try:
-                    subprocess.Popen(["xdg-open", folder])
-                except FileNotFoundError:
+                    _ = subprocess.Popen(["xdg-open", folder])
+                except OSError:
                     # Try other common file managers
-                    for manager in [
-                        "gnome-open",
-                        "kde-open",
-                        "dolphin",
-                        "nautilus",
-                        "nemo",
-                    ]:
+                    for manager in ["dolphin", "nautilus", "nemo", "thunar", "pcmanfm"]:
                         try:
-                            subprocess.Popen([manager, folder])
-                            break
-                        except FileNotFoundError:
+                            _ = subprocess.Popen([manager, folder])
+                            return  # Success, exit
+                        except OSError:
                             continue
-        except Exception:
-            # Silently fail if we can't open the folder
+        except OSError:
+            # Silently fail - not critical if folder can't be opened
             pass
 
     def _rebuild_path_items_mapping(self):
@@ -248,7 +261,7 @@ class FileListWidget(QListWidget):
         for i in range(self.count()):
             item = self.item(i)
             if item:
-                path = item.data(Qt.ItemDataRole.UserRole)
+                path: str = cast("str", item.data(Qt.ItemDataRole.UserRole))
                 if path:
                     self.path_items[path] = item
 
@@ -323,7 +336,7 @@ class FileListWidget(QListWidget):
 
         return self.path_items[path].data(Qt.ItemDataRole.UserRole + 1) or ""
 
-    def add_files(self, file_paths: "list[str]") -> None:
+    def add_files(self, file_paths: list[str]) -> None:
         """Add multiple files to the list"""
         for path in file_paths:
             self.add_path(path)
@@ -346,34 +359,34 @@ class FileListWidget(QListWidget):
         removed_count = 0
 
         for item in selected_items:
-            path = item.data(Qt.ItemDataRole.UserRole)
+            path: str = cast("str", item.data(Qt.ItemDataRole.UserRole))
             if path in self.path_items:
                 del self.path_items[path]
-                self.metadata_cache.pop(path, None)
-                self.takeItem(self.row(item))
+                _ = self.metadata_cache.pop(path, None)
+                _ = self.takeItem(self.row(item))
                 removed_count += 1
 
         return removed_count
 
-    def get_file_paths_in_order(self) -> "list[str]":
+    def get_file_paths_in_order(self) -> list[str]:
         """Get all file paths in current display order"""
-        paths = []
+        paths: list[str] = []
         for i in range(self.count()):
             item = self.item(i)
             if item:
-                path = item.data(Qt.ItemDataRole.UserRole)
+                path: str = cast("str", item.data(Qt.ItemDataRole.UserRole))
                 if path:
                     paths.append(path)
         return paths
 
-    def get_pending_files_in_order(self) -> "list[str]":
+    def get_pending_files_in_order(self) -> list[str]:
         """Get only pending file paths in current display order"""
-        paths = []
+        paths: list[str] = []
         for i in range(self.count()):
             item = self.item(i)
             if item:
-                path = item.data(Qt.ItemDataRole.UserRole)
-                status = item.data(Qt.ItemDataRole.UserRole + 1)
+                path: str = cast("str", item.data(Qt.ItemDataRole.UserRole))
+                status: str = cast("str", item.data(Qt.ItemDataRole.UserRole + 1))
                 if path and status == "pending":
                     paths.append(path)
         return paths
@@ -438,7 +451,7 @@ class FileListWidget(QListWidget):
         # Emit order changed signal
         self.order_changed.emit()
 
-    def get_file_paths(self) -> "list[str]":
+    def get_file_paths(self) -> list[str]:
         """Get all file paths in the list"""
         return list(self.path_items.keys())
 
@@ -459,16 +472,23 @@ class FileListWidget(QListWidget):
         worker = MetadataWorker(path, self.metadata_signals)
         self.thread_pool.start(worker)
 
-    def _on_metadata_loaded(self, file_path: str, metadata: Optional[Dict[str, Any]]):
+    def _on_metadata_loaded(self, file_path: str, metadata: object) -> None:
         """Handle metadata loading completion"""
         # Check if file was removed before metadata loaded (prevents memory leak)
         if file_path not in self.path_items:
             # Clean up any partial cache entry
-            self.metadata_cache.pop(file_path, None)
+            _ = self.metadata_cache.pop(file_path, None)
             return
 
-        # Store metadata in cache
-        self.metadata_cache[file_path] = metadata
+        # Validate and store metadata
+        # The metadata comes from extract_video_metadata which returns VideoMetadata | None
+        # We accept it as object from signal, then validate and cast
+        if isinstance(metadata, dict):
+            # Runtime validation - double cast through object to VideoMetadata
+            # We trust that extract_video_metadata returns the correct structure
+            self.metadata_cache[file_path] = cast("VideoMetadata", cast("object", metadata))
+        else:
+            self.metadata_cache[file_path] = None
 
         # Update the display for this file
         self._update_item_display(file_path)
@@ -538,7 +558,7 @@ class FileListWidget(QListWidget):
 
         item.setToolTip("\n".join(tooltip_lines))
 
-    def _format_file_with_metadata(self, filename: str, metadata: Dict[str, Any]) -> str:
+    def _format_file_with_metadata(self, filename: str, metadata: VideoMetadata) -> str:
         """Format filename with metadata for display"""
         parts = [filename]
 
@@ -564,7 +584,7 @@ class FileListWidget(QListWidget):
 
         return " • ".join(parts)
 
-    def get_file_metadata(self, path: str) -> Optional[Dict[str, Any]]:
+    def get_file_metadata(self, path: str) -> VideoMetadata | None:
         """Get cached metadata for a file"""
         return self.metadata_cache.get(path)
 
@@ -628,10 +648,10 @@ class FileListWidget(QListWidget):
 
     def clear_completed_files(self) -> int:
         """Remove all completed files from the list"""
-        completed_paths = []
+        completed_paths: list[str] = []
 
         for path, item in self.path_items.items():
-            status = item.data(Qt.ItemDataRole.UserRole + 1)
+            status: str = cast("str", item.data(Qt.ItemDataRole.UserRole + 1))
             if status == "completed":
                 completed_paths.append(path)
 
@@ -640,19 +660,19 @@ class FileListWidget(QListWidget):
             if path in self.path_items:
                 item = self.path_items[path]
                 row = self.row(item)
-                self.takeItem(row)
+                _ = self.takeItem(row)
                 del self.path_items[path]
                 # Also remove from metadata cache
-                self.metadata_cache.pop(path, None)
+                _ = self.metadata_cache.pop(path, None)
 
         return len(completed_paths)
 
     def remove_failed_files(self) -> int:
         """Remove all failed files from the list"""
-        failed_paths = []
+        failed_paths: list[str] = []
 
         for path, item in self.path_items.items():
-            status = item.data(Qt.ItemDataRole.UserRole + 1)
+            status: str = cast("str", item.data(Qt.ItemDataRole.UserRole + 1))
             if status == "failed":
                 failed_paths.append(path)
 
@@ -661,23 +681,23 @@ class FileListWidget(QListWidget):
             if path in self.path_items:
                 item = self.path_items[path]
                 row = self.row(item)
-                self.takeItem(row)
+                _ = self.takeItem(row)
                 del self.path_items[path]
                 # Also remove from metadata cache
-                self.metadata_cache.pop(path, None)
+                _ = self.metadata_cache.pop(path, None)
 
         return len(failed_paths)
 
-    def get_files_by_status(self, status: str) -> "list[str]":
+    def get_files_by_status(self, status: str) -> list[str]:
         """Get all file paths with the specified status"""
-        files = []
+        files: list[str] = []
         for path, item in self.path_items.items():
-            item_status = item.data(Qt.ItemDataRole.UserRole + 1)
+            item_status: str = cast("str", item.data(Qt.ItemDataRole.UserRole + 1))
             if item_status == status:
                 files.append(path)
         return files
 
-    def get_status_counts(self) -> Dict[str, int]:
+    def get_status_counts(self) -> dict[str, int]:
         """Get count of files by status"""
         counts = {"pending": 0, "processing": 0, "completed": 0, "failed": 0}
 
@@ -704,4 +724,4 @@ class FileListWidget(QListWidget):
         Call this method before the widget is destroyed (e.g., in closeEvent)
         to ensure background metadata workers finish before the widget is gone.
         """
-        self.thread_pool.waitForDone(5000)  # Wait up to 5 seconds
+        _ = self.thread_pool.waitForDone(5000)  # Wait up to 5 seconds
