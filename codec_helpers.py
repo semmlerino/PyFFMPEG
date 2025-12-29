@@ -199,10 +199,10 @@ class CodecHelpers:
     def get_output_extension(codec_idx: int) -> str:
         """Determine output file extension based on codec index"""
         if codec_idx in CodecIndex.MP4_CODECS:
-            return ".mp4"
+            return ".mkv"
         if codec_idx == CodecIndex.PRORES:
             return ".mov"
-        return ".mp4"  # Default
+        return ".mkv"  # Default
 
     @staticmethod
     def get_hardware_acceleration_args(hwdecode_idx: int) -> Tuple[List[str], str]:
