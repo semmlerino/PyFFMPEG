@@ -13,6 +13,7 @@ from collections.abc import Callable
 from threading import RLock
 from typing import ClassVar, Dict, List, Optional, Set, Tuple
 
+import psutil
 from PySide6.QtCore import QObject, QProcess, QRunnable, QThreadPool, Signal
 from typing_extensions import override
 
@@ -79,6 +80,12 @@ class ProcessManager(QObject):
 
     # Signal emitted when FFmpeg detection completes (async)
     ffmpeg_detected: ClassVar[Signal] = Signal(bool, str)  # available, path or error message
+
+    # Signal emitted when a process is paused
+    process_paused: ClassVar[Signal] = Signal(QProcess)
+
+    # Signal emitted when a process is resumed
+    process_resumed: ClassVar[Signal] = Signal(QProcess)
 
     # Class-level cache for FFmpeg path
     _ffmpeg_command_cache: ClassVar[Optional[str]] = None
@@ -701,3 +708,110 @@ class ProcessManager(QObject):
                     os.setpriority(os.PRIO_PROCESS, pid, nice_value)
         except Exception as e:
             self.logger.warning(f"Failed to set process priority: {e}")
+
+    def pause_process(self, process: QProcess) -> bool:
+        """Pause (suspend) an FFmpeg process.
+
+        Uses psutil for cross-platform support:
+        - Windows: NtSuspendProcess
+        - Linux: SIGSTOP
+
+        Args:
+            process: QProcess instance to pause
+
+        Returns:
+            True if pause succeeded, False otherwise
+        """
+        pid = process.processId()
+        if pid <= 0:
+            self.logger.warning("Cannot pause process: invalid PID")
+            return False
+
+        try:
+            psutil_proc = psutil.Process(pid)
+            psutil_proc.suspend()
+
+            process_id = self._get_process_id(process)
+            self.logger.info(f"Paused FFmpeg process {process_id} (PID: {pid})")
+            self.process_paused.emit(process)
+            return True
+
+        except psutil.NoSuchProcess:
+            self.logger.warning(f"Cannot pause process: PID {pid} no longer exists")
+            return False
+        except psutil.AccessDenied:
+            self.logger.warning(f"Cannot pause process: access denied for PID {pid}")
+            return False
+        except Exception as e:
+            self.logger.error(f"Unexpected error pausing process: {e}")
+            return False
+
+    def resume_process(self, process: QProcess) -> bool:
+        """Resume a paused FFmpeg process.
+
+        Uses psutil for cross-platform support:
+        - Windows: NtResumeProcess
+        - Linux: SIGCONT
+
+        Args:
+            process: QProcess instance to resume
+
+        Returns:
+            True if resume succeeded, False otherwise
+        """
+        pid = process.processId()
+        if pid <= 0:
+            self.logger.warning("Cannot resume process: invalid PID")
+            return False
+
+        try:
+            psutil_proc = psutil.Process(pid)
+            psutil_proc.resume()
+
+            process_id = self._get_process_id(process)
+            self.logger.info(f"Resumed FFmpeg process {process_id} (PID: {pid})")
+            self.process_resumed.emit(process)
+            return True
+
+        except psutil.NoSuchProcess:
+            self.logger.warning(f"Cannot resume process: PID {pid} no longer exists")
+            return False
+        except psutil.AccessDenied:
+            self.logger.warning(f"Cannot resume process: access denied for PID {pid}")
+            return False
+        except Exception as e:
+            self.logger.error(f"Unexpected error resuming process: {e}")
+            return False
+
+    def pause_all_processes(self) -> int:
+        """Pause all active FFmpeg processes.
+
+        Returns:
+            Number of processes successfully paused
+        """
+        paused_count = 0
+        for process, _ in self.processes:
+            if process.state() == QProcess.ProcessState.Running:
+                if self.pause_process(process):
+                    paused_count += 1
+        return paused_count
+
+    def resume_all_processes(self) -> int:
+        """Resume all paused FFmpeg processes.
+
+        Returns:
+            Number of processes successfully resumed
+        """
+        resumed_count = 0
+        for process, _ in self.processes:
+            # Check if process is suspended using psutil
+            try:
+                pid = process.processId()
+                if pid > 0:
+                    psutil_proc = psutil.Process(pid)
+                    if psutil_proc.status() == psutil.STATUS_STOPPED:
+                        if self.resume_process(process):
+                            resumed_count += 1
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+        return resumed_count

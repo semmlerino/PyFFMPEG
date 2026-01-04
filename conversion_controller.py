@@ -66,6 +66,8 @@ class ConversionController(QObject):
     conversion_started: ClassVar[Signal] = Signal()
     conversion_finished: ClassVar[Signal] = Signal()
     conversion_stopped: ClassVar[Signal] = Signal()
+    conversion_paused: ClassVar[Signal] = Signal()
+    conversion_resumed: ClassVar[Signal] = Signal()
     log_message: ClassVar[Signal] = Signal(str)  # For main log messages
     progress_updated: ClassVar[Signal] = Signal()  # For UI progress updates
 
@@ -92,6 +94,7 @@ class ConversionController(QObject):
 
         # Conversion state
         self.is_converting: bool = False
+        self.is_paused: bool = False
         self.auto_balance_enabled: bool = False
         self.file_codec_assignments: Dict[str, int] = {}
         self.queue: List[str] = []
@@ -199,6 +202,7 @@ class ConversionController(QObject):
 
         self.log_message.emit("🛑 Stopping conversion...")
         self.is_converting = False
+        self.is_paused = False
 
         # Clear pending prep workers (they'll check is_converting on completion)
         self._pending_preps.clear()
@@ -208,6 +212,33 @@ class ConversionController(QObject):
         self.log_message.emit(f"Stopped {len(stopped_processes)} processes")
 
         self.conversion_stopped.emit()
+
+    def pause_conversion(self) -> None:
+        """Pause all active conversion processes.
+
+        Suspends FFmpeg processes without terminating them.
+        Queue processing is also halted until resume_conversion() is called.
+        """
+        if not self.is_converting or self.is_paused:
+            return
+
+        self.is_paused = True
+        paused_count = self.process_manager.pause_all_processes()
+        self.log_message.emit(f"⏸️ Paused {paused_count} conversion(s)")
+        self.conversion_paused.emit()
+
+    def resume_conversion(self) -> None:
+        """Resume all paused conversion processes.
+
+        Resumes suspended FFmpeg processes and continues queue processing.
+        """
+        if not self.is_converting or not self.is_paused:
+            return
+
+        self.is_paused = False
+        resumed_count = self.process_manager.resume_all_processes()
+        self.log_message.emit(f"▶️ Resumed {resumed_count} conversion(s)")
+        self.conversion_resumed.emit()
 
     def cleanup(self) -> None:
         """Clean up resources before destruction."""
@@ -676,6 +707,7 @@ class ConversionController(QObject):
             )
 
         self.is_converting = False
+        self.is_paused = False
         self.current_path = None
         self.queue.clear()
         self.file_codec_assignments.clear()

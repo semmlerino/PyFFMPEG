@@ -82,6 +82,7 @@ class MainWindow(QMainWindow):
         self.main_log: Optional[QPlainTextEdit] = None
         self.overall_progress_bar: Optional[QProgressBar] = None
         self.start_btn: Optional[QPushButton] = None
+        self.pause_btn: Optional[QPushButton] = None
         self.stop_btn: Optional[QPushButton] = None
         self.status_bar: Optional[QStatusBar] = None
 
@@ -376,6 +377,27 @@ class MainWindow(QMainWindow):
         _ = self.start_btn.clicked.connect(self._start_conversion)
         layout.addWidget(self.start_btn)
 
+        self.pause_btn = QPushButton("⏸️ Pause")
+        self.pause_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #f39c12;
+                color: white;
+                font-weight: bold;
+                padding: 8px 16px;
+                border: none;
+                border-radius: 4px;
+            }
+            QPushButton:hover {
+                background-color: #e67e22;
+            }
+            QPushButton:disabled {
+                background-color: #95a5a6;
+            }
+        """)
+        _ = self.pause_btn.clicked.connect(self._toggle_pause)
+        self.pause_btn.setEnabled(False)
+        layout.addWidget(self.pause_btn)
+
         self.stop_btn = QPushButton("🛑 Stop Conversion")
         self.stop_btn.setStyleSheet("""
             QPushButton {
@@ -412,6 +434,12 @@ class MainWindow(QMainWindow):
         )
         _ = self.conversion_controller.conversion_stopped.connect(
             self._on_conversion_stopped
+        )
+        _ = self.conversion_controller.conversion_paused.connect(
+            self._on_conversion_paused
+        )
+        _ = self.conversion_controller.conversion_resumed.connect(
+            self._on_conversion_resumed
         )
         _ = self.conversion_controller.log_message.connect(self._add_to_main_log)
         _ = self.conversion_controller.progress_updated.connect(
@@ -568,10 +596,21 @@ class MainWindow(QMainWindow):
 
         self.conversion_controller.stop_conversion()
 
+    def _toggle_pause(self):
+        """Toggle pause/resume for the conversion process"""
+        if not self.is_converting:
+            return
+
+        if self.conversion_controller.is_paused:
+            self.conversion_controller.resume_conversion()
+        else:
+            self.conversion_controller.pause_conversion()
+
     def _on_conversion_started(self):
         """Handle conversion started signal"""
         if (
             self.start_btn is None
+            or self.pause_btn is None
             or self.stop_btn is None
             or self.overall_progress_bar is None
             or self.status_bar is None
@@ -579,6 +618,8 @@ class MainWindow(QMainWindow):
             raise RuntimeError("UI components not properly initialized")
 
         self.start_btn.setEnabled(False)
+        self.pause_btn.setEnabled(True)
+        self.pause_btn.setText("⏸️ Pause")
         self.stop_btn.setEnabled(True)
         self.overall_progress_bar.setVisible(True)
         self.overall_progress_bar.setValue(0)
@@ -588,6 +629,7 @@ class MainWindow(QMainWindow):
         """Handle conversion finished signal"""
         if (
             self.start_btn is None
+            or self.pause_btn is None
             or self.stop_btn is None
             or self.overall_progress_bar is None
             or self.status_bar is None
@@ -596,6 +638,8 @@ class MainWindow(QMainWindow):
 
         self.is_converting = False
         self.start_btn.setEnabled(True)
+        self.pause_btn.setEnabled(False)
+        self.pause_btn.setText("⏸️ Pause")
         self.stop_btn.setEnabled(False)
         self.overall_progress_bar.setVisible(False)
         self.status_bar.showMessage("Conversion completed")
@@ -611,6 +655,7 @@ class MainWindow(QMainWindow):
         """Handle conversion stopped signal"""
         if (
             self.start_btn is None
+            or self.pause_btn is None
             or self.stop_btn is None
             or self.overall_progress_bar is None
             or self.status_bar is None
@@ -619,6 +664,8 @@ class MainWindow(QMainWindow):
 
         self.is_converting = False
         self.start_btn.setEnabled(True)
+        self.pause_btn.setEnabled(False)
+        self.pause_btn.setText("⏸️ Pause")
         self.stop_btn.setEnabled(False)
         self.overall_progress_bar.setVisible(False)
         self.status_bar.showMessage("Conversion stopped")
@@ -626,6 +673,22 @@ class MainWindow(QMainWindow):
         # Refresh drag-and-drop functionality after conversion stopped
         if self.file_list:
             self.file_list.refresh_drag_drop_state()
+
+    def _on_conversion_paused(self):
+        """Handle conversion paused signal"""
+        if self.pause_btn is None or self.status_bar is None:
+            raise RuntimeError("UI components not properly initialized")
+
+        self.pause_btn.setText("▶️ Resume")
+        self.status_bar.showMessage("Conversion paused")
+
+    def _on_conversion_resumed(self):
+        """Handle conversion resumed signal"""
+        if self.pause_btn is None or self.status_bar is None:
+            raise RuntimeError("UI components not properly initialized")
+
+        self.pause_btn.setText("⏸️ Pause")
+        self.status_bar.showMessage("Converting...")
 
     def _update_overall_progress(self, progress_data: dict[str, object] | None = None) -> None:
         """Mark progress components as dirty for efficient batch updates"""
