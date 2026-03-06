@@ -42,3 +42,11 @@ archive/
 # Temporary files
 *.tmp
 *.temp
+# AI tool config dirs
+.claude/
+.serena/
+.kiro/
+.windsurf/
+.geminiignore
+# CI artifacts
+.post-commit-output
