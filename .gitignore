@@ -55,3 +55,5 @@ oldpyprojectoml
 oldpyrightconfigjson
 .post-commit-output/
 BB/
+PyFFMPEG.code-workspace
+pytest.ini.bak
