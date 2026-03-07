@@ -42,11 +42,16 @@ archive/
 # Temporary files
 *.tmp
 *.temp
-# AI tool config dirs
+# AI tool configs
 .claude/
 .serena/
 .kiro/
 .windsurf/
 .geminiignore
-# CI artifacts
-.post-commit-output
+
+# Dev artifacts
+codec_helpers_backup.py
+oldpyprojectoml
+oldpyrightconfigjson
+.post-commit-output/
+BB/
