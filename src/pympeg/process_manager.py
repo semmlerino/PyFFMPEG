@@ -7,8 +7,10 @@ Handles the creation, management, and monitoring of FFmpeg processes
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 from collections import deque
+from pathlib import Path
 from threading import RLock
 from typing import TYPE_CHECKING, ClassVar, override
 
@@ -21,6 +23,48 @@ from pympeg.progress_tracker import ProcessProgressTracker
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+
+def _discover_ffmpeg() -> str | None:
+    """Locate a working ffmpeg executable, or return None if none is found.
+
+    Uses ``shutil.which`` to honour PATH (covering both ``ffmpeg`` and the
+    Windows ``ffmpeg.exe`` spelling), then falls back to common hardcoded
+    Windows install locations gated by ``Path.is_file`` so we never launch
+    ``-version`` against a path that doesn't exist. Each surviving candidate is
+    confirmed with ``ffmpeg -version``; the first candidate that exits 0 wins.
+    A broken earlier candidate does not abort discovery — we fall through to the
+    next one.
+    """
+    candidates: list[str | None] = [shutil.which("ffmpeg"), shutil.which("ffmpeg.exe")]
+    candidates += [
+        p
+        for p in (
+            r"C:\ffmpeg\bin\ffmpeg.exe",
+            r"C:\Program Files\ffmpeg\bin\ffmpeg.exe",
+            r"C:\Program Files (x86)\ffmpeg\bin\ffmpeg.exe",
+        )
+        if Path(p).is_file()
+    ]
+
+    seen: set[str] = set()
+    for cmd in candidates:
+        if cmd is None or cmd in seen:
+            continue
+        seen.add(cmd)
+        try:
+            result = subprocess.run(
+                [cmd, "-version"],
+                check=False,
+                capture_output=True,
+                timeout=2,
+            )
+        except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+            continue
+        if result.returncode == 0:
+            return cmd
+
+    return None
 
 
 class FFmpegDetectionSignals(QObject):
@@ -44,29 +88,11 @@ class FFmpegDetectionWorker(QRunnable):
     @override
     def run(self) -> None:
         """Probe FFmpeg locations and emit result."""
-        ffmpeg_commands = [
-            "ffmpeg",
-            "ffmpeg.exe",
-            r"C:\ffmpeg\bin\ffmpeg.exe",
-            r"C:\Program Files\ffmpeg\bin\ffmpeg.exe",
-            r"C:\Program Files (x86)\ffmpeg\bin\ffmpeg.exe",
-        ]
-
-        for cmd in ffmpeg_commands:
-            try:
-                result = subprocess.run(
-                    [cmd, "-version"],
-                    check=False,
-                    capture_output=True,
-                    timeout=2,
-                )
-                if result.returncode == 0:
-                    self.signals.detection_complete.emit(True, cmd)
-                    return
-            except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
-                continue
-
-        self.signals.detection_complete.emit(False, "FFmpeg not found")
+        cmd = _discover_ffmpeg()
+        if cmd is not None:
+            self.signals.detection_complete.emit(True, cmd)
+        else:
+            self.signals.detection_complete.emit(False, "FFmpeg not found")
 
 
 class ProcessManager(QObject):
@@ -461,30 +487,12 @@ class ProcessManager(QObject):
         if ProcessManager._ffmpeg_command_cache is not None:
             return ProcessManager._ffmpeg_command_cache
 
-        # Try different FFmpeg locations (Windows-focused)
-        ffmpeg_commands = [
-            "ffmpeg",
-            "ffmpeg.exe",
-            r"C:\ffmpeg\bin\ffmpeg.exe",
-            r"C:\Program Files\ffmpeg\bin\ffmpeg.exe",
-            r"C:\Program Files (x86)\ffmpeg\bin\ffmpeg.exe",
-        ]
-
-        for cmd in ffmpeg_commands:
-            try:
-                result = subprocess.run(
-                    [cmd, "-version"],
-                    check=False,
-                    capture_output=True,
-                    timeout=2,  # Reduced timeout
-                )
-                if result.returncode == 0:
-                    ProcessManager._ffmpeg_command_cache = cmd
-                    ProcessManager._ffmpeg_available_cache = True
-                    self.logger.info(f"Found FFmpeg at: {cmd}")
-                    return cmd
-            except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
-                continue
+        cmd = _discover_ffmpeg()
+        if cmd is not None:
+            ProcessManager._ffmpeg_command_cache = cmd
+            ProcessManager._ffmpeg_available_cache = True
+            self.logger.info(f"Found FFmpeg at: {cmd}")
+            return cmd
 
         ProcessManager._ffmpeg_available_cache = False
         return None

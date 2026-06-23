@@ -97,8 +97,9 @@ class TestProcessLifecycle:
         with patch("pympeg.process_manager.ProcessProgressTracker"):
             self.manager = ProcessManager()
 
+    @patch.object(ProcessManager, "_get_ffmpeg_command", return_value="ffmpeg")
     @patch("pympeg.process_manager.QProcess")
-    def test_start_process_creation(self, mock_qprocess_class):
+    def test_start_process_creation(self, mock_qprocess_class, mock_get_cmd):
         """Test QProcess creation and configuration"""
         mock_process = Mock(spec=QProcess)
         mock_process.waitForStarted.return_value = True
@@ -113,9 +114,12 @@ class TestProcessLifecycle:
         mock_qprocess_class.assert_called_once()
         # Just verify the method was called without checking the exact enum value
         mock_process.setProcessChannelMode.assert_called_once()
-        # Check that start was called with ffmpeg command (platform-specific)
+        # start() is invoked with the discovered ffmpeg command + the given args.
+        # (Resolution itself — shutil.which / hardcoded fallbacks — is covered by
+        # TestFFmpegAsyncDetection; here _get_ffmpeg_command is mocked for determinism.)
+        mock_get_cmd.assert_called_once()
         start_call = mock_process.start.call_args[0]
-        assert start_call[0] in ["ffmpeg", "ffmpeg.exe"]  # Platform-specific
+        assert start_call[0] == "ffmpeg"
         assert start_call[1] == ffmpeg_args
         mock_process.waitForStarted.assert_called_once_with(
             ProcessConfig.PROCESS_START_TIMEOUT * 1000
@@ -898,10 +902,12 @@ class TestFFmpegAsyncDetection:
         assert len(signal_received) == 1
         assert signal_received[0][0] is False
 
+    @patch("pympeg.process_manager.shutil.which")
     @patch("pympeg.process_manager.subprocess.run")
-    def test_ffmpeg_detection_worker_finds_ffmpeg(self, mock_run):
+    def test_ffmpeg_detection_worker_finds_ffmpeg(self, mock_run, mock_which):
         """Test FFmpegDetectionWorker successfully finds FFmpeg"""
-        # Mock successful FFmpeg detection
+        # which() resolves "ffmpeg" on PATH; -version confirms it.
+        mock_which.return_value = "ffmpeg"
         mock_result = Mock()
         mock_result.returncode = 0
         mock_run.return_value = mock_result
@@ -919,12 +925,14 @@ class TestFFmpegAsyncDetection:
 
         assert len(signal_received) == 1
         assert signal_received[0][0] is True
-        assert signal_received[0][1] == "ffmpeg"  # First command tried
+        assert signal_received[0][1] == "ffmpeg"  # First candidate that confirmed
 
+    @patch("pympeg.process_manager.shutil.which")
     @patch("pympeg.process_manager.subprocess.run")
-    def test_ffmpeg_detection_worker_not_found(self, mock_run):
+    def test_ffmpeg_detection_worker_not_found(self, mock_run, mock_which):
         """Test FFmpegDetectionWorker when FFmpeg is not found"""
-        # Mock failed FFmpeg detection - all attempts fail
+        # which() yields a candidate, but -version fails for every probe.
+        mock_which.return_value = "ffmpeg"
         mock_run.side_effect = FileNotFoundError("ffmpeg not found")
 
         signals = FFmpegDetectionSignals()
@@ -942,12 +950,14 @@ class TestFFmpegAsyncDetection:
         assert signal_received[0][0] is False
         assert "not found" in signal_received[0][1].lower()
 
+    @patch("pympeg.process_manager.shutil.which")
     @patch("pympeg.process_manager.subprocess.run")
-    def test_ffmpeg_detection_worker_handles_timeout(self, mock_run):
+    def test_ffmpeg_detection_worker_handles_timeout(self, mock_run, mock_which):
         """Test FFmpegDetectionWorker handles timeout gracefully"""
         import subprocess
 
-        # First call times out, second succeeds
+        # Two distinct PATH candidates: first times out, second succeeds.
+        mock_which.side_effect = ["ffmpeg", "ffmpeg.exe"]
         mock_result = Mock()
         mock_result.returncode = 0
         mock_run.side_effect = [
@@ -967,7 +977,8 @@ class TestFFmpegAsyncDetection:
         worker.run()
 
         assert len(signal_received) == 1
-        assert signal_received[0][0] is True  # Found on second try
+        assert signal_received[0][0] is True  # Found on second candidate
+        assert signal_received[0][1] == "ffmpeg.exe"
 
     def test_on_ffmpeg_detected_caches_success(self):
         """Test that _on_ffmpeg_detected caches successful result"""
