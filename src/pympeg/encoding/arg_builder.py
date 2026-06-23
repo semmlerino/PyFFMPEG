@@ -11,6 +11,7 @@ import subprocess
 
 from pympeg.config import CodecIndex, EncodingConfig, ProcessConfig
 from pympeg.domain.codec import codec_by_index
+from pympeg.ffprobe import run_ffprobe
 from pympeg.hardware.probe import HARDWARE_PROBE
 
 
@@ -83,51 +84,26 @@ class CodecArgBuilder:
         Returns a tuple of (args_list, message_for_log)
         """
         args: list[str] = []
-        message = ""
 
-        try:
-            # Check for existing audio - try to pass through when possible
-            probe = subprocess.run(
-                [
-                    "ffprobe",
-                    "-v",
-                    "quiet",
-                    "-show_entries",
-                    "stream=codec_name",
-                    "-select_streams",
-                    "a:0",
-                    "-of",
-                    "default=nokey=1:noprint_wrappers=1",
-                    path,
-                ],
-                check=False,
-                text=True,
-                capture_output=True,
-                timeout=ProcessConfig.SUBPROCESS_TIMEOUT,
-            )
-            audio_codec = probe.stdout.strip()
+        # Probe the first audio stream's codec name. None means the probe could
+        # not run at all (timeout / ffprobe missing / non-zero exit) -> fall back
+        # to default encoding rather than re-encoding a stream we couldn't read.
+        audio_codec = run_ffprobe(
+            [
+                "-v",
+                "quiet",
+                "-show_entries",
+                "stream=codec_name",
+                "-select_streams",
+                "a:0",
+                "-of",
+                "default=nokey=1:noprint_wrappers=1",
+                path,
+            ]
+        )
 
-            # Copy AC-3/AAC audio to skip needless re-encode
-            if audio_codec in ("aac", "ac3", "eac3"):
-                args.extend(["-c:a", "copy"])
-                message = f"Detected {audio_codec} audio - using passthrough"
-            else:
-                # Handle ProRes special case, otherwise AAC
-                if codec_idx == CodecIndex.PRORES:
-                    args.extend(["-c:a", "pcm_s16le"])
-                    message = "Using PCM audio for ProRes"
-                else:
-                    args.extend(
-                        [
-                            "-c:a",
-                            "aac",
-                            "-b:a",
-                            f"{EncodingConfig.AUDIO_BITRATE_DEFAULT}k",
-                        ]
-                    )
-                    message = f"Converting audio to AAC {EncodingConfig.AUDIO_BITRATE_DEFAULT}k"
-        except (subprocess.TimeoutExpired, subprocess.CalledProcessError, OSError):
-            # Fallback to default encoding on error
+        if audio_codec is None:
+            # Probe failed entirely - fall back to default encoding.
             if codec_idx == CodecIndex.PRORES:
                 args.extend(["-c:a", "pcm_s16le"])
                 message = "Fallback to PCM audio for ProRes"
@@ -138,6 +114,28 @@ class CodecArgBuilder:
                 message = (
                     f"Fallback to AAC {EncodingConfig.AUDIO_BITRATE_DEFAULT}k audio"
                 )
+            return args, message
+
+        audio_codec = audio_codec.strip()
+
+        # Copy AC-3/AAC audio to skip needless re-encode
+        if audio_codec in ("aac", "ac3", "eac3"):
+            args.extend(["-c:a", "copy"])
+            message = f"Detected {audio_codec} audio - using passthrough"
+        elif codec_idx == CodecIndex.PRORES:
+            # Handle ProRes special case, otherwise AAC
+            args.extend(["-c:a", "pcm_s16le"])
+            message = "Using PCM audio for ProRes"
+        else:
+            args.extend(
+                [
+                    "-c:a",
+                    "aac",
+                    "-b:a",
+                    f"{EncodingConfig.AUDIO_BITRATE_DEFAULT}k",
+                ]
+            )
+            message = f"Converting audio to AAC {EncodingConfig.AUDIO_BITRATE_DEFAULT}k"
 
         return args, message
 

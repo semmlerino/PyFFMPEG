@@ -152,6 +152,7 @@ class TestAudioCodecConfiguration:
         """Test AAC audio passthrough"""
         mock_result = Mock()
         mock_result.stdout = "aac"
+        mock_result.returncode = 0
         mock_subprocess.return_value = mock_result
 
         args, message = CodecArgBuilder.get_audio_codec_args("/test/input.ts", 0)
@@ -165,6 +166,7 @@ class TestAudioCodecConfiguration:
         """Test AC-3 audio passthrough"""
         mock_result = Mock()
         mock_result.stdout = "ac3"
+        mock_result.returncode = 0
         mock_subprocess.return_value = mock_result
 
         args, message = CodecArgBuilder.get_audio_codec_args("/test/input.ts", 0)
@@ -177,6 +179,7 @@ class TestAudioCodecConfiguration:
         """Test PCM audio for ProRes"""
         mock_result = Mock()
         mock_result.stdout = "mp3"  # Non-passthrough codec
+        mock_result.returncode = 0
         mock_subprocess.return_value = mock_result
 
         args, message = CodecArgBuilder.get_audio_codec_args(
@@ -191,6 +194,7 @@ class TestAudioCodecConfiguration:
         """Test AAC encoding for non-passthrough codecs"""
         mock_result = Mock()
         mock_result.stdout = "mp3"
+        mock_result.returncode = 0
         mock_subprocess.return_value = mock_result
 
         args, message = CodecArgBuilder.get_audio_codec_args("/test/input.ts", 0)
@@ -797,7 +801,7 @@ class TestPresetMapping:
 class TestVideoMetadataExtraction:
     """Test video metadata extraction functionality"""
 
-    @patch("pympeg.metadata.probe.subprocess.run")
+    @patch("pympeg.ffprobe.subprocess.run")
     def test_extract_basic_metadata(self, mock_run):
         """Test extraction of basic video metadata"""
         mock_result = Mock()
@@ -828,7 +832,7 @@ class TestVideoMetadataExtraction:
         assert metadata["codec"] == "H264"
         assert "Mbps" in metadata["bitrate"]
 
-    @patch("pympeg.metadata.probe.subprocess.run")
+    @patch("pympeg.ffprobe.subprocess.run")
     def test_extract_metadata_no_video_stream(self, mock_run):
         """Test metadata extraction when no video stream exists"""
         mock_result = Mock()
@@ -845,7 +849,7 @@ class TestVideoMetadataExtraction:
         metadata = MetadataProbe.extract_video_metadata("/test/audio.mp3")
         assert metadata is None
 
-    @patch("pympeg.metadata.probe.subprocess.run")
+    @patch("pympeg.ffprobe.subprocess.run")
     def test_extract_metadata_ffprobe_failure(self, mock_run):
         """Test metadata extraction when ffprobe fails"""
         mock_result = Mock()
@@ -855,7 +859,7 @@ class TestVideoMetadataExtraction:
         metadata = MetadataProbe.extract_video_metadata("/test/invalid.mp4")
         assert metadata is None
 
-    @patch("pympeg.metadata.probe.subprocess.run")
+    @patch("pympeg.ffprobe.subprocess.run")
     def test_extract_metadata_timeout(self, mock_run):
         """Test metadata extraction with timeout"""
         mock_run.side_effect = subprocess.TimeoutExpired("ffprobe", 30)
@@ -863,7 +867,7 @@ class TestVideoMetadataExtraction:
         metadata = MetadataProbe.extract_video_metadata("/test/video.mp4")
         assert metadata is None
 
-    @patch("pympeg.metadata.probe.subprocess.run")
+    @patch("pympeg.ffprobe.subprocess.run")
     def test_extract_metadata_invalid_json(self, mock_run):
         """Test metadata extraction with invalid JSON"""
         mock_result = Mock()

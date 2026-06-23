@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import contextlib
 import json
-import subprocess
 from typing import TypedDict
 
-from pympeg.config import ProcessConfig
+from pympeg.ffprobe import run_ffprobe
 
 
 class VideoMetadata(TypedDict):
@@ -34,9 +33,8 @@ class MetadataProbe:
             Dict with keys: duration, width, height, codec, bitrate, format_name
             None if extraction fails
         """
-        try:
-            cmd = [
-                "ffprobe",
+        out = run_ffprobe(
+            [
                 "-v",
                 "quiet",
                 "-print_format",
@@ -45,23 +43,16 @@ class MetadataProbe:
                 "-show_streams",
                 file_path,
             ]
+        )
+        if out is None:
+            return None
 
-            result = subprocess.run(
-                cmd,
-                check=False,
-                capture_output=True,
-                text=True,
-                timeout=ProcessConfig.SUBPROCESS_TIMEOUT,
-            )
-
-            if result.returncode != 0:
-                return None
-
+        try:
             # Parse JSON with type safety
             # json.loads returns object, validate structure with isinstance
             # Note: Type checker cannot infer dict structure from json.loads,
             # so we suppress type warnings after runtime validation
-            data_obj: object = json.loads(result.stdout)  # pyright: ignore[reportAny]
+            data_obj: object = json.loads(out)  # pyright: ignore[reportAny]
             if not isinstance(data_obj, dict):
                 return None
 
@@ -144,13 +135,7 @@ class MetadataProbe:
                 format_name=format_name,
             )
 
-        except (
-            subprocess.TimeoutExpired,
-            subprocess.CalledProcessError,
-            json.JSONDecodeError,
-            OSError,
-            Exception,
-        ):
+        except (json.JSONDecodeError, ValueError, TypeError, OSError, Exception):
             return None
 
     @staticmethod

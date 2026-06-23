@@ -6,12 +6,14 @@ Handles parsing ffmpeg output and calculating progress metrics and ETAs
 
 from __future__ import annotations
 
+import os
 import threading
 import time
 from typing import Any
 
-from pympeg.config import CodecIndex, ProcessConfig, UIConfig
+from pympeg.config import CodecIndex, UIConfig
 from pympeg.domain.job import BatchState, ProcessState
+from pympeg.ffprobe import run_ffprobe
 from pympeg.logging_config import get_logger
 from pympeg.output_buffer import ProcessOutputManager
 
@@ -458,12 +460,8 @@ class ProcessProgressTracker:
         Probe a media file for its duration using ffprobe
         Returns duration in seconds or None if it can't be determined
         """
-        import subprocess
-
-        logger = get_logger()  # Get logger instance for static method
-        try:
-            cmd = [
-                "ffprobe",
+        out = run_ffprobe(
+            [
                 "-v",
                 "error",
                 "-show_entries",
@@ -471,25 +469,16 @@ class ProcessProgressTracker:
                 "-of",
                 "default=noprint_wrappers=1:nokey=1",
                 path,
-            ]
-            result = subprocess.run(
-                cmd,
-                check=False,
-                capture_output=True,
-                text=True,
-                timeout=ProcessConfig.SUBPROCESS_TIMEOUT,
-            )
+            ],
+            timeout_log_label=f"ffprobe duration probe for {os.path.basename(path)}",
+        )
+        if out is None:
+            return None
 
-            if result.stdout.strip():
-                return float(result.stdout.strip())
-        except subprocess.TimeoutExpired:
-            logger.log_process_timeout(
-                f"ffprobe for {path}", ProcessConfig.SUBPROCESS_TIMEOUT
-            )
-        except (subprocess.CalledProcessError, ValueError, OSError):
-            logger.warning(
-                f"Failed to probe duration for {path}",
-                suggestion="Check if the file is a valid video file",
-            )
-
-        return None
+        text = out.strip()
+        if not text:
+            return None
+        try:
+            return float(text)
+        except ValueError:
+            return None
