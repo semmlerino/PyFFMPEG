@@ -7,12 +7,19 @@ A custom QListWidget with drag & drop support for TS files
 from __future__ import annotations
 
 import os
-import subprocess
-import sys
 from typing import TYPE_CHECKING, ClassVar, cast, override
 
-from PySide6.QtCore import QFileInfo, QObject, QRunnable, QSize, Qt, QThreadPool, Signal
-from PySide6.QtGui import QColor, QCursor
+from PySide6.QtCore import (
+    QFileInfo,
+    QObject,
+    QRunnable,
+    QSize,
+    Qt,
+    QThreadPool,
+    QUrl,
+    Signal,
+)
+from PySide6.QtGui import QColor, QCursor, QDesktopServices
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QListWidget,
@@ -249,28 +256,7 @@ class FileListWidget(QListWidget):
         if not os.path.isdir(folder):
             return
 
-        try:
-            if sys.platform == "win32":
-                # Windows - use explorer
-                _ = subprocess.Popen(["explorer", folder], shell=True)  # pyright: ignore[reportUnreachable]
-            elif sys.platform == "darwin":
-                # macOS - use open
-                _ = subprocess.Popen(["open", folder])  # pyright: ignore[reportUnreachable]
-            else:
-                # Linux/Unix - try xdg-open first, then fall back to common file managers
-                try:
-                    _ = subprocess.Popen(["xdg-open", folder])
-                except OSError:
-                    # Try other common file managers
-                    for manager in ["dolphin", "nautilus", "nemo", "thunar", "pcmanfm"]:
-                        try:
-                            _ = subprocess.Popen([manager, folder])
-                            return  # Success, exit
-                        except OSError:
-                            continue
-        except OSError:
-            # Silently fail - not critical if folder can't be opened
-            pass
+        _ = QDesktopServices.openUrl(QUrl.fromLocalFile(folder))
 
     def _rebuild_path_items_mapping(self):
         """Rebuild the path_items map and the model order after a reorder."""
