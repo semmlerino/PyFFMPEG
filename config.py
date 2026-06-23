@@ -6,6 +6,8 @@ Centralizes all magic numbers and configuration values for better maintainabilit
 
 from typing import Final
 
+from domain.codec import CODEC_REGISTRY
+
 
 # Process Management Constants
 class ProcessConfig:
@@ -143,25 +145,24 @@ class CodecIndex:
     H264_QSV: Final[int] = 5
     H264_VAAPI: Final[int] = 6
 
-    # Grouped indices for batch operations
-    GPU_ENCODERS: Final["tuple[int, ...]"] = (
-        H264_NVENC,
-        HEVC_NVENC,
-        AV1_NVENC,
-        H264_QSV,
-        H264_VAAPI,
+    # Grouped indices derived from CODEC_REGISTRY (the single source of truth).
+    # The Final[int] public names are preserved so downstream code is untouched.
+    # (MP4_CODECS keeps its historical name though the container is now .mkv.)
+    GPU_ENCODERS: Final["tuple[int, ...]"] = tuple(
+        c.index for c in CODEC_REGISTRY if c.is_gpu
     )
-    CPU_ENCODERS: Final["tuple[int, ...]"] = (X264_CPU, PRORES)
-    NVENC_ENCODERS: Final["tuple[int, ...]"] = (H264_NVENC, HEVC_NVENC, AV1_NVENC)
-    MP4_CODECS: Final["tuple[int, ...]"] = (
-        H264_NVENC,
-        HEVC_NVENC,
-        AV1_NVENC,
-        X264_CPU,
-        H264_QSV,
-        H264_VAAPI,
+    CPU_ENCODERS: Final["tuple[int, ...]"] = tuple(
+        c.index for c in CODEC_REGISTRY if not c.is_gpu
     )
-    MOV_CODECS: Final["tuple[int, ...]"] = (PRORES,)
+    NVENC_ENCODERS: Final["tuple[int, ...]"] = tuple(
+        c.index for c in CODEC_REGISTRY if c.is_nvenc
+    )
+    MP4_CODECS: Final["tuple[int, ...]"] = tuple(
+        c.index for c in CODEC_REGISTRY if c.container_ext == ".mkv"
+    )
+    MOV_CODECS: Final["tuple[int, ...]"] = tuple(
+        c.index for c in CODEC_REGISTRY if c.container_ext == ".mov"
+    )
 
 
 # Hardware Detection Constants

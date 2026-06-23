@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, ClassVar, override
 from PySide6.QtCore import QObject, QProcess, QRunnable, QThreadPool, Signal
 
 if TYPE_CHECKING:
+    from domain.settings import ConversionSettings
     from file_list_widget import FileListWidget
     from process_manager import ProcessManager
     from process_monitor import ProcessMonitor
@@ -132,22 +133,9 @@ class ConversionController(QObject):
         self.file_list_widget = file_list_widget
 
     def start_conversion(
-        self,
-        file_paths: list[str],
-        codec_idx: int,
-        hwdecode_idx: int,
-        crf_value: int,
-        parallel_enabled: bool,
-        max_parallel: int,
-        delete_source: bool,
-        overwrite_mode: bool,
-        preset_idx: int = 0,
-        hevc_10bit: bool = False,
-        threads: int = 0,
-        priority_idx: int = 1,
-        smart_buffer: bool = True,
+        self, file_paths: list[str], settings: ConversionSettings
     ) -> bool:
-        """Start the conversion process with given parameters"""
+        """Start the conversion process with the given settings"""
         if self.is_converting:
             self.log_message.emit("⚠️ Conversion already in progress")
             return False
@@ -168,24 +156,27 @@ class ConversionController(QObject):
 
         # Perform auto-balance if enabled
         if self.auto_balance_enabled:
-            self._auto_balance_workload(file_paths, codec_idx)
+            self._auto_balance_workload(file_paths, settings.codec_idx)
 
         # Start batch in process manager
-        self.process_manager.start_batch(file_paths, parallel_enabled, max_parallel)
+        self.process_manager.start_batch(
+            file_paths, settings.parallel_enabled, settings.max_parallel
+        )
 
-        # Store conversion settings
-        self.codec_idx = codec_idx
-        self.hwdecode_idx = hwdecode_idx
-        self.crf_value = crf_value
-        self.parallel_enabled = parallel_enabled
-        self.max_parallel = max_parallel
-        self.delete_source = delete_source
-        self.overwrite_mode = overwrite_mode
-        self.preset_idx = preset_idx
-        self.hevc_10bit = hevc_10bit
-        self.threads = threads
-        self.priority_idx = priority_idx
-        self.smart_buffer = smart_buffer
+        # Store conversion settings (unpacked onto the controller for now; Phase 4
+        # consolidates these into the domain objects).
+        self.codec_idx = settings.codec_idx
+        self.hwdecode_idx = settings.hwdecode_idx
+        self.crf_value = settings.crf_value
+        self.parallel_enabled = settings.parallel_enabled
+        self.max_parallel = settings.max_parallel
+        self.delete_source = settings.delete_source
+        self.overwrite_mode = settings.overwrite_mode
+        self.preset_idx = settings.preset_idx
+        self.hevc_10bit = settings.hevc_10bit
+        self.threads = settings.threads
+        self.priority_idx = settings.priority_idx
+        self.smart_buffer = settings.smart_buffer
 
         self.log_message.emit(f"🚀 Starting conversion of {len(file_paths)} files...")
         self.conversion_started.emit()

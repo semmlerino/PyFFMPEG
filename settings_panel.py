@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
 
 from codec_helpers import CodecHelpers
 from config import AppConfig, EncodingConfig, ProcessConfig
+from domain.codec import CODEC_REGISTRY
 
 
 class SettingsPanel(QObject):
@@ -128,17 +129,8 @@ class SettingsPanel(QObject):
         codec_layout.addWidget(QLabel("Video Codec:"))
 
         self.codec_combo = QComboBox()
-        self.codec_combo.addItems(
-            [
-                "H.264 NVENC",  # 0
-                "HEVC NVENC",  # 1
-                "AV1 NVENC",  # 2
-                "x264 CPU",  # 3
-                "ProRes CPU",  # 4
-                "H.264 QSV",  # 5
-                "H.264 VAAPI",  # 6
-            ]
-        )
+        # Codec order/labels come from the registry (single source of truth).
+        self.codec_combo.addItems([c.display_name for c in CODEC_REGISTRY])
         self.codec_combo.setToolTip("Select video codec for encoding")
         codec_layout.addWidget(self.codec_combo)
         layout.addLayout(codec_layout)

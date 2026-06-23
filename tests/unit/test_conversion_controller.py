@@ -11,6 +11,7 @@ from PySide6.QtCore import QProcess
 
 from config import EncodingConfig
 from conversion_controller import ConversionController
+from domain.settings import ConversionSettings
 from tests.fixtures.mocks import create_mock_process_manager
 
 
@@ -72,14 +73,16 @@ class TestConversionWorkflow:
             patch.object(self.controller, "_process_next") as mock_process_next,
         ):
             result = self.controller.start_conversion(
-                file_paths=file_paths,
-                codec_idx=0,  # H.264 NVENC
-                hwdecode_idx=1,  # NVIDIA
-                crf_value=18,
-                parallel_enabled=True,
-                max_parallel=4,
-                delete_source=False,
-                overwrite_mode=True,
+                file_paths,
+                ConversionSettings(
+                    codec_idx=0,  # H.264 NVENC
+                    hwdecode_idx=1,  # NVIDIA
+                    crf_value=18,
+                    parallel_enabled=True,
+                    max_parallel=4,
+                    delete_source=False,
+                    overwrite_mode=True,
+                ),
             )
 
         assert result
@@ -105,14 +108,16 @@ class TestConversionWorkflow:
         self.controller.is_converting = True
 
         result = self.controller.start_conversion(
-            file_paths=["/test/video.ts"],
-            codec_idx=0,
-            hwdecode_idx=0,
-            crf_value=18,
-            parallel_enabled=False,
-            max_parallel=1,
-            delete_source=False,
-            overwrite_mode=True,
+            ["/test/video.ts"],
+            ConversionSettings(
+                codec_idx=0,
+                hwdecode_idx=0,
+                crf_value=18,
+                parallel_enabled=False,
+                max_parallel=1,
+                delete_source=False,
+                overwrite_mode=True,
+            ),
         )
 
         assert not result
@@ -121,14 +126,16 @@ class TestConversionWorkflow:
     def test_start_conversion_empty_file_list(self):
         """Test starting conversion with empty file list"""
         result = self.controller.start_conversion(
-            file_paths=[],
-            codec_idx=0,
-            hwdecode_idx=0,
-            crf_value=18,
-            parallel_enabled=False,
-            max_parallel=1,
-            delete_source=False,
-            overwrite_mode=True,
+            [],
+            ConversionSettings(
+                codec_idx=0,
+                hwdecode_idx=0,
+                crf_value=18,
+                parallel_enabled=False,
+                max_parallel=1,
+                delete_source=False,
+                overwrite_mode=True,
+            ),
         )
 
         assert not result
@@ -709,14 +716,16 @@ class TestConversionSignals:
         ):
             # Start conversion to trigger log messages
             self.controller.start_conversion(
-                file_paths=["/test/video.ts"],
-                codec_idx=0,
-                hwdecode_idx=0,
-                crf_value=18,
-                parallel_enabled=False,
-                max_parallel=1,
-                delete_source=False,
-                overwrite_mode=True,
+                ["/test/video.ts"],
+                ConversionSettings(
+                    codec_idx=0,
+                    hwdecode_idx=0,
+                    crf_value=18,
+                    parallel_enabled=False,
+                    max_parallel=1,
+                    delete_source=False,
+                    overwrite_mode=True,
+                ),
             )
 
             # Should emit log message about starting conversion
@@ -736,14 +745,16 @@ class TestConversionSignals:
             patch.object(self.controller, "conversion_started") as mock_signal,
         ):
             self.controller.start_conversion(
-                file_paths=["/test/video.ts"],
-                codec_idx=0,
-                hwdecode_idx=0,
-                crf_value=18,
-                parallel_enabled=False,
-                max_parallel=1,
-                delete_source=False,
-                overwrite_mode=True,
+                ["/test/video.ts"],
+                ConversionSettings(
+                    codec_idx=0,
+                    hwdecode_idx=0,
+                    crf_value=18,
+                    parallel_enabled=False,
+                    max_parallel=1,
+                    delete_source=False,
+                    overwrite_mode=True,
+                ),
             )
 
             mock_signal.emit.assert_called_once()
@@ -777,14 +788,16 @@ class TestConversionValidation:
             self.controller, "_validate_conversion_ready", return_value=(True, "")
         ):
             result = self.controller.start_conversion(
-                file_paths=file_paths,
-                codec_idx=0,  # Valid codec
-                hwdecode_idx=1,  # Valid hardware decode
-                crf_value=18,  # Valid CRF
-                parallel_enabled=True,
-                max_parallel=4,  # Valid parallel count
-                delete_source=False,
-                overwrite_mode=True,
+                file_paths,
+                ConversionSettings(
+                    codec_idx=0,  # Valid codec
+                    hwdecode_idx=1,  # Valid hardware decode
+                    crf_value=18,  # Valid CRF
+                    parallel_enabled=True,
+                    max_parallel=4,  # Valid parallel count
+                    delete_source=False,
+                    overwrite_mode=True,
+                ),
             )
 
         assert result
@@ -799,14 +812,16 @@ class TestConversionValidation:
             self.controller, "_validate_conversion_ready", return_value=(True, "")
         ):
             result = self.controller.start_conversion(
-                file_paths=file_paths,
-                codec_idx=0,
-                hwdecode_idx=0,
-                crf_value=18,
-                parallel_enabled=True,
-                max_parallel=0,  # Invalid parallel count
-                delete_source=False,
-                overwrite_mode=True,
+                file_paths,
+                ConversionSettings(
+                    codec_idx=0,
+                    hwdecode_idx=0,
+                    crf_value=18,
+                    parallel_enabled=True,
+                    max_parallel=0,  # Invalid parallel count
+                    delete_source=False,
+                    overwrite_mode=True,
+                ),
             )
 
         # Current implementation allows this - consider adding validation
@@ -821,14 +836,16 @@ class TestConversionValidation:
         ):
             # Test very high CRF
             result = self.controller.start_conversion(
-                file_paths=file_paths,
-                codec_idx=0,
-                hwdecode_idx=0,
-                crf_value=100,  # Very high CRF
-                parallel_enabled=False,
-                max_parallel=1,
-                delete_source=False,
-                overwrite_mode=True,
+                file_paths,
+                ConversionSettings(
+                    codec_idx=0,
+                    hwdecode_idx=0,
+                    crf_value=100,  # Very high CRF
+                    parallel_enabled=False,
+                    max_parallel=1,
+                    delete_source=False,
+                    overwrite_mode=True,
+                ),
             )
 
         # Should still work (encoder config handles clamping)
@@ -854,14 +871,16 @@ class TestConversionControllerEdgeCases:
         ):
             # Start conversion
             result = self.controller.start_conversion(
-                file_paths=file_paths,
-                codec_idx=0,
-                hwdecode_idx=0,
-                crf_value=18,
-                parallel_enabled=False,
-                max_parallel=1,
-                delete_source=False,
-                overwrite_mode=True,
+                file_paths,
+                ConversionSettings(
+                    codec_idx=0,
+                    hwdecode_idx=0,
+                    crf_value=18,
+                    parallel_enabled=False,
+                    max_parallel=1,
+                    delete_source=False,
+                    overwrite_mode=True,
+                ),
             )
 
             assert result
@@ -907,14 +926,16 @@ class TestConversionControllerEdgeCases:
 
             # Should not crash with malformed paths
             result = self.controller.start_conversion(
-                file_paths=[path],
-                codec_idx=0,
-                hwdecode_idx=0,
-                crf_value=18,
-                parallel_enabled=False,
-                max_parallel=1,
-                delete_source=False,
-                overwrite_mode=True,
+                [path],
+                ConversionSettings(
+                    codec_idx=0,
+                    hwdecode_idx=0,
+                    crf_value=18,
+                    parallel_enabled=False,
+                    max_parallel=1,
+                    delete_source=False,
+                    overwrite_mode=True,
+                ),
             )
 
             # Implementation should handle gracefully
@@ -935,14 +956,16 @@ class TestConversionControllerEdgeCases:
             self.controller, "_validate_conversion_ready", return_value=(True, "")
         ):
             result = self.controller.start_conversion(
-                file_paths=large_file_list,
-                codec_idx=0,
-                hwdecode_idx=0,
-                crf_value=18,
-                parallel_enabled=True,
-                max_parallel=8,
-                delete_source=False,
-                overwrite_mode=True,
+                large_file_list,
+                ConversionSettings(
+                    codec_idx=0,
+                    hwdecode_idx=0,
+                    crf_value=18,
+                    parallel_enabled=True,
+                    max_parallel=8,
+                    delete_source=False,
+                    overwrite_mode=True,
+                ),
             )
 
             assert result
@@ -989,14 +1012,16 @@ class TestConversionControllerIntegration:
         ):
             # Start conversion
             result = self.controller.start_conversion(
-                file_paths=file_paths,
-                codec_idx=0,
-                hwdecode_idx=1,
-                crf_value=18,
-                parallel_enabled=True,
-                max_parallel=2,
-                delete_source=False,
-                overwrite_mode=True,
+                file_paths,
+                ConversionSettings(
+                    codec_idx=0,
+                    hwdecode_idx=1,
+                    crf_value=18,
+                    parallel_enabled=True,
+                    max_parallel=2,
+                    delete_source=False,
+                    overwrite_mode=True,
+                ),
             )
 
             assert result

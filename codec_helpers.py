@@ -15,6 +15,7 @@ from typing import ClassVar, TypedDict, override
 from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal
 
 from config import CodecIndex, EncodingConfig, FileConfig, HardwareConfig, ProcessConfig
+from domain.codec import codec_by_index
 
 
 class VideoMetadata(TypedDict):
@@ -204,11 +205,8 @@ class CodecHelpers:
     @staticmethod
     def get_output_extension(codec_idx: int) -> str:
         """Determine output file extension based on codec index"""
-        if codec_idx in CodecIndex.MP4_CODECS:
-            return ".mkv"
-        if codec_idx == CodecIndex.PRORES:
-            return ".mov"
-        return ".mkv"  # Default
+        codec = codec_by_index(codec_idx)
+        return codec.container_ext if codec is not None else ".mkv"
 
     @staticmethod
     def get_hardware_acceleration_args(hwdecode_idx: int) -> tuple[list[str], str]:
@@ -949,20 +947,16 @@ class CodecHelpers:
         if duration_seconds <= 0:
             return None
 
-        # Get base size factor from config
-        size_factors = {
-            0: FileConfig.SIZE_FACTOR_H264,  # H.264 NVENC
-            1: FileConfig.SIZE_FACTOR_HEVC,  # HEVC NVENC
-            2: FileConfig.SIZE_FACTOR_AV1,  # AV1 NVENC
-            3: FileConfig.SIZE_FACTOR_X264,  # x264
-            4: FileConfig.SIZE_FACTOR_PRORES_422
-            if crf_value <= 20
-            else FileConfig.SIZE_FACTOR_PRORES_4444,  # ProRes
-            5: FileConfig.SIZE_FACTOR_H264,  # H.264 QSV
-            6: FileConfig.SIZE_FACTOR_H264,  # H.264 VAAPI
-        }
-
-        base_factor = size_factors.get(codec_idx, FileConfig.SIZE_FACTOR_DEFAULT)
+        # Base size factor comes from the codec registry. ProRes carries a second
+        # factor (4444) used above the high-CRF threshold; every other codec has a
+        # single factor (size_factor_high_crf is None).
+        codec = codec_by_index(codec_idx)
+        if codec is None:
+            base_factor = FileConfig.SIZE_FACTOR_DEFAULT
+        elif codec.size_factor_high_crf is not None and crf_value > 20:
+            base_factor = codec.size_factor_high_crf
+        else:
+            base_factor = codec.size_factor
 
         # Apply quality multiplier based on CRF
         # Lower CRF = higher quality = larger file

@@ -32,6 +32,7 @@ from PySide6.QtWidgets import (
 from codec_helpers import GPUDetector
 from config import AppConfig, LogConfig
 from conversion_controller import ConversionController
+from domain.settings import ConversionSettings
 
 # Import our focused classes
 from file_list_widget import FileListWidget
@@ -561,7 +562,7 @@ class MainWindow(QMainWindow):
             return
 
         # Get settings from settings panel
-        settings = self.settings_panel.get_current_settings()
+        settings_dict = self.settings_panel.get_current_settings()
 
         # Validate settings
         is_valid, error_msg = self.settings_panel.validate_settings()
@@ -569,44 +570,22 @@ class MainWindow(QMainWindow):
             _ = QMessageBox.warning(self, "Invalid Settings", error_msg)
             return
 
-        # Extract and convert settings values (QSettings returns int | bool | str)
-        def get_int(key: str, default: int) -> int:
-            val = settings.get(key, default)
-            # QSettings value is int | bool | str, all are convertible to int
-            return int(val)
-
-        def get_bool(key: str, default: bool) -> bool:
-            val = settings.get(key, default)
-            # QSettings value is int | bool | str, all are convertible to bool
-            return bool(val)
+        # get_current_settings() returns {} only when the panel's controls are not
+        # yet initialized; don't start a conversion with no settings.
+        if not settings_dict:
+            _ = QMessageBox.warning(
+                self, "Settings Unavailable", "Could not read codec settings."
+            )
+            return
 
         # Start conversion
-        success = self.conversion_controller.start_conversion(
-            file_paths=file_paths,
-            codec_idx=get_int("codec_idx", 0),
-            hwdecode_idx=get_int("hwdecode_idx", 0),
-            crf_value=get_int("crf_value", 16),
-            parallel_enabled=get_bool("parallel_enabled", False),
-            max_parallel=get_int("max_parallel", 2),
-            delete_source=get_bool("delete_source", False),
-            overwrite_mode=get_bool("overwrite_mode", True),
-            preset_idx=get_int("preset_idx", 0),
-            hevc_10bit=get_bool("hevc_10bit", False),
-            threads=get_int("threads", 0),
-            priority_idx=get_int("priority_idx", 1),
-            smart_buffer=get_bool("smart_buffer", True),
-        )
+        settings = ConversionSettings.from_settings_dict(settings_dict)
+        success = self.conversion_controller.start_conversion(file_paths, settings)
 
         if success:
             self.is_converting = True
-            # Enable smart buffer mode if setting is enabled
-            smart_buffer_val = settings.get("smart_buffer", True)
-            smart_buffer = (
-                bool(smart_buffer_val)
-                if isinstance(smart_buffer_val, (int, bool))
-                else True
-            )
-            self.ui_update_manager.set_smart_buffer(smart_buffer)
+            # Enable smart buffer mode if the setting is enabled
+            self.ui_update_manager.set_smart_buffer(settings.smart_buffer)
 
     def _stop_conversion(self):
         """Stop the conversion process"""
