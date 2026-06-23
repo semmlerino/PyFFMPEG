@@ -195,6 +195,39 @@ class TestSettingsPanel:
         # Should have at least one signal from manual change
         assert signal_count >= 1
 
+    def test_set_settings_does_not_emit_signals(self):
+        """Loading settings must not echo back as user-initiated changes.
+
+        set_settings blocks every control with QSignalBlocker (via ExitStack)
+        while writing values, so settings_changed stays silent. Regression
+        guard for Finding 4 (exception-safe blocking).
+        """
+        emissions = 0
+
+        def count_signal(_settings_dict):
+            nonlocal emissions
+            emissions += 1
+
+        self.panel.settings_changed.connect(count_signal)
+
+        self.panel.set_settings(
+            {
+                "codec_idx": 3,
+                "crf_value": 20,
+                "parallel_enabled": False,
+                "hevc_10bit": True,
+            }
+        )
+
+        # No echoed signal during programmatic load.
+        assert emissions == 0
+        # Values were still applied while signals were blocked...
+        assert self.panel.codec_combo.currentIndex() == 3
+        assert self.panel.crf_spinbox.value() == 20
+        assert self.panel.parallel_checkbox.isChecked() is False
+        # ...including hevc_10bit, which the old set_settings never restored.
+        assert self.panel.hevc_10bit_checkbox.isChecked() is True
+
     def test_codec_combo_items(self):
         """Test codec combo box has expected items"""
         combo = self.panel.codec_combo

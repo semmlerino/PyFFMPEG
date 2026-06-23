@@ -6,10 +6,11 @@ Handles all UI controls and settings management
 
 from __future__ import annotations
 
+import contextlib
 import os
 from typing import ClassVar, cast
 
-from PySide6.QtCore import QObject, QSettings, Signal
+from PySide6.QtCore import QObject, QSettings, QSignalBlocker, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -531,130 +532,82 @@ class SettingsPanel(QObject):
         assert self.priority_combo is not None
         assert self.hevc_10bit_checkbox is not None
 
-        # Temporarily disconnect signals to avoid loops
-        self._disconnect_signals()
+        # Block signals while loading values so programmatic updates don't echo
+        # back as user-initiated settings_changed. ExitStack guarantees every
+        # widget is unblocked even if a value assignment raises.
+        with contextlib.ExitStack() as stack:
+            for widget in (
+                self.codec_combo,
+                self.preset_combo,
+                self.hwdecode_combo,
+                self.crf_spinbox,
+                self.threads_spinbox,
+                self.parallel_checkbox,
+                self.max_parallel_spinbox,
+                self.delete_source_checkbox,
+                self.overwrite_checkbox,
+                self.smart_buffer_checkbox,
+                self.auto_balance_checkbox,
+                self.priority_combo,
+                self.hevc_10bit_checkbox,
+            ):
+                _ = stack.enter_context(QSignalBlocker(widget))
 
-        if "codec_idx" in settings:
-            value = settings["codec_idx"]
-            assert isinstance(value, int)
-            self.codec_combo.setCurrentIndex(value)
-        if "preset_idx" in settings:
-            value = settings["preset_idx"]
-            assert isinstance(value, int)
-            self.preset_combo.setCurrentIndex(value)
-        if "hwdecode_idx" in settings:
-            value = settings["hwdecode_idx"]
-            assert isinstance(value, int)
-            self.hwdecode_combo.setCurrentIndex(value)
-        if "crf_value" in settings:
-            value = settings["crf_value"]
-            assert isinstance(value, int)
-            self.crf_spinbox.setValue(value)
-        if "threads" in settings:
-            value = settings["threads"]
-            assert isinstance(value, int)
-            self.threads_spinbox.setValue(value)
-        if "parallel_enabled" in settings:
-            value = settings["parallel_enabled"]
-            assert isinstance(value, bool)
-            self.parallel_checkbox.setChecked(value)
-        if "max_parallel" in settings:
-            value = settings["max_parallel"]
-            assert isinstance(value, int)
-            self.max_parallel_spinbox.setValue(value)
-        if "delete_source" in settings:
-            value = settings["delete_source"]
-            assert isinstance(value, bool)
-            self.delete_source_checkbox.setChecked(value)
-        if "overwrite_mode" in settings:
-            value = settings["overwrite_mode"]
-            assert isinstance(value, bool)
-            self.overwrite_checkbox.setChecked(value)
-        if "smart_buffer" in settings:
-            value = settings["smart_buffer"]
-            assert isinstance(value, bool)
-            self.smart_buffer_checkbox.setChecked(value)
-        if "auto_balance" in settings:
-            value = settings["auto_balance"]
-            assert isinstance(value, bool)
-            self.auto_balance_checkbox.setChecked(value)
-        if "priority_idx" in settings:
-            value = settings["priority_idx"]
-            assert isinstance(value, int)
-            self.priority_combo.setCurrentIndex(value)
+            if "codec_idx" in settings:
+                value = settings["codec_idx"]
+                assert isinstance(value, int)
+                self.codec_combo.setCurrentIndex(value)
+            if "preset_idx" in settings:
+                value = settings["preset_idx"]
+                assert isinstance(value, int)
+                self.preset_combo.setCurrentIndex(value)
+            if "hwdecode_idx" in settings:
+                value = settings["hwdecode_idx"]
+                assert isinstance(value, int)
+                self.hwdecode_combo.setCurrentIndex(value)
+            if "crf_value" in settings:
+                value = settings["crf_value"]
+                assert isinstance(value, int)
+                self.crf_spinbox.setValue(value)
+            if "threads" in settings:
+                value = settings["threads"]
+                assert isinstance(value, int)
+                self.threads_spinbox.setValue(value)
+            if "parallel_enabled" in settings:
+                value = settings["parallel_enabled"]
+                assert isinstance(value, bool)
+                self.parallel_checkbox.setChecked(value)
+            if "max_parallel" in settings:
+                value = settings["max_parallel"]
+                assert isinstance(value, int)
+                self.max_parallel_spinbox.setValue(value)
+            if "delete_source" in settings:
+                value = settings["delete_source"]
+                assert isinstance(value, bool)
+                self.delete_source_checkbox.setChecked(value)
+            if "overwrite_mode" in settings:
+                value = settings["overwrite_mode"]
+                assert isinstance(value, bool)
+                self.overwrite_checkbox.setChecked(value)
+            if "smart_buffer" in settings:
+                value = settings["smart_buffer"]
+                assert isinstance(value, bool)
+                self.smart_buffer_checkbox.setChecked(value)
+            if "auto_balance" in settings:
+                value = settings["auto_balance"]
+                assert isinstance(value, bool)
+                self.auto_balance_checkbox.setChecked(value)
+            if "priority_idx" in settings:
+                value = settings["priority_idx"]
+                assert isinstance(value, int)
+                self.priority_combo.setCurrentIndex(value)
+            if "hevc_10bit" in settings:
+                value = settings["hevc_10bit"]
+                assert isinstance(value, bool)
+                self.hevc_10bit_checkbox.setChecked(value)
 
-        # Unblock signals that were blocked during loading
-        _ = self.codec_combo.blockSignals(False)
-        _ = self.preset_combo.blockSignals(False)
-        _ = self.hwdecode_combo.blockSignals(False)
-        _ = self.crf_spinbox.blockSignals(False)
-        _ = self.threads_spinbox.blockSignals(False)
-        _ = self.parallel_checkbox.blockSignals(False)
-        _ = self.max_parallel_spinbox.blockSignals(False)
-        _ = self.delete_source_checkbox.blockSignals(False)
-        _ = self.overwrite_checkbox.blockSignals(False)
-        _ = self.smart_buffer_checkbox.blockSignals(False)
-        _ = self.auto_balance_checkbox.blockSignals(False)
-        _ = self.priority_combo.blockSignals(False)
-        _ = self.hevc_10bit_checkbox.blockSignals(False)
-
-        # Note: Signals are already connected in __init__, no need to reconnect
-        # (blocking/unblocking is sufficient to prevent signals during value loading)
-
-        # Update dependent controls
+        # Update dependent controls (after signals are unblocked)
         self.max_parallel_spinbox.setEnabled(self.parallel_checkbox.isChecked())
-
-    def _disconnect_signals(self) -> None:
-        """Temporarily disconnect signals"""
-        required_controls = [
-            self.codec_combo,
-            self.preset_combo,
-            self.hwdecode_combo,
-            self.crf_spinbox,
-            self.threads_spinbox,
-            self.parallel_checkbox,
-            self.max_parallel_spinbox,
-            self.delete_source_checkbox,
-            self.overwrite_checkbox,
-            self.smart_buffer_checkbox,
-            self.auto_balance_checkbox,
-            self.priority_combo,
-            self.hevc_10bit_checkbox,
-        ]
-
-        if not all(required_controls):
-            return
-
-        # Assert widgets are not None for type checker
-        assert self.codec_combo is not None
-        assert self.preset_combo is not None
-        assert self.hwdecode_combo is not None
-        assert self.crf_spinbox is not None
-        assert self.threads_spinbox is not None
-        assert self.parallel_checkbox is not None
-        assert self.max_parallel_spinbox is not None
-        assert self.delete_source_checkbox is not None
-        assert self.overwrite_checkbox is not None
-        assert self.smart_buffer_checkbox is not None
-        assert self.auto_balance_checkbox is not None
-        assert self.priority_combo is not None
-        assert self.hevc_10bit_checkbox is not None
-
-        # Disconnect each signal individually to avoid issues
-        # Block signals instead of disconnecting to avoid warnings
-        _ = self.codec_combo.blockSignals(True)
-        _ = self.preset_combo.blockSignals(True)
-        _ = self.hwdecode_combo.blockSignals(True)
-        _ = self.crf_spinbox.blockSignals(True)
-        _ = self.threads_spinbox.blockSignals(True)
-        _ = self.parallel_checkbox.blockSignals(True)
-        _ = self.max_parallel_spinbox.blockSignals(True)
-        _ = self.delete_source_checkbox.blockSignals(True)
-        _ = self.overwrite_checkbox.blockSignals(True)
-        _ = self.smart_buffer_checkbox.blockSignals(True)
-        _ = self.auto_balance_checkbox.blockSignals(True)
-        _ = self.priority_combo.blockSignals(True)
-        _ = self.hevc_10bit_checkbox.blockSignals(True)
 
     def _save_settings(self) -> None:
         """Save current settings to QSettings"""
