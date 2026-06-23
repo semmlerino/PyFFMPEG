@@ -56,9 +56,22 @@ htmlcov/
 .ruff_cache/
 .mypy_cache/
 
+# AI tool configs
+.claude/
+.serena/
+.kiro/
+.windsurf/
+.geminiignore
+
 # Untracked subproject / scratch trees
 BB/
 .post-commit-output/
+
+# Stray dev artifacts
+oldpyprojectoml
+oldpyrightconfigjson
+PyFFMPEG.code-workspace
+pytest.ini.bak
 
 # Stray screenshots
 Clipboard Image.jpg
