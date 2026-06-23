@@ -11,10 +11,10 @@ from unittest.mock import Mock, patch
 import pytest
 from PySide6.QtCore import QProcess
 
-from pympeg.config import ProcessConfig
 from pympeg.process_manager import (
     FFmpegDetectionSignals,
     FFmpegDetectionWorker,
+    ProcessCompletion,
     ProcessManager,
 )
 
@@ -102,7 +102,6 @@ class TestProcessLifecycle:
     def test_start_process_creation(self, mock_qprocess_class, mock_get_cmd):
         """Test QProcess creation and configuration"""
         mock_process = Mock(spec=QProcess)
-        mock_process.waitForStarted.return_value = True
         mock_qprocess_class.return_value = mock_process
 
         file_path = "/test/video.ts"
@@ -121,9 +120,7 @@ class TestProcessLifecycle:
         start_call = mock_process.start.call_args[0]
         assert start_call[0] == "ffmpeg"
         assert start_call[1] == ffmpeg_args
-        mock_process.waitForStarted.assert_called_once_with(
-            ProcessConfig.PROCESS_START_TIMEOUT * 1000
-        )
+        mock_process.waitForStarted.assert_not_called()
 
         # Verify process is tracked
         assert len(self.manager.processes) == 1
@@ -134,10 +131,9 @@ class TestProcessLifecycle:
         assert result_process == mock_process
 
     @patch("pympeg.process_manager.QProcess")
-    def test_start_process_startup_timeout(self, mock_qprocess_class):
-        """Test process startup timeout handling"""
+    def test_start_process_is_non_blocking(self, mock_qprocess_class):
+        """Test process startup does not block the caller."""
         mock_process = Mock(spec=QProcess)
-        mock_process.waitForStarted.return_value = False  # Timeout
         mock_process.errorString.return_value = "Process timeout"
         mock_qprocess_class.return_value = mock_process
 
@@ -149,6 +145,7 @@ class TestProcessLifecycle:
         # Should still track the process even if startup times out
         assert len(self.manager.processes) == 1
         assert result_process == mock_process
+        mock_process.waitForStarted.assert_not_called()
 
     @patch("pympeg.process_manager.QProcess")
     def test_process_signal_connections(self, mock_qprocess_class):
@@ -764,7 +761,13 @@ class TestProcessManagerIntegration:
 
         # Start process
         file_path = "/test/video.ts"
-        self.manager.start_process(file_path, ["-i", file_path, "output.mp4"])
+        output_path = "/test/video_RC.mp4"
+        self.manager.start_process(
+            file_path,
+            ["-i", file_path, output_path],
+            codec_idx=0,
+            output_path=output_path,
+        )
 
         # Mock signals to prevent segfault
         with (
@@ -781,13 +784,18 @@ class TestProcessManagerIntegration:
             # Verify signals were emitted
             mock_update_signal.emit.assert_called_once()
             mock_finished_signal.emit.assert_called_once_with(
-                mock_process, 0, file_path
+                mock_process,
+                0,
+                file_path,
+                ProcessCompletion(file_path, output_path, 0),
             )
 
         # Verify process was cleaned up
         assert len(self.manager.processes) == 0
         assert mock_process not in self.manager.process_logs
         assert mock_process not in self.manager.process_outputs
+        assert file_path not in self.manager.output_map
+        assert file_path not in self.manager.codec_map
 
     @patch("pympeg.process_manager.QProcess")
     def test_mark_process_finished_failure(self, mock_qprocess_class):
@@ -802,7 +810,13 @@ class TestProcessManagerIntegration:
 
         # Start process
         file_path = "/test/video.ts"
-        self.manager.start_process(file_path, ["-i", file_path, "output.mp4"])
+        output_path = "/test/video_RC.mp4"
+        self.manager.start_process(
+            file_path,
+            ["-i", file_path, output_path],
+            codec_idx=3,
+            output_path=output_path,
+        )
 
         # Mock signals to prevent segfault
         with (
@@ -821,13 +835,18 @@ class TestProcessManagerIntegration:
             mock_update_signal.emit.assert_not_called()
             # But process_finished should still be emitted
             mock_finished_signal.emit.assert_called_once_with(
-                mock_process, 1, file_path
+                mock_process,
+                1,
+                file_path,
+                ProcessCompletion(file_path, output_path, 3),
             )
 
         # Verify process was cleaned up even on failure
         assert len(self.manager.processes) == 0
         assert mock_process not in self.manager.process_logs
         assert mock_process not in self.manager.process_outputs
+        assert file_path not in self.manager.output_map
+        assert file_path not in self.manager.codec_map
 
 
 @pytest.mark.unit

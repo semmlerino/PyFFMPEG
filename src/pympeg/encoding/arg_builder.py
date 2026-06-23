@@ -11,12 +11,56 @@ import subprocess
 
 from pympeg.config import CodecIndex, EncodingConfig, ProcessConfig
 from pympeg.domain.codec import codec_by_index
+from pympeg.domain.settings import NvencSettings
 from pympeg.ffprobe import run_ffprobe
 from pympeg.hardware.probe import HARDWARE_PROBE
 
 
 class CodecArgBuilder:
     """Builds FFmpeg CLI arguments for codec selection, hardware acceleration, and audio."""
+
+    @staticmethod
+    def _nvenc_quality_args(
+        crf_value: int,
+        nvenc_settings: NvencSettings,
+        *,
+        include_b_frame_count: bool,
+    ) -> list[str]:
+        """Build shared NVENC quality/rate-control options."""
+        rc_mode = "constqp" if nvenc_settings.rc_mode == "cqp" else nvenc_settings.rc_mode
+        args = ["-rc", rc_mode]
+
+        if rc_mode == "constqp":
+            args.extend(["-qp", str(crf_value)])
+        elif rc_mode == "vbr":
+            args.extend(["-cq", str(crf_value), "-b:v", "0"])
+
+        b_adapt_enabled = "1" if nvenc_settings.b_adapt > 0 else "0"
+        b_ref_mode = (
+            "disabled"
+            if nvenc_settings.b_adapt == 0
+            else "each"
+            if nvenc_settings.b_adapt == 1
+            else "middle"
+        )
+        if include_b_frame_count:
+            args.extend(["-bf", "4"])
+        args.extend(["-b_adapt", b_adapt_enabled, "-b_ref_mode", b_ref_mode])
+
+        aq_enabled = "1" if nvenc_settings.aq_strength > 0 else "0"
+        args.extend(["-temporal-aq", aq_enabled, "-spatial-aq", aq_enabled])
+        if nvenc_settings.aq_strength > 0:
+            args.extend(["-aq-strength", str(nvenc_settings.aq_strength)])
+
+        args.extend(
+            [
+                "-rc-lookahead",
+                "32",
+                "-dpb_size",
+                str(nvenc_settings.ref_frames),
+            ]
+        )
+        return args
 
     @staticmethod
     def get_output_extension(codec_idx: int) -> str:
@@ -146,7 +190,7 @@ class CodecArgBuilder:
         _is_parallel_enabled: bool,
         crf_value: int,
         hevc_10bit: bool = False,
-        _nvenc_settings: object | None = None,
+        nvenc_settings: NvencSettings | None = None,
         preset_idx: int = 0,
     ) -> tuple[list[str], str]:
         """Get encoder configuration arguments based on codec index.
@@ -171,6 +215,7 @@ class CodecArgBuilder:
         nvenc_preset = nvenc_presets.get(preset_idx, "p5")
         x264_preset = x264_presets.get(preset_idx, "medium")
         qsv_preset = qsv_presets.get(preset_idx, "medium")
+        nvenc_settings = nvenc_settings or NvencSettings()
 
         try:
             # Get cached or detect available encoders
@@ -189,22 +234,11 @@ class CodecArgBuilder:
                         nvenc_preset,
                         "-profile:v",
                         "high",
-                        "-rc",
-                        "vbr",  # Use standard vbr mode
-                        "-cq",
-                        str(crf_value),
-                        "-b:v",
-                        "0",  # Required for VBR mode
-                        "-bf",
-                        "4",
-                        "-b_ref_mode",
-                        "middle",
-                        "-temporal-aq",
-                        "1",
-                        "-spatial-aq",
-                        "1",
-                        "-rc-lookahead",
-                        "32",
+                        *CodecArgBuilder._nvenc_quality_args(
+                            crf_value,
+                            nvenc_settings,
+                            include_b_frame_count=True,
+                        ),
                     ]
                 )
                 message = "Using H.264 NVENC hardware encoding"
@@ -222,22 +256,11 @@ class CodecArgBuilder:
                         nvenc_preset,
                         "-profile:v",
                         "main10" if hevc_10bit else "main",
-                        "-rc",
-                        "vbr",  # Use standard vbr mode
-                        "-cq",
-                        str(crf_value),
-                        "-b:v",
-                        "0",  # Required for VBR mode
-                        "-bf",
-                        "4",
-                        "-b_ref_mode",
-                        "middle",
-                        "-temporal-aq",
-                        "1",
-                        "-spatial-aq",
-                        "1",
-                        "-rc-lookahead",
-                        "32",
+                        *CodecArgBuilder._nvenc_quality_args(
+                            crf_value,
+                            nvenc_settings,
+                            include_b_frame_count=True,
+                        ),
                     ]
                 )
                 if hevc_10bit:
@@ -254,18 +277,11 @@ class CodecArgBuilder:
                         "av1_nvenc",
                         "-preset",
                         nvenc_preset,
-                        "-rc",
-                        "vbr",  # AV1 NVENC uses 'vbr' not 'vbr_hq'
-                        "-cq",
-                        str(crf_value),
-                        "-b:v",
-                        "0",  # Required for VBR mode
-                        "-temporal-aq",
-                        "1",
-                        "-spatial-aq",
-                        "1",
-                        "-rc-lookahead",
-                        "32",
+                        *CodecArgBuilder._nvenc_quality_args(
+                            crf_value,
+                            nvenc_settings,
+                            include_b_frame_count=False,
+                        ),
                         "-highbitdepth",
                         "1",
                     ]

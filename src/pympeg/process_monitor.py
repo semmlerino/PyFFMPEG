@@ -368,7 +368,11 @@ class ProcessMonitor(QObject):
         del self.process_widgets[process]
 
     def _on_process_finished(
-        self, process: QProcess, _exit_code: int, _process_path: str
+        self,
+        process: QProcess,
+        _exit_code: int,
+        _process_path: str,
+        _completion: object | None = None,
     ) -> None:
         """Handle process finished signal"""
         self.remove_process_widget(process)

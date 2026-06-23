@@ -18,11 +18,12 @@ from PySide6.QtCore import QObject, QProcess, QRunnable, QThreadPool, Signal
 if TYPE_CHECKING:
     from pympeg.domain.settings import ConversionSettings
     from pympeg.file_list_widget import FileListWidget
-    from pympeg.process_manager import ProcessManager
+    from pympeg.process_manager import ProcessCompletion, ProcessManager
     from pympeg.process_monitor import ProcessMonitor
 
 from pympeg.config import CodecIndex, EncodingConfig, ValidationConfig
 from pympeg.domain.codec import codec_by_index
+from pympeg.domain.settings import NvencSettings
 from pympeg.domain.status import FileStatus
 from pympeg.encoding.arg_builder import CodecArgBuilder
 from pympeg.hardware.probe import HARDWARE_PROBE
@@ -117,6 +118,7 @@ class ConversionController(QObject):
         self.threads: int = 0  # 0 = auto
         self.priority_idx: int = 1  # 0=high, 1=normal, 2=low
         self.smart_buffer: bool = True
+        self.nvenc_settings: NvencSettings = NvencSettings()
 
         # Thread pool for async prep work (probe duration, audio codec detection)
         self._prep_thread_pool: QThreadPool = QThreadPool()
@@ -190,6 +192,7 @@ class ConversionController(QObject):
         self.threads = settings.threads
         self.priority_idx = settings.priority_idx
         self.smart_buffer = settings.smart_buffer
+        self.nvenc_settings = settings.nvenc_settings
 
         self.log_message.emit(f"🚀 Starting conversion of {len(file_paths)} files...")
         self.conversion_started.emit()
@@ -253,7 +256,7 @@ class ConversionController(QObject):
 
         Performs pre-flight checks:
         1. File accessibility - ensures all source files can be read
-        2. Disk space - ensures sufficient space for estimated output
+        2. Disk space - ensures sufficient space in each output directory
 
         Args:
             file_paths: List of files to convert
@@ -275,45 +278,40 @@ class ConversionController(QObject):
                 files_str = f"{inaccessible_files[0]}, {inaccessible_files[1]}, ... (+{len(inaccessible_files) - 2} more)"
             return False, f"Cannot read files: {files_str}"
 
-        # Check 2: Disk space validation
-        # Get the output directory (use first file's directory as reference)
         if not file_paths:
             return True, ""
 
-        output_dir = os.path.dirname(file_paths[0])
-        if not output_dir:
-            output_dir = os.getcwd()
-
-        # Estimate total output size based on input sizes
-        # For re-encoding, output is typically similar or smaller than input
-        # Use a conservative estimate of same size as input
-        total_input_size = 0
+        # Check 2: Disk space validation, grouped by the actual output directory.
+        # Outputs are currently written beside each input file.
+        estimated_size_by_dir: dict[str, int] = {}
         for path in file_paths:
+            output_dir = os.path.dirname(path) or os.getcwd()
             with contextlib.suppress(OSError):
-                total_input_size += os.path.getsize(path)
+                estimated_size_by_dir[output_dir] = (
+                    estimated_size_by_dir.get(output_dir, 0) + os.path.getsize(path)
+                )
 
-        estimated_output_size = total_input_size
+        for output_dir, estimated_output_size in estimated_size_by_dir.items():
+            try:
+                disk_usage = shutil.disk_usage(output_dir)
+                free_space = disk_usage.free
+            except OSError as e:
+                return False, f"Cannot check disk space for {output_dir}: {e}"
 
-        # Check available disk space
-        try:
-            disk_usage = shutil.disk_usage(output_dir)
-            free_space = disk_usage.free
-        except OSError as e:
-            return False, f"Cannot check disk space: {e}"
-
-        # Require output estimate + safety margin
-        required_space = int(
-            estimated_output_size / ValidationConfig.DISK_SPACE_SAFETY_MARGIN
-        )
-        required_space = max(required_space, ValidationConfig.MIN_FREE_SPACE_BYTES)
-
-        if free_space < required_space:
-            free_gb = free_space / (1024**3)
-            required_gb = required_space / (1024**3)
-            return (
-                False,
-                f"Insufficient disk space: {free_gb:.1f}GB free, need ~{required_gb:.1f}GB",
+            # Require output estimate + safety margin
+            required_space = int(
+                estimated_output_size / ValidationConfig.DISK_SPACE_SAFETY_MARGIN
             )
+            required_space = max(required_space, ValidationConfig.MIN_FREE_SPACE_BYTES)
+
+            if free_space < required_space:
+                free_gb = free_space / (1024**3)
+                required_gb = required_space / (1024**3)
+                return (
+                    False,
+                    f"Insufficient disk space in {output_dir}: "
+                    f"{free_gb:.1f}GB free, need ~{required_gb:.1f}GB",
+                )
 
         return True, ""
 
@@ -373,17 +371,19 @@ class ConversionController(QObject):
                     return False
             return False
         except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError):
-            # If ffprobe fails, fall back to size-only check (already passed above)
-            # Log warning but allow deletion if size check passed
             self.log_message.emit(
-                "⚠️ ffprobe verification skipped (unavailable), using size check only"
+                "⚠️ ffprobe verification failed or is unavailable; keeping source file"
             )
-            return True
+            return False
 
     def _process_next(self) -> None:
         """Process the next file in the queue"""
-        if not self.is_converting or not self.queue:
-            if self.is_converting and not self.queue:
+        if not self.is_converting:
+            return
+
+        active_count = len(self.process_manager.processes) + len(self._pending_preps)
+        if not self.queue:
+            if active_count == 0:
                 self._finish_conversion()
             return
 
@@ -521,6 +521,12 @@ class ConversionController(QObject):
             input_path, codec_idx, audio_args, audio_message
         )
 
+    def _get_output_path(self, input_path: str, codec_idx: int) -> str:
+        """Return the output path for an input/codec pair."""
+        output_ext = CodecArgBuilder.get_output_extension(codec_idx)
+        input_name = os.path.splitext(os.path.basename(input_path))[0]
+        return os.path.join(os.path.dirname(input_path), f"{input_name}_RC{output_ext}")
+
     def _build_ffmpeg_args_with_audio(
         self,
         input_path: str,
@@ -568,6 +574,7 @@ class ConversionController(QObject):
             self.parallel_enabled,
             self.crf_value,
             hevc_10bit=self.hevc_10bit,
+            nvenc_settings=self.nvenc_settings,
             preset_idx=self.preset_idx,
         )
         args.extend(encoder_args)
@@ -579,13 +586,7 @@ class ConversionController(QObject):
         # derives output_path = ffmpeg_args[-1], so output_path stays last.
         args.extend(["-progress", "pipe:1", "-stats_period", "1"])
 
-        # Output file
-        output_ext = CodecArgBuilder.get_output_extension(codec_idx)
-        input_name = os.path.splitext(os.path.basename(input_path))[0]
-        output_path = os.path.join(
-            os.path.dirname(input_path), f"{input_name}_RC{output_ext}"
-        )
-        args.append(output_path)
+        args.append(self._get_output_path(input_path, codec_idx))
         return args
 
     def _get_codec_for_path(self, path: str) -> int:
@@ -647,7 +648,11 @@ class ConversionController(QObject):
         )
 
     def _on_process_finished(
-        self, _process: QProcess, exit_code: int, process_path: str
+        self,
+        _process: QProcess,
+        exit_code: int,
+        process_path: str,
+        completion: ProcessCompletion | None = None,
     ) -> None:
         """Handle process completion"""
         if exit_code == 0:
@@ -661,18 +666,21 @@ class ConversionController(QObject):
 
             # Handle source file deletion if enabled - with ffprobe output verification
             if self.delete_source:
-                # Use stored output path if available, otherwise reconstruct (fallback)
-                output_path = self.process_manager.output_map.get(process_path)
+                output_path = completion.output_path if completion else None
+                codec_idx = (
+                    completion.codec_idx
+                    if completion and completion.codec_idx >= 0
+                    else self.codec_idx
+                )
+
+                # Fallbacks support direct unit-test calls and older in-process callers.
                 if not output_path:
-                    # Fallback reconstruction (for backwards compatibility)
-                    codec_idx = self.process_manager.codec_map.get(
-                        process_path, self.codec_idx
-                    )
-                    output_ext = CodecArgBuilder.get_output_extension(codec_idx)
-                    input_name = os.path.splitext(os.path.basename(process_path))[0]
-                    output_path = os.path.join(
-                        os.path.dirname(process_path), f"{input_name}_RC{output_ext}"
-                    )
+                    output_map = getattr(self.process_manager, "output_map", {})
+                    output_path = output_map.get(process_path)
+                if not output_path:
+                    codec_map = getattr(self.process_manager, "codec_map", {})
+                    codec_idx = codec_map.get(process_path, codec_idx)
+                    output_path = self._get_output_path(process_path, codec_idx)
 
                 # Get input size for verification
                 try:

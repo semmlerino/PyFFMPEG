@@ -12,6 +12,7 @@ from PySide6.QtCore import QProcess
 from pympeg.config import EncodingConfig
 from pympeg.conversion_controller import ConversionController
 from pympeg.domain.settings import ConversionSettings
+from pympeg.process_manager import ProcessCompletion
 from tests.fixtures.mocks import create_mock_process_manager
 
 
@@ -459,6 +460,19 @@ class TestProcessManagement:
         mock_finish.assert_called_once()
         self.mock_process_manager.start_process.assert_not_called()
 
+    def test_process_next_empty_queue_waits_for_active_parallel_processes(self):
+        """Do not finish a parallel batch while other processes are still active."""
+        self.controller.is_converting = True
+        self.controller.parallel_enabled = True
+        self.controller.queue = []
+        self.mock_process_manager.processes = [(Mock(), "/test/video2.ts")]
+
+        with patch.object(self.controller, "_finish_conversion") as mock_finish:
+            self.controller._process_next()
+
+        mock_finish.assert_not_called()
+        self.mock_process_manager.start_process.assert_not_called()
+
     def test_process_next_not_converting(self):
         """Test process_next when not converting"""
         self.controller.is_converting = False
@@ -631,10 +645,8 @@ class TestSourceFileDeletion:
         self.controller.parallel_enabled = False  # Set required attribute
         self.controller.queue = []  # Set required attribute
         self.controller.file_list_widget = None  # Set required attribute
-        # Mock codec_map and output_map for the process_manager
-        self.mock_process_manager.codec_map = {file_path: 0}
-        self.mock_process_manager.output_map = {file_path: output_path}
-        self.controller._on_process_finished(mock_process, 0, file_path)
+        completion = ProcessCompletion(file_path, output_path, 0)
+        self.controller._on_process_finished(mock_process, 0, file_path, completion)
 
         # Should attempt to delete the source file
         mock_remove.assert_called_once_with(file_path)
@@ -668,11 +680,10 @@ class TestSourceFileDeletion:
         self.controller.parallel_enabled = False
         self.controller.queue = []
         self.controller.file_list_widget = None
-        self.mock_process_manager.codec_map = {file_path: 0}
-        self.mock_process_manager.output_map = {file_path: output_path}
+        completion = ProcessCompletion(file_path, output_path, 0)
 
         # Should handle the exception gracefully
-        self.controller._on_process_finished(mock_process, 0, file_path)
+        self.controller._on_process_finished(mock_process, 0, file_path, completion)
 
         mock_remove.assert_called_once_with(file_path)
 
@@ -704,11 +715,10 @@ class TestSourceFileDeletion:
         self.controller.parallel_enabled = False
         self.controller.queue = []
         self.controller.file_list_widget = None
-        self.mock_process_manager.codec_map = {file_path: 0}
-        self.mock_process_manager.output_map = {file_path: output_path}
+        completion = ProcessCompletion(file_path, output_path, 0)
 
         # Should handle exception gracefully
-        self.controller._on_process_finished(mock_process, 0, file_path)
+        self.controller._on_process_finished(mock_process, 0, file_path, completion)
 
         mock_remove.assert_called_once_with(file_path)
 
@@ -727,6 +737,34 @@ class TestSourceFileDeletion:
             self.controller._on_process_finished(mock_process, 0, file_path)
 
         # Should not attempt to delete when disabled
+        mock_remove.assert_not_called()
+
+    @patch("subprocess.run")
+    @patch("os.remove")
+    @patch("os.path.getsize")
+    @patch("os.stat")
+    def test_delete_source_keeps_source_when_ffprobe_unavailable(
+        self, mock_stat, mock_getsize, mock_remove, mock_run
+    ):
+        """Do not delete the source when container verification cannot run."""
+        file_path = "/test/video.ts"
+        output_path = "/test/video_RC.mp4"
+        mock_process = Mock()
+
+        mock_stat_result = Mock()
+        mock_stat_result.st_size = 10000
+        mock_stat.return_value = mock_stat_result
+        mock_getsize.return_value = 100000
+        mock_run.side_effect = OSError("ffprobe not found")
+
+        self.controller.delete_source = True
+        self.controller.parallel_enabled = False
+        self.controller.queue = []
+        self.controller.file_list_widget = None
+        completion = ProcessCompletion(file_path, output_path, 0)
+
+        self.controller._on_process_finished(mock_process, 0, file_path, completion)
+
         mock_remove.assert_not_called()
 
 
@@ -802,6 +840,40 @@ class TestConversionSignals:
             self.controller.stop_conversion()
 
         mock_signal.emit.assert_called_once()
+
+
+class TestPreflightValidation:
+    """Test conversion preflight validation."""
+
+    def setup_method(self):
+        self.mock_process_manager = create_mock_process_manager()
+        self.controller = ConversionController(self.mock_process_manager)
+
+    @patch("os.path.getsize")
+    @patch("os.access", return_value=True)
+    @patch("shutil.disk_usage")
+    def test_disk_space_checked_per_output_directory(
+        self, mock_disk_usage, mock_access, mock_getsize
+    ):
+        """A later output directory with low space should fail preflight."""
+        file_paths = ["/drive1/video1.ts", "/drive2/video2.ts"]
+        mock_getsize.side_effect = lambda path: {
+            "/drive1/video1.ts": 100_000,
+            "/drive2/video2.ts": 100_000,
+        }[path]
+
+        def fake_disk_usage(path):
+            free_space = 10 * 1024**3 if path == "/drive1" else 1
+            return Mock(free=free_space)
+
+        mock_disk_usage.side_effect = fake_disk_usage
+
+        valid, error_msg = self.controller._validate_conversion_ready(file_paths)
+
+        assert valid is False
+        assert "/drive2" in error_msg
+        assert mock_access.call_count == 2
+        assert mock_disk_usage.call_count == 2
 
 
 class TestConversionValidation:
@@ -1247,25 +1319,25 @@ class TestTOCTOURaceConditionHandling:
 
 @pytest.mark.unit
 class TestOutputMapUsage:
-    """Test that output_map is used instead of path reconstruction.
+    """Test completion metadata and output-path fallback behavior.
 
-    BUG FIX: Output path was being reconstructed in _on_process_finished,
-    which could produce wrong paths if codec settings changed mid-batch.
-    Now uses stored output_map.
+    BUG FIX: ProcessManager cleanup removes output_map before the controller
+    handles completion, so the exact output path must travel with the signal.
     """
 
     def setup_method(self):
         self.mock_process_manager = create_mock_process_manager()
         self.controller = ConversionController(self.mock_process_manager)
 
+    @patch("subprocess.run")
     @patch("os.remove")
     @patch("os.path.getsize")
     @patch("os.stat")
     @patch("pympeg.encoding.arg_builder.CodecArgBuilder.get_output_extension")
-    def test_output_map_used_over_reconstruction(
-        self, mock_ext, mock_stat, mock_getsize, mock_remove
+    def test_completion_metadata_used_over_reconstruction(
+        self, mock_ext, mock_stat, mock_getsize, mock_remove, mock_run
     ):
-        """Test that output_map is preferred over path reconstruction."""
+        """Test completion metadata is preferred over path reconstruction."""
         file_path = "/test/video.ts"
         stored_output_path = "/test/video_RC.mp4"
         mock_process = Mock()
@@ -1275,29 +1347,28 @@ class TestOutputMapUsage:
         mock_stat_result.st_size = 10000
         mock_stat.return_value = mock_stat_result
         mock_getsize.return_value = 100000
-
-        # Store output path in output_map
-        self.mock_process_manager.output_map = {file_path: stored_output_path}
-        self.mock_process_manager.codec_map = {file_path: 0}
+        mock_run.return_value = Mock(returncode=0, stdout="123.45")
 
         self.controller.delete_source = True
         self.controller.parallel_enabled = False
         self.controller.queue = []
         self.controller.file_list_widget = None
+        completion = ProcessCompletion(file_path, stored_output_path, 0)
 
-        self.controller._on_process_finished(mock_process, 0, file_path)
+        self.controller._on_process_finished(mock_process, 0, file_path, completion)
 
         # Should use stored output path, NOT call get_output_extension
         mock_stat.assert_called_once_with(stored_output_path)
-        # get_output_extension should NOT be called when output_map has the path
+        # get_output_extension should NOT be called when metadata has the path
         mock_ext.assert_not_called()
 
+    @patch("subprocess.run")
     @patch("os.remove")
     @patch("os.path.getsize")
     @patch("os.stat")
     @patch("pympeg.encoding.arg_builder.CodecArgBuilder.get_output_extension")
     def test_fallback_to_reconstruction_when_output_map_empty(
-        self, mock_ext, mock_stat, mock_getsize, mock_remove
+        self, mock_ext, mock_stat, mock_getsize, mock_remove, mock_run
     ):
         """Test fallback to path reconstruction when output_map is empty."""
         file_path = "/test/video.ts"
@@ -1308,6 +1379,7 @@ class TestOutputMapUsage:
         mock_stat_result.st_size = 10000
         mock_stat.return_value = mock_stat_result
         mock_getsize.return_value = 100000
+        mock_run.return_value = Mock(returncode=0, stdout="123.45")
 
         # Empty output_map - should fallback to reconstruction
         self.mock_process_manager.output_map = {}

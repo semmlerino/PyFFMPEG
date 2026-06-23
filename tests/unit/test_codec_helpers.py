@@ -10,6 +10,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from pympeg.config import EncodingConfig, ProcessConfig
+from pympeg.domain.settings import NvencSettings
 from pympeg.encoding.arg_builder import CodecArgBuilder
 from pympeg.hardware.probe import HARDWARE_PROBE
 from pympeg.metadata.probe import MetadataProbe
@@ -236,6 +237,34 @@ class TestEncoderConfiguration:
         assert "-preset" in args
         assert "-cq" in args
         assert "NVENC" in message
+
+    @patch("subprocess.check_output")
+    def test_nvenc_settings_are_applied_to_encoder_args(self, mock_subprocess):
+        """Test advanced NVENC settings affect encoder arguments."""
+        HARDWARE_PROBE.clear()
+        mock_subprocess.return_value = MockEncoderDetection.full_nvenc_support()
+
+        args, _message = CodecArgBuilder.get_encoder_configuration(
+            0,
+            4,
+            False,
+            22,
+            nvenc_settings=NvencSettings(
+                b_adapt=0,
+                ref_frames=7,
+                rc_mode="cqp",
+                aq_strength=0,
+            ),
+        )
+
+        assert args[args.index("-rc") + 1] == "constqp"
+        assert args[args.index("-qp") + 1] == "22"
+        assert "-cq" not in args
+        assert args[args.index("-b_adapt") + 1] == "0"
+        assert args[args.index("-b_ref_mode") + 1] == "disabled"
+        assert args[args.index("-spatial-aq") + 1] == "0"
+        assert "-aq-strength" not in args
+        assert args[args.index("-dpb_size") + 1] == "7"
 
     @patch("subprocess.check_output")
     def test_hevc_nvenc_configuration(self, mock_subprocess):

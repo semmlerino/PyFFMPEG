@@ -2,12 +2,35 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+
+
+@dataclass(frozen=True)
+class NvencSettings:
+    """Advanced NVENC encoder settings emitted by SettingsPanel."""
+
+    b_adapt: int = 2
+    ref_frames: int = 4
+    rc_mode: str = "vbr"
+    aq_strength: int = 8
+
+    @classmethod
+    def from_settings_dict(cls, settings: dict[str, int | bool | str]) -> NvencSettings:
+        rc_mode = str(settings.get("nvenc_rc_mode", "vbr"))
+        if rc_mode not in {"vbr", "cbr", "cqp"}:
+            rc_mode = "vbr"
+
+        return cls(
+            b_adapt=max(0, min(int(settings.get("nvenc_b_adapt", 2)), 2)),
+            ref_frames=max(1, min(int(settings.get("nvenc_ref_frames", 4)), 16)),
+            rc_mode=rc_mode,
+            aq_strength=max(0, min(int(settings.get("nvenc_aq_strength", 8)), 15)),
+        )
 
 
 @dataclass(frozen=True)
 class ConversionSettings:
-    """The 12 parameters ConversionController.start_conversion() consumes.
+    """The typed conversion settings consumed by ConversionController.
 
     Optional fields keep the legacy defaults from the start_conversion signature.
     """
@@ -24,6 +47,7 @@ class ConversionSettings:
     threads: int = 0
     priority_idx: int = 1
     smart_buffer: bool = True
+    nvenc_settings: NvencSettings = field(default_factory=NvencSettings)
 
     @classmethod
     def from_settings_dict(
@@ -31,8 +55,8 @@ class ConversionSettings:
     ) -> ConversionSettings:
         """Build from SettingsPanel.get_current_settings().
 
-        That dict carries extra keys (auto_balance, nvenc_*) that are not
-        start_conversion parameters; they are ignored here.
+        That dict carries extra keys (auto_balance) that are not conversion
+        settings; they are ignored here.
         """
         return cls(
             codec_idx=int(settings["codec_idx"]),
@@ -47,4 +71,5 @@ class ConversionSettings:
             threads=int(settings["threads"]),
             priority_idx=int(settings["priority_idx"]),
             smart_buffer=bool(settings["smart_buffer"]),
+            nvenc_settings=NvencSettings.from_settings_dict(settings),
         )

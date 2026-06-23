@@ -83,7 +83,7 @@ class SettingsPanel(QObject):
         self.nvenc_b_adapt: int = 2
         self.nvenc_ref_frames: int = 4
         self.nvenc_rc_mode: str = "vbr"
-        self.nvenc_aq_strength: int = 1
+        self.nvenc_aq_strength: int = 8
 
         self._widget: QWidget | None = None
 
@@ -436,7 +436,7 @@ class SettingsPanel(QObject):
         self.nvenc_b_adapt = 2
         self.nvenc_ref_frames = 4
         self.nvenc_rc_mode = "vbr"
-        self.nvenc_aq_strength = 1
+        self.nvenc_aq_strength = 8
         # Emit signal and save
         self._on_settings_changed()
 

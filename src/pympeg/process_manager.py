@@ -10,6 +10,7 @@ import os
 import shutil
 import subprocess
 from collections import deque
+from dataclasses import dataclass
 from pathlib import Path
 from threading import RLock
 from typing import TYPE_CHECKING, ClassVar, override
@@ -17,12 +18,20 @@ from typing import TYPE_CHECKING, ClassVar, override
 import psutil
 from PySide6.QtCore import QObject, QProcess, QRunnable, QThreadPool, Signal
 
-from pympeg.config import ProcessConfig
 from pympeg.logging_config import PyFFMPEGLogger, get_logger
 from pympeg.progress_tracker import ProcessProgressTracker
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+
+@dataclass(frozen=True)
+class ProcessCompletion:
+    """Metadata captured before per-process cleanup runs."""
+
+    process_path: str
+    output_path: str | None
+    codec_idx: int
 
 
 def _discover_ffmpeg() -> str | None:
@@ -102,7 +111,7 @@ class ProcessManager(QObject):
     output_ready: ClassVar[Signal] = Signal(QProcess, str)
 
     # Signal emitted when process has finished
-    process_finished: ClassVar[Signal] = Signal(QProcess, int, str)
+    process_finished: ClassVar[Signal] = Signal(QProcess, int, str, object)
 
     # Signal emitted when overall progress should be updated
     update_progress: ClassVar[Signal] = Signal()
@@ -384,14 +393,6 @@ class ProcessManager(QObject):
         # Start process without manual quoting - Qt handles this automatically
         process.start(ffmpeg_cmd, ffmpeg_args)
 
-        # Wait for process to actually start (up to 5 seconds)
-        if not process.waitForStarted(ProcessConfig.PROCESS_START_TIMEOUT * 1000):
-            self.logger.log_process_timeout(
-                f"FFmpeg process for {os.path.basename(path)}",
-                ProcessConfig.PROCESS_START_TIMEOUT,
-            )
-            # Still continue with tracking so we can handle the error properly
-
         # Register with progress tracker (use 0.0 for unknown duration)
         # Use pre-probed duration if provided, otherwise probe (blocking call)
         if duration is None:
@@ -649,6 +650,11 @@ class ProcessManager(QObject):
         self._finished_processes.add(process)
 
         process_id = self._get_process_id(process)
+        completion = ProcessCompletion(
+            process_path=process_path,
+            output_path=self.output_map.get(process_path),
+            codec_idx=self.codec_map.get(process_path, -1),
+        )
 
         # For successful completion, force progress to 100% and emit update before cleanup
         if exit_code == 0:
@@ -662,7 +668,7 @@ class ProcessManager(QObject):
         # Mark as completed in progress tracker
         self.progress_tracker.complete_process(process_id, success=(exit_code == 0))
         # Emit process finished signal
-        self.process_finished.emit(process, exit_code, process_path)
+        self.process_finished.emit(process, exit_code, process_path, completion)
 
     def _cleanup_process_resources(self, process: QProcess) -> None:
         """Guaranteed cleanup of all resources associated with a process"""
