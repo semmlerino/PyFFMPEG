@@ -6,11 +6,9 @@ Implements efficient batch processing and ring buffer for performance
 
 from __future__ import annotations
 
-import re
 import threading
 import time
 from collections import deque
-from re import Pattern
 from threading import Lock
 from typing import TypedDict
 
@@ -25,14 +23,13 @@ class ProgressData(TypedDict):
 
 
 class OutputBuffer:
-    """High-performance output buffer with batch regex processing"""
+    """Parses FFmpeg ``-progress`` key=value output into progress data.
 
-    # Compiled regex patterns for better performance
-    TIME_PATTERN: Pattern[str] = re.compile(
-        r"time=(\d{2}):(\d{2}):(\d{2}\.\d{2})", re.MULTILINE
-    )
-    FPS_PATTERN: Pattern[str] = re.compile(r"fps=\s*(\d+)", re.MULTILINE)
-    FRAME_PATTERN: Pattern[str] = re.compile(r"frame=\s*(\d+)", re.MULTILINE)
+    FFmpeg writes machine-readable progress to stdout (``-progress pipe:1``):
+    one ``key=value`` per line, e.g. ``out_time_us=1900000`` / ``fps=30.00`` /
+    ``speed=3.02x`` / ``progress=continue``. We keep the latest value seen for
+    each key. Parsing is pure (no Qt/IO) so it can be unit-tested directly.
+    """
 
     def __init__(self, max_size: int = 1000, batch_interval: float = 0.1):
         """
@@ -44,32 +41,46 @@ class OutputBuffer:
         """
         self.buffer: deque[str] = deque(maxlen=max_size)
         self.pending_lines: list[str] = []
+        # Trailing bytes from the last chunk that did not end in a newline.
+        # QProcess delivers stdout at arbitrary byte boundaries, so a key=value
+        # line can be split across reads; we hold the fragment until its newline
+        # (or force_process) arrives, so a partial line is never parsed as whole.
+        self._carry: str = ""
         self.batch_interval: float = batch_interval
         self.last_batch_time: float = time.time()
         self.lock: Lock = threading.Lock()
 
-        # Cached results
-        self.last_time_match: tuple[int, int, float] | None = None
+        # Cached latest progress values.
+        self.last_elapsed_sec: float = 0.0
         self.last_fps: int = 0
         self.last_frame: int = 0
+        self.last_speed: float = 0.0
+        self.last_progress: str = ""
+        self.has_progress: bool = False
 
     def add_output(self, chunk: str) -> None:
-        """Add output chunk to pending buffer"""
+        """Add an output chunk, splitting out complete (newline-terminated) lines.
+
+        A trailing fragment with no terminating newline is retained and prepended
+        to the next chunk, so a key=value line split across reads still parses.
+        """
         with self.lock:
-            # Split chunk into lines and add to pending
-            lines = chunk.split("\n")
-            self.pending_lines.extend(line for line in lines if line.strip())
+            data = self._carry + chunk
+            parts = data.split("\n")
+            # The final element is the (possibly empty) incomplete trailing line.
+            self._carry = parts.pop()
+            self.pending_lines.extend(line for line in parts if line.strip())
 
     def process_batch(self) -> ProgressData:
         """
-        Process pending lines in batch for better performance
+        Parse pending lines in batch, throttled by batch_interval.
 
         Returns:
-            Dictionary with extracted progress data
+            Latest cached progress data.
         """
         current_time = time.time()
 
-        # Check if it's time to process
+        # Throttle: only parse once per batch_interval.
         if current_time - self.last_batch_time < self.batch_interval:
             return self._get_cached_results()
 
@@ -77,52 +88,80 @@ class OutputBuffer:
             if not self.pending_lines:
                 return self._get_cached_results()
 
-            # Join lines for batch regex processing
-            batch_text = "\n".join(self.pending_lines)
+            lines = self.pending_lines
+            # Keep recent lines for display, then parse and reset pending.
+            self.buffer.extend(lines)
+            self.pending_lines = []
 
-            # Clear pending lines and add to circular buffer
-            self.buffer.extend(self.pending_lines)
-            self.pending_lines.clear()
-
-            # Batch regex matching - find all matches at once
-            time_matches = list(self.TIME_PATTERN.finditer(batch_text))
-            fps_matches = list(self.FPS_PATTERN.finditer(batch_text))
-            frame_matches = list(self.FRAME_PATTERN.finditer(batch_text))
-
-            # Update cached values with latest matches
-            if time_matches:
-                last_match = time_matches[-1]
-                h, m, s = last_match.groups()
-                self.last_time_match = (int(h), int(m), float(s))
-
-            if fps_matches:
-                self.last_fps = int(fps_matches[-1].group(1))
-
-            if frame_matches:
-                self.last_frame = int(frame_matches[-1].group(1))
-
+            self._parse_progress_lines(lines)
             self.last_batch_time = current_time
 
         return self._get_cached_results()
 
     def force_process(self) -> ProgressData:
-        """Force immediate processing of pending data"""
-        self.last_batch_time = 0  # Reset timer to force processing
+        """Force immediate parsing of all pending data.
+
+        Also flushes any retained trailing fragment: this is the end-of-stream /
+        completion path, where the final ``-progress`` block may arrive without a
+        terminating newline and must not be stranded in the carry buffer.
+        """
+        with self.lock:
+            if self._carry.strip():
+                self.pending_lines.append(self._carry)
+            self._carry = ""
+
+        self.last_batch_time = 0  # Bypass the batch_interval throttle.
         return self.process_batch()
+
+    def _parse_progress_lines(self, lines: list[str]) -> None:
+        """Parse FFmpeg ``-progress`` key=value lines into the cache (pure).
+
+        Takes the latest valid value per key across the batch. ``N/A`` values
+        (emitted before encoding starts) raise on conversion and are skipped, so
+        ``has_progress`` stays False until a real ``out_time`` arrives.
+        """
+        for line in lines:
+            key, sep, value = line.partition("=")
+            if not sep:
+                continue
+            key = key.strip()
+            value = value.strip()
+
+            if key in ("out_time_us", "out_time_ms"):
+                # Both FFmpeg spellings report MICROSECONDS (out_time_ms is a
+                # long-standing misnomer that still carries µs); /1e6 -> seconds.
+                try:
+                    self.last_elapsed_sec = int(value) / 1_000_000
+                except ValueError:
+                    continue
+                self.has_progress = True
+            elif key == "fps":
+                try:
+                    self.last_fps = int(float(value))
+                except ValueError:
+                    continue
+            elif key == "frame":
+                try:
+                    self.last_frame = int(value)
+                except ValueError:
+                    continue
+            elif key == "speed":
+                # e.g. "3.02x"
+                try:
+                    self.last_speed = float(value.rstrip("x"))
+                except ValueError:
+                    continue
+            elif key == "progress":
+                # "continue" while running, "end" on completion.
+                self.last_progress = value
 
     def _get_cached_results(self) -> ProgressData:
         """Get cached results without processing"""
-        if self.last_time_match:
-            h, m, s = self.last_time_match
-            elapsed_sec = h * 3600 + m * 60 + s
-        else:
-            elapsed_sec = 0
-
         return {
-            "elapsed_sec": elapsed_sec,
+            "elapsed_sec": self.last_elapsed_sec,
             "fps": self.last_fps,
             "frame": self.last_frame,
-            "has_data": self.last_time_match is not None,
+            "has_data": self.has_progress,
         }
 
     def get_recent_lines(self, count: int = 50) -> list[str]:
@@ -137,9 +176,13 @@ class OutputBuffer:
         with self.lock:
             self.buffer.clear()
             self.pending_lines.clear()
-            self.last_time_match = None
+            self._carry = ""
+            self.last_elapsed_sec = 0.0
             self.last_fps = 0
             self.last_frame = 0
+            self.last_speed = 0.0
+            self.last_progress = ""
+            self.has_progress = False
 
 
 class ProcessOutputManager:

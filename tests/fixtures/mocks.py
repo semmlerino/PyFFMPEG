@@ -213,13 +213,14 @@ class MockProgressScenarios:
         """Normal conversion scenario"""
         return {
             "duration": 600.0,  # 10 minutes
+            # FFmpeg -progress blocks: out_time_us is microseconds, newline-terminated.
             "progress_updates": [
-                "frame=   75 fps= 25 q=28.0 size=  300kB time=00:00:03.00 bitrate= 819.2kbits/s speed=1.0x",
-                "frame=  250 fps= 25 q=28.0 size= 1000kB time=00:00:10.00 bitrate= 819.2kbits/s speed=1.0x",
-                "frame=  750 fps= 25 q=28.0 size= 3000kB time=00:00:30.00 bitrate= 819.2kbits/s speed=1.0x",
-                "frame= 1500 fps= 25 q=28.0 size= 6000kB time=00:01:00.00 bitrate= 819.2kbits/s speed=1.0x",
-                "frame= 7500 fps= 25 q=28.0 size=30000kB time=00:05:00.00 bitrate= 819.2kbits/s speed=1.0x",
-                "frame=15000 fps= 25 q=28.0 size=60000kB time=00:10:00.00 bitrate= 819.2kbits/s speed=1.0x",
+                "frame=75\nfps=25.00\nout_time_us=3000000\nspeed=1.00x\nprogress=continue\n",
+                "frame=250\nfps=25.00\nout_time_us=10000000\nspeed=1.00x\nprogress=continue\n",
+                "frame=750\nfps=25.00\nout_time_us=30000000\nspeed=1.00x\nprogress=continue\n",
+                "frame=1500\nfps=25.00\nout_time_us=60000000\nspeed=1.00x\nprogress=continue\n",
+                "frame=7500\nfps=25.00\nout_time_us=300000000\nspeed=1.00x\nprogress=continue\n",
+                "frame=15000\nfps=25.00\nout_time_us=600000000\nspeed=1.00x\nprogress=end\n",
             ],
             "expected_percentages": [0.5, 1.67, 5.0, 10.0, 50.0, 100.0],
         }
@@ -229,12 +230,13 @@ class MockProgressScenarios:
         """Slow conversion with variable speed"""
         return {
             "duration": 300.0,  # 5 minutes
+            # FFmpeg -progress blocks: out_time_us is microseconds, newline-terminated.
             "progress_updates": [
-                "frame=  125 fps= 25 q=28.0 size=  500kB time=00:00:05.00 bitrate= 819.2kbits/s speed=0.5x",
-                "frame=  375 fps= 25 q=28.0 size= 1500kB time=00:00:15.00 bitrate= 819.2kbits/s speed=0.75x",
-                "frame= 1250 fps= 25 q=28.0 size= 5000kB time=00:00:50.00 bitrate= 819.2kbits/s speed=0.8x",
-                "frame= 3750 fps= 25 q=28.0 size=15000kB time=00:02:30.00 bitrate= 819.2kbits/s speed=0.9x",
-                "frame= 7500 fps= 25 q=28.0 size=30000kB time=00:05:00.00 bitrate= 819.2kbits/s speed=1.0x",
+                "frame=125\nfps=25.00\nout_time_us=5000000\nspeed=0.50x\nprogress=continue\n",
+                "frame=375\nfps=25.00\nout_time_us=15000000\nspeed=0.75x\nprogress=continue\n",
+                "frame=1250\nfps=25.00\nout_time_us=50000000\nspeed=0.80x\nprogress=continue\n",
+                "frame=3750\nfps=25.00\nout_time_us=150000000\nspeed=0.90x\nprogress=continue\n",
+                "frame=7500\nfps=25.00\nout_time_us=300000000\nspeed=1.00x\nprogress=end\n",
             ],
             "expected_percentages": [1.67, 5.0, 16.67, 50.0, 100.0],
         }

@@ -574,6 +574,11 @@ class ConversionController(QObject):
         if encoder_message:
             self.log_message.emit(f"🎬 {encoder_message}")
 
+        # Emit machine-readable progress on stdout (pipe:1) once per second. This
+        # must stay immediately before output_path: _build_ffmpeg_args's caller
+        # derives output_path = ffmpeg_args[-1], so output_path stays last.
+        args.extend(["-progress", "pipe:1", "-stats_period", "1"])
+
         # Output file
         output_ext = CodecArgBuilder.get_output_extension(codec_idx)
         input_name = os.path.splitext(os.path.basename(input_path))[0]

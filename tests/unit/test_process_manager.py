@@ -227,19 +227,20 @@ class TestProcessOutput:
         with patch("pympeg.process_manager.ProcessProgressTracker"):
             self.manager = ProcessManager()
 
-    def test_handle_process_output(self):
-        """Test handling of process output"""
+    def test_handle_process_stderr_buffers_logs(self):
+        """stderr log lines are buffered into process_outputs/process_logs.
+
+        Under separate channels, human log lines arrive on stderr; the stdout
+        channel carries only the machine-readable -progress stream.
+        """
         # Use real QProcess to avoid segfault with signals
         process = QProcess()
-
-        # Mock only the specific methods we need
         process.waitForStarted = Mock(return_value=True)
-        process.bytesAvailable = Mock(return_value=20)
 
-        # Mock readAllStandardOutput to return QByteArray-like object
+        # Mock readAllStandardError to return a QByteArray-like object
         mock_data = Mock()
         mock_data.data.return_value = b"test ffmpeg output\n"
-        process.readAllStandardOutput = Mock(return_value=mock_data)
+        process.readAllStandardError = Mock(return_value=mock_data)
 
         # Add process to manager's tracking structures
         file_path = "/test/video.ts"
@@ -251,12 +252,8 @@ class TestProcessOutput:
             maxlen=self.manager._current_max_log_lines
         )
 
-        # Register process with progress tracker
-        process_id = str(id(process))
-        self.manager.progress_tracker.register_process(process_id, file_path, 60.0)
-
-        # Call _handle_process_output
-        self.manager._handle_process_output(process)
+        # Call the stderr handler (log buffering lives here under separate channels)
+        self.manager._handle_process_stderr(process)
 
         # Verify output is stored
         assert process in self.manager.process_outputs
@@ -268,7 +265,6 @@ class TestProcessOutput:
         # Use real QProcess to avoid segfault
         process = QProcess()
         process.waitForStarted = Mock(return_value=True)
-        process.bytesAvailable = Mock(return_value=10)
 
         # Add process to manager's tracking structures
         file_path = "/test/video.ts"
@@ -280,28 +276,17 @@ class TestProcessOutput:
             maxlen=self.manager._current_max_log_lines
         )
 
-        # Register with progress tracker
-        process_id = str(id(process))
-        self.manager.progress_tracker.register_process(process_id, file_path, 60.0)
-
-        # Simulate multiple output chunks
+        # Simulate multiple stderr log chunks (buffering lives on stderr now)
         output_chunks = [b"chunk1\n", b"chunk2\n", b"chunk3\n"]
 
-        # Mock the progress tracker to avoid signal emissions
-        mock_progress_data = {"current_pct": 0, "fps": 0}
-        self.manager.progress_tracker.process_output.return_value = mock_progress_data
-
-        # Mock signals to prevent segfault
-        with (
-            patch.object(self.manager, "update_progress"),
-            patch.object(self.manager, "output_ready"),
-        ):
+        # Mock the output_ready signal to prevent segfault
+        with patch.object(self.manager, "output_ready"):
             for chunk in output_chunks:
-                # Mock readAllStandardOutput to return QByteArray
+                # Mock readAllStandardError to return QByteArray
                 mock_data = Mock()
                 mock_data.data.return_value = chunk
-                process.readAllStandardOutput = Mock(return_value=mock_data)
-                self.manager._handle_process_output(process)
+                process.readAllStandardError = Mock(return_value=mock_data)
+                self.manager._handle_process_stderr(process)
 
         # Verify all chunks are buffered
         assert len(self.manager.process_outputs[process]) == len(output_chunks)
@@ -319,9 +304,9 @@ class TestProcessOutput:
         file_path = "/test/video.ts"
         self.manager.start_process(file_path, ["-i", file_path, "output.mp4"])
 
-        # Simulate empty output - with bytesAvailable() = 0,
-        # _handle_process_output should exit early
-        self.manager._handle_process_output(mock_process)
+        # Simulate empty stdout - with bytesAvailable() = 0,
+        # _handle_process_stdout should exit early
+        self.manager._handle_process_stdout(mock_process)
 
         # Process should still be tracked in outputs (initialized during start_process)
         assert mock_process in self.manager.process_outputs
@@ -743,21 +728,20 @@ class TestProcessManagerIntegration:
         self.mock_tracker.probe_duration.assert_called_once_with(file_path)
         self.mock_tracker.register_process.assert_called_once()
 
-        # Simulate process output - patch signals to prevent segfault with mock QProcess
-        mock_process.bytesAvailable.return_value = 22  # Has bytes available
-        # Mock readAllStandardOutput to return QByteArray
+        # Simulate process output - output_ready is emitted from the stderr handler
+        # (stdout now carries only the machine-readable -progress stream).
         mock_data = Mock()
-        mock_data.data.return_value = b"ffmpeg progress output"
-        mock_process.readAllStandardOutput.return_value = mock_data
+        mock_data.data.return_value = b"ffmpeg log output"
+        mock_process.readAllStandardError.return_value = mock_data
 
         # Patch signals to prevent segfault when emitting with Mock objects
         with (
             patch.object(self.manager, "output_ready") as mock_output_signal,
             patch.object(self.manager, "update_progress"),
         ):
-            self.manager._handle_process_output(mock_process)
+            self.manager._handle_process_stderr(mock_process)
 
-            # Verify signal was called
+            # Verify signal was called once for the stderr chunk
             mock_output_signal.emit.assert_called_once()
 
         # Simulate process finish

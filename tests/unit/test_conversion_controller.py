@@ -333,6 +333,34 @@ class TestFFmpegArgumentBuilding:
         assert "-crf" in args
         assert "18" in args
 
+    @patch("pympeg.encoding.arg_builder.CodecArgBuilder.get_hardware_acceleration_args")
+    @patch("pympeg.encoding.arg_builder.CodecArgBuilder.get_audio_codec_args")
+    @patch("pympeg.encoding.arg_builder.CodecArgBuilder.get_encoder_configuration")
+    def test_build_ffmpeg_args_progress_before_output(
+        self, mock_encoder_config, mock_audio_config, mock_hw_config
+    ):
+        """`-progress pipe:1` is emitted and output_path stays the LAST arg.
+
+        start_process derives output_path = ffmpeg_args[-1], so the progress
+        flags must be inserted before the output path.
+        """
+        mock_hw_config.return_value = ([], "")
+        mock_audio_config.return_value = (["-c:a", "copy"], "")
+        mock_encoder_config.return_value = (["-c:v", "h264_nvenc"], "")
+
+        with patch(
+            "pympeg.encoding.arg_builder.CodecArgBuilder.get_output_extension",
+            return_value=".mp4",
+        ):
+            args = self.controller._build_ffmpeg_args("/test/input.ts", 0)
+
+        assert "-progress" in args
+        assert "pipe:1" in args
+        # output_path must remain the final argument (start_process reads args[-1])
+        assert args[-1] == "/test/input_RC.mp4"
+        # progress flags precede the output path
+        assert args.index("-progress") < len(args) - 1
+
     def test_get_output_path_generation(self):
         """Test output path generation in FFmpeg args"""
         input_path = "/test/input.ts"

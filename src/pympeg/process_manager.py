@@ -243,7 +243,7 @@ class ProcessManager(QObject):
     def _adjust_buffer_sizes(self):
         """Dynamically adjust buffer sizes based on number of active processes.
 
-        Uses RLock to prevent race condition where _handle_process_output writes
+        Uses RLock to prevent race condition where _handle_process_stderr writes
         to old deque reference while this method replaces it.
         """
         active_count = len(self.processes)
@@ -309,17 +309,27 @@ class ProcessManager(QObject):
         """
         # Create process
         process = QProcess()
-        process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
+        # Separate channels: stdout carries machine-readable `-progress` output
+        # (parsed for progress), stderr carries human log lines and the MPEGTS
+        # timing warning.
+        process.setProcessChannelMode(QProcess.ProcessChannelMode.SeparateChannels)
 
         # Set up signals and track connections for cleanup
         connections: list[tuple[str, Callable[..., None]]] = []
 
-        # Output handling connection
-        def output_handler(p: QProcess = process) -> None:
-            return self._handle_process_output(p)
+        # stdout -> `-progress` parsing and progress updates
+        def stdout_handler(p: QProcess = process) -> None:
+            return self._handle_process_stdout(p)
 
-        _ = process.readyReadStandardOutput.connect(output_handler)
-        connections.append(("readyReadStandardOutput", output_handler))
+        _ = process.readyReadStandardOutput.connect(stdout_handler)
+        connections.append(("readyReadStandardOutput", stdout_handler))
+
+        # stderr -> human log buffering, MPEGTS detection, output_ready signal
+        def stderr_handler(p: QProcess = process) -> None:
+            return self._handle_process_stderr(p)
+
+        _ = process.readyReadStandardError.connect(stderr_handler)
+        connections.append(("readyReadStandardError", stderr_handler))
 
         # Error handling connection
         def error_handler(
@@ -417,56 +427,75 @@ class ProcessManager(QObject):
 
         return self.processes.copy()
 
-    def _handle_process_output(self, process: QProcess):
-        """Process output from an FFmpeg process.
+    def _handle_process_stdout(self, process: QProcess) -> None:
+        """Parse machine-readable `-progress` output from stdout.
+
+        stdout only carries the key=value progress stream (``-progress pipe:1``),
+        so this path feeds the progress tracker and emits update_progress. Human
+        log lines and the MPEGTS warning live on stderr (_handle_process_stderr).
+        """
+        if process.bytesAvailable() <= 0:
+            return
+
+        data = process.readAllStandardOutput()
+        buf = data.data()
+        if isinstance(buf, memoryview):
+            chunk = buf.tobytes().decode("utf-8", errors="replace")
+        else:
+            chunk = buf.decode("utf-8", errors="replace")
+
+        # Feed the progress tracker (it owns the key=value parsing buffer).
+        path = next((p for proc, p in self.processes if proc == process), None)
+        if path:
+            process_id = self._get_process_id(process)
+            progress_data = self.progress_tracker.process_output(process_id, chunk)
+
+            # Signal that we have progress
+            if progress_data:
+                # The update_progress signal will be handled by main window
+                self.update_progress.emit()
+
+    def _handle_process_stderr(self, process: QProcess) -> None:
+        """Buffer human-readable stderr log lines and detect MPEGTS warnings.
 
         Uses RLock to prevent race condition during buffer resize operations.
+        The condensed-log path (process_logs / process_outputs deques and the
+        output_ready signal) has no live consumer today, but is kept forward-
+        compatible here.
         """
-        if process.bytesAvailable() > 0:
-            data = process.readAllStandardOutput()
-            # Ensure data.data() is bytes before decoding to satisfy mypy
-            buf = data.data()
-            if isinstance(buf, memoryview):
-                chunk = buf.tobytes().decode("utf-8", errors="replace")
-            else:
-                chunk = buf.decode("utf-8", errors="replace")
+        data = process.readAllStandardError()
+        # Ensure data.data() is bytes before decoding to satisfy the type checker
+        buf = data.data()
+        if isinstance(buf, memoryview):
+            chunk = buf.tobytes().decode("utf-8", errors="replace")
+        else:
+            chunk = buf.decode("utf-8", errors="replace")
 
-            # Protected buffer writes to prevent race with _adjust_buffer_sizes
-            with self._buffer_lock:
-                # Check if process buffers still exist (may have been cleaned up)
-                if (
-                    process not in self.process_logs
-                    or process not in self.process_outputs
-                ):
-                    return
+        if not chunk:
+            return
 
-                # Check for MPEGTS timing errors
-                if (
-                    "start time for stream" in chunk
-                    and "is not set in estimate_timings_from_pts" in chunk
-                ):
-                    # Log this warning for UI display
-                    self.process_logs[process].append(
-                        "⚠️ MPEGTS timing warning detected. Consider adding -fflags +genpts to source."
-                    )
+        # Protected buffer writes to prevent race with _adjust_buffer_sizes
+        with self._buffer_lock:
+            # Check if process buffers still exist (may have been cleaned up)
+            if process not in self.process_logs or process not in self.process_outputs:
+                return
 
-                # Store the output
-                self.process_outputs[process].append(chunk)
-                self.process_logs[process].append(chunk)
+            # Check for MPEGTS timing errors
+            if (
+                "start time for stream" in chunk
+                and "is not set in estimate_timings_from_pts" in chunk
+            ):
+                # Log this warning for UI display
+                self.process_logs[process].append(
+                    "⚠️ MPEGTS timing warning detected. Consider adding -fflags +genpts to source."
+                )
 
-            # Process the output with the progress tracker
-            path = next((p for proc, p in self.processes if proc == process), None)
-            if path:
-                process_id = self._get_process_id(process)
-                progress_data = self.progress_tracker.process_output(process_id, chunk)
+            # Store the output
+            self.process_outputs[process].append(chunk)
+            self.process_logs[process].append(chunk)
 
-                # Signal that we have progress
-                if progress_data:
-                    # The update_progress signal will be handled by main window
-                    self.update_progress.emit()
-
-            # Emit signal for UI handling
-            self.output_ready.emit(process, chunk)
+        # Emit signal for UI handling
+        self.output_ready.emit(process, chunk)
 
     def _using_windows_ffmpeg(self) -> bool:
         """Check if we're using Windows FFmpeg executable"""
@@ -650,6 +679,8 @@ class ProcessManager(QObject):
                 for signal_name, handler in self.process_connections[process]:
                     if signal_name == "readyReadStandardOutput":
                         _ = process.readyReadStandardOutput.disconnect(handler)
+                    elif signal_name == "readyReadStandardError":
+                        _ = process.readyReadStandardError.disconnect(handler)
                     elif signal_name == "errorOccurred":
                         _ = process.errorOccurred.disconnect(handler)
                     elif signal_name == "finished":

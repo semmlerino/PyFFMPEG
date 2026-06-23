@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Unit tests for OutputBuffer class
-Tests batch processing, regex parsing, and thread-safe operations
+Tests batch processing, -progress key=value parsing, and thread-safe operations
 """
 
 import threading
@@ -22,23 +22,24 @@ class TestOutputBuffer:
         assert self.buffer.buffer.maxlen == 100
         assert self.buffer.batch_interval == 0.01
         assert len(self.buffer.pending_lines) == 0
-        assert self.buffer.last_time_match is None
+        assert self.buffer.last_elapsed_sec == 0.0
         assert self.buffer.last_fps == 0
         assert self.buffer.last_frame == 0
+        assert self.buffer.has_progress is False
 
     def test_add_output(self):
-        """Test adding output chunks"""
-        chunk = "frame=  100 fps= 25 q=28.0\nsize=    1024kB time=00:00:04.00\n"
+        """Test adding output chunks (one key=value per line)"""
+        chunk = "frame=100\nfps=25.00\n"
 
         self.buffer.add_output(chunk)
 
         assert len(self.buffer.pending_lines) == 2
-        assert "frame=  100 fps= 25 q=28.0" in self.buffer.pending_lines
-        assert "size=    1024kB time=00:00:04.00" in self.buffer.pending_lines
+        assert "frame=100" in self.buffer.pending_lines
+        assert "fps=25.00" in self.buffer.pending_lines
 
     def test_add_output_filters_empty_lines(self):
         """Test that empty lines are filtered out"""
-        chunk = "line1\n\n\nline2\n   \nline3"
+        chunk = "line1\n\n\nline2\n   \nline3\n"
 
         self.buffer.add_output(chunk)
 
@@ -46,20 +47,18 @@ class TestOutputBuffer:
         assert self.buffer.pending_lines == ["line1", "line2", "line3"]
 
     def test_process_batch_extracts_time(self):
-        """Test batch processing extracts time information"""
-        self.buffer.add_output(
-            "frame=  100 fps= 25 time=00:01:30.50 bitrate=1024.0kbits/s"
-        )
+        """Test batch processing extracts elapsed time from out_time_us"""
+        self.buffer.add_output("out_time_us=90500000\n")  # 90.5 seconds
 
         # Force immediate processing
         result = self.buffer.force_process()
 
-        assert result["elapsed_sec"] == 90.5  # 1:30.50 = 90.5 seconds
-        assert self.buffer.last_time_match == (0, 1, 30.5)
+        assert result["elapsed_sec"] == 90.5
+        assert self.buffer.last_elapsed_sec == 90.5
 
     def test_process_batch_extracts_fps(self):
         """Test batch processing extracts FPS"""
-        self.buffer.add_output("frame=  200 fps= 30 q=25.0 size=2048kB")
+        self.buffer.add_output("fps=30.00\n")
 
         result = self.buffer.force_process()
 
@@ -68,7 +67,7 @@ class TestOutputBuffer:
 
     def test_process_batch_extracts_frame(self):
         """Test batch processing extracts frame count"""
-        self.buffer.add_output("frame=  500 fps= 25 q=28.0")
+        self.buffer.add_output("frame=500\n")
 
         result = self.buffer.force_process()
 
@@ -76,12 +75,12 @@ class TestOutputBuffer:
         assert self.buffer.last_frame == 500
 
     def test_process_batch_handles_multiple_matches(self):
-        """Test that latest values are used when multiple matches exist"""
-        chunk = """
-        frame=  100 fps= 20 time=00:00:04.00
-        frame=  200 fps= 25 time=00:00:08.00
-        frame=  300 fps= 30 time=00:00:12.00
-        """
+        """Test that latest values are used when multiple blocks exist"""
+        chunk = (
+            "frame=100\nfps=20.00\nout_time_us=4000000\nprogress=continue\n"
+            "frame=200\nfps=25.00\nout_time_us=8000000\nprogress=continue\n"
+            "frame=300\nfps=30.00\nout_time_us=12000000\nprogress=end\n"
+        )
 
         self.buffer.add_output(chunk)
         result = self.buffer.force_process()
@@ -93,7 +92,7 @@ class TestOutputBuffer:
 
     def test_batch_interval_respected(self):
         """Test that batch processing respects interval"""
-        self.buffer.add_output("frame=  100 fps= 25")
+        self.buffer.add_output("frame=100\n")
 
         # Set last_batch_time to past to allow first processing
         self.buffer.last_batch_time = time.time() - 1
@@ -103,7 +102,7 @@ class TestOutputBuffer:
         assert result1["frame"] == 100
 
         # Add more data
-        self.buffer.add_output("frame=  200 fps= 30")
+        self.buffer.add_output("frame=200\n")
 
         # Immediate second process should return cached results
         result2 = self.buffer.process_batch()
@@ -116,11 +115,11 @@ class TestOutputBuffer:
 
     def test_force_process_bypasses_interval(self):
         """Test force_process bypasses batch interval"""
-        self.buffer.add_output("frame=  100 fps= 25")
+        self.buffer.add_output("frame=100\n")
         self.buffer.process_batch()
 
         # Add more data immediately
-        self.buffer.add_output("frame=  200 fps= 30")
+        self.buffer.add_output("frame=200\n")
 
         # Force process should work immediately
         result = self.buffer.force_process()
@@ -128,9 +127,9 @@ class TestOutputBuffer:
 
     def test_circular_buffer_size_limit(self):
         """Test that buffer respects max size"""
-        # Add more lines than max_size
+        # Add more lines than max_size (newline-terminated so each is a full line)
         for i in range(150):
-            self.buffer.add_output(f"line {i}")
+            self.buffer.add_output(f"line {i}\n")
 
         self.buffer.force_process()
 
@@ -143,7 +142,7 @@ class TestOutputBuffer:
         """Test getting recent lines from buffer"""
         # Add some lines
         for i in range(20):
-            self.buffer.add_output(f"line {i}")
+            self.buffer.add_output(f"line {i}\n")
 
         self.buffer.force_process()
 
@@ -155,8 +154,8 @@ class TestOutputBuffer:
 
     def test_get_recent_lines_more_than_available(self):
         """Test getting more lines than available"""
-        self.buffer.add_output("line 1")
-        self.buffer.add_output("line 2")
+        self.buffer.add_output("line 1\n")
+        self.buffer.add_output("line 2\n")
         self.buffer.force_process()
 
         recent_lines = self.buffer.get_recent_lines(10)
@@ -166,7 +165,7 @@ class TestOutputBuffer:
 
     def test_clear_buffer(self):
         """Test clearing the buffer"""
-        self.buffer.add_output("some data")
+        self.buffer.add_output("some data\n")
         self.buffer.force_process()
 
         self.buffer.clear()
@@ -174,9 +173,10 @@ class TestOutputBuffer:
         assert len(self.buffer.buffer) == 0
         assert len(self.buffer.pending_lines) == 0
         # Cached values should be reset
-        assert self.buffer.last_time_match is None
+        assert self.buffer.last_elapsed_sec == 0.0
         assert self.buffer.last_fps == 0
         assert self.buffer.last_frame == 0
+        assert self.buffer.has_progress is False
 
     def test_thread_safety(self):
         """Test thread-safe operations"""
@@ -186,7 +186,7 @@ class TestOutputBuffer:
         def add_data(thread_id):
             try:
                 for i in range(50):
-                    self.buffer.add_output(f"thread {thread_id} frame= {i} fps= 25")
+                    self.buffer.add_output(f"frame={i}\nfps=25.00\n")
                     if i % 10 == 0:
                         result = self.buffer.process_batch()
                         results.append(result)
@@ -208,38 +208,83 @@ class TestOutputBuffer:
         assert len(errors) == 0
         assert len(results) > 0
 
-    def test_regex_patterns(self):
-        """Test regex patterns match expected formats"""
-        test_cases = [
-            ("time=00:00:00.00", (0, 0, 0.0)),
-            ("time=01:23:45.67", (1, 23, 45.67)),
-            ("time=10:59:59.99", (10, 59, 59.99)),
+    def test_parses_out_time_to_elapsed_seconds(self):
+        """out_time_us (microseconds) is parsed into elapsed seconds."""
+        cases = [
+            ("out_time_us=0\n", 0.0),
+            ("out_time_us=90500000\n", 90.5),
+            ("out_time_us=3661000000\n", 3661.0),  # 01:01:01
         ]
 
-        for text, expected in test_cases:
-            match = OutputBuffer.TIME_PATTERN.search(text)
-            assert match is not None
-            h, m, s = match.groups()
-            assert (int(h), int(m), float(s)) == expected
+        for chunk, expected in cases:
+            buf = OutputBuffer(batch_interval=0.0)
+            buf.add_output(chunk)
+            result = buf.force_process()
+            assert result["elapsed_sec"] == expected
+            assert buf.last_elapsed_sec == expected
 
-    def test_fps_pattern_variations(self):
-        """Test FPS pattern handles variations"""
-        test_cases = [
-            ("fps= 25", 25),
-            ("fps=  30", 30),
-            ("fps=   0", 0),
-            ("fps= 120", 120),
+    def test_out_time_ms_legacy_spelling(self):
+        """The legacy out_time_ms spelling also carries MICROSECONDS."""
+        buf = OutputBuffer(batch_interval=0.0)
+        buf.add_output("out_time_ms=45000000\n")  # 45 s
+
+        result = buf.force_process()
+
+        assert result["elapsed_sec"] == 45.0
+        assert result["has_data"] is True
+
+    def test_na_value_does_not_set_progress(self):
+        """The pre-encode 'N/A' progress block leaves has_data False."""
+        buf = OutputBuffer(batch_interval=0.0)
+        buf.add_output(
+            "frame=0\nfps=0.00\nout_time_us=N/A\nspeed=N/A\nprogress=continue\n"
+        )
+
+        result = buf.force_process()
+
+        assert result["has_data"] is False
+        assert result["elapsed_sec"] == 0.0
+
+    def test_parses_fps(self):
+        """fps values (possibly fractional) parse to an int fps."""
+        cases = [
+            ("fps=25.00\n", 25),
+            ("fps=30.50\n", 30),
+            ("fps=0.00\n", 0),
+            ("fps=120.00\n", 120),
         ]
 
-        for text, expected in test_cases:
-            match = OutputBuffer.FPS_PATTERN.search(text)
-            assert match is not None
-            assert int(match.group(1)) == expected
+        for chunk, expected in cases:
+            buf = OutputBuffer(batch_interval=0.0)
+            buf.add_output(chunk)
+            result = buf.force_process()
+            assert result["fps"] == expected
+
+    def test_split_line_across_chunks(self):
+        """A key=value line split mid-token across two reads parses correctly."""
+        buf = OutputBuffer(batch_interval=0.0)
+        buf.add_output("out_time_us=600")  # first half, no newline -> held in carry
+        buf.add_output("00000\n")  # completes the line -> out_time_us=60000000
+
+        result = buf.force_process()
+
+        assert result["elapsed_sec"] == 60.0
+        assert result["has_data"] is True
+
+    def test_force_process_flushes_unterminated_final_block(self):
+        """force_process parses a final block that has no trailing newline."""
+        buf = OutputBuffer(batch_interval=0.0)
+        buf.add_output("out_time_us=30000000")  # no trailing newline (end of stream)
+
+        result = buf.force_process()
+
+        assert result["elapsed_sec"] == 30.0
+        assert result["has_data"] is True
 
     def test_get_progress_summary(self):
         """Test getting complete progress summary"""
         self.buffer.add_output(
-            "frame= 1500 fps= 30 time=00:00:50.00 bitrate=2048.0kbits/s"
+            "frame=1500\nfps=30.00\nout_time_us=50000000\nprogress=continue\n"
         )
 
         result = self.buffer.force_process()
@@ -261,20 +306,20 @@ class TestOutputBuffer:
     def test_partial_data_handling(self):
         """Test handling partial data (only some fields present)"""
         # Only frame data
-        self.buffer.add_output("frame= 100")
+        self.buffer.add_output("frame=100\n")
         result = self.buffer.force_process()
         assert result["frame"] == 100
         assert result["fps"] == 0
         assert result["elapsed_sec"] == 0
 
         # Add FPS data
-        self.buffer.add_output("fps= 25")
+        self.buffer.add_output("fps=25.00\n")
         result = self.buffer.force_process()
         assert result["frame"] == 100  # Preserved
         assert result["fps"] == 25
 
         # Add time data
-        self.buffer.add_output("time=00:00:10.00")
+        self.buffer.add_output("out_time_us=10000000\n")
         result = self.buffer.force_process()
         assert result["frame"] == 100  # Preserved
         assert result["fps"] == 25  # Preserved
@@ -346,7 +391,7 @@ class TestProcessOutputManager:
             process_id = f"process_{i}"
             buffer = self.manager.get_buffer(process_id)
             buffer.add_output(
-                f"frame= {i * 100} fps= {20 + i} time=00:00:{i * 10:02d}.00"
+                f"frame={i * 100}\nfps={20 + i}.00\nout_time_us={i * 10_000_000}\n"
             )
             # Set last_batch_time to past to allow processing
             buffer.last_batch_time = time.time() - 1
@@ -374,7 +419,7 @@ class TestProcessOutputManager:
                 for i in range(10):
                     process_id = f"thread_{thread_id}_process_{i % 3}"
                     buffer = self.manager.get_buffer(process_id)
-                    buffer.add_output(f"data from thread {thread_id}")
+                    buffer.add_output(f"frame={i}\n")
                     results.append(buffer)
             except Exception as e:
                 errors.append(e)

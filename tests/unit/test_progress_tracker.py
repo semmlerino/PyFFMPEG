@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Unit tests for ProcessProgressTracker class
-Tests regex parsing of FFmpeg output, progress calculation, and ETA estimation
+Tests parsing of FFmpeg -progress output, progress calculation, and ETA estimation
 """
 
 import subprocess
@@ -13,6 +13,24 @@ import pytest
 from pympeg.config import ProcessConfig
 from pympeg.progress_tracker import ProcessProgressTracker
 from tests.fixtures.mocks import MockProgressScenarios
+
+
+def _progress_block(
+    elapsed_sec: float, *, frame: int = 0, fps: int = 25, speed: float = 1.0
+) -> str:
+    """Build one FFmpeg ``-progress`` block (newline-terminated key=value lines).
+
+    ``elapsed_sec`` is encoded as ``out_time_us`` (microseconds), matching real
+    ``-progress pipe:1`` output, so the parser recovers the same elapsed seconds
+    the old ``time=HH:MM:SS`` strings encoded.
+    """
+    return (
+        f"frame={frame}\n"
+        f"fps={fps:.2f}\n"
+        f"out_time_us={int(elapsed_sec * 1_000_000)}\n"
+        f"speed={speed:.2f}x\n"
+        f"progress=continue\n"
+    )
 
 
 class TestProcessProgressTracker:
@@ -114,22 +132,10 @@ class TestProgressParsing:
 
         # Test progress updates
         test_cases = [
-            (
-                "frame=  100 fps= 25 q=28.0 size=1024kB time=00:01:00.00 bitrate=1024.0kbits/s speed=1.0x",
-                10.0,
-            ),
-            (
-                "frame=  250 fps= 25 q=28.0 size=2048kB time=00:03:00.00 bitrate=512.0kbits/s speed=1.2x",
-                30.0,
-            ),
-            (
-                "frame=  500 fps= 25 q=28.0 size=4096kB time=00:06:00.00 bitrate=256.0kbits/s speed=1.0x",
-                60.0,
-            ),
-            (
-                "frame= 1000 fps= 25 q=28.0 size=8192kB time=00:10:00.00 bitrate=128.0kbits/s speed=1.0x",
-                100.0,
-            ),
+            (_progress_block(60, frame=100), 10.0),
+            (_progress_block(180, frame=250, speed=1.2), 30.0),
+            (_progress_block(360, frame=500), 60.0),
+            (_progress_block(600, frame=1000), 100.0),
         ]
 
         for ffmpeg_line, expected_percentage in test_cases:
@@ -159,7 +165,7 @@ class TestProgressParsing:
         # Register process without duration
         self.tracker.register_process(process_id, "/test/video.ts", None)
 
-        ffmpeg_line = "frame=  100 fps= 25 q=28.0 size=1024kB time=00:01:00.00 bitrate=1024.0kbits/s speed=1.0x"
+        ffmpeg_line = _progress_block(60, frame=100)
         progress_data = self.tracker.process_output(process_id, ffmpeg_line)
 
         # Should still return progress data but without percentage
@@ -186,7 +192,7 @@ class TestETACalculation:
         with patch("time.time") as mock_time:
             # Progress at 1 minute mark -> 10% complete
             mock_time.return_value = start_time + 60
-            ffmpeg_line = "frame=  100 fps= 25 q=28.0 size=1024kB time=00:01:00.00 bitrate=1024.0kbits/s speed=1.0x"
+            ffmpeg_line = _progress_block(60, frame=100)
             progress_data = self.tracker.process_output(process_id, ffmpeg_line)
 
             # At 10% complete in 60 seconds, should take ~600 seconds total
@@ -207,12 +213,12 @@ class TestETACalculation:
         with patch("time.time") as mock_time:
             # First update: slow progress
             mock_time.return_value = start_time + 120  # 2 minutes elapsed
-            ffmpeg_line1 = "frame=  50 fps= 25 q=28.0 size=512kB time=00:00:30.00 bitrate=1024.0kbits/s speed=0.5x"
+            ffmpeg_line1 = _progress_block(30, frame=50, speed=0.5)
             self.tracker.process_output(process_id, ffmpeg_line1)
 
             # Second update: faster progress
             mock_time.return_value = start_time + 180  # 3 minutes elapsed
-            ffmpeg_line2 = "frame= 150 fps= 25 q=28.0 size=1536kB time=00:02:00.00 bitrate=1024.0kbits/s speed=1.5x"
+            ffmpeg_line2 = _progress_block(120, frame=150, speed=1.5)
             progress_data2 = self.tracker.process_output(process_id, ffmpeg_line2)
 
             # ETA should adapt to the changing speed
@@ -237,7 +243,7 @@ class TestETACalculation:
                 mock_time.return_value = start_time + (i * 30)  # Every 30 seconds
                 progress_seconds = i * 30  # Linear progress
 
-                ffmpeg_line = f"frame={i * 50:5d} fps= 25 q=28.0 size={i * 512}kB time={progress_seconds // 3600:02d}:{(progress_seconds % 3600) // 60:02d}:{progress_seconds % 60:05.2f} bitrate=1024.0kbits/s speed=1.0x"
+                ffmpeg_line = _progress_block(progress_seconds, frame=i * 50)
                 progress_data = self.tracker.process_output(process_id, ffmpeg_line)
 
                 if progress_data and "eta_seconds" in progress_data:
@@ -291,11 +297,11 @@ class TestBatchProcessing:
         self.tracker.register_process("proc2", "/test/video2.ts", 300.0)
 
         # Update progress for first process (50% complete)
-        ffmpeg_line1 = "frame= 500 fps= 25 q=28.0 size=4096kB time=00:05:00.00 bitrate=256.0kbits/s speed=1.0x"
+        ffmpeg_line1 = _progress_block(300, frame=500)
         self.tracker.process_output("proc1", ffmpeg_line1)
 
         # Update progress for second process (100% complete)
-        ffmpeg_line2 = "frame= 500 fps= 25 q=28.0 size=2048kB time=00:05:00.00 bitrate=256.0kbits/s speed=1.0x"
+        ffmpeg_line2 = _progress_block(300, frame=500)
         self.tracker.process_output("proc2", ffmpeg_line2)
 
         # Calculate overall progress
@@ -361,7 +367,7 @@ class TestEdgeCases:
 
     def test_unregistered_process_update(self):
         """Test updating progress for unregistered process"""
-        ffmpeg_line = "frame=  100 fps= 25 q=28.0 size=1024kB time=00:01:00.00 bitrate=1024.0kbits/s speed=1.0x"
+        ffmpeg_line = _progress_block(60, frame=100)
         progress_data = self.tracker.process_output("nonexistent", ffmpeg_line)
 
         # Should handle gracefully
@@ -372,7 +378,7 @@ class TestEdgeCases:
         process_id = "zero_duration"
         self.tracker.register_process(process_id, "/test/video.ts", 0.0)
 
-        ffmpeg_line = "frame=  100 fps= 25 q=28.0 size=1024kB time=00:01:00.00 bitrate=1024.0kbits/s speed=1.0x"
+        ffmpeg_line = _progress_block(60, frame=100)
         progress_data = self.tracker.process_output(process_id, ffmpeg_line)
 
         # Should handle division by zero gracefully
@@ -383,7 +389,7 @@ class TestEdgeCases:
         process_id = "negative_duration"
         self.tracker.register_process(process_id, "/test/video.ts", -100.0)
 
-        ffmpeg_line = "frame=  100 fps= 25 q=28.0 size=1024kB time=00:01:00.00 bitrate=1024.0kbits/s speed=1.0x"
+        ffmpeg_line = _progress_block(60, frame=100)
         progress_data = self.tracker.process_output(process_id, ffmpeg_line)
 
         # Should handle negative duration gracefully
@@ -395,7 +401,7 @@ class TestEdgeCases:
         self.tracker.register_process(process_id, "/test/video.ts", 60.0)  # 1 minute
 
         # Report progress at 2 minutes (exceeds duration)
-        ffmpeg_line = "frame=  100 fps= 25 q=28.0 size=1024kB time=00:02:00.00 bitrate=1024.0kbits/s speed=1.0x"
+        ffmpeg_line = _progress_block(120, frame=100)
         progress_data = self.tracker.process_output(process_id, ffmpeg_line)
 
         # Should handle gracefully, possibly capping at 100%
@@ -464,7 +470,7 @@ class TestProgressTrackerPerformance:
         # Simulate frequent updates
         for i in range(100):
             seconds = i * 6  # Every 6 seconds of video
-            ffmpeg_line = f"frame={i * 50:5d} fps= 25 q=28.0 size={i * 512}kB time={seconds // 3600:02d}:{(seconds % 3600) // 60:02d}:{seconds % 60:05.2f} bitrate=1024.0kbits/s speed=1.0x"
+            ffmpeg_line = _progress_block(seconds, frame=i * 50)
             self.tracker.process_output(process_id, ffmpeg_line)
 
         elapsed = time.time() - start_time
@@ -558,7 +564,7 @@ class TestFailureTracking:
         self.tracker.register_process("proc_1", "/test/video.ts", 600.0)
 
         # Simulate partial progress before failure
-        ffmpeg_line = "frame=  500 fps= 25 q=28.0 size=5120kB time=00:05:00.00 bitrate=1024.0kbits/s speed=1.0x"
+        ffmpeg_line = _progress_block(300, frame=500)
         self.tracker.process_output("proc_1", ffmpeg_line)
 
         # Complete with failure
