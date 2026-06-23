@@ -9,23 +9,26 @@ from __future__ import annotations
 import os
 import subprocess
 from collections import deque
-from collections.abc import Callable
 from threading import RLock
-from typing import ClassVar, Dict, List, Optional, Set, Tuple
+from typing import TYPE_CHECKING, ClassVar, override
 
 import psutil
 from PySide6.QtCore import QObject, QProcess, QRunnable, QThreadPool, Signal
-from typing_extensions import override
 
 from config import ProcessConfig
 from logging_config import PyFFMPEGLogger, get_logger
 from progress_tracker import ProcessProgressTracker
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 
 class FFmpegDetectionSignals(QObject):
     """Signals for FFmpeg detection worker."""
 
-    detection_complete: ClassVar[Signal] = Signal(bool, str)  # available, ffmpeg_path or error message
+    detection_complete: ClassVar[Signal] = Signal(
+        bool, str
+    )  # available, ffmpeg_path or error message
 
 
 class FFmpegDetectionWorker(QRunnable):
@@ -79,7 +82,9 @@ class ProcessManager(QObject):
     update_progress: ClassVar[Signal] = Signal()
 
     # Signal emitted when FFmpeg detection completes (async)
-    ffmpeg_detected: ClassVar[Signal] = Signal(bool, str)  # available, path or error message
+    ffmpeg_detected: ClassVar[Signal] = Signal(
+        bool, str
+    )  # available, path or error message
 
     # Signal emitted when a process is paused
     process_paused: ClassVar[Signal] = Signal(QProcess)
@@ -88,26 +93,28 @@ class ProcessManager(QObject):
     process_resumed: ClassVar[Signal] = Signal(QProcess)
 
     # Class-level cache for FFmpeg path
-    _ffmpeg_command_cache: ClassVar[Optional[str]] = None
-    _ffmpeg_available_cache: ClassVar[Optional[bool]] = None
+    _ffmpeg_command_cache: ClassVar[str | None] = None
+    _ffmpeg_available_cache: ClassVar[bool | None] = None
 
     # Process ID counter to avoid collisions (thread-safe with lock)
     _process_id_counter: ClassVar[int] = 0
     _process_id_lock: ClassVar[RLock] = RLock()
 
-    def __init__(self, parent: Optional[QObject] = None):
+    def __init__(self, parent: QObject | None = None):
         super().__init__(parent)
 
         # Initialize logger
         self.logger: PyFFMPEGLogger = get_logger()
 
         # Initialize process tracking
-        self.processes: List[Tuple[QProcess, str]] = []
-        self.process_widgets: Dict[QProcess, dict[str, object]] = {}
+        self.processes: list[tuple[QProcess, str]] = []
+        self.process_widgets: dict[QProcess, dict[str, object]] = {}
 
         # Use deque for memory-efficient circular buffers
-        self.process_logs: Dict[QProcess, deque[str]] = {}  # Circular buffer for logs
-        self.process_outputs: Dict[QProcess, deque[str]] = {}  # Circular buffer for outputs
+        self.process_logs: dict[QProcess, deque[str]] = {}  # Circular buffer for logs
+        self.process_outputs: dict[
+            QProcess, deque[str]
+        ] = {}  # Circular buffer for outputs
         self._base_max_log_lines: int = 500  # Base maximum lines per process log
         self._current_max_log_lines: int = (
             500  # Dynamically adjusted based on active processes
@@ -116,20 +123,22 @@ class ProcessManager(QObject):
         self._buffer_lock: RLock = RLock()
 
         # Map QProcess to unique IDs
-        self.process_ids: Dict[QProcess, str] = {}
+        self.process_ids: dict[QProcess, str] = {}
 
         # Track signal connections for proper cleanup
-        self.process_connections: Dict[QProcess, List[Tuple[str, Callable[..., None]]]] = {}
+        self.process_connections: dict[
+            QProcess, list[tuple[str, Callable[..., None]]]
+        ] = {}
 
         # Queue management
-        self.queue: List[str] = []
+        self.queue: list[str] = []
         self.total: int = 0
         self.completed: int = 0
 
         # Progress tracking
         self.progress_tracker: ProcessProgressTracker = ProcessProgressTracker()
-        self.codec_map: Dict[str, int] = {}  # Maps file paths to codec indices
-        self.output_map: Dict[str, str] = {}  # Maps input paths to output paths
+        self.codec_map: dict[str, int] = {}  # Maps file paths to codec indices
+        self.output_map: dict[str, str] = {}  # Maps input paths to output paths
 
         # Timer management (simplified with UI update manager)
         self._last_activity_time: float = 0
@@ -140,10 +149,10 @@ class ProcessManager(QObject):
         self.max_parallel: int = 1
 
         # FFmpeg detection signals for async detection
-        self._detection_signals: Optional[FFmpegDetectionSignals] = None
+        self._detection_signals: FFmpegDetectionSignals | None = None
 
         # Guard against double-cleanup of processes (race condition prevention)
-        self._finished_processes: Set[QProcess] = set()
+        self._finished_processes: set[QProcess] = set()
 
     def detect_ffmpeg_async(self) -> None:
         """Detect FFmpeg availability in a background thread.
@@ -178,7 +187,7 @@ class ProcessManager(QObject):
 
     def start_batch(
         self,
-        file_paths: List[str],
+        file_paths: list[str],
         parallel_enabled: bool = False,
         max_parallel: int = 1,
     ):
@@ -200,7 +209,9 @@ class ProcessManager(QObject):
                 # Double-check inside lock to prevent race
                 if process not in self.process_ids:
                     ProcessManager._process_id_counter += 1
-                    self.process_ids[process] = f"process_{ProcessManager._process_id_counter}"
+                    self.process_ids[process] = (
+                        f"process_{ProcessManager._process_id_counter}"
+                    )
         return self.process_ids[process]
 
     def _adjust_buffer_sizes(self):
@@ -253,10 +264,10 @@ class ProcessManager(QObject):
     def start_process(
         self,
         path: str,
-        ffmpeg_args: List[str],
+        ffmpeg_args: list[str],
         codec_idx: int = -1,
-        duration: Optional[float] = None,
-        output_path: Optional[str] = None,
+        duration: float | None = None,
+        output_path: str | None = None,
     ) -> QProcess:
         """
         Start a new FFmpeg process for the given file
@@ -275,7 +286,7 @@ class ProcessManager(QObject):
         process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
 
         # Set up signals and track connections for cleanup
-        connections: List[Tuple[str, Callable[..., None]]] = []
+        connections: list[tuple[str, Callable[..., None]]] = []
 
         # Output handling connection
         def output_handler(p: QProcess = process) -> None:
@@ -285,14 +296,21 @@ class ProcessManager(QObject):
         connections.append(("readyReadStandardOutput", output_handler))
 
         # Error handling connection
-        def error_handler(error: QProcess.ProcessError, p: QProcess = process, path: str = path) -> None:
+        def error_handler(
+            error: QProcess.ProcessError, p: QProcess = process, path: str = path
+        ) -> None:
             return self._handle_process_error(error, p, path)
 
         _ = process.errorOccurred.connect(error_handler)
         connections.append(("errorOccurred", error_handler))
 
         # Finished handling connection - this is critical for marking completion
-        def finished_handler(exit_code: int, _exit_status: QProcess.ExitStatus, p: QProcess = process, process_path: str = path) -> None:
+        def finished_handler(
+            exit_code: int,
+            _exit_status: QProcess.ExitStatus,
+            p: QProcess = process,
+            process_path: str = path,
+        ) -> None:
             return self.mark_process_finished(p, process_path, exit_code)
 
         _ = process.finished.connect(finished_handler)
@@ -390,7 +408,10 @@ class ProcessManager(QObject):
             # Protected buffer writes to prevent race with _adjust_buffer_sizes
             with self._buffer_lock:
                 # Check if process buffers still exist (may have been cleaned up)
-                if process not in self.process_logs or process not in self.process_outputs:
+                if (
+                    process not in self.process_logs
+                    or process not in self.process_outputs
+                ):
                     return
 
                 # Check for MPEGTS timing errors
@@ -434,7 +455,7 @@ class ProcessManager(QObject):
             or ffmpeg_cmd.startswith("C:\\")
         )
 
-    def _get_ffmpeg_command(self) -> Optional[str]:
+    def _get_ffmpeg_command(self) -> str | None:
         """Get cached FFmpeg command or detect it"""
         # Return cached value if available
         if ProcessManager._ffmpeg_command_cache is not None:
@@ -453,7 +474,8 @@ class ProcessManager(QObject):
             try:
                 result = subprocess.run(
                     [cmd, "-version"],
-                    check=False, capture_output=True,
+                    check=False,
+                    capture_output=True,
                     timeout=2,  # Reduced timeout
                 )
                 if result.returncode == 0:
@@ -479,7 +501,9 @@ class ProcessManager(QObject):
         """
         return any(p is process for p, _ in self.processes)
 
-    def _handle_process_error(self, error: QProcess.ProcessError, process: QProcess, path: str) -> None:
+    def _handle_process_error(
+        self, error: QProcess.ProcessError, process: QProcess, path: str
+    ) -> None:
         """Enhanced error handling for process errors"""
         error_names = {
             QProcess.ProcessError.FailedToStart: "FailedToStart",
@@ -531,8 +555,12 @@ class ProcessManager(QObject):
                     ffmpeg_cmd = self._get_ffmpeg_command()
                     if ffmpeg_cmd:
                         test_result = subprocess.run(
-                            [ffmpeg_cmd, *arguments[:5]],  # Test with just first few args
-                            check=False, capture_output=True,
+                            [
+                                ffmpeg_cmd,
+                                *arguments[:5],
+                            ],  # Test with just first few args
+                            check=False,
+                            capture_output=True,
                             text=True,
                             timeout=2,
                         )
@@ -559,11 +587,11 @@ class ProcessManager(QObject):
         """Get overall progress information"""
         return self.progress_tracker.get_overall_progress()
 
-    def get_codec_distribution(self) -> Dict[str, int]:
+    def get_codec_distribution(self) -> dict[str, int]:
         """Get distribution of active encoders by type"""
         return self.progress_tracker.get_codec_distribution(self.codec_map)
 
-    def get_process_progress(self, process: QProcess) -> Optional[dict[str, object]]:
+    def get_process_progress(self, process: QProcess) -> dict[str, object] | None:
         """Get progress information for a specific process"""
         process_id = self._get_process_id(process)
         return self.progress_tracker.get_process_progress(process_id)
@@ -791,9 +819,10 @@ class ProcessManager(QObject):
         """
         paused_count = 0
         for process, _ in self.processes:
-            if process.state() == QProcess.ProcessState.Running:
-                if self.pause_process(process):
-                    paused_count += 1
+            if process.state() == QProcess.ProcessState.Running and self.pause_process(
+                process
+            ):
+                paused_count += 1
         return paused_count
 
     def resume_all_processes(self) -> int:
@@ -809,9 +838,11 @@ class ProcessManager(QObject):
                 pid = process.processId()
                 if pid > 0:
                     psutil_proc = psutil.Process(pid)
-                    if psutil_proc.status() == psutil.STATUS_STOPPED:
-                        if self.resume_process(process):
-                            resumed_count += 1
+                    if (
+                        psutil_proc.status() == psutil.STATUS_STOPPED
+                        and self.resume_process(process)
+                    ):
+                        resumed_count += 1
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 continue
         return resumed_count

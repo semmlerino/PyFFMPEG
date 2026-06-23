@@ -35,42 +35,38 @@ PyFFMPEG is a PySide6-based GUI application for batch video conversion using FFm
 ### Running the Application
 ```bash
 # Run the refactored version (recommended)
-python main_window_refactored.py
+uv run python main_window_refactored.py
 
-# Run the legacy version (for comparison)
-python PyMPEG.py
+# After the Phase 6 packaging move this becomes:
+# uv run pympeg
 ```
 
 ### Development Environment Setup
 ```bash
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# or
-venv\Scripts\activate     # Windows
-
-# Install dependencies
-pip install PySide6
+# uv manages the virtualenv and dependencies from pyproject.toml + uv.lock.
+# The interpreter is pinned to Python 3.12 via .python-version.
+uv sync --extra dev
 ```
 
 ### Code Quality and Type Checking
 ```bash
-# Install development tools
-pip install ruff basedpyright
+# Lint and format
+uv run ruff check . --fix
+uv run ruff format .
 
-# Run linting and formatting from virtual environment
-./venv/bin/ruff check .
-./venv/bin/ruff format .
+# Type check — 0 errors required (config in [tool.basedpyright])
+uv run basedpyright --level error
 
-# Run type checking (configured for refactored modules only) from virtual environment
-./venv/bin/basedpyright --typeshedpath venv/lib/python3.12/site-packages/basedpyright/dist/typeshed-fallback
+# Run the test suite (--extra dev is required: addopts pulls in pytest-cov)
+QT_QPA_PLATFORM=offscreen uv run --extra dev pytest -q
 ```
 
 ### Dependencies
 The application requires:
-- Python 3.8+ (developed with 3.12)
+- Python 3.12+ (pinned via `.python-version`, managed by uv)
 - PySide6 (Qt for Python)
-- FFmpeg (must be in PATH)
+- psutil (cross-platform process pause/resume)
+- FFmpeg / ffprobe (must be in PATH)
 - Optional: nvidia-smi for GPU detection
 
 ## Development Hardware Specifications
@@ -221,14 +217,15 @@ Application state is persisted using Qt's QSettings with backwards compatibility
 
 ### Type Checking Configuration
 The project uses basedpyright for comprehensive type checking:
-- Configured in `pyrightconfig.json` with `typeCheckingMode: "basic"`
-- Includes only refactored modules, excludes legacy `PyMPEG.py`
-- Custom typeshed path for WSL compatibility: `--typeshedpath venv/lib/python3.12/site-packages/basedpyright/dist/typeshed-fallback`
-- Achieved **perfect type safety**: 0 errors, 0 warnings, 0 notes across all modules
+- Configured in `[tool.basedpyright]` in `pyproject.toml` with `typeCheckingMode = "recommended"` and `pythonVersion = "3.12"`
+- Includes only the refactored modules, excludes legacy `PyMPEG.py`
+- Run via `uv run basedpyright --level error` (uv-managed interpreter — no manual typeshed path needed)
+- Gate: **0 errors**. A few advisory warnings remain in `extract_video_metadata` (JSON-from-`Any` narrowing); they clear when that code moves to `metadata/probe.py` in Phase 3
 
 ### Type Annotations Standards
 All refactored modules include comprehensive type hints:
-- Optional widget types: `Optional[QWidget]` with assertion guards
+- Optional widget types: `QWidget | None` (PEP 604) with assertion guards
+- Modern annotation syntax throughout: PEP 585 builtins (`list[str]`), PEP 604 unions, and stdlib `from typing import override`
 - Signal type declarations: `Signal(str)`, `Signal(dict)`, `Signal()`
 - Method parameter and return types for all public APIs
 - Qt enum access: `Qt.ItemDataRole.UserRole` instead of `Qt.UserRole`

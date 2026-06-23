@@ -9,7 +9,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
-from typing import TYPE_CHECKING, ClassVar, cast
+from typing import TYPE_CHECKING, ClassVar, cast, override
 
 from PySide6.QtCore import QFileInfo, QObject, QRunnable, QSize, Qt, QThreadPool, Signal
 from PySide6.QtGui import QColor, QCursor
@@ -20,7 +20,6 @@ from PySide6.QtWidgets import (
     QMenu,
     QWidget,
 )
-from typing_extensions import override
 
 from codec_helpers import CodecHelpers, VideoMetadata
 
@@ -70,7 +69,9 @@ class FileListWidget(QListWidget):
         self.color_processing: QColor = QColor(0, 122, 204)  # Professional blue
         self.color_completed: QColor = QColor(34, 139, 34)  # Forest green - success
         self.color_failed: QColor = QColor(220, 53, 69)  # Bootstrap red - error
-        self.color_skipped: QColor = QColor(255, 193, 7)  # Amber/yellow - skipped (output exists)
+        self.color_skipped: QColor = QColor(
+            255, 193, 7
+        )  # Amber/yellow - skipped (output exists)
 
         # Set fixed height for items
         self.setIconSize(QSize(16, 16))
@@ -117,7 +118,14 @@ class FileListWidget(QListWidget):
             super().dragEnterEvent(event)
 
     # Supported video extensions (aligned with main_window file dialog)
-    SUPPORTED_EXTENSIONS: tuple[str, ...] = (".ts", ".mp4", ".m4v", ".mov", ".avi", ".mkv")
+    SUPPORTED_EXTENSIONS: tuple[str, ...] = (
+        ".ts",
+        ".mp4",
+        ".m4v",
+        ".mov",
+        ".avi",
+        ".mkv",
+    )
 
     @override
     def dropEvent(self, event: QDropEvent) -> None:
@@ -125,7 +133,9 @@ class FileListWidget(QListWidget):
             # External file drop - add new files
             for url in event.mimeData().urls():
                 path = url.toLocalFile()
-                if path.lower().endswith(self.SUPPORTED_EXTENSIONS) and os.path.isfile(path):
+                if path.lower().endswith(self.SUPPORTED_EXTENSIONS) and os.path.isfile(
+                    path
+                ):
                     self.add_path(path)
             event.acceptProposedAction()
         else:
@@ -486,7 +496,9 @@ class FileListWidget(QListWidget):
         if isinstance(metadata, dict):
             # Runtime validation - double cast through object to VideoMetadata
             # We trust that extract_video_metadata returns the correct structure
-            self.metadata_cache[file_path] = cast("VideoMetadata", cast("object", metadata))
+            self.metadata_cache[file_path] = cast(
+                "VideoMetadata", cast("object", metadata)
+            )
         else:
             self.metadata_cache[file_path] = None
 

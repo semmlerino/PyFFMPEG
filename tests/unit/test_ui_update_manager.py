@@ -217,8 +217,10 @@ class TestUIUpdateManager:
 
     def test_timer_start_stop(self):
         """Test timer lifecycle"""
-        with patch.object(self.manager.update_timer, "start") as mock_start, \
-                patch.object(self.manager.update_timer, "stop") as mock_stop:
+        with (
+            patch.object(self.manager.update_timer, "start") as mock_start,
+            patch.object(self.manager.update_timer, "stop") as mock_stop,
+        ):
             self.manager.start()
             mock_start.assert_called_once_with(self.manager.current_interval)
 
@@ -227,8 +229,10 @@ class TestUIUpdateManager:
 
     def test_timer_interval_change(self):
         """Test that timer interval is updated when activity changes"""
-        with patch.object(self.manager.update_timer, "isActive", return_value=True), \
-                patch.object(self.manager.update_timer, "setInterval") as mock_set:
+        with (
+            patch.object(self.manager.update_timer, "isActive", return_value=True),
+            patch.object(self.manager.update_timer, "setInterval") as mock_set,
+        ):
             # Start with base interval
             assert self.manager.current_interval == self.manager.base_interval
 

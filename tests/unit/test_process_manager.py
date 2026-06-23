@@ -288,14 +288,16 @@ class TestProcessOutput:
         self.manager.progress_tracker.process_output.return_value = mock_progress_data
 
         # Mock signals to prevent segfault
-        with patch.object(self.manager, "update_progress"), \
-                patch.object(self.manager, "output_ready"):
+        with (
+            patch.object(self.manager, "update_progress"),
+            patch.object(self.manager, "output_ready"),
+        ):
             for chunk in output_chunks:
-                    # Mock readAllStandardOutput to return QByteArray
-                    mock_data = Mock()
-                    mock_data.data.return_value = chunk
-                    process.readAllStandardOutput = Mock(return_value=mock_data)
-                    self.manager._handle_process_output(process)
+                # Mock readAllStandardOutput to return QByteArray
+                mock_data = Mock()
+                mock_data.data.return_value = chunk
+                process.readAllStandardOutput = Mock(return_value=mock_data)
+                self.manager._handle_process_output(process)
 
         # Verify all chunks are buffered
         assert len(self.manager.process_outputs[process]) == len(output_chunks)
@@ -743,8 +745,10 @@ class TestProcessManagerIntegration:
         mock_process.readAllStandardOutput.return_value = mock_data
 
         # Patch signals to prevent segfault when emitting with Mock objects
-        with patch.object(self.manager, "output_ready") as mock_output_signal, \
-                patch.object(self.manager, "update_progress"):
+        with (
+            patch.object(self.manager, "output_ready") as mock_output_signal,
+            patch.object(self.manager, "update_progress"),
+        ):
             self.manager._handle_process_output(mock_process)
 
             # Verify signal was called
@@ -773,8 +777,10 @@ class TestProcessManagerIntegration:
         self.manager.start_process(file_path, ["-i", file_path, "output.mp4"])
 
         # Mock signals to prevent segfault
-        with patch.object(self.manager, "update_progress") as mock_update_signal, \
-                patch.object(self.manager, "process_finished") as mock_finished_signal:
+        with (
+            patch.object(self.manager, "update_progress") as mock_update_signal,
+            patch.object(self.manager, "process_finished") as mock_finished_signal,
+        ):
             # Call mark_process_finished directly with exit code 0 (success)
             self.manager.mark_process_finished(mock_process, file_path, 0)
 
@@ -809,8 +815,10 @@ class TestProcessManagerIntegration:
         self.manager.start_process(file_path, ["-i", file_path, "output.mp4"])
 
         # Mock signals to prevent segfault
-        with patch.object(self.manager, "update_progress") as mock_update_signal, \
-                patch.object(self.manager, "process_finished") as mock_finished_signal:
+        with (
+            patch.object(self.manager, "update_progress") as mock_update_signal,
+            patch.object(self.manager, "process_finished") as mock_finished_signal,
+        ):
             # Call mark_process_finished directly with exit code 1 (failure)
             self.manager.mark_process_finished(mock_process, file_path, 1)
 

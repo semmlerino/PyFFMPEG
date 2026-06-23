@@ -6,7 +6,6 @@ Implements efficient UI updates with dirty flags and batching
 
 import time
 from collections import defaultdict
-from typing import Optional, Union
 
 from PySide6.QtCore import QObject, QTimer, Signal
 from PySide6.QtWidgets import QWidget
@@ -18,7 +17,7 @@ class UIUpdateManager(QObject):
     # Signal emitted when UI updates should be performed
     update_ui: Signal = Signal(dict)
 
-    def __init__(self, parent: Optional[QWidget] = None) -> None:
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
         # Dirty flags for different UI components
@@ -86,7 +85,7 @@ class UIUpdateManager(QObject):
         # Trigger interval adjustment
         self._adjust_update_interval()
 
-    def mark_dirty(self, component: str, data: Optional[object] = None) -> None:
+    def mark_dirty(self, component: str, data: object | None = None) -> None:
         """Mark a component as needing update"""
         self.dirty_flags[component] = True
         if data is not None:
@@ -185,7 +184,7 @@ class UIUpdateManager(QObject):
         for component, data in updates.items():
             self.mark_dirty(component, data)
 
-    def force_update(self, component: Optional[str] = None) -> None:
+    def force_update(self, component: str | None = None) -> None:
         """Force immediate update of component(s)"""
         if component:
             # Force update specific component
@@ -200,9 +199,9 @@ class UIUpdateManager(QObject):
         # Trigger immediate update
         self._process_updates()
 
-    def get_update_stats(self) -> "dict[str, dict[str, Union[float, bool]]]":
+    def get_update_stats(self) -> "dict[str, dict[str, float | bool]]":
         """Get statistics about update frequencies"""
-        stats: dict[str, dict[str, Union[float, bool]]] = {}
+        stats: dict[str, dict[str, float | bool]] = {}
         current_time = time.time()
 
         for component in self.dirty_flags:

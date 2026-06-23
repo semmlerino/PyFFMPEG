@@ -324,7 +324,7 @@ class TestProgressScenarios:
         )
 
         for ffmpeg_line, expected_pct in zip(
-            scenario["progress_updates"], scenario["expected_percentages"]
+            scenario["progress_updates"], scenario["expected_percentages"], strict=False
         ):
             progress_data = self.tracker.process_output(process_id, ffmpeg_line)
 
@@ -344,13 +344,14 @@ class TestProgressScenarios:
         )
 
         for ffmpeg_line, expected_pct in zip(
-            scenario["progress_updates"], scenario["expected_percentages"]
+            scenario["progress_updates"], scenario["expected_percentages"], strict=False
         ):
             progress_data = self.tracker.process_output(process_id, ffmpeg_line)
 
             assert progress_data is not None
             if "current_pct" in progress_data:
                 assert abs(progress_data["current_pct"] - expected_pct) < 2.0
+
 
 class TestEdgeCases:
     """Test edge cases and error conditions"""

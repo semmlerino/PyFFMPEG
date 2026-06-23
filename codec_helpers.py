@@ -10,30 +10,32 @@ import json
 import os
 import subprocess
 import time
-from typing import ClassVar, Dict, List, Optional, Tuple, TypedDict
+from typing import ClassVar, TypedDict, override
 
 from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal
-from typing_extensions import override
 
 from config import CodecIndex, EncodingConfig, FileConfig, HardwareConfig, ProcessConfig
 
 
 class VideoMetadata(TypedDict):
     """Type definition for video metadata extracted from ffprobe."""
+
     duration: str
     duration_seconds: float
     width: int
     height: int
     codec: str
     bitrate: str
-    bitrate_bps: Optional[int]
+    bitrate_bps: int | None
     format_name: str
 
 
 class GPUDetectionSignals(QObject):
     """Signals for GPU detection worker."""
 
-    detection_complete: ClassVar[Signal] = Signal(bool, str, str)  # has_gpu, gpu_name, available_encoders
+    detection_complete: ClassVar[Signal] = Signal(
+        bool, str, str
+    )  # has_gpu, gpu_name, available_encoders
 
 
 class GPUDetectionWorker(QRunnable):
@@ -100,11 +102,13 @@ class GPUDetector(QObject):
     """
 
     # Signal emitted when detection completes
-    gpu_detected: ClassVar[Signal] = Signal(bool, str, str)  # has_gpu, gpu_name, available_encoders
+    gpu_detected: ClassVar[Signal] = Signal(
+        bool, str, str
+    )  # has_gpu, gpu_name, available_encoders
 
-    def __init__(self, parent: Optional[QObject] = None):
+    def __init__(self, parent: QObject | None = None):
         super().__init__(parent)
-        self._detection_signals: Optional[GPUDetectionSignals] = None
+        self._detection_signals: GPUDetectionSignals | None = None
 
     def detect_async(self) -> None:
         """Start async GPU detection.
@@ -131,7 +135,9 @@ class GPUDetector(QObject):
 
         # Run detection in background
         self._detection_signals = GPUDetectionSignals()
-        _ = self._detection_signals.detection_complete.connect(self._on_detection_complete)
+        _ = self._detection_signals.detection_complete.connect(
+            self._on_detection_complete
+        )
         worker = GPUDetectionWorker(self._detection_signals)
         QThreadPool.globalInstance().start(worker)
 
@@ -155,15 +161,15 @@ class CodecHelpers:
     _CACHE_TTL_FAILURE: float = 30.0  # 30 seconds for failed detection
 
     # Cache for expensive detection operations (with timestamps)
-    _encoder_cache: Optional[str] = None
+    _encoder_cache: str | None = None
     _encoder_cache_time: float = 0.0
     _encoder_cache_success: bool = False
 
-    _gpu_info_cache: Optional[str] = None
+    _gpu_info_cache: str | None = None
     _gpu_info_cache_time: float = 0.0
     _gpu_info_cache_success: bool = False
 
-    _rtx40_detection_cache: Optional[bool] = None
+    _rtx40_detection_cache: bool | None = None
     _rtx40_detection_cache_time: float = 0.0
 
     @staticmethod
@@ -178,7 +184,7 @@ class CodecHelpers:
         )
 
     @staticmethod
-    def get_cached_gpu_info() -> Optional[str]:
+    def get_cached_gpu_info() -> str | None:
         """Get cached GPU info string.
 
         Returns:
@@ -187,7 +193,7 @@ class CodecHelpers:
         return CodecHelpers._gpu_info_cache
 
     @staticmethod
-    def get_cached_encoder_info() -> Optional[str]:
+    def get_cached_encoder_info() -> str | None:
         """Get cached encoder info string.
 
         Returns:
@@ -205,11 +211,11 @@ class CodecHelpers:
         return ".mkv"  # Default
 
     @staticmethod
-    def get_hardware_acceleration_args(hwdecode_idx: int) -> Tuple[List[str], str]:
+    def get_hardware_acceleration_args(hwdecode_idx: int) -> tuple[list[str], str]:
         """Get hardware acceleration arguments based on selected hardware decode option
         Returns a tuple of (args_list, message_for_log)
         """
-        args: List[str] = []
+        args: list[str] = []
         message = ""
 
         try:
@@ -233,11 +239,16 @@ class CodecHelpers:
                 # Only on Linux systems
                 if os.name == "posix":
                     vaapi_device = os.environ.get("VAAPI_DEVICE", "/dev/dri/renderD128")
-                    args.extend([
-                        "-hwaccel", "vaapi",
-                        "-hwaccel_device", vaapi_device,
-                        "-hwaccel_output_format", "vaapi",
-                    ])
+                    args.extend(
+                        [
+                            "-hwaccel",
+                            "vaapi",
+                            "-hwaccel_device",
+                            vaapi_device,
+                            "-hwaccel_output_format",
+                            "vaapi",
+                        ]
+                    )
                     message = "Using VAAPI hardware acceleration with surface output"
                 else:
                     # Windows fallback for VAAPI selection
@@ -254,11 +265,11 @@ class CodecHelpers:
         return args, message
 
     @staticmethod
-    def get_audio_codec_args(path: str, codec_idx: int) -> Tuple[List[str], str]:
+    def get_audio_codec_args(path: str, codec_idx: int) -> tuple[list[str], str]:
         """Get audio codec configuration arguments based on input file and selected video codec
         Returns a tuple of (args_list, message_for_log)
         """
-        args: List[str] = []
+        args: list[str] = []
         message = ""
 
         try:
@@ -276,7 +287,8 @@ class CodecHelpers:
                     "default=nokey=1:noprint_wrappers=1",
                     path,
                 ],
-                check=False, text=True,
+                check=False,
+                text=True,
                 capture_output=True,
                 timeout=ProcessConfig.SUBPROCESS_TIMEOUT,
             )
@@ -323,9 +335,9 @@ class CodecHelpers:
         _is_parallel_enabled: bool,
         crf_value: int,
         hevc_10bit: bool = False,
-        _nvenc_settings: Optional[object] = None,
+        _nvenc_settings: object | None = None,
         preset_idx: int = 0,
-    ) -> Tuple[List[str], str]:
+    ) -> tuple[list[str], str]:
         """Get encoder configuration arguments based on codec index.
 
         Returns a tuple of (args_list, message_for_log).
@@ -335,7 +347,7 @@ class CodecHelpers:
         Preset mapping (preset_idx from UI):
         0 = Standard, 1 = High Quality, 2 = Fast, 3 = Ultra Fast
         """
-        args: List[str] = []
+        args: list[str] = []
         message = ""
 
         # Map UI preset index to NVENC presets (p1=fastest, p7=highest quality)
@@ -354,7 +366,10 @@ class CodecHelpers:
             available_encoders = CodecHelpers._get_available_encoders()
 
             # H.264 NVENC
-            if codec_idx == CodecIndex.H264_NVENC and "h264_nvenc" in available_encoders:
+            if (
+                codec_idx == CodecIndex.H264_NVENC
+                and "h264_nvenc" in available_encoders
+            ):
                 args.extend(
                     [
                         "-c:v",
@@ -384,7 +399,10 @@ class CodecHelpers:
                 message = "Using H.264 NVENC hardware encoding"
 
             # HEVC NVENC
-            elif codec_idx == CodecIndex.HEVC_NVENC and "hevc_nvenc" in available_encoders:
+            elif (
+                codec_idx == CodecIndex.HEVC_NVENC
+                and "hevc_nvenc" in available_encoders
+            ):
                 args.extend(
                     [
                         "-c:v",
@@ -416,7 +434,9 @@ class CodecHelpers:
                 message = "Using HEVC NVENC hardware encoding"
 
             # AV1 NVENC
-            elif codec_idx == CodecIndex.AV1_NVENC and "av1_nvenc" in available_encoders:
+            elif (
+                codec_idx == CodecIndex.AV1_NVENC and "av1_nvenc" in available_encoders
+            ):
                 args.extend(
                     [
                         "-c:v",
@@ -482,28 +502,43 @@ class CodecHelpers:
                 # Full QSV pipeline: init device, set filter device, hwupload filter
                 args.extend(
                     [
-                        "-init_hw_device", "qsv=hw",
-                        "-filter_hw_device", "hw",
-                        "-vf", "hwupload=extra_hw_frames=64,format=qsv",
-                        "-c:v", "h264_qsv",
-                        "-preset", qsv_preset,
-                        "-global_quality", str(crf_value),
+                        "-init_hw_device",
+                        "qsv=hw",
+                        "-filter_hw_device",
+                        "hw",
+                        "-vf",
+                        "hwupload=extra_hw_frames=64,format=qsv",
+                        "-c:v",
+                        "h264_qsv",
+                        "-preset",
+                        qsv_preset,
+                        "-global_quality",
+                        str(crf_value),
                     ]
                 )
                 message = "Using H.264 QSV hardware encoding with surface upload"
 
             # H.264 VAAPI
-            elif codec_idx == CodecIndex.H264_VAAPI and "h264_vaapi" in available_encoders:
+            elif (
+                codec_idx == CodecIndex.H264_VAAPI
+                and "h264_vaapi" in available_encoders
+            ):
                 # Full VAAPI pipeline: device init and hwupload filter
                 vaapi_device = os.environ.get("VAAPI_DEVICE", "/dev/dri/renderD128")
                 args.extend(
                     [
-                        "-vaapi_device", vaapi_device,
-                        "-vf", "format=nv12,hwupload",
-                        "-c:v", "h264_vaapi",
-                        "-profile:v", "high",
-                        "-rc_mode", "CQP",
-                        "-qp", str(crf_value),
+                        "-vaapi_device",
+                        vaapi_device,
+                        "-vf",
+                        "format=nv12,hwupload",
+                        "-c:v",
+                        "h264_vaapi",
+                        "-profile:v",
+                        "high",
+                        "-rc_mode",
+                        "CQP",
+                        "-qp",
+                        str(crf_value),
                     ]
                 )
                 message = "Using H.264 VAAPI hardware encoding with surface upload"
@@ -550,7 +585,7 @@ class CodecHelpers:
     def optimize_threads_for_codec(
         codec_idx: int,
         is_parallel_enabled: bool,
-        file_codec_assignments: Optional[Dict[str, int]] = None,
+        file_codec_assignments: dict[str, int] | None = None,
     ) -> int:
         """Optimize thread count based on selected codec and parallel processing mode"""
         # NVENC encoders - minimal CPU usage
@@ -661,7 +696,8 @@ class CodecHelpers:
         # Check if cache is still valid (use same TTL as GPU info since it depends on it)
         if (
             CodecHelpers._rtx40_detection_cache is not None
-            and (now - CodecHelpers._rtx40_detection_cache_time) < CodecHelpers._CACHE_TTL_SUCCESS
+            and (now - CodecHelpers._rtx40_detection_cache_time)
+            < CodecHelpers._CACHE_TTL_SUCCESS
         ):
             return CodecHelpers._rtx40_detection_cache
 
@@ -677,7 +713,7 @@ class CodecHelpers:
             return False
 
     @staticmethod
-    def is_rtx40_cached() -> Optional[bool]:
+    def is_rtx40_cached() -> bool | None:
         """Check if RTX40 detection result is cached (returns None if not cached).
 
         Use this for UI validation to avoid blocking the main thread.
@@ -740,7 +776,7 @@ class CodecHelpers:
             CodecHelpers._rtx40_detection_cache_time = now
 
     @staticmethod
-    def extract_video_metadata(file_path: str) -> Optional[VideoMetadata]:
+    def extract_video_metadata(file_path: str) -> VideoMetadata | None:
         """Extract video metadata using ffprobe
 
         Returns:
@@ -761,7 +797,8 @@ class CodecHelpers:
 
             result = subprocess.run(
                 cmd,
-                check=False, capture_output=True,
+                check=False,
+                capture_output=True,
                 text=True,
                 timeout=ProcessConfig.SUBPROCESS_TIMEOUT,
             )
@@ -782,9 +819,12 @@ class CodecHelpers:
             if not isinstance(streams_obj, list):
                 return None
 
-            video_stream_obj: Optional[object] = None
+            video_stream_obj: object | None = None
             for stream_obj in streams_obj:  # pyright: ignore[reportUnknownVariableType]
-                if isinstance(stream_obj, dict) and stream_obj.get("codec_type") == "video":  # pyright: ignore[reportUnknownMemberType]
+                if (
+                    isinstance(stream_obj, dict)
+                    and stream_obj.get("codec_type") == "video"
+                ):  # pyright: ignore[reportUnknownMemberType]
                     video_stream_obj = stream_obj  # pyright: ignore[reportUnknownVariableType]
                     break
 
@@ -814,10 +854,12 @@ class CodecHelpers:
             height = int(height_obj) if isinstance(height_obj, (int, float)) else 0
 
             codec_name_obj = video_stream_obj.get("codec_name", "Unknown")  # pyright: ignore[reportUnknownMemberType,reportUnknownVariableType]
-            codec_name = str(codec_name_obj) if codec_name_obj is not None else "Unknown"  # pyright: ignore[reportUnknownArgumentType]
+            codec_name = (
+                str(codec_name_obj) if codec_name_obj is not None else "Unknown"
+            )  # pyright: ignore[reportUnknownArgumentType]
 
             # Calculate bitrate with type safety
-            bitrate_bps: Optional[int] = None
+            bitrate_bps: int | None = None
             if "bit_rate" in video_stream_obj:
                 bitrate_obj = video_stream_obj["bit_rate"]  # pyright: ignore[reportUnknownVariableType]
                 if isinstance(bitrate_obj, (int, str)):
@@ -836,7 +878,9 @@ class CodecHelpers:
 
             # Extract format name with type safety
             format_name_obj = format_info_obj.get("format_name", "Unknown")  # pyright: ignore[reportUnknownMemberType,reportUnknownVariableType]
-            format_name = str(format_name_obj) if format_name_obj is not None else "Unknown"  # pyright: ignore[reportUnknownArgumentType]
+            format_name = (
+                str(format_name_obj) if format_name_obj is not None else "Unknown"
+            )  # pyright: ignore[reportUnknownArgumentType]
 
             return VideoMetadata(
                 duration=duration_formatted,
@@ -871,7 +915,7 @@ class CodecHelpers:
         return f"{hours:02d}:{minutes:02d}:{secs:02d}"
 
     @staticmethod
-    def _format_bitrate(bitrate_bps: Optional[int]) -> str:
+    def _format_bitrate(bitrate_bps: int | None) -> str:
         """Format bitrate from bits per second to human readable"""
         if not bitrate_bps or bitrate_bps <= 0:
             return "Unknown"
@@ -890,7 +934,7 @@ class CodecHelpers:
     @staticmethod
     def estimate_output_size(
         input_metadata: VideoMetadata, codec_idx: int, crf_value: int
-    ) -> Optional[str]:
+    ) -> str | None:
         """Estimate output file size based on input metadata and encoding settings
 
         Args:

@@ -11,26 +11,27 @@ import os
 import shutil
 import subprocess
 import time
-from typing import TYPE_CHECKING, ClassVar, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, ClassVar, override
 
 from PySide6.QtCore import QObject, QProcess, QRunnable, QThreadPool, Signal
-from typing_extensions import override
 
 if TYPE_CHECKING:
     from file_list_widget import FileListWidget
+    from process_manager import ProcessManager
     from process_monitor import ProcessMonitor
 
 from codec_helpers import CodecHelpers
 from config import EncodingConfig, ValidationConfig
 from logging_config import PyFFMPEGLogger, get_logger
-from process_manager import ProcessManager
 from progress_tracker import ProcessProgressTracker
 
 
 class PrepSignals(QObject):
     """Signals for ConversionPrepWorker to communicate with main thread."""
 
-    prep_complete: ClassVar[Signal] = Signal(str, float, list, str)  # path, duration, audio_args, msg
+    prep_complete: ClassVar[Signal] = Signal(
+        str, float, list, str
+    )  # path, duration, audio_args, msg
 
 
 class ConversionPrepWorker(QRunnable):
@@ -54,9 +55,7 @@ class ConversionPrepWorker(QRunnable):
         audio_args, audio_msg = CodecHelpers.get_audio_codec_args(
             self.file_path, self.codec_idx
         )
-        self.signals.prep_complete.emit(
-            self.file_path, duration, audio_args, audio_msg
-        )
+        self.signals.prep_complete.emit(self.file_path, duration, audio_args, audio_msg)
 
 
 class ConversionController(QObject):
@@ -74,9 +73,9 @@ class ConversionController(QObject):
     def __init__(
         self,
         process_manager: ProcessManager,
-        parent: Optional[QObject] = None,
-        process_monitor: Optional[ProcessMonitor] = None,
-        file_list_widget: Optional[FileListWidget] = None,
+        parent: QObject | None = None,
+        process_monitor: ProcessMonitor | None = None,
+        file_list_widget: FileListWidget | None = None,
     ):
         """Initialize the conversion controller.
 
@@ -89,17 +88,17 @@ class ConversionController(QObject):
         super().__init__(parent)
         self.logger: PyFFMPEGLogger = get_logger()
         self.process_manager: ProcessManager = process_manager
-        self.process_monitor: Optional[ProcessMonitor] = process_monitor
-        self.file_list_widget: Optional[FileListWidget] = file_list_widget
+        self.process_monitor: ProcessMonitor | None = process_monitor
+        self.file_list_widget: FileListWidget | None = file_list_widget
 
         # Conversion state
         self.is_converting: bool = False
         self.is_paused: bool = False
         self.auto_balance_enabled: bool = False
-        self.file_codec_assignments: Dict[str, int] = {}
-        self.queue: List[str] = []
-        self.current_path: Optional[str] = None
-        self.batch_start_time: Optional[float] = None
+        self.file_codec_assignments: dict[str, int] = {}
+        self.queue: list[str] = []
+        self.current_path: str | None = None
+        self.batch_start_time: float | None = None
 
         # Conversion settings (set when conversion starts)
         self.codec_idx: int = 0
@@ -118,7 +117,7 @@ class ConversionController(QObject):
         # Thread pool for async prep work (probe duration, audio codec detection)
         self._prep_thread_pool: QThreadPool = QThreadPool()
         # Track pending prep workers: path -> (codec_idx, ...)
-        self._pending_preps: Dict[str, int] = {}
+        self._pending_preps: dict[str, int] = {}
 
         # Connect process manager signals
         _ = self.process_manager.process_finished.connect(self._on_process_finished)
@@ -134,7 +133,7 @@ class ConversionController(QObject):
 
     def start_conversion(
         self,
-        file_paths: List[str],
+        file_paths: list[str],
         codec_idx: int,
         hwdecode_idx: int,
         crf_value: int,
@@ -245,7 +244,7 @@ class ConversionController(QObject):
         # Wait for any in-flight prep workers to finish
         _ = self._prep_thread_pool.waitForDone(5000)
 
-    def _validate_conversion_ready(self, file_paths: List[str]) -> Tuple[bool, str]:
+    def _validate_conversion_ready(self, file_paths: list[str]) -> tuple[bool, str]:
         """Validate that conversion can proceed safely.
 
         Performs pre-flight checks:
@@ -260,7 +259,7 @@ class ConversionController(QObject):
             error_message contains the reason.
         """
         # Check 1: File accessibility
-        inaccessible_files: List[str] = []
+        inaccessible_files: list[str] = []
         for path in file_paths:
             if not os.access(path, os.R_OK):
                 inaccessible_files.append(os.path.basename(path))
@@ -305,8 +304,8 @@ class ConversionController(QObject):
         required_space = max(required_space, ValidationConfig.MIN_FREE_SPACE_BYTES)
 
         if free_space < required_space:
-            free_gb = free_space / (1024 ** 3)
-            required_gb = required_space / (1024 ** 3)
+            free_gb = free_space / (1024**3)
+            required_gb = required_space / (1024**3)
             return (
                 False,
                 f"Insufficient disk space: {free_gb:.1f}GB free, need ~{required_gb:.1f}GB",
@@ -348,9 +347,12 @@ class ConversionController(QObject):
             result = subprocess.run(
                 [
                     "ffprobe",
-                    "-v", "error",
-                    "-show_entries", "format=duration",
-                    "-of", "default=noprint_wrappers=1:nokey=1",
+                    "-v",
+                    "error",
+                    "-show_entries",
+                    "format=duration",
+                    "-of",
+                    "default=noprint_wrappers=1:nokey=1",
                     output_path,
                 ],
                 capture_output=True,
@@ -384,7 +386,9 @@ class ConversionController(QObject):
         # For parallel processing, process multiple files up to the limit
         while self.queue and self.parallel_enabled:
             # Check if we can start more processes (include pending prep jobs)
-            active_count = len(self.process_manager.processes) + len(self._pending_preps)
+            active_count = len(self.process_manager.processes) + len(
+                self._pending_preps
+            )
             if active_count >= self.max_parallel:
                 break  # Wait for a process to finish
 
@@ -393,7 +397,9 @@ class ConversionController(QObject):
 
         # For non-parallel processing, process just one file
         if not self.parallel_enabled and self.queue:
-            active_count = len(self.process_manager.processes) + len(self._pending_preps)
+            active_count = len(self.process_manager.processes) + len(
+                self._pending_preps
+            )
             if active_count < self.max_parallel:
                 self._process_single_file()
 
@@ -455,7 +461,7 @@ class ConversionController(QObject):
         self._prep_thread_pool.start(worker)
 
     def _on_prep_complete(
-        self, file_path: str, duration: float, audio_args: List[str], audio_msg: str
+        self, file_path: str, duration: float, audio_args: list[str], audio_msg: str
     ) -> None:
         """Handle completion of async prep work and start the actual FFmpeg process."""
         # Check if conversion was stopped while prep was running
@@ -476,7 +482,11 @@ class ConversionController(QObject):
 
         # Start the process with pre-probed duration to avoid another blocking call
         process = self.process_manager.start_process(
-            file_path, ffmpeg_args, codec_idx, duration=duration, output_path=output_path
+            file_path,
+            ffmpeg_args,
+            codec_idx,
+            duration=duration,
+            output_path=output_path,
         )
 
         # Apply process priority if process started successfully
@@ -496,7 +506,7 @@ class ConversionController(QObject):
         ):
             _ = self.process_monitor.create_process_widget(process, file_path)
 
-    def _build_ffmpeg_args(self, input_path: str, codec_idx: int) -> List[str]:
+    def _build_ffmpeg_args(self, input_path: str, codec_idx: int) -> list[str]:
         """Build FFmpeg command arguments for the given file and codec.
 
         NOTE: This method includes a blocking subprocess call (get_audio_codec_args).
@@ -514,9 +524,9 @@ class ConversionController(QObject):
         self,
         input_path: str,
         codec_idx: int,
-        audio_args: List[str],
+        audio_args: list[str],
         audio_message: str,
-    ) -> List[str]:
+    ) -> list[str]:
         """Build FFmpeg args using pre-fetched audio configuration (non-blocking).
 
         Args:
@@ -547,10 +557,15 @@ class ConversionController(QObject):
         # Get video encoder configuration
         # Use user-specified threads if non-zero, otherwise auto-calculate
         thread_count = (
-            self.threads if self.threads > 0 else self._optimize_threads_for_codec(codec_idx)
+            self.threads
+            if self.threads > 0
+            else self._optimize_threads_for_codec(codec_idx)
         )
         encoder_args, encoder_message = CodecHelpers.get_encoder_configuration(
-            codec_idx, thread_count, self.parallel_enabled, self.crf_value,
+            codec_idx,
+            thread_count,
+            self.parallel_enabled,
+            self.crf_value,
             hevc_10bit=self.hevc_10bit,
             preset_idx=self.preset_idx,
         )
@@ -574,7 +589,7 @@ class ConversionController(QObject):
             return self.file_codec_assignments[path]
         return self.codec_idx
 
-    def _optimize_threads_for_codec(self, codec_idx: Optional[int] = None) -> int:
+    def _optimize_threads_for_codec(self, codec_idx: int | None = None) -> int:
         """Optimize thread count based on codec and parallel processing"""
         if codec_idx is None:
             codec_idx = self.codec_idx
@@ -583,7 +598,7 @@ class ConversionController(QObject):
             codec_idx, self.parallel_enabled, self.file_codec_assignments
         )
 
-    def _auto_balance_workload(self, file_paths: List[str], default_codec: int) -> None:
+    def _auto_balance_workload(self, file_paths: list[str], default_codec: int) -> None:
         """Auto-balance workload between GPU and CPU encoders
 
         Uses the user's selected codec as a base:
@@ -621,11 +636,16 @@ class ConversionController(QObject):
                 self.file_codec_assignments[path] = 3
 
         codec_names = {
-            0: "H.264 NVENC", 1: "HEVC NVENC", 2: "AV1 NVENC",
-            5: "H.264 QSV", 6: "H.264 VAAPI"
+            0: "H.264 NVENC",
+            1: "HEVC NVENC",
+            2: "AV1 NVENC",
+            5: "H.264 QSV",
+            6: "H.264 VAAPI",
         }
         gpu_name = codec_names.get(gpu_codec, "GPU")
-        self.log_message.emit(f"📊 Balanced: {gpu_count} {gpu_name}, {cpu_count} x264 CPU")
+        self.log_message.emit(
+            f"📊 Balanced: {gpu_count} {gpu_name}, {cpu_count} x264 CPU"
+        )
 
     def _on_process_finished(
         self, _process: QProcess, exit_code: int, process_path: str
@@ -669,9 +689,7 @@ class ConversionController(QObject):
                             f"🗑️ Deleted source: {os.path.basename(process_path)}"
                         )
                     except OSError as e:
-                        self.log_message.emit(
-                            f"⚠️ Could not delete {process_path}: {e}"
-                        )
+                        self.log_message.emit(f"⚠️ Could not delete {process_path}: {e}")
                 else:
                     self.log_message.emit(
                         f"⚠️ Output verification failed, keeping source: "

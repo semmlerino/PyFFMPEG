@@ -9,7 +9,6 @@ import subprocess
 
 # Import the function from conftest
 import sys
-from typing import Dict, List
 from unittest.mock import Mock
 
 from PySide6.QtCore import QProcess
@@ -44,7 +43,7 @@ class MockFFmpegProcess:
             f"bitrate={bitrate:.1f}kbits/s speed={speed:.1f}x"
         )
 
-    def simulate_conversion(self) -> List[str]:
+    def simulate_conversion(self) -> list[str]:
         """Simulate complete conversion with progress updates"""
         output_lines = [
             "ffmpeg version 4.4.0",
@@ -159,9 +158,9 @@ class MockQProcessManager:
     """Advanced mock for QProcess management testing"""
 
     def __init__(self):
-        self.processes: Dict[str, Mock] = {}
-        self.process_states: Dict[str, QProcess.ProcessState] = {}
-        self.output_buffers: Dict[str, List[bytes]] = {}
+        self.processes: dict[str, Mock] = {}
+        self.process_states: dict[str, QProcess.ProcessState] = {}
+        self.output_buffers: dict[str, list[bytes]] = {}
 
     def create_mock_process(self, process_id: str, will_succeed: bool = True) -> Mock:
         """Create a mock QProcess with realistic behavior"""

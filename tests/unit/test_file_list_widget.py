@@ -71,8 +71,10 @@ class TestFileListWidget:
         mime_data.urls.return_value = [url1, url2, url3]
         event.mimeData.return_value = mime_data
 
-        with patch("os.path.isfile", return_value=True), \
-                patch.object(self.widget, "add_path") as mock_add:
+        with (
+            patch("os.path.isfile", return_value=True),
+            patch.object(self.widget, "add_path") as mock_add,
+        ):
             self.widget.dropEvent(event)
 
         # Should only add .ts files

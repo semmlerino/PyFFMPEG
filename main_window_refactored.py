@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import os
 import sys
-from typing import TYPE_CHECKING, Optional, cast
+from typing import TYPE_CHECKING, cast, override
 
 from PySide6.QtCore import QByteArray, QSettings, Qt
 from PySide6.QtGui import QAction, QIcon
@@ -28,7 +28,6 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from typing_extensions import override
 
 from codec_helpers import GPUDetector
 from config import AppConfig, LogConfig
@@ -53,7 +52,9 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(f"{AppConfig.APP_NAME} - RTX Optimized")
         self.resize(AppConfig.DEFAULT_WINDOW_WIDTH, AppConfig.DEFAULT_WINDOW_HEIGHT)
 
-        self.settings: QSettings = QSettings(AppConfig.SETTINGS_ORG, AppConfig.SETTINGS_APP)
+        self.settings: QSettings = QSettings(
+            AppConfig.SETTINGS_ORG, AppConfig.SETTINGS_APP
+        )
 
         # State
         self.last_dir: str = cast("str", self.settings.value("lastDir", os.getcwd()))
@@ -63,7 +64,9 @@ class MainWindow(QMainWindow):
         self.process_manager: ProcessManager = ProcessManager(self)
         _ = self.process_manager.ffmpeg_detected.connect(self._on_ffmpeg_detected)
         self.process_manager.detect_ffmpeg_async()  # Start async detection early
-        self.conversion_controller: ConversionController = ConversionController(self.process_manager, self)
+        self.conversion_controller: ConversionController = ConversionController(
+            self.process_manager, self
+        )
         self.settings_panel: SettingsPanel = SettingsPanel(self)
 
         # Start async GPU detection to populate codec caches early
@@ -77,14 +80,14 @@ class MainWindow(QMainWindow):
         self.ui_update_manager.start()
 
         # UI Components (will be created in _init_ui)
-        self.file_list: Optional[FileListWidget] = None
-        self.process_monitor: Optional[ProcessMonitor] = None
-        self.main_log: Optional[QPlainTextEdit] = None
-        self.overall_progress_bar: Optional[QProgressBar] = None
-        self.start_btn: Optional[QPushButton] = None
-        self.pause_btn: Optional[QPushButton] = None
-        self.stop_btn: Optional[QPushButton] = None
-        self.status_bar: Optional[QStatusBar] = None
+        self.file_list: FileListWidget | None = None
+        self.process_monitor: ProcessMonitor | None = None
+        self.main_log: QPlainTextEdit | None = None
+        self.overall_progress_bar: QProgressBar | None = None
+        self.start_btn: QPushButton | None = None
+        self.pause_btn: QPushButton | None = None
+        self.stop_btn: QPushButton | None = None
+        self.status_bar: QStatusBar | None = None
 
         self._init_ui()
         self._connect_signals()
@@ -123,7 +126,11 @@ class MainWindow(QMainWindow):
         """
         if has_gpu and gpu_name:
             # Show brief GPU info in status if not converting
-            if not self.is_converting and hasattr(self, "status_bar") and self.status_bar:
+            if (
+                not self.is_converting
+                and hasattr(self, "status_bar")
+                and self.status_bar
+            ):
                 current_msg = self.status_bar.currentMessage()
                 # Only update if showing "Ready" status
                 if current_msg.startswith("Ready"):
@@ -454,13 +461,19 @@ class MainWindow(QMainWindow):
 
         # Process monitor signals
         if self.process_monitor:
-            _ = self.process_monitor.progress_updated.connect(self._update_overall_progress)
+            _ = self.process_monitor.progress_updated.connect(
+                self._update_overall_progress
+            )
 
         # Sync auto_balance state at startup (signals blocked during settings restore)
         settings = self.settings_panel.get_current_settings()
         auto_balance_value = settings.get("auto_balance", False)
         # Convert to bool (QSettings returns int | bool | str)
-        auto_balance = bool(auto_balance_value) if isinstance(auto_balance_value, (int, bool)) else False
+        auto_balance = (
+            bool(auto_balance_value)
+            if isinstance(auto_balance_value, (int, bool))
+            else False
+        )
         self.conversion_controller.enable_auto_balance(auto_balance)
 
     def add_files(self):
@@ -542,7 +555,9 @@ class MainWindow(QMainWindow):
 
         file_paths = self.file_list.get_pending_files_in_order()
         if not file_paths:
-            _ = QMessageBox.warning(self, "No Files", "Please add files to convert first.")
+            _ = QMessageBox.warning(
+                self, "No Files", "Please add files to convert first."
+            )
             return
 
         # Get settings from settings panel
@@ -586,7 +601,11 @@ class MainWindow(QMainWindow):
             self.is_converting = True
             # Enable smart buffer mode if setting is enabled
             smart_buffer_val = settings.get("smart_buffer", True)
-            smart_buffer = bool(smart_buffer_val) if isinstance(smart_buffer_val, (int, bool)) else True
+            smart_buffer = (
+                bool(smart_buffer_val)
+                if isinstance(smart_buffer_val, (int, bool))
+                else True
+            )
             self.ui_update_manager.set_smart_buffer(smart_buffer)
 
     def _stop_conversion(self):
@@ -690,7 +709,9 @@ class MainWindow(QMainWindow):
         self.pause_btn.setText("⏸️ Pause")
         self.status_bar.showMessage("Converting...")
 
-    def _update_overall_progress(self, progress_data: dict[str, object] | None = None) -> None:
+    def _update_overall_progress(
+        self, progress_data: dict[str, object] | None = None
+    ) -> None:
         """Mark progress components as dirty for efficient batch updates"""
         if progress_data:
             # Mark components as dirty with their data
@@ -714,7 +735,11 @@ class MainWindow(QMainWindow):
             if process_progress:
                 # Extract progress percentage (cast from object to int)
                 progress_pct_obj = process_progress.get("current_pct", 0)
-                progress_pct = int(progress_pct_obj) if isinstance(progress_pct_obj, (int, float)) else 0
+                progress_pct = (
+                    int(progress_pct_obj)
+                    if isinstance(progress_pct_obj, (int, float))
+                    else 0
+                )
 
                 # Only update status and progress for pending/processing files
                 # Don't overwrite completed/failed status
@@ -740,7 +765,9 @@ class MainWindow(QMainWindow):
         # Update status bar
         if "status_label" in updates and self.status_bar:
             progress_data = updates["status_label"]
-            if isinstance(progress_data, dict) and cast("dict[str, object]", progress_data).get("eta_str"):
+            if isinstance(progress_data, dict) and cast(
+                "dict[str, object]", progress_data
+            ).get("eta_str"):
                 # Cast to dict[str, object] to avoid Unknown type from dict.get()
                 progress_dict = cast("dict[str, object]", progress_data)
                 active_count_obj: object = progress_dict.get("active_count", 0)
@@ -748,10 +775,26 @@ class MainWindow(QMainWindow):
                 failed_count_obj: object = progress_dict.get("failed_count", 0)
                 total_count_obj: object = progress_dict.get("total_count", 0)
 
-                active_count = int(active_count_obj) if isinstance(active_count_obj, (int, float)) else 0
-                completed_count = int(completed_count_obj) if isinstance(completed_count_obj, (int, float)) else 0
-                failed_count = int(failed_count_obj) if isinstance(failed_count_obj, (int, float)) else 0
-                total_count = int(total_count_obj) if isinstance(total_count_obj, (int, float)) else 0
+                active_count = (
+                    int(active_count_obj)
+                    if isinstance(active_count_obj, (int, float))
+                    else 0
+                )
+                completed_count = (
+                    int(completed_count_obj)
+                    if isinstance(completed_count_obj, (int, float))
+                    else 0
+                )
+                failed_count = (
+                    int(failed_count_obj)
+                    if isinstance(failed_count_obj, (int, float))
+                    else 0
+                )
+                total_count = (
+                    int(total_count_obj)
+                    if isinstance(total_count_obj, (int, float))
+                    else 0
+                )
 
                 # Show completion with failure breakdown if any failed
                 status_msg = f"Converting: {completed_count}/{total_count} completed"
@@ -775,7 +818,9 @@ class MainWindow(QMainWindow):
         crf_value_obj = settings.get("crf_value", 16)
 
         codec_idx = int(codec_idx_obj) if isinstance(codec_idx_obj, (int, float)) else 0
-        crf_value = int(crf_value_obj) if isinstance(crf_value_obj, (int, float)) else 16
+        crf_value = (
+            int(crf_value_obj) if isinstance(crf_value_obj, (int, float)) else 16
+        )
 
         # Update all file displays with new estimates
         self.file_list.update_all_display_with_settings(codec_idx, crf_value)

@@ -3,6 +3,7 @@
 Configuration Constants for PyFFMPEG
 Centralizes all magic numbers and configuration values for better maintainability
 """
+
 from typing import Final
 
 
@@ -11,7 +12,9 @@ class ProcessConfig:
     """Process and threading related constants"""
 
     # Maximum parallel processes for different system tiers
-    MAX_PARALLEL_HIGH_END: Final[int] = 14  # For high-end systems (RTX 4090, etc.) - Optimized for i9-14900HX + RTX 4090
+    MAX_PARALLEL_HIGH_END: Final[int] = (
+        14  # For high-end systems (RTX 4090, etc.) - Optimized for i9-14900HX + RTX 4090
+    )
     MAX_PARALLEL_DEFAULT: Final[int] = 4  # Default maximum parallel processes
 
     # GPU encoding limits
@@ -47,7 +50,9 @@ class UIConfig:
     UI_UPDATE_FALLBACK: Final[int] = 1000  # Fallback timer interval for MainWindow
 
     # UI response delays
-    WIDGET_REMOVAL_DELAY: Final[int] = 5000  # Delay before removing process widgets (ms)
+    WIDGET_REMOVAL_DELAY: Final[int] = (
+        5000  # Delay before removing process widgets (ms)
+    )
     STOPPED_WIDGET_DELAY: Final[int] = 3000  # Delay for stopped process widgets (ms)
 
     # Activity timing
@@ -62,14 +67,18 @@ class LogConfig:
     """Log size limits and memory management"""
 
     # Main application log limits
-    MAIN_LOG_MAX_SIZE: Final[int] = 20000  # Maximum characters in main log - optimized for 32GB RAM
+    MAIN_LOG_MAX_SIZE: Final[int] = (
+        20000  # Maximum characters in main log - optimized for 32GB RAM
+    )
     MAIN_LOG_TRUNCATE_LINES: Final[int] = 100  # Lines to keep when truncating main log
 
     # Process-specific log limits
     PROCESS_LOG_MAX_SIZE: Final[int] = (
         10000  # Maximum characters per process log - optimized for 32GB RAM
     )
-    PROCESS_LOG_TRUNCATE_LINES: Final[int] = 50  # Lines to keep when truncating process logs
+    PROCESS_LOG_TRUNCATE_LINES: Final[int] = (
+        50  # Lines to keep when truncating process logs
+    )
 
     # Log history limits for ProcessManager
     MAX_LOG_HISTORY: Final[int] = (
@@ -81,7 +90,9 @@ class LogConfig:
     MAX_PROCESS_WIDGETS: Final[int] = (
         16  # Maximum concurrent process widgets - matches parallel capacity
     )
-    MAX_LOG_TABS: Final[int] = 14  # Maximum process log tabs - optimized for high-end system
+    MAX_LOG_TABS: Final[int] = (
+        14  # Maximum process log tabs - optimized for high-end system
+    )
 
 
 # Encoding and Quality Constants
@@ -105,7 +116,9 @@ class EncodingConfig:
     PRESET_SLOW: Final[str] = "slow"  # Slow encoding preset
 
     # Auto-balance distribution ratios
-    GPU_RATIO_DEFAULT: Final[float] = 0.85  # 85% of files to GPU for RTX 4090 (exceptional GPU power)
+    GPU_RATIO_DEFAULT: Final[float] = (
+        0.85  # 85% of files to GPU for RTX 4090 (exceptional GPU power)
+    )
     CPU_RATIO_DEFAULT: Final[float] = 0.15  # 15% of files to CPU by default
 
 
@@ -131,10 +144,23 @@ class CodecIndex:
     H264_VAAPI: Final[int] = 6
 
     # Grouped indices for batch operations
-    GPU_ENCODERS: Final["tuple[int, ...]"] = (H264_NVENC, HEVC_NVENC, AV1_NVENC, H264_QSV, H264_VAAPI)
+    GPU_ENCODERS: Final["tuple[int, ...]"] = (
+        H264_NVENC,
+        HEVC_NVENC,
+        AV1_NVENC,
+        H264_QSV,
+        H264_VAAPI,
+    )
     CPU_ENCODERS: Final["tuple[int, ...]"] = (X264_CPU, PRORES)
     NVENC_ENCODERS: Final["tuple[int, ...]"] = (H264_NVENC, HEVC_NVENC, AV1_NVENC)
-    MP4_CODECS: Final["tuple[int, ...]"] = (H264_NVENC, HEVC_NVENC, AV1_NVENC, X264_CPU, H264_QSV, H264_VAAPI)
+    MP4_CODECS: Final["tuple[int, ...]"] = (
+        H264_NVENC,
+        HEVC_NVENC,
+        AV1_NVENC,
+        X264_CPU,
+        H264_QSV,
+        H264_VAAPI,
+    )
     MOV_CODECS: Final["tuple[int, ...]"] = (PRORES,)
 
 
@@ -143,13 +169,22 @@ class HardwareConfig:
     """Hardware detection and capability constants"""
 
     # System capability thresholds
-    HIGH_END_CPU_CORES: Final[int] = 24  # CPU cores to consider "high-end" - matches i9-14900HX
+    HIGH_END_CPU_CORES: Final[int] = (
+        24  # CPU cores to consider "high-end" - matches i9-14900HX
+    )
 
     # RTX GPU models that support AV1 NVENC
-    RTX40_MODELS: Final["tuple[str, ...]"] = ("RTX 40", "4090", "4080", "4070")  # Tuple for immutability
+    RTX40_MODELS: Final["tuple[str, ...]"] = (
+        "RTX 40",
+        "4090",
+        "4080",
+        "4070",
+    )  # Tuple for immutability
 
     # Hardware acceleration timeout
-    GPU_DETECTION_TIMEOUT: Final[int] = 2  # Seconds to wait for GPU detection (reduced to prevent UI freeze)
+    GPU_DETECTION_TIMEOUT: Final[int] = (
+        2  # Seconds to wait for GPU detection (reduced to prevent UI freeze)
+    )
 
 
 # File and Path Constants
@@ -157,7 +192,12 @@ class FileConfig:
     """File handling and path constants"""
 
     # Supported file extensions
-    SUPPORTED_VIDEO_EXTENSIONS: Final["tuple[str, ...]"] = (".ts", ".mp4", ".m4v", ".mov")  # Tuple for immutability
+    SUPPORTED_VIDEO_EXTENSIONS: Final["tuple[str, ...]"] = (
+        ".ts",
+        ".mp4",
+        ".m4v",
+        ".mov",
+    )  # Tuple for immutability
 
     # Output file suffix
     OUTPUT_SUFFIX: Final[str] = "_RC"  # Suffix added to converted files
@@ -177,8 +217,12 @@ class ValidationConfig:
     """Pre-flight validation and safety check constants"""
 
     # Disk space validation
-    DISK_SPACE_SAFETY_MARGIN: Final[float] = 0.8  # Require 20% extra free space beyond estimate
-    MIN_FREE_SPACE_BYTES: Final[int] = 100 * 1024 * 1024  # Minimum 100MB free space required
+    DISK_SPACE_SAFETY_MARGIN: Final[float] = (
+        0.8  # Require 20% extra free space beyond estimate
+    )
+    MIN_FREE_SPACE_BYTES: Final[int] = (
+        100 * 1024 * 1024
+    )  # Minimum 100MB free space required
 
     # Output integrity verification
     FFPROBE_VERIFY_TIMEOUT: Final[int] = 10  # Seconds to wait for ffprobe verification

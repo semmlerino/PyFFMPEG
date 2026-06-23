@@ -10,8 +10,9 @@ import re
 import threading
 import time
 from collections import deque
+from re import Pattern
 from threading import Lock
-from typing import Pattern, TypedDict
+from typing import TypedDict
 
 
 class ProgressData(TypedDict):

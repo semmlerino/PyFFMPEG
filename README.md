@@ -13,17 +13,18 @@ A PySide6-based GUI application for batch video conversion using FFmpeg.
 
 ## Requirements
 
-- Python 3.8+
+- Python 3.12+
 - PySide6
-- FFmpeg (must be in PATH)
+- psutil
+- FFmpeg / ffprobe (must be in PATH)
 
 ## Installation
 
 ```bash
-# Using uv (recommended)
-uv sync --dev
+# Using uv (recommended) — installs runtime + dev dependencies
+uv sync --extra dev
 
-# Or using pip
+# Or using pip (runtime only)
 pip install -e .
 ```
 
@@ -31,26 +32,26 @@ pip install -e .
 
 ```bash
 # Run the refactored version (recommended)
-python main_window_refactored.py
+uv run python main_window_refactored.py
 
 # Or use the installed command
-pympeg
+uv run pympeg
 ```
 
 ## Development
 
 ```bash
 # Install development dependencies
-uv sync --dev
+uv sync --extra dev
 
-# Run tests
-uv run pytest
+# Run tests (--extra dev is required: addopts pulls in pytest-cov)
+uv run --extra dev pytest
 
 # Run linting
 uv run ruff check .
 
 # Run type checking
-uv run basedpyright
+uv run basedpyright --level error
 ```
 
 ## License

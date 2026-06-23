@@ -27,15 +27,15 @@ from logging_config import get_logger
 if TYPE_CHECKING:
     from logging_config import PyFFMPEGLogger
     from process_manager import ProcessManager
-else:
-    from process_manager import ProcessManager
 
 
 class ProcessMonitor(QObject):
     """Monitors and displays progress for active processes"""
 
     # Signals for UI updates
-    widget_created: ClassVar[Signal] = Signal(QWidget, QProcess, str)  # widget, process, path
+    widget_created: ClassVar[Signal] = Signal(
+        QWidget, QProcess, str
+    )  # widget, process, path
     widget_removed: ClassVar[Signal] = Signal(QWidget, QProcess)  # widget, process
     progress_updated: ClassVar[Signal] = Signal(dict)  # progress data
 
@@ -46,7 +46,10 @@ class ProcessMonitor(QObject):
     removal_timer: QTimer
 
     def __init__(
-        self, process_manager: ProcessManager, scroll_area: QScrollArea, parent: QWidget | None = None
+        self,
+        process_manager: ProcessManager,
+        scroll_area: QScrollArea,
+        parent: QWidget | None = None,
     ):
         super().__init__(parent)
         self.logger = get_logger()
@@ -118,7 +121,7 @@ class ProcessMonitor(QObject):
             details_layout = QHBoxLayout()
 
             # Progress info
-            progress_info = QLabel("0% • 0.0 fps")
+            progress_info = QLabel("0% • 0 fps")
             progress_info.setStyleSheet("color: #7f8c8d; font-size: 10px;")
             details_layout.addWidget(progress_info)
 
@@ -257,8 +260,12 @@ class ProcessMonitor(QObject):
             # Type narrowing with assertions
             pct = int(pct_obj) if isinstance(pct_obj, (int, float)) else 0
             fps = float(fps_obj) if isinstance(fps_obj, (int, float)) else 0.0
-            elapsed_str = str(elapsed_str_obj) if isinstance(elapsed_str_obj, str) else "00:00:00"
-            remain_str = str(remain_str_obj) if isinstance(remain_str_obj, str) else "00:00:00"
+            elapsed_str = (
+                str(elapsed_str_obj) if isinstance(elapsed_str_obj, str) else "00:00:00"
+            )
+            remain_str = (
+                str(remain_str_obj) if isinstance(remain_str_obj, str) else "00:00:00"
+            )
 
             # Update progress bar
             progress_bar_obj = widget_data.get("progress_bar")
@@ -268,7 +275,7 @@ class ProcessMonitor(QObject):
             # Update progress info
             progress_info_obj = widget_data.get("progress_info")
             if isinstance(progress_info_obj, QLabel):
-                progress_info_obj.setText(f"{pct}% • {fps} fps")
+                progress_info_obj.setText(f"{pct}% • {fps:.0f} fps")
 
             # Update time info
             time_info_obj = widget_data.get("time_info")
@@ -320,8 +327,14 @@ class ProcessMonitor(QObject):
             finished_time_obj = widget_data.get("finished_time")
 
             # Type narrowing
-            is_cleanup_scheduled = bool(cleanup_scheduled) if cleanup_scheduled is not None else False
-            finished_time = float(finished_time_obj) if isinstance(finished_time_obj, (int, float)) else None
+            is_cleanup_scheduled = (
+                bool(cleanup_scheduled) if cleanup_scheduled is not None else False
+            )
+            finished_time = (
+                float(finished_time_obj)
+                if isinstance(finished_time_obj, (int, float))
+                else None
+            )
 
             if (
                 is_cleanup_scheduled
@@ -380,7 +393,11 @@ class ProcessMonitor(QObject):
     def get_active_widget_count(self) -> int:
         """Get the number of active process widgets"""
         return len(
-            [w for w in self.process_widgets.values() if not w.get("cleanup_scheduled", False)]
+            [
+                w
+                for w in self.process_widgets.values()
+                if not w.get("cleanup_scheduled", False)
+            ]
         )
 
     def get_total_widget_count(self) -> int:

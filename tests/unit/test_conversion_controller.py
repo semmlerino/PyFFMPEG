@@ -65,9 +65,12 @@ class TestConversionWorkflow:
         """Test successful conversion start"""
         file_paths = ["/test/video1.ts", "/test/video2.ts"]
 
-        with patch.object(
-            self.controller, "_validate_conversion_ready", return_value=(True, "")
-        ), patch.object(self.controller, "_process_next") as mock_process_next:
+        with (
+            patch.object(
+                self.controller, "_validate_conversion_ready", return_value=(True, "")
+            ),
+            patch.object(self.controller, "_process_next") as mock_process_next,
+        ):
             result = self.controller.start_conversion(
                 file_paths=file_paths,
                 codec_idx=0,  # H.264 NVENC
@@ -371,11 +374,14 @@ class TestProcessManagement:
         # Mock process manager to show no active processes
         self.mock_process_manager.processes = []
 
-        with patch.object(
-            self.controller, "_get_codec_for_path", return_value=0
-        ) as mock_get_codec, patch.object(
-            self.controller._prep_thread_pool, "start"
-        ) as mock_thread_start:
+        with (
+            patch.object(
+                self.controller, "_get_codec_for_path", return_value=0
+            ) as mock_get_codec,
+            patch.object(
+                self.controller._prep_thread_pool, "start"
+            ) as mock_thread_start,
+        ):
             self.controller._process_next()
 
         # With parallel processing enabled and 2 files in queue,
@@ -560,12 +566,13 @@ class TestSourceFileDeletion:
         self.controller = ConversionController(self.mock_process_manager)
         self.controller.delete_source = True
 
+    @patch("subprocess.run")
     @patch("os.remove")
     @patch("os.path.getsize")
     @patch("os.stat")
     @patch("codec_helpers.CodecHelpers.get_output_extension")
     def test_delete_source_file_success(
-        self, mock_ext, mock_stat, mock_getsize, mock_remove
+        self, mock_ext, mock_stat, mock_getsize, mock_remove, mock_run
     ):
         """Test successful source file deletion in process finished handler"""
         file_path = "/test/video.ts"
@@ -578,6 +585,8 @@ class TestSourceFileDeletion:
         mock_stat_result.st_size = 10000  # Output file size
         mock_stat.return_value = mock_stat_result
         mock_getsize.return_value = 100000  # Input file size
+        # ffprobe integrity check passes (valid duration)
+        mock_run.return_value = Mock(returncode=0, stdout="123.45")
 
         # Simulate successful conversion with delete_source enabled
         self.controller.delete_source = True
@@ -592,16 +601,18 @@ class TestSourceFileDeletion:
         # Should attempt to delete the source file
         mock_remove.assert_called_once_with(file_path)
 
+    @patch("subprocess.run")
     @patch("os.remove")
     @patch("os.path.getsize")
     @patch("os.stat")
     @patch("codec_helpers.CodecHelpers.get_output_extension")
     def test_delete_source_file_not_exists(
-        self, mock_ext, mock_stat, mock_getsize, mock_remove
+        self, mock_ext, mock_stat, mock_getsize, mock_remove, mock_run
     ):
         """Test source file deletion when file doesn't exist"""
         # os.remove will raise FileNotFoundError if file doesn't exist
         mock_remove.side_effect = FileNotFoundError("File not found")
+        mock_run.return_value = Mock(returncode=0, stdout="123.45")
 
         file_path = "/test/video.ts"
         output_path = "/test/video_RC.mp4"
@@ -627,15 +638,17 @@ class TestSourceFileDeletion:
 
         mock_remove.assert_called_once_with(file_path)
 
+    @patch("subprocess.run")
     @patch("os.remove")
     @patch("os.path.getsize")
     @patch("os.stat")
     @patch("codec_helpers.CodecHelpers.get_output_extension")
     def test_delete_source_file_permission_error(
-        self, mock_ext, mock_stat, mock_getsize, mock_remove
+        self, mock_ext, mock_stat, mock_getsize, mock_remove, mock_run
     ):
         """Test source file deletion with permission error"""
         mock_remove.side_effect = PermissionError("Access denied")
+        mock_run.return_value = Mock(returncode=0, stdout="123.45")
 
         file_path = "/test/video.ts"
         output_path = "/test/video_RC.mp4"
@@ -688,9 +701,12 @@ class TestConversionSignals:
 
     def test_log_message_emission(self):
         """Test log message signal emission"""
-        with patch.object(
-            self.controller, "_validate_conversion_ready", return_value=(True, "")
-        ), patch.object(self.controller, "log_message") as mock_signal:
+        with (
+            patch.object(
+                self.controller, "_validate_conversion_ready", return_value=(True, "")
+            ),
+            patch.object(self.controller, "log_message") as mock_signal,
+        ):
             # Start conversion to trigger log messages
             self.controller.start_conversion(
                 file_paths=["/test/video.ts"],
@@ -713,9 +729,12 @@ class TestConversionSignals:
 
     def test_conversion_started_emission(self):
         """Test conversion started signal emission"""
-        with patch.object(
-            self.controller, "_validate_conversion_ready", return_value=(True, "")
-        ), patch.object(self.controller, "conversion_started") as mock_signal:
+        with (
+            patch.object(
+                self.controller, "_validate_conversion_ready", return_value=(True, "")
+            ),
+            patch.object(self.controller, "conversion_started") as mock_signal,
+        ):
             self.controller.start_conversion(
                 file_paths=["/test/video.ts"],
                 codec_idx=0,
@@ -1053,9 +1072,7 @@ class TestPriorityMapping:
         # Simulate prep completion which triggers process start
         self.controller.is_converting = True
         self.controller._pending_preps = {"/test/video.ts": 0}
-        self.controller._on_prep_complete(
-            "/test/video.ts", 600.0, ["-c:a", "copy"], ""
-        )
+        self.controller._on_prep_complete("/test/video.ts", 600.0, ["-c:a", "copy"], "")
 
         # Verify set_process_priority was called with "high"
         self.mock_process_manager.set_process_priority.assert_called_once()
@@ -1138,11 +1155,12 @@ class TestTOCTOURaceConditionHandling:
         # Source file should NOT be deleted (output verification failed)
         mock_remove.assert_not_called()
 
+    @patch("subprocess.run")
     @patch("os.remove")
     @patch("os.path.getsize")
     @patch("os.stat")
     def test_atomic_stat_used_for_output_verification(
-        self, mock_stat, mock_getsize, mock_remove
+        self, mock_stat, mock_getsize, mock_remove, mock_run
     ):
         """Test that os.stat is used atomically for output verification."""
         file_path = "/test/video.ts"
@@ -1161,6 +1179,7 @@ class TestTOCTOURaceConditionHandling:
         self.controller.file_list_widget = None
         self.mock_process_manager.output_map = {file_path: output_path}
 
+        mock_run.return_value = Mock(returncode=0, stdout="123.45")
         self.controller._on_process_finished(mock_process, 0, file_path)
 
         # Verify os.stat was called with output path

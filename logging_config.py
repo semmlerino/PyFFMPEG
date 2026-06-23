@@ -10,10 +10,9 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import ClassVar, Dict, Optional, cast
+from typing import ClassVar, cast, override
 
 from PySide6.QtCore import QObject, Signal
-from typing_extensions import override
 
 from config import AppConfig, LogConfig
 
@@ -22,10 +21,10 @@ class PerformanceMetrics:
     """Track performance metrics for conversion operations"""
 
     def __init__(self):
-        self.conversion_times: Dict[str, float] = {}
-        self.conversion_speeds: Dict[str, float] = {}  # MB/s
-        self.error_counts: Dict[str, int] = {}
-        self.hardware_usage: Dict[str, object] = {}
+        self.conversion_times: dict[str, float] = {}
+        self.conversion_speeds: dict[str, float] = {}  # MB/s
+        self.error_counts: dict[str, int] = {}
+        self.hardware_usage: dict[str, object] = {}
 
     def start_conversion(self, file_path: str) -> None:
         """Start tracking conversion for a file"""
@@ -64,7 +63,7 @@ class UserFriendlyFormatter(logging.Formatter):
     """Custom formatter for user-friendly log messages"""
 
     # Color codes for different log levels
-    COLORS: ClassVar[Dict[str, str]] = {
+    COLORS: ClassVar[dict[str, str]] = {
         "DEBUG": "\033[36m",  # Cyan
         "INFO": "\033[32m",  # Green
         "WARNING": "\033[33m",  # Yellow
@@ -74,7 +73,7 @@ class UserFriendlyFormatter(logging.Formatter):
     }
 
     # User-friendly prefixes
-    PREFIXES: ClassVar[Dict[str, str]] = {
+    PREFIXES: ClassVar[dict[str, str]] = {
         "DEBUG": "🔍",
         "INFO": "i",
         "WARNING": "⚠️",
@@ -143,7 +142,7 @@ class PyFFMPEGLogger(QObject):
         self.logger.addHandler(console_handler)
 
         # File handler for detailed logging (with fallback for read-only directories)
-        log_dir: Optional[Path] = Path(os.getcwd()) / "logs"
+        log_dir: Path | None = Path(os.getcwd()) / "logs"
         try:
             log_dir.mkdir(exist_ok=True)
         except (PermissionError, OSError):
@@ -190,7 +189,9 @@ class PyFFMPEGLogger(QObject):
         self.logger.info(message, extra=kwargs)
         self.log_message.emit(message, "INFO")
 
-    def warning(self, message: str, suggestion: Optional[str] = None, **kwargs: object) -> None:
+    def warning(
+        self, message: str, suggestion: str | None = None, **kwargs: object
+    ) -> None:
         """Log warning message with optional suggestion"""
         extra = kwargs.copy()
         if suggestion:
@@ -198,7 +199,9 @@ class PyFFMPEGLogger(QObject):
         self.logger.warning(message, extra=extra)
         self.log_message.emit(message, "WARNING")
 
-    def error(self, message: str, suggestion: Optional[str] = None, **kwargs: object) -> None:
+    def error(
+        self, message: str, suggestion: str | None = None, **kwargs: object
+    ) -> None:
         """Log error message with optional suggestion"""
         extra = kwargs.copy()
         if suggestion:
@@ -210,7 +213,9 @@ class PyFFMPEGLogger(QObject):
         )
         self.metrics.record_error("general")
 
-    def critical(self, message: str, suggestion: Optional[str] = None, **kwargs: object) -> None:
+    def critical(
+        self, message: str, suggestion: str | None = None, **kwargs: object
+    ) -> None:
         """Log critical message with optional suggestion"""
         extra = kwargs.copy()
         if suggestion:
@@ -225,7 +230,7 @@ class PyFFMPEGLogger(QObject):
         self.metrics.record_error("critical")
 
     def log_performance(
-        self, operation: str, duration: float, details: Optional[Dict[str, object]] = None
+        self, operation: str, duration: float, details: dict[str, object] | None = None
     ) -> None:
         """Log performance metrics"""
         details = details or {}
@@ -305,7 +310,7 @@ class PyFFMPEGLogger(QObject):
         )
         self.metrics.record_error("timeout")
 
-    def get_metrics_summary(self) -> Dict[str, object]:
+    def get_metrics_summary(self) -> dict[str, object]:
         """Get current performance metrics summary"""
         return {
             "average_speed_mbps": self.metrics.get_average_speed(),
@@ -317,7 +322,7 @@ class PyFFMPEGLogger(QObject):
 
 
 # Global logger instance
-_logger_instance: Optional[PyFFMPEGLogger] = None
+_logger_instance: PyFFMPEGLogger | None = None
 
 
 def get_logger(name: str = "PyFFMPEG") -> PyFFMPEGLogger:

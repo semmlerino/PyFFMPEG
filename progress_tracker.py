@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import threading
 import time
-from typing import Any, Optional, cast
+from typing import Any, cast
 
 from config import ProcessConfig, UIConfig
 from logging_config import get_logger
@@ -25,11 +25,13 @@ class ProcessProgressTracker:
         self.logger: PyFFMPEGLogger = get_logger()
         # Use Any for dict values to allow dynamic process tracking data
         self.processes: dict[str, dict[str, Any]] = {}  # pyright: ignore[reportExplicitAny]
-        self.batch_start_time: Optional[float] = None
+        self.batch_start_time: float | None = None
         self.completed_count: int = 0
         self.failed_count: int = 0  # Track failures separately for UI breakdown
         self.total_count: int = 0
-        self._lock: threading.RLock = threading.RLock()  # Reentrant lock for thread safety
+        self._lock: threading.RLock = (
+            threading.RLock()
+        )  # Reentrant lock for thread safety
 
         # For ETA smoothing
         self.prev_eta_values: list[float] = []
@@ -43,7 +45,9 @@ class ProcessProgressTracker:
         )  # Force ETA update every N seconds even with small progress
 
         # Initialize output buffer manager for optimized processing
-        self.output_manager: ProcessOutputManager = ProcessOutputManager(batch_interval=0.1)
+        self.output_manager: ProcessOutputManager = ProcessOutputManager(
+            batch_interval=0.1
+        )
 
         # Cache for overall progress calculation (thread-safe access via _lock)
         self._last_overall_calc_time: float = 0.0
@@ -66,7 +70,9 @@ class ProcessProgressTracker:
         self._last_overall_calc_time = 0.0
         self._last_overall_result = {}
 
-    def register_process(self, process_id: str, path: str, duration: float) -> dict[str, Any]:  # pyright: ignore[reportExplicitAny]
+    def register_process(
+        self, process_id: str, path: str, duration: float
+    ) -> dict[str, Any]:  # pyright: ignore[reportExplicitAny]
         """Register a new process to track"""
         with self._lock:
             self.processes[process_id] = {
@@ -224,8 +230,7 @@ class ProcessProgressTracker:
 
             # Calculate overall progress percentage (safe iteration under lock)
             process_progress_sum: int = sum(
-                p["current_pct"]
-                for p in self.processes.values()
+                p["current_pct"] for p in self.processes.values()
             )
             active_count = len(self.processes)
 
@@ -291,7 +296,7 @@ class ProcessProgressTracker:
                 total_weight = sum(weights)
                 smoothed_eta = sum(
                     eta * (w / total_weight)
-                    for eta, w in zip(self.prev_eta_values, weights)
+                    for eta, w in zip(self.prev_eta_values, weights, strict=True)
                 )
 
                 # Apply sanity limits to ETA
@@ -343,7 +348,7 @@ class ProcessProgressTracker:
 
         return codec_counts
 
-    def get_process_progress(self, process_id: str) -> Optional[dict[str, Any]]:  # pyright: ignore[reportExplicitAny]
+    def get_process_progress(self, process_id: str) -> dict[str, Any] | None:  # pyright: ignore[reportExplicitAny]
         """Get progress information for a specific process"""
         with self._lock:
             if process_id not in self.processes:
@@ -356,7 +361,8 @@ class ProcessProgressTracker:
             if (
                 "last_result" in process
                 and "last_result_time" in process
-                and current_time - cast("float", process["last_result_time"]) < 0.05  # 50ms cache
+                and current_time - cast("float", process["last_result_time"])
+                < 0.05  # 50ms cache
             ):
                 return cast("dict[str, Any]", process["last_result"])  # pyright: ignore[reportExplicitAny]
 
@@ -369,10 +375,7 @@ class ProcessProgressTracker:
                 # Calculate instantaneous rate if we have previous data
                 last_progress_value = cast("float", process["last_progress_value"])
                 last_progress_time = cast("float", process["last_progress_time"])
-                if (
-                    last_progress_value > 0
-                    and current_time > last_progress_time
-                ):
+                if last_progress_value > 0 and current_time > last_progress_time:
                     time_diff = current_time - last_progress_time
                     progress_diff = pct - last_progress_value
 
@@ -394,7 +397,9 @@ class ProcessProgressTracker:
                         )  # Max 12 hours for individual file
 
                         # Add to the list of recent ETAs for this process
-                        prev_eta_values = cast("list[float]", process["prev_eta_values"])
+                        prev_eta_values = cast(
+                            "list[float]", process["prev_eta_values"]
+                        )
                         prev_eta_values.append(raw_eta)
                         # Keep very small window for individual processes to be more responsive
                         if len(prev_eta_values) > 2:
@@ -413,7 +418,7 @@ class ProcessProgressTracker:
                 total_weight = sum(weights)
                 smoothed_eta = sum(
                     eta * (w / total_weight)
-                    for eta, w in zip(prev_eta_values_list, weights)
+                    for eta, w in zip(prev_eta_values_list, weights, strict=True)
                 )
 
                 # Apply sanity check - ETA shouldn't increase significantly when progress is high
@@ -457,7 +462,7 @@ class ProcessProgressTracker:
         return time.strftime("%H:%M:%S", time.gmtime(seconds))
 
     @staticmethod
-    def probe_duration(path: str) -> Optional[float]:
+    def probe_duration(path: str) -> float | None:
         """
         Probe a media file for its duration using ffprobe
         Returns duration in seconds or None if it can't be determined
@@ -478,7 +483,8 @@ class ProcessProgressTracker:
             ]
             result = subprocess.run(
                 cmd,
-                check=False, capture_output=True,
+                check=False,
+                capture_output=True,
                 text=True,
                 timeout=ProcessConfig.SUBPROCESS_TIMEOUT,
             )

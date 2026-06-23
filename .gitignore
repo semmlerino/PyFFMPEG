@@ -23,8 +23,10 @@ MANIFEST
 
 # Virtual environments
 venv/
+.venv/
 env/
 ENV/
+test_venv/
 
 # IDE
 .vscode/
@@ -42,3 +44,21 @@ archive/
 # Temporary files
 *.tmp
 *.temp
+*.bak
+
+# Coverage and test artifacts
+.coverage
+coverage_html/
+htmlcov/
+.pytest_cache/
+
+# Lint / type-checker caches
+.ruff_cache/
+.mypy_cache/
+
+# Untracked subproject / scratch trees
+BB/
+.post-commit-output/
+
+# Stray screenshots
+Clipboard Image.jpg

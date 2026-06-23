@@ -30,29 +30,35 @@ class SettingsPanel(QObject):
     """Manages conversion settings and UI controls"""
 
     # Signals for settings changes
-    settings_changed: ClassVar[Signal] = Signal(dict)  # Emitted when any setting changes
-    auto_balance_toggled: ClassVar[Signal] = Signal(bool)  # Emitted when auto-balance is toggled
+    settings_changed: ClassVar[Signal] = Signal(
+        dict
+    )  # Emitted when any setting changes
+    auto_balance_toggled: ClassVar[Signal] = Signal(
+        bool
+    )  # Emitted when auto-balance is toggled
 
     # Hardware-optimized defaults for RTX 4090 + i9-14900HX
     HARDWARE_OPTIMIZED_DEFAULTS: ClassVar[dict[str, int | bool]] = {
-        "codec_idx": 0,           # H.264 NVENC
-        "preset_idx": 0,          # Standard quality
-        "hwdecode_idx": 1,        # NVIDIA CUDA
+        "codec_idx": 0,  # H.264 NVENC
+        "preset_idx": 0,  # Standard quality
+        "hwdecode_idx": 1,  # NVIDIA CUDA
         "crf_value": EncodingConfig.DEFAULT_CRF_H264,  # 16 - high quality
         "threads": 0,  # Auto (let FFmpeg decide)
         "parallel_enabled": True,
         "max_parallel": ProcessConfig.MAX_PARALLEL_HIGH_END,  # 14
-        "delete_source": False,   # Safety default
+        "delete_source": False,  # Safety default
         "overwrite_mode": True,
         "smart_buffer": True,
-        "auto_balance": True,     # 85% GPU / 15% CPU distribution
-        "priority_idx": 0,        # Normal
+        "auto_balance": True,  # 85% GPU / 15% CPU distribution
+        "priority_idx": 0,  # Normal
         "hevc_10bit": False,
     }
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
-        self.settings: QSettings = QSettings(AppConfig.SETTINGS_ORG, AppConfig.SETTINGS_APP)
+        self.settings: QSettings = QSettings(
+            AppConfig.SETTINGS_ORG, AppConfig.SETTINGS_APP
+        )
 
         # UI Controls (will be set by create_settings_widget)
         self.codec_combo: QComboBox | None = None
@@ -187,10 +193,14 @@ class SettingsPanel(QObject):
         self.threads_spinbox = QSpinBox()
         max_threads = os.cpu_count() or 4
         self.threads_spinbox.setRange(0, max_threads)  # 0 = auto-detect
-        self.threads_spinbox.setSpecialValueText("Auto")  # Display "Auto" when value is 0
+        self.threads_spinbox.setSpecialValueText(
+            "Auto"
+        )  # Display "Auto" when value is 0
         self.threads_spinbox.setValue(0)  # Default to Auto
         self.threads_spinbox.setAccelerated(True)
-        self.threads_spinbox.setToolTip("Number of threads for encoding (Auto = let FFmpeg decide)")
+        self.threads_spinbox.setToolTip(
+            "Number of threads for encoding (Auto = let FFmpeg decide)"
+        )
         threads_layout.addWidget(self.threads_spinbox)
         layout.addLayout(threads_layout)
 

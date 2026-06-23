@@ -24,38 +24,39 @@ tests/
 
 ### Prerequisites
 
-Install testing dependencies:
+Dependencies are managed by uv from `pyproject.toml` + `uv.lock`:
 ```bash
-pip install -r requirements.txt
+uv sync --extra dev
 ```
+
+> All commands below need `--extra dev` because pytest's `addopts` pulls in `pytest-cov`.
+> On headless/WSL, prefix commands with `QT_QPA_PLATFORM=offscreen`.
 
 ### Run All Tests
 ```bash
-pytest
+uv run --extra dev pytest
 ```
 
 ### Run Specific Test Categories
 ```bash
 # Unit tests only
-pytest tests/unit/
+uv run --extra dev pytest tests/unit/
 
 # Specific component tests
-pytest tests/unit/test_codec_helpers.py
-pytest tests/unit/test_progress_tracker.py
-pytest tests/unit/test_process_manager.py
-pytest tests/unit/test_conversion_controller.py
+uv run --extra dev pytest tests/unit/test_codec_helpers.py
+uv run --extra dev pytest tests/unit/test_progress_tracker.py
+uv run --extra dev pytest tests/unit/test_process_manager.py
+uv run --extra dev pytest tests/unit/test_conversion_controller.py
 
 # Tests requiring Qt GUI
-pytest -m qt
+uv run --extra dev pytest -m qt
 
 # Hardware-specific tests
-pytest -m hardware
+uv run --extra dev pytest -m hardware
 ```
 
 ### Coverage Report
-```bash
-pytest --cov=. --cov-report=html
-```
+Coverage runs automatically (configured in `addopts`); the HTML report lands in `coverage_html/`.
 
 ## Test Coverage
 

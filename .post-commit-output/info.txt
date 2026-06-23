@@ -1,4 +1,0 @@
-Post-commit hook executed at Fri Aug 15 11:25:17 BST 2025
-Commit: d38c366a69864449bea23816c4008e367b24fc15
-Author: GabrielH <gabrhas@gmail.com>
-Message: fix: Use fixed folder name for post-commit output and improve session initialization
