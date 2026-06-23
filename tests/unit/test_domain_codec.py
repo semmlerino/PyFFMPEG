@@ -11,7 +11,7 @@ import dataclasses
 
 import pytest
 
-from domain.codec import CODEC_REGISTRY, codec_by_index
+from pympeg.domain.codec import CODEC_REGISTRY, codec_by_index
 
 # (index, display_name, encoder_name, container_ext, is_gpu, is_nvenc, size_factor)
 EXPECTED = [

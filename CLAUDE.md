@@ -34,11 +34,11 @@ PyFFMPEG is a PySide6-based GUI application for batch video conversion using FFm
 
 ### Running the Application
 ```bash
-# Run the refactored version (recommended)
-uv run python main_window_refactored.py
+# Run the application via the installed console script (recommended)
+uv run pympeg
 
-# After the Phase 6 packaging move this becomes:
-# uv run pympeg
+# Equivalent module form
+uv run python -m pympeg.main_window_refactored
 ```
 
 ### Development Environment Setup

@@ -66,12 +66,7 @@ def main():
     if not args.no_cov and args.suite != "quick":
         cmd.extend(
             [
-                "--cov=.",
-                "--cov-exclude=tests/*",
-                "--cov-exclude=venv/*",
-                "--cov-exclude=__pycache__/*",
-                "--cov-exclude=PyMPEG.py",
-                "--cov-exclude=archive/*",
+                "--cov=src/pympeg",
                 "--cov-report=term-missing",
                 "--cov-report=html:coverage_html",
             ]

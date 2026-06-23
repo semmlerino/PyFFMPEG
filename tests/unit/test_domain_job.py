@@ -8,9 +8,9 @@ import dataclasses
 
 import pytest
 
-from domain.codec import CODEC_REGISTRY
-from domain.job import BatchState, ConversionJob, ProcessState
-from domain.settings import ConversionSettings
+from pympeg.domain.codec import CODEC_REGISTRY
+from pympeg.domain.job import BatchState, ConversionJob, ProcessState
+from pympeg.domain.settings import ConversionSettings
 
 
 def _settings() -> ConversionSettings:

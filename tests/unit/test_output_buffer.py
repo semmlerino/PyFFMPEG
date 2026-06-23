@@ -7,7 +7,7 @@ Tests batch processing, regex parsing, and thread-safe operations
 import threading
 import time
 
-from output_buffer import OutputBuffer, ProcessOutputManager
+from pympeg.output_buffer import OutputBuffer, ProcessOutputManager
 
 
 class TestOutputBuffer:

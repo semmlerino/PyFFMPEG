@@ -6,7 +6,7 @@ Centralizes all magic numbers and configuration values for better maintainabilit
 
 from typing import Final
 
-from domain.codec import CODEC_REGISTRY
+from pympeg.domain.codec import CODEC_REGISTRY
 
 
 # Process Management Constants

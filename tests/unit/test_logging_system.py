@@ -12,7 +12,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from logging_config import (
+from pympeg.logging_config import (
     PerformanceMetrics,
     PyFFMPEGLogger,
     UserFriendlyFormatter,
@@ -273,7 +273,7 @@ class TestLoggerSingleton:
 
     def test_startup_shutdown_logging(self):
         """Test startup and shutdown logging"""
-        with patch("logging_config.get_logger") as mock_get_logger:
+        with patch("pympeg.logging_config.get_logger") as mock_get_logger:
             mock_logger = Mock()
             mock_get_logger.return_value = mock_logger
 
@@ -350,7 +350,7 @@ class TestIntegrationWithExistingModules:
 
     def test_process_manager_logging(self):
         """Test that ProcessManager uses logging correctly"""
-        from process_manager import ProcessManager
+        from pympeg.process_manager import ProcessManager
 
         pm = ProcessManager()
         assert hasattr(pm, "logger")
@@ -358,8 +358,8 @@ class TestIntegrationWithExistingModules:
 
     def test_conversion_controller_logging(self):
         """Test that ConversionController uses logging correctly"""
-        from conversion_controller import ConversionController
-        from process_manager import ProcessManager
+        from pympeg.conversion_controller import ConversionController
+        from pympeg.process_manager import ProcessManager
 
         pm = ProcessManager()
         cc = ConversionController(pm)
@@ -368,7 +368,7 @@ class TestIntegrationWithExistingModules:
 
     def test_progress_tracker_logging(self):
         """Test that ProgressTracker uses logging correctly"""
-        from progress_tracker import ProcessProgressTracker
+        from pympeg.progress_tracker import ProcessProgressTracker
 
         pt = ProcessProgressTracker()
         assert hasattr(pt, "logger")
@@ -379,7 +379,7 @@ class TestIntegrationWithExistingModules:
         """Test that ProgressTracker logs timeout correctly"""
         import subprocess
 
-        from progress_tracker import ProcessProgressTracker
+        from pympeg.progress_tracker import ProcessProgressTracker
 
         mock_subprocess.side_effect = subprocess.TimeoutExpired("ffprobe", 30)
 

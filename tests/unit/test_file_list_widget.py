@@ -10,8 +10,8 @@ import pytest
 from PySide6.QtCore import QUrl
 from PySide6.QtGui import QDragEnterEvent, QDropEvent
 
-from domain.status import FileStatus
-from file_list_widget import FileListWidget, MetadataWorker
+from pympeg.domain.status import FileStatus
+from pympeg.file_list_widget import FileListWidget, MetadataWorker
 
 
 class TestFileListWidget:
@@ -34,7 +34,7 @@ class TestFileListWidget:
         """Test adding a file path"""
         test_path = "/test/video.ts"
 
-        with patch("file_list_widget.QFileInfo") as mock_fileinfo:
+        with patch("pympeg.file_list_widget.QFileInfo") as mock_fileinfo:
             mock_fileinfo.return_value.fileName.return_value = "video.ts"
             self.widget.add_path(test_path)
 
@@ -89,7 +89,7 @@ class TestFileListWidget:
         test_path = "/test/video.ts"
 
         # Add file first
-        with patch("file_list_widget.QFileInfo") as mock_fileinfo:
+        with patch("pympeg.file_list_widget.QFileInfo") as mock_fileinfo:
             mock_fileinfo.return_value.fileName.return_value = "video.ts"
             self.widget.add_path(test_path)
 
@@ -108,7 +108,7 @@ class TestFileListWidget:
         test_path = "/test/video.ts"
 
         # Add file
-        with patch("file_list_widget.QFileInfo") as mock_fileinfo:
+        with patch("pympeg.file_list_widget.QFileInfo") as mock_fileinfo:
             mock_fileinfo.return_value.fileName.return_value = "video.ts"
             self.widget.add_path(test_path)
 
@@ -128,7 +128,7 @@ class TestFileListWidget:
         assert self.widget.get_item_status(test_path) == ""
 
         # Add file and test
-        with patch("file_list_widget.QFileInfo") as mock_fileinfo:
+        with patch("pympeg.file_list_widget.QFileInfo") as mock_fileinfo:
             mock_fileinfo.return_value.fileName.return_value = "video.ts"
             self.widget.add_path(test_path)
 
@@ -139,7 +139,7 @@ class TestFileListWidget:
         """Test removing selected files"""
         # Add test files
         paths = ["/test/file1.ts", "/test/file2.ts", "/test/file3.ts"]
-        with patch("file_list_widget.QFileInfo") as mock_fileinfo:
+        with patch("pympeg.file_list_widget.QFileInfo") as mock_fileinfo:
             for i, path in enumerate(paths):
                 mock_fileinfo.return_value.fileName.return_value = f"file{i + 1}.ts"
                 self.widget.add_path(path)
@@ -160,7 +160,7 @@ class TestFileListWidget:
         """Test getting file paths in display order"""
         paths = ["/test/file1.ts", "/test/file2.ts", "/test/file3.ts"]
 
-        with patch("file_list_widget.QFileInfo") as mock_fileinfo:
+        with patch("pympeg.file_list_widget.QFileInfo") as mock_fileinfo:
             for i, path in enumerate(paths):
                 mock_fileinfo.return_value.fileName.return_value = f"file{i + 1}.ts"
                 self.widget.add_path(path)
@@ -172,7 +172,7 @@ class TestFileListWidget:
         """Test getting only pending files"""
         paths = ["/test/file1.ts", "/test/file2.ts", "/test/file3.ts"]
 
-        with patch("file_list_widget.QFileInfo") as mock_fileinfo:
+        with patch("pympeg.file_list_widget.QFileInfo") as mock_fileinfo:
             for i, path in enumerate(paths):
                 mock_fileinfo.return_value.fileName.return_value = f"file{i + 1}.ts"
                 self.widget.add_path(path)
@@ -189,7 +189,7 @@ class TestFileListWidget:
         """Test moving selected items up"""
         paths = ["/test/file1.ts", "/test/file2.ts", "/test/file3.ts"]
 
-        with patch("file_list_widget.QFileInfo") as mock_fileinfo:
+        with patch("pympeg.file_list_widget.QFileInfo") as mock_fileinfo:
             for i, path in enumerate(paths):
                 mock_fileinfo.return_value.fileName.return_value = f"file{i + 1}.ts"
                 self.widget.add_path(path)
@@ -209,7 +209,7 @@ class TestFileListWidget:
         """Test moving selected items down"""
         paths = ["/test/file1.ts", "/test/file2.ts", "/test/file3.ts"]
 
-        with patch("file_list_widget.QFileInfo") as mock_fileinfo:
+        with patch("pympeg.file_list_widget.QFileInfo") as mock_fileinfo:
             for i, path in enumerate(paths):
                 mock_fileinfo.return_value.fileName.return_value = f"file{i + 1}.ts"
                 self.widget.add_path(path)
@@ -227,7 +227,7 @@ class TestFileListWidget:
         """Test clearing completed files"""
         paths = ["/test/file1.ts", "/test/file2.ts", "/test/file3.ts"]
 
-        with patch("file_list_widget.QFileInfo") as mock_fileinfo:
+        with patch("pympeg.file_list_widget.QFileInfo") as mock_fileinfo:
             for i, path in enumerate(paths):
                 mock_fileinfo.return_value.fileName.return_value = f"file{i + 1}.ts"
                 self.widget.add_path(path)
@@ -247,7 +247,7 @@ class TestFileListWidget:
         """Test removing failed files"""
         paths = ["/test/file1.ts", "/test/file2.ts", "/test/file3.ts"]
 
-        with patch("file_list_widget.QFileInfo") as mock_fileinfo:
+        with patch("pympeg.file_list_widget.QFileInfo") as mock_fileinfo:
             for i, path in enumerate(paths):
                 mock_fileinfo.return_value.fileName.return_value = f"file{i + 1}.ts"
                 self.widget.add_path(path)
@@ -267,7 +267,7 @@ class TestFileListWidget:
         """Test getting status counts"""
         paths = ["/test/file1.ts", "/test/file2.ts", "/test/file3.ts", "/test/file4.ts"]
 
-        with patch("file_list_widget.QFileInfo") as mock_fileinfo:
+        with patch("pympeg.file_list_widget.QFileInfo") as mock_fileinfo:
             for i, path in enumerate(paths):
                 mock_fileinfo.return_value.fileName.return_value = f"file{i + 1}.ts"
                 self.widget.add_path(path)
@@ -305,7 +305,7 @@ class TestFileListWidget:
         }
 
         # Add file
-        with patch("file_list_widget.QFileInfo") as mock_fileinfo:
+        with patch("pympeg.file_list_widget.QFileInfo") as mock_fileinfo:
             mock_fileinfo.return_value.fileName.return_value = "video.ts"
             self.widget.add_path(test_path)
 
@@ -325,7 +325,7 @@ class TestFileListWidget:
         """Test context menu move up/down operations"""
         # Add files
         paths = ["/test/file1.ts", "/test/file2.ts", "/test/file3.ts"]
-        with patch("file_list_widget.QFileInfo") as mock_fileinfo:
+        with patch("pympeg.file_list_widget.QFileInfo") as mock_fileinfo:
             for i, path in enumerate(paths):
                 mock_fileinfo.return_value.fileName.return_value = f"file{i + 1}.ts"
                 self.widget.add_path(path)
@@ -356,7 +356,7 @@ class TestFileListWidgetMemoryManagement:
         paths = ["/test/file1.ts", "/test/file2.ts"]
 
         # Add files with metadata
-        with patch("file_list_widget.QFileInfo") as mock_fileinfo:
+        with patch("pympeg.file_list_widget.QFileInfo") as mock_fileinfo:
             for i, path in enumerate(paths):
                 mock_fileinfo.return_value.fileName.return_value = f"file{i + 1}.ts"
                 self.widget.add_path(path)
@@ -386,7 +386,7 @@ class TestFileListWidgetMemoryManagement:
         test_path = "/test/video.ts"
 
         # Add file
-        with patch("file_list_widget.QFileInfo") as mock_fileinfo:
+        with patch("pympeg.file_list_widget.QFileInfo") as mock_fileinfo:
             mock_fileinfo.return_value.fileName.return_value = "video.ts"
             self.widget.add_path(test_path)
 
@@ -397,7 +397,7 @@ class TestFileListWidgetMemoryManagement:
         assert self.widget.count() == 0
 
         # Re-add the same file - this should work now
-        with patch("file_list_widget.QFileInfo") as mock_fileinfo:
+        with patch("pympeg.file_list_widget.QFileInfo") as mock_fileinfo:
             mock_fileinfo.return_value.fileName.return_value = "video.ts"
             self.widget.add_path(test_path)
 
@@ -410,7 +410,7 @@ class TestFileListWidgetMemoryManagement:
         paths = ["/test/file1.ts", "/test/file2.ts", "/test/file3.ts"]
 
         # Add files
-        with patch("file_list_widget.QFileInfo") as mock_fileinfo:
+        with patch("pympeg.file_list_widget.QFileInfo") as mock_fileinfo:
             for i, path in enumerate(paths):
                 mock_fileinfo.return_value.fileName.return_value = f"file{i + 1}.ts"
                 self.widget.add_path(path)
@@ -438,7 +438,7 @@ class TestFileListWidgetMemoryManagement:
         paths = ["/test/file1.ts", "/test/file2.ts", "/test/file3.ts"]
 
         # Add files
-        with patch("file_list_widget.QFileInfo") as mock_fileinfo:
+        with patch("pympeg.file_list_widget.QFileInfo") as mock_fileinfo:
             for i, path in enumerate(paths):
                 mock_fileinfo.return_value.fileName.return_value = f"file{i + 1}.ts"
                 self.widget.add_path(path)
@@ -466,7 +466,7 @@ class TestFileListWidgetMemoryManagement:
         paths = ["/test/file1.ts", "/test/file2.ts", "/test/file3.ts"]
 
         # Add files
-        with patch("file_list_widget.QFileInfo") as mock_fileinfo:
+        with patch("pympeg.file_list_widget.QFileInfo") as mock_fileinfo:
             for i, path in enumerate(paths):
                 mock_fileinfo.return_value.fileName.return_value = f"file{i + 1}.ts"
                 self.widget.add_path(path)
@@ -502,7 +502,7 @@ class TestMetadataWorker:
         worker = MetadataWorker(test_path, signals)
 
         with patch(
-            "metadata.probe.MetadataProbe.extract_video_metadata",
+            "pympeg.metadata.probe.MetadataProbe.extract_video_metadata",
             return_value=test_metadata,
         ):
             worker.run()

@@ -9,9 +9,9 @@ from __future__ import annotations
 import os
 import subprocess
 
-from config import CodecIndex, EncodingConfig, ProcessConfig
-from domain.codec import codec_by_index
-from hardware.probe import HARDWARE_PROBE
+from pympeg.config import CodecIndex, EncodingConfig, ProcessConfig
+from pympeg.domain.codec import codec_by_index
+from pympeg.hardware.probe import HARDWARE_PROBE
 
 
 class CodecArgBuilder:

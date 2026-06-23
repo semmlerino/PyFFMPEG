@@ -11,8 +11,8 @@ from unittest.mock import Mock, patch
 import pytest
 from PySide6.QtCore import QProcess
 
-from config import ProcessConfig
-from process_manager import (
+from pympeg.config import ProcessConfig
+from pympeg.process_manager import (
     FFmpegDetectionSignals,
     FFmpegDetectionWorker,
     ProcessManager,
@@ -24,7 +24,7 @@ class TestProcessManager:
 
     def setup_method(self):
         """Create fresh ProcessManager instance for each test"""
-        with patch("process_manager.ProcessProgressTracker"):
+        with patch("pympeg.process_manager.ProcessProgressTracker"):
             self.manager = ProcessManager()
 
     def teardown_method(self):
@@ -37,7 +37,7 @@ class TestBatchManagement:
     """Test batch processing initialization and management"""
 
     def setup_method(self):
-        with patch("process_manager.ProcessProgressTracker"):
+        with patch("pympeg.process_manager.ProcessProgressTracker"):
             self.manager = ProcessManager()
 
     def test_start_batch_initialization(self):
@@ -94,10 +94,10 @@ class TestProcessLifecycle:
     """Test QProcess creation, starting, and management"""
 
     def setup_method(self):
-        with patch("process_manager.ProcessProgressTracker"):
+        with patch("pympeg.process_manager.ProcessProgressTracker"):
             self.manager = ProcessManager()
 
-    @patch("process_manager.QProcess")
+    @patch("pympeg.process_manager.QProcess")
     def test_start_process_creation(self, mock_qprocess_class):
         """Test QProcess creation and configuration"""
         mock_process = Mock(spec=QProcess)
@@ -129,7 +129,7 @@ class TestProcessLifecycle:
 
         assert result_process == mock_process
 
-    @patch("process_manager.QProcess")
+    @patch("pympeg.process_manager.QProcess")
     def test_start_process_startup_timeout(self, mock_qprocess_class):
         """Test process startup timeout handling"""
         mock_process = Mock(spec=QProcess)
@@ -146,7 +146,7 @@ class TestProcessLifecycle:
         assert len(self.manager.processes) == 1
         assert result_process == mock_process
 
-    @patch("process_manager.QProcess")
+    @patch("pympeg.process_manager.QProcess")
     def test_process_signal_connections(self, mock_qprocess_class):
         """Test that QProcess signals are properly connected"""
         mock_process = Mock(spec=QProcess)
@@ -163,7 +163,7 @@ class TestProcessLifecycle:
         mock_process.errorOccurred.connect.assert_called_once()
         mock_process.finished.connect.assert_called_once()
 
-    @patch("process_manager.QProcess")
+    @patch("pympeg.process_manager.QProcess")
     def test_codec_mapping_extraction(self, mock_qprocess_class):
         """Test codec information extraction from FFmpeg args"""
         mock_process = Mock(spec=QProcess)
@@ -188,8 +188,8 @@ class TestProcessLifecycle:
         assert file_path in self.manager.codec_map
         assert self.manager.codec_map[file_path] == 0  # H.264 NVENC
 
-    @patch("process_manager.QProcess")
-    @patch("process_manager.ProcessProgressTracker")
+    @patch("pympeg.process_manager.QProcess")
+    @patch("pympeg.process_manager.ProcessProgressTracker")
     def test_progress_tracker_registration(
         self, mock_tracker_class, mock_qprocess_class
     ):
@@ -220,7 +220,7 @@ class TestProcessOutput:
     """Test process output handling and parsing"""
 
     def setup_method(self):
-        with patch("process_manager.ProcessProgressTracker"):
+        with patch("pympeg.process_manager.ProcessProgressTracker"):
             self.manager = ProcessManager()
 
     def test_handle_process_output(self):
@@ -302,7 +302,7 @@ class TestProcessOutput:
         # Verify all chunks are buffered
         assert len(self.manager.process_outputs[process]) == len(output_chunks)
 
-    @patch("process_manager.QProcess")
+    @patch("pympeg.process_manager.QProcess")
     def test_empty_output_handling(self, mock_qprocess_class):
         """Test handling of empty output"""
         mock_process = Mock(spec=QProcess)
@@ -329,10 +329,10 @@ class TestProcessTermination:
     """Test process stopping and cleanup"""
 
     def setup_method(self):
-        with patch("process_manager.ProcessProgressTracker"):
+        with patch("pympeg.process_manager.ProcessProgressTracker"):
             self.manager = ProcessManager()
 
-    @patch("process_manager.QProcess")
+    @patch("pympeg.process_manager.QProcess")
     def test_stop_all_processes(self, mock_qprocess_class):
         """Test stopping all running processes"""
         # Create multiple mock processes
@@ -361,7 +361,7 @@ class TestProcessTermination:
         assert self.manager.stopping
         assert self.manager.queue == []
 
-    @patch("process_manager.QProcess")
+    @patch("pympeg.process_manager.QProcess")
     def test_stop_already_finished_processes(self, mock_qprocess_class):
         """Test stopping processes that are already finished"""
         mock_process = Mock(spec=QProcess)
@@ -386,7 +386,7 @@ class TestTimerManagement:
     """Test that timer management is not part of ProcessManager"""
 
     def setup_method(self):
-        with patch("process_manager.ProcessProgressTracker"):
+        with patch("pympeg.process_manager.ProcessProgressTracker"):
             self.manager = ProcessManager()
 
     def test_no_timer_in_process_manager(self):
@@ -419,10 +419,10 @@ class TestResourceCleanup:
     """Test memory management and resource cleanup"""
 
     def setup_method(self):
-        with patch("process_manager.ProcessProgressTracker"):
+        with patch("pympeg.process_manager.ProcessProgressTracker"):
             self.manager = ProcessManager()
 
-    @patch("process_manager.QProcess")
+    @patch("pympeg.process_manager.QProcess")
     def test_cleanup_all_resources(self, mock_qprocess_class):
         """Test comprehensive resource cleanup"""
         # Create mock processes
@@ -504,7 +504,7 @@ class TestProcessWidgetManagement:
     """Test process widget tracking and management"""
 
     def setup_method(self):
-        with patch("process_manager.ProcessProgressTracker"):
+        with patch("pympeg.process_manager.ProcessProgressTracker"):
             self.manager = ProcessManager()
 
     def test_widget_registration(self):
@@ -550,7 +550,7 @@ class TestQueueManagement:
     """Test file queue management and processing order"""
 
     def setup_method(self):
-        with patch("process_manager.ProcessProgressTracker"):
+        with patch("pympeg.process_manager.ProcessProgressTracker"):
             self.manager = ProcessManager()
 
     def test_queue_fifo_order(self):
@@ -591,10 +591,10 @@ class TestConcurrentProcessing:
     """Test concurrent process management"""
 
     def setup_method(self):
-        with patch("process_manager.ProcessProgressTracker"):
+        with patch("pympeg.process_manager.ProcessProgressTracker"):
             self.manager = ProcessManager()
 
-    @patch("process_manager.QProcess")
+    @patch("pympeg.process_manager.QProcess")
     def test_parallel_process_limit(self, mock_qprocess_class):
         """Test parallel process limit enforcement"""
         # Setup multiple mock processes
@@ -621,7 +621,7 @@ class TestConcurrentProcessing:
         # Should have exactly 3 active processes
         assert len(self.manager.processes) == 3
 
-    @patch("process_manager.QProcess")
+    @patch("pympeg.process_manager.QProcess")
     def test_sequential_processing(self, mock_qprocess_class):
         """Test sequential processing mode"""
         mock_process = Mock(spec=QProcess)
@@ -647,7 +647,7 @@ class TestProcessManagerEdgeCases:
     """Test edge cases and error conditions"""
 
     def setup_method(self):
-        with patch("process_manager.ProcessProgressTracker"):
+        with patch("pympeg.process_manager.ProcessProgressTracker"):
             self.manager = ProcessManager()
 
     def test_double_batch_start(self):
@@ -669,7 +669,7 @@ class TestProcessManagerEdgeCases:
         assert self.manager.total == 2
         assert self.manager.max_parallel == 2
 
-    @patch("process_manager.QProcess")
+    @patch("pympeg.process_manager.QProcess")
     def test_process_creation_failure(self, mock_qprocess_class):
         """Test handling of process creation failure"""
         mock_qprocess_class.side_effect = RuntimeError("Process creation failed")
@@ -707,12 +707,14 @@ class TestProcessManagerIntegration:
     """Test integration between ProcessManager components"""
 
     def setup_method(self):
-        with patch("process_manager.ProcessProgressTracker") as mock_tracker_class:
+        with patch(
+            "pympeg.process_manager.ProcessProgressTracker"
+        ) as mock_tracker_class:
             self.mock_tracker = Mock()
             mock_tracker_class.return_value = self.mock_tracker
             self.manager = ProcessManager()
 
-    @patch("process_manager.QProcess")
+    @patch("pympeg.process_manager.QProcess")
     def test_full_process_lifecycle(self, mock_qprocess_class):
         """Test complete process lifecycle from start to finish"""
         mock_process = Mock(spec=QProcess)
@@ -761,7 +763,7 @@ class TestProcessManagerIntegration:
         # Verify cleanup
         assert self.manager.stopping
 
-    @patch("process_manager.QProcess")
+    @patch("pympeg.process_manager.QProcess")
     def test_mark_process_finished_success(self, mock_qprocess_class):
         """Test process completion with successful exit code"""
         mock_process = Mock(spec=QProcess)
@@ -799,7 +801,7 @@ class TestProcessManagerIntegration:
         assert mock_process not in self.manager.process_logs
         assert mock_process not in self.manager.process_outputs
 
-    @patch("process_manager.QProcess")
+    @patch("pympeg.process_manager.QProcess")
     def test_mark_process_finished_failure(self, mock_qprocess_class):
         """Test process completion with failure exit code"""
         mock_process = Mock(spec=QProcess)
@@ -848,7 +850,7 @@ class TestFFmpegAsyncDetection:
         """Reset class-level cache before each test"""
         ProcessManager._ffmpeg_command_cache = None
         ProcessManager._ffmpeg_available_cache = None
-        with patch("process_manager.ProcessProgressTracker"):
+        with patch("pympeg.process_manager.ProcessProgressTracker"):
             self.manager = ProcessManager()
 
     def teardown_method(self):
@@ -896,7 +898,7 @@ class TestFFmpegAsyncDetection:
         assert len(signal_received) == 1
         assert signal_received[0][0] is False
 
-    @patch("process_manager.subprocess.run")
+    @patch("pympeg.process_manager.subprocess.run")
     def test_ffmpeg_detection_worker_finds_ffmpeg(self, mock_run):
         """Test FFmpegDetectionWorker successfully finds FFmpeg"""
         # Mock successful FFmpeg detection
@@ -919,7 +921,7 @@ class TestFFmpegAsyncDetection:
         assert signal_received[0][0] is True
         assert signal_received[0][1] == "ffmpeg"  # First command tried
 
-    @patch("process_manager.subprocess.run")
+    @patch("pympeg.process_manager.subprocess.run")
     def test_ffmpeg_detection_worker_not_found(self, mock_run):
         """Test FFmpegDetectionWorker when FFmpeg is not found"""
         # Mock failed FFmpeg detection - all attempts fail
@@ -940,7 +942,7 @@ class TestFFmpegAsyncDetection:
         assert signal_received[0][0] is False
         assert "not found" in signal_received[0][1].lower()
 
-    @patch("process_manager.subprocess.run")
+    @patch("pympeg.process_manager.subprocess.run")
     def test_ffmpeg_detection_worker_handles_timeout(self, mock_run):
         """Test FFmpegDetectionWorker handles timeout gracefully"""
         import subprocess

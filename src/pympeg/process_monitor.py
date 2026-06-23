@@ -21,12 +21,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from config import UIConfig
-from logging_config import get_logger
+from pympeg.config import UIConfig
+from pympeg.logging_config import get_logger
 
 if TYPE_CHECKING:
-    from logging_config import PyFFMPEGLogger
-    from process_manager import ProcessManager
+    from pympeg.logging_config import PyFFMPEGLogger
+    from pympeg.process_manager import ProcessManager
 
 
 class ProcessMonitor(QObject):

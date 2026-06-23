@@ -7,8 +7,8 @@ from (Finding #5 — state was previously smeared across QListWidgetItem
 UserRoles and side cache dicts).
 """
 
-from domain.status import FileStatus
-from file_queue import (
+from pympeg.domain.status import FileStatus
+from pympeg.file_queue import (
     FileEntry,
     FileQueueModel,
     compute_display,

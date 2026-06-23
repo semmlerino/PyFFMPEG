@@ -14,7 +14,7 @@ from typing import ClassVar, cast, override
 
 from PySide6.QtCore import QObject, Signal
 
-from config import AppConfig, LogConfig
+from pympeg.config import AppConfig, LogConfig
 
 
 class PerformanceMetrics:

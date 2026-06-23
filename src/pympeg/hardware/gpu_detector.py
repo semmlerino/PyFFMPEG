@@ -12,8 +12,8 @@ from typing import ClassVar, override
 
 from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal
 
-from config import HardwareConfig, ProcessConfig
-from hardware.probe import HARDWARE_PROBE
+from pympeg.config import HardwareConfig, ProcessConfig
+from pympeg.hardware.probe import HARDWARE_PROBE
 
 
 class GPUDetectionSignals(QObject):

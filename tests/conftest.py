@@ -16,10 +16,11 @@ from PySide6.QtCore import QProcess
 # Import Qt for GUI testing
 from PySide6.QtWidgets import QApplication
 
-# Import project modules for testing
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-from hardware.probe import HARDWARE_PROBE
-from process_manager import ProcessManager
+# Make the src/ layout importable as the `pympeg` package without requiring an
+# editable install to have run first.
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "src"))
+from pympeg.hardware.probe import HARDWARE_PROBE
+from pympeg.process_manager import ProcessManager
 
 
 @pytest.fixture(scope="session")

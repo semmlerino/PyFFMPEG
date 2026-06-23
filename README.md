@@ -31,11 +31,11 @@ pip install -e .
 ## Usage
 
 ```bash
-# Run the refactored version (recommended)
-uv run python main_window_refactored.py
-
-# Or use the installed command
+# Run via the installed console script (recommended)
 uv run pympeg
+
+# Equivalent module form
+uv run python -m pympeg.main_window_refactored
 ```
 
 ## Development

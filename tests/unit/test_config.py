@@ -5,7 +5,7 @@ hardcoded tuples had before Phase 2, so downstream code that reads them is
 unaffected.
 """
 
-from config import CodecIndex
+from pympeg.config import CodecIndex
 
 
 class TestCodecIndexGroups:

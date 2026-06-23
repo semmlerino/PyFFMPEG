@@ -13,10 +13,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from domain.status import FileStatus
+from pympeg.domain.status import FileStatus
 
 if TYPE_CHECKING:
-    from metadata.probe import VideoMetadata
+    from pympeg.metadata.probe import VideoMetadata
 
 
 @dataclass

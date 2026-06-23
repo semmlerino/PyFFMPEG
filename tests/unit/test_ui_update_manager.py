@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import pytest
 
-from ui_update_manager import UIUpdateManager
+from pympeg.ui_update_manager import UIUpdateManager
 
 
 @pytest.fixture

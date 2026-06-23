@@ -9,7 +9,7 @@ import dataclasses
 
 import pytest
 
-from domain.settings import ConversionSettings
+from pympeg.domain.settings import ConversionSettings
 
 
 def _full_settings_dict() -> dict[str, int | bool | str]:

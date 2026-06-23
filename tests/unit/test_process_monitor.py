@@ -10,7 +10,7 @@ import pytest
 from PySide6.QtCore import QProcess
 from PySide6.QtWidgets import QLabel, QProgressBar, QWidget
 
-from process_monitor import ProcessMonitor
+from pympeg.process_monitor import ProcessMonitor
 
 
 class TestProcessMonitor:

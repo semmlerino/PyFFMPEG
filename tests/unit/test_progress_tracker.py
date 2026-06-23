@@ -10,8 +10,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from config import ProcessConfig
-from progress_tracker import ProcessProgressTracker
+from pympeg.config import ProcessConfig
+from pympeg.progress_tracker import ProcessProgressTracker
 from tests.fixtures.mocks import MockProgressScenarios
 
 

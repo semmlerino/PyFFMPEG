@@ -12,7 +12,7 @@ import subprocess
 import time
 from threading import RLock
 
-from config import HardwareConfig, ProcessConfig
+from pympeg.config import HardwareConfig, ProcessConfig
 
 # Cache TTLs (seconds): success is long (hardware rarely changes); failure is
 # short so a transient probe error retries soon.

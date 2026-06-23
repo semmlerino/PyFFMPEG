@@ -22,9 +22,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from config import AppConfig, EncodingConfig, ProcessConfig
-from domain.codec import CODEC_REGISTRY
-from hardware.probe import HARDWARE_PROBE
+from pympeg.config import AppConfig, EncodingConfig, ProcessConfig
+from pympeg.domain.codec import CODEC_REGISTRY
+from pympeg.hardware.probe import HARDWARE_PROBE
 
 
 class SettingsPanel(QObject):

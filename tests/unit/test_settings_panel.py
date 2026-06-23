@@ -8,8 +8,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from config import ProcessConfig
-from settings_panel import SettingsPanel
+from pympeg.config import ProcessConfig
+from pympeg.settings_panel import SettingsPanel
 
 
 class TestSettingsPanel:
@@ -27,7 +27,7 @@ class TestSettingsPanel:
 
         mock_settings.value.side_effect = mock_value
 
-        with patch("settings_panel.QSettings", return_value=mock_settings):
+        with patch("pympeg.settings_panel.QSettings", return_value=mock_settings):
             self.panel = SettingsPanel()
             # SettingsPanel is a QObject that creates a widget
             self.widget = self.panel.create_settings_widget()

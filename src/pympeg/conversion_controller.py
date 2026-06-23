@@ -16,18 +16,18 @@ from typing import TYPE_CHECKING, ClassVar, override
 from PySide6.QtCore import QObject, QProcess, QRunnable, QThreadPool, Signal
 
 if TYPE_CHECKING:
-    from domain.settings import ConversionSettings
-    from file_list_widget import FileListWidget
-    from process_manager import ProcessManager
-    from process_monitor import ProcessMonitor
+    from pympeg.domain.settings import ConversionSettings
+    from pympeg.file_list_widget import FileListWidget
+    from pympeg.process_manager import ProcessManager
+    from pympeg.process_monitor import ProcessMonitor
 
-from config import CodecIndex, EncodingConfig, ValidationConfig
-from domain.codec import codec_by_index
-from domain.status import FileStatus
-from encoding.arg_builder import CodecArgBuilder
-from hardware.probe import HARDWARE_PROBE
-from logging_config import PyFFMPEGLogger, get_logger
-from progress_tracker import ProcessProgressTracker
+from pympeg.config import CodecIndex, EncodingConfig, ValidationConfig
+from pympeg.domain.codec import codec_by_index
+from pympeg.domain.status import FileStatus
+from pympeg.encoding.arg_builder import CodecArgBuilder
+from pympeg.hardware.probe import HARDWARE_PROBE
+from pympeg.logging_config import PyFFMPEGLogger, get_logger
+from pympeg.progress_tracker import ProcessProgressTracker
 
 
 class PrepSignals(QObject):

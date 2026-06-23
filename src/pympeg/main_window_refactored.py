@@ -29,18 +29,18 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from config import AppConfig, LogConfig
-from conversion_controller import ConversionController
-from domain.settings import ConversionSettings
-from domain.status import FileStatus
+from pympeg.config import AppConfig, LogConfig
+from pympeg.conversion_controller import ConversionController
+from pympeg.domain.settings import ConversionSettings
+from pympeg.domain.status import FileStatus
 
 # Import our focused classes
-from file_list_widget import FileListWidget
-from hardware.gpu_detector import GPUDetector
-from process_manager import ProcessManager
-from process_monitor import ProcessMonitor
-from settings_panel import SettingsPanel
-from ui_update_manager import UIUpdateManager
+from pympeg.file_list_widget import FileListWidget
+from pympeg.hardware.gpu_detector import GPUDetector
+from pympeg.process_manager import ProcessManager
+from pympeg.process_monitor import ProcessMonitor
+from pympeg.settings_panel import SettingsPanel
+from pympeg.ui_update_manager import UIUpdateManager
 
 if TYPE_CHECKING:
     from PySide6.QtGui import QCloseEvent

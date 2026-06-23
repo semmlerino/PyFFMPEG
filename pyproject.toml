@@ -34,14 +34,14 @@ dev = [
 ]
 
 [project.scripts]
-pympeg = "main_window_refactored:main"
+pympeg = "pympeg.main_window_refactored:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["."]
+packages = ["src/pympeg"]
 exclude = [
     "tests/",
     "venv/",
@@ -67,7 +67,7 @@ python_functions = ["test_*"]
 addopts = [
     "--verbose",
     "--tb=short",
-    "--cov=.",
+    "--cov=src/pympeg",
     "--cov-report=term-missing",
     "--cov-report=html:coverage_html",
 ]
@@ -88,7 +88,8 @@ markers = [
 target-version = "py312"
 line-length = 88
 indent-width = 4
-extend-exclude = ["BB", "archive", "codec_helpers_backup.py", "codec_helpers.py"]
+extend-exclude = ["BB"]
+src = ["src"]  # Treat `pympeg` (under src/) as first-party for import sorting
 
 [tool.ruff.lint]
 select = [
@@ -126,8 +127,6 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]  # Unused imports in __init__.py
-"PyMPEG.py" = ["ALL"]  # Ignore legacy file completely
-"codec_helpers_backup.py" = ["ALL"]  # Backup file, not active code
 "tests/**/*.py" = [
     "N802", "N803",  # Test functions can have any name style
     "PLR2004",  # Magic values OK in tests
@@ -147,30 +146,14 @@ line-ending = "auto"
 # Basedpyright Configuration
 [tool.basedpyright]
 include = [
-    "main_window_refactored.py",
-    "conversion_controller.py",
-    "settings_panel.py",
-    "process_monitor.py",
-    "process_manager.py",
-    "progress_tracker.py",
-    "file_list_widget.py",
-    "file_queue.py",
-    "config.py",
-    "logging_config.py",
-    "output_buffer.py",
-    "ui_update_manager.py",
-    "domain",
-    "hardware",
-    "encoding",
-    "metadata",
-    "sizing",
+    "src/pympeg",
 ]
+extraPaths = ["src"]  # Resolve `pympeg.*` imports from the src/ layout
 exclude = [
     "**/__pycache__",
     "**/.venv",
     "**/venv",
     "tests/",
-    "PyMPEG.py",  # Exclude legacy monolithic file
     "BB/",  # Exclude shotbot subdirectory
 ]
 typeCheckingMode = "recommended"  # Upgraded from "standard"
@@ -198,14 +181,9 @@ reportImplicitStringConcatenation = false  # Common in Qt stylesheets
 
 # Coverage Configuration
 [tool.coverage.run]
-source = ["."]
+source = ["src/pympeg"]
 omit = [
     "tests/*",
-    "venv/*",
-    ".venv/*",
-    "__pycache__/*",
-    "PyMPEG.py",
-    "BB/*",
 ]
 
 [tool.coverage.report]

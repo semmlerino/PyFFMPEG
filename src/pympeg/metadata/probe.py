@@ -7,7 +7,7 @@ import json
 import subprocess
 from typing import TypedDict
 
-from config import ProcessConfig
+from pympeg.config import ProcessConfig
 
 
 class VideoMetadata(TypedDict):

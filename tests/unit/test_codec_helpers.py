@@ -9,11 +9,11 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from config import EncodingConfig, ProcessConfig
-from encoding.arg_builder import CodecArgBuilder
-from hardware.probe import HARDWARE_PROBE
-from metadata.probe import MetadataProbe
-from sizing.estimator import SizeEstimator
+from pympeg.config import EncodingConfig, ProcessConfig
+from pympeg.encoding.arg_builder import CodecArgBuilder
+from pympeg.hardware.probe import HARDWARE_PROBE
+from pympeg.metadata.probe import MetadataProbe
+from pympeg.sizing.estimator import SizeEstimator
 from tests.fixtures.mocks import (
     MockEncoderDetection,
     MockGPUDetection,
@@ -797,7 +797,7 @@ class TestPresetMapping:
 class TestVideoMetadataExtraction:
     """Test video metadata extraction functionality"""
 
-    @patch("metadata.probe.subprocess.run")
+    @patch("pympeg.metadata.probe.subprocess.run")
     def test_extract_basic_metadata(self, mock_run):
         """Test extraction of basic video metadata"""
         mock_result = Mock()
@@ -828,7 +828,7 @@ class TestVideoMetadataExtraction:
         assert metadata["codec"] == "H264"
         assert "Mbps" in metadata["bitrate"]
 
-    @patch("metadata.probe.subprocess.run")
+    @patch("pympeg.metadata.probe.subprocess.run")
     def test_extract_metadata_no_video_stream(self, mock_run):
         """Test metadata extraction when no video stream exists"""
         mock_result = Mock()
@@ -845,7 +845,7 @@ class TestVideoMetadataExtraction:
         metadata = MetadataProbe.extract_video_metadata("/test/audio.mp3")
         assert metadata is None
 
-    @patch("metadata.probe.subprocess.run")
+    @patch("pympeg.metadata.probe.subprocess.run")
     def test_extract_metadata_ffprobe_failure(self, mock_run):
         """Test metadata extraction when ffprobe fails"""
         mock_result = Mock()
@@ -855,7 +855,7 @@ class TestVideoMetadataExtraction:
         metadata = MetadataProbe.extract_video_metadata("/test/invalid.mp4")
         assert metadata is None
 
-    @patch("metadata.probe.subprocess.run")
+    @patch("pympeg.metadata.probe.subprocess.run")
     def test_extract_metadata_timeout(self, mock_run):
         """Test metadata extraction with timeout"""
         mock_run.side_effect = subprocess.TimeoutExpired("ffprobe", 30)
@@ -863,7 +863,7 @@ class TestVideoMetadataExtraction:
         metadata = MetadataProbe.extract_video_metadata("/test/video.mp4")
         assert metadata is None
 
-    @patch("metadata.probe.subprocess.run")
+    @patch("pympeg.metadata.probe.subprocess.run")
     def test_extract_metadata_invalid_json(self, mock_run):
         """Test metadata extraction with invalid JSON"""
         mock_result = Mock()
@@ -1007,10 +1007,10 @@ class TestGPUDetectorAsync:
         """Clear cache after each test"""
         HARDWARE_PROBE.clear()
 
-    @patch("hardware.gpu_detector.subprocess.run")
+    @patch("pympeg.hardware.gpu_detector.subprocess.run")
     def test_gpu_detection_worker_finds_nvidia(self, mock_run):
         """Test GPUDetectionWorker successfully finds NVIDIA GPU"""
-        from hardware.gpu_detector import GPUDetectionSignals, GPUDetectionWorker
+        from pympeg.hardware.gpu_detector import GPUDetectionSignals, GPUDetectionWorker
 
         # Mock successful GPU detection
         gpu_result = Mock()
@@ -1041,10 +1041,10 @@ class TestGPUDetectorAsync:
         assert "RTX 4090" in gpu_name
         assert "nvenc" in encoders.lower()
 
-    @patch("hardware.gpu_detector.subprocess.run")
+    @patch("pympeg.hardware.gpu_detector.subprocess.run")
     def test_gpu_detection_worker_no_gpu(self, mock_run):
         """Test GPUDetectionWorker when no GPU is found"""
-        from hardware.gpu_detector import GPUDetectionSignals, GPUDetectionWorker
+        from pympeg.hardware.gpu_detector import GPUDetectionSignals, GPUDetectionWorker
 
         # Mock failed GPU detection
         mock_run.side_effect = FileNotFoundError("nvidia-smi not found")
@@ -1065,10 +1065,10 @@ class TestGPUDetectorAsync:
         assert has_gpu is False
         assert gpu_name == ""
 
-    @patch("hardware.gpu_detector.subprocess.run")
+    @patch("pympeg.hardware.gpu_detector.subprocess.run")
     def test_gpu_detection_worker_handles_timeout(self, mock_run):
         """Test GPUDetectionWorker handles timeout gracefully"""
-        from hardware.gpu_detector import GPUDetectionSignals, GPUDetectionWorker
+        from pympeg.hardware.gpu_detector import GPUDetectionSignals, GPUDetectionWorker
 
         mock_run.side_effect = subprocess.TimeoutExpired("nvidia-smi", 2)
 
@@ -1133,7 +1133,7 @@ class TestGPUDetectorAsync:
 
     def test_gpu_detector_uses_cached_result(self):
         """Test GPUDetector uses cached result if available"""
-        from hardware.gpu_detector import GPUDetector
+        from pympeg.hardware.gpu_detector import GPUDetector
 
         # Pre-populate cache
         HARDWARE_PROBE.update_cache(

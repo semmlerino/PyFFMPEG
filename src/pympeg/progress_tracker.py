@@ -10,10 +10,10 @@ import threading
 import time
 from typing import Any
 
-from config import CodecIndex, ProcessConfig, UIConfig
-from domain.job import BatchState, ProcessState
-from logging_config import get_logger
-from output_buffer import ProcessOutputManager
+from pympeg.config import CodecIndex, ProcessConfig, UIConfig
+from pympeg.domain.job import BatchState, ProcessState
+from pympeg.logging_config import get_logger
+from pympeg.output_buffer import ProcessOutputManager
 
 
 class ProcessProgressTracker:
@@ -21,7 +21,7 @@ class ProcessProgressTracker:
 
     def __init__(self) -> None:
         """Initialize the progress tracker"""
-        from logging_config import PyFFMPEGLogger
+        from pympeg.logging_config import PyFFMPEGLogger
 
         self.logger: PyFFMPEGLogger = get_logger()
         # Aggregate batch state: counts + per-process state keyed by process_id.

@@ -21,15 +21,15 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from domain.status import FileStatus
-from file_queue import FileQueueModel, compute_display
-from metadata.probe import MetadataProbe
-from sizing.estimator import SizeEstimator
+from pympeg.domain.status import FileStatus
+from pympeg.file_queue import FileQueueModel, compute_display
+from pympeg.metadata.probe import MetadataProbe
+from pympeg.sizing.estimator import SizeEstimator
 
 if TYPE_CHECKING:
     from PySide6.QtGui import QDragEnterEvent, QDropEvent, QKeyEvent, QMouseEvent
 
-    from metadata.probe import VideoMetadata
+    from pympeg.metadata.probe import VideoMetadata
 
 
 class MetadataSignals(QObject):

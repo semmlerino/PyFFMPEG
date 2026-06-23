@@ -4,7 +4,7 @@ The enum values must stay equal to the literal status strings used throughout
 the widget/controller/tests today, so the migration is drop-in.
 """
 
-from domain.status import FileStatus
+from pympeg.domain.status import FileStatus
 
 
 class TestFileStatus:

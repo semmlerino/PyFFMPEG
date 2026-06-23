@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from config import FileConfig
-from domain.codec import codec_by_index
+from pympeg.config import FileConfig
+from pympeg.domain.codec import codec_by_index
 
 if TYPE_CHECKING:
-    from metadata.probe import VideoMetadata
+    from pympeg.metadata.probe import VideoMetadata
 
 
 class SizeEstimator:

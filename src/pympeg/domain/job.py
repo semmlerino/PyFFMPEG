@@ -12,8 +12,8 @@ from dataclasses import dataclass, field
 # Imported at runtime (not guarded by TYPE_CHECKING) so the dataclass field types
 # stay resolvable via typing.get_type_hints. These are pure sibling modules with
 # no circular-import risk.
-from domain.codec import Codec  # noqa: TC001
-from domain.settings import ConversionSettings  # noqa: TC001
+from pympeg.domain.codec import Codec  # noqa: TC001
+from pympeg.domain.settings import ConversionSettings  # noqa: TC001
 
 
 @dataclass(frozen=True)

@@ -15,9 +15,9 @@ from typing import TYPE_CHECKING, ClassVar, override
 import psutil
 from PySide6.QtCore import QObject, QProcess, QRunnable, QThreadPool, Signal
 
-from config import ProcessConfig
-from logging_config import PyFFMPEGLogger, get_logger
-from progress_tracker import ProcessProgressTracker
+from pympeg.config import ProcessConfig
+from pympeg.logging_config import PyFFMPEGLogger, get_logger
+from pympeg.progress_tracker import ProcessProgressTracker
 
 if TYPE_CHECKING:
     from collections.abc import Callable

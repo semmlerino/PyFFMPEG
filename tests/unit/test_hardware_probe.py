@@ -2,7 +2,7 @@
 
 from unittest.mock import patch
 
-from hardware.probe import HardwareProbe, TtlCache
+from pympeg.hardware.probe import HardwareProbe, TtlCache
 
 
 class TestTtlCache:
@@ -35,7 +35,7 @@ class TestHardwareProbe:
     def test_available_encoders_caches(self):
         probe = HardwareProbe()
         with patch(
-            "hardware.probe.subprocess.check_output",
+            "pympeg.hardware.probe.subprocess.check_output",
             return_value="H264_NVENC\nlibx264\n",
         ) as mock:
             first = probe.available_encoders()
@@ -46,7 +46,9 @@ class TestHardwareProbe:
 
     def test_available_encoders_failure_returns_empty(self):
         probe = HardwareProbe()
-        with patch("hardware.probe.subprocess.check_output", side_effect=OSError):
+        with patch(
+            "pympeg.hardware.probe.subprocess.check_output", side_effect=OSError
+        ):
             assert probe.available_encoders() == ""
 
     def test_update_cache_populates_all(self):
@@ -75,7 +77,7 @@ class TestHardwareProbe:
     def test_detect_rtx40_from_gpu_info(self):
         probe = HardwareProbe()
         with patch(
-            "hardware.probe.subprocess.check_output",
+            "pympeg.hardware.probe.subprocess.check_output",
             return_value=b"Product Name : NVIDIA GeForce RTX 4090",
         ):
             assert probe.detect_rtx40() is True
@@ -83,7 +85,7 @@ class TestHardwareProbe:
     def test_detect_rtx40_false_without_rtx40(self):
         probe = HardwareProbe()
         with patch(
-            "hardware.probe.subprocess.check_output",
+            "pympeg.hardware.probe.subprocess.check_output",
             return_value=b"Product Name : NVIDIA GeForce GTX 1080",
         ):
             assert probe.detect_rtx40() is False
