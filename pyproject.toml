@@ -159,6 +159,7 @@ include = [
     "logging_config.py",
     "output_buffer.py",
     "ui_update_manager.py",
+    "domain",
 ]
 exclude = [
     "**/__pycache__",
