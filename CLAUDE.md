@@ -16,7 +16,8 @@ PyFFMPEG is a PySide6-based GUI application for batch video conversion using FFm
 ### Supporting Modules
 - **`process_manager.py`**: `ProcessManager` class handles FFmpeg process creation, monitoring, and lifecycle management. Emits signals for UI updates with enhanced timer management.
 - **`progress_tracker.py`**: `ProcessProgressTracker` class turns FFmpeg `-progress` output (parsed by `output_buffer.py`) into progress percentages and ETAs with smoothing algorithms.
-- **`codec_helpers.py`**: `CodecHelpers` static class with caching for expensive operations. Provides codec selection, hardware acceleration detection, and encoder configuration utilities.
+- **`encoding/arg_builder.py`**: `CodecArgBuilder` static class — builds codec, hardware-acceleration, audio, and encoder CLI arguments (incl. `optimize_threads_for_codec`). Codec definitions live in `domain/codec.py` (`CODEC_REGISTRY` / `codec_by_index`).
+- **`hardware/probe.py`**: `HardwareProbe` (singleton `HARDWARE_PROBE`) — TTL-cached encoder/GPU/RTX-40 detection via `TtlCache` (dual success/failure TTL).
 - **`file_list_widget.py`**: `FileListWidget` extends QListWidget with drag-and-drop support, status tracking, progress display, and comprehensive method implementation.
 
 ### Legacy Module
@@ -123,7 +124,7 @@ The modular architecture provides several advantages:
 - **Separation of Concerns**: Each class has a single, well-defined responsibility
 - **Type Safety**: Comprehensive type hints with 0 basedpyright errors across all refactored modules
 - **Maintainability**: Configuration centralized in `config.py` eliminates magic numbers
-- **Performance**: Caching in `CodecHelpers` and adaptive timer management reduce system overhead
+- **Performance**: Caching in `HardwareProbe` (`HARDWARE_PROBE`) and adaptive timer management reduce system overhead
 - **Testability**: Focused classes with clear interfaces enable easier unit testing
 
 ### Signal-Slot Communication
@@ -148,18 +149,18 @@ Progress is driven by FFmpeg's machine-readable `-progress pipe:1` stream (one
 - stdout carries only this progress stream (`SeparateChannels`); stderr carries
   human log lines and the MPEGTS timing-warning detection.
 - ETA smoothing using weighted moving averages with configurable window sizes
-- Batch state reset in `initialize_batch()` prevents stale ETA data between conversion runs
+- Batch state reset in `start_batch()` prevents stale ETA data between conversion runs
 - Pre-process tracking via `mark_file_skipped()` and `mark_file_failed()` for files that don't spawn FFmpeg processes
 
 ### Hardware Acceleration Detection
-`CodecHelpers` class provides cached hardware detection:
-- RTX 40-series detection for AV1 NVENC support using `detect_rtx40_series()`
+`HardwareProbe` (singleton `HARDWARE_PROBE`, in `hardware/probe.py`) provides cached hardware detection:
+- RTX 40-series detection for AV1 NVENC support using `detect_rtx40()`
 - Fallback chain: NVENC → QSV → VAAPI → software encoding
 - Auto-balance distributes files between GPU (70%) and CPU (30%) based on system capabilities
 - Caching prevents repeated expensive subprocess calls to `nvidia-smi` and `ffmpeg -encoders`
 
 ### Thread Optimization
-Thread allocation managed by `CodecHelpers.optimize_threads_for_codec()`:
+Thread allocation managed by `CodecArgBuilder.optimize_threads_for_codec()`:
 - Default UI setting: 0 (Auto - let FFmpeg decide optimal thread count)
 - NVENC encoders: 2 threads (minimal CPU usage)
 - Single CPU job: 0 (auto-detect, uses all threads)
@@ -220,7 +221,7 @@ Application state is persisted using Qt's QSettings with backwards compatibility
 - **Smart Buffer Mode**: Reduces UI update frequency during intensive processing
 - **Process Output Batching**: Prevents UI blocking during FFmpeg output parsing
 - **Memory Management**: Rolling log buffers with configurable size limits (`LogConfig`)
-- **Hardware Detection Caching**: Expensive operations cached in `CodecHelpers` static variables
+- **Hardware Detection Caching**: Expensive `nvidia-smi`/`ffmpeg -encoders` probes cached in `HardwareProbe` via `TtlCache` (dual success/failure TTL)
 
 ## Type Safety and Code Quality
 
@@ -229,7 +230,7 @@ The project uses basedpyright for comprehensive type checking:
 - Configured in `[tool.basedpyright]` in `pyproject.toml` with `typeCheckingMode = "recommended"` and `pythonVersion = "3.12"`
 - Includes only the refactored modules, excludes legacy `PyMPEG.py`
 - Run via `uv run basedpyright --level error` (uv-managed interpreter — no manual typeshed path needed)
-- Gate: **0 errors**. A few advisory warnings remain in `extract_video_metadata` (JSON-from-`Any` narrowing); they clear when that code moves to `metadata/probe.py` in Phase 3
+- Gate: **0 errors** (and 0 warnings)
 
 ### Type Annotations Standards
 All refactored modules include comprehensive type hints:
