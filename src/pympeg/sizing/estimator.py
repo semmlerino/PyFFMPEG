@@ -17,7 +17,7 @@ class SizeEstimator:
     @staticmethod
     def estimate_output_size(
         input_metadata: VideoMetadata, codec_idx: int, crf_value: int
-    ) -> str | None:
+    ) -> float | None:
         """Estimate output file size based on input metadata and encoding settings
 
         Args:
@@ -26,7 +26,10 @@ class SizeEstimator:
             crf_value: Quality setting
 
         Returns:
-            Formatted size string like "850 MB" or None if calculation fails
+            Estimated output size in bytes, or None if the calculation can't be
+            performed (non-positive duration). Callers format for display with
+            format_file_size(); summing several estimates stays exact because no
+            lossy string round-trip is involved.
         """
         duration_seconds = input_metadata.get("duration_seconds", 0)
         if duration_seconds <= 0:
@@ -56,11 +59,11 @@ class SizeEstimator:
         else:
             quality_multiplier = 0.6
 
-        # Calculate size in MB
+        # Size in MB (rough per-minute model), converted to bytes (decimal MB).
         duration_minutes = duration_seconds / 60
         estimated_mb = duration_minutes * base_factor * quality_multiplier
 
-        return SizeEstimator.format_file_size(estimated_mb * 1_000_000)
+        return estimated_mb * 1_000_000
 
     @staticmethod
     def format_file_size(size_bytes: float) -> str:

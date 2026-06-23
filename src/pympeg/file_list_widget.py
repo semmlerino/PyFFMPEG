@@ -546,13 +546,14 @@ class FileListWidget(QListWidget):
             metadata = entry.metadata
             if metadata:
                 # Add estimated size to metadata display
-                estimated_size = SizeEstimator.estimate_output_size(
+                estimated_bytes = SizeEstimator.estimate_output_size(
                     metadata, codec_idx, crf_value
                 )
-                if estimated_size:
+                if estimated_bytes is not None:
                     item = self.path_items.get(entry.path)
                     if item is None:
                         continue
+                    estimated_size = SizeEstimator.format_file_size(estimated_bytes)
                     current_text = item.text()
                     # Remove old size estimate if present
                     if " • Est:" in current_text:
@@ -561,39 +562,23 @@ class FileListWidget(QListWidget):
 
     def get_total_estimated_size(self, codec_idx: int, crf_value: int) -> str:
         """Calculate total estimated output size for all files"""
-        total_bytes = 0
+        total_bytes = 0.0
         count = 0
 
         for entry in self.queue_model.entries_in_order():
             metadata = entry.metadata
             if metadata and metadata.get("duration_seconds", 0) > 0:
-                estimated_size = SizeEstimator.estimate_output_size(
+                estimated_bytes = SizeEstimator.estimate_output_size(
                     metadata, codec_idx, crf_value
                 )
-                if estimated_size:
-                    # Parse size back to bytes for summation
-                    size_bytes = self._parse_size_to_bytes(estimated_size)
-                    if size_bytes > 0:
-                        total_bytes += size_bytes
-                        count += 1
+                if estimated_bytes is not None and estimated_bytes > 0:
+                    total_bytes += estimated_bytes
+                    count += 1
 
         if count == 0:
             return "Calculating..."
 
         return SizeEstimator.format_file_size(total_bytes)
-
-    def _parse_size_to_bytes(self, size_str: str) -> float:
-        """Parse a size string back to bytes"""
-        size_str = size_str.strip()
-        if size_str.endswith(" GB"):
-            return float(size_str[:-3]) * 1024 * 1024 * 1024
-        if size_str.endswith(" MB"):
-            return float(size_str[:-3]) * 1024 * 1024
-        if size_str.endswith(" KB"):
-            return float(size_str[:-3]) * 1024
-        if size_str.endswith(" B"):
-            return float(size_str[:-2])
-        return 0
 
     # Batch Operations
     def select_all_files(self):

@@ -886,8 +886,10 @@ class TestFileSizeEstimation:
 
         size = SizeEstimator.estimate_output_size(metadata, 0, 20)  # H.264 NVENC
 
+        # estimate_output_size now returns raw bytes (float), not a display string.
         assert size is not None
-        assert "MB" in size or "GB" in size
+        assert isinstance(size, float)
+        assert size > 0
 
     def test_estimate_size_hevc(self):
         """Test HEVC produces smaller estimate than H.264"""
@@ -912,9 +914,11 @@ class TestFileSizeEstimation:
         size_high_quality = SizeEstimator.estimate_output_size(metadata, 0, 15)
         size_low_quality = SizeEstimator.estimate_output_size(metadata, 0, 30)
 
-        # Both should return valid sizes (exact comparison depends on factors)
+        # Numeric bytes are now directly comparable: CRF 15 (1.5x multiplier)
+        # must yield a larger estimate than CRF 30 (0.6x) for the same codec.
         assert size_high_quality is not None
         assert size_low_quality is not None
+        assert size_high_quality > size_low_quality
 
     def test_estimate_size_zero_duration(self):
         """Test size estimation with zero duration"""
