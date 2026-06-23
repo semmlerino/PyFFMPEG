@@ -7,9 +7,10 @@ Tests drag-drop functionality, file management, status tracking, and progress di
 from unittest.mock import Mock, patch
 
 import pytest
-from PySide6.QtCore import Qt, QUrl
+from PySide6.QtCore import QUrl
 from PySide6.QtGui import QDragEnterEvent, QDropEvent
 
+from domain.status import FileStatus
 from file_list_widget import FileListWidget, MetadataWorker
 
 
@@ -95,11 +96,12 @@ class TestFileListWidget:
         # Update progress
         self.widget.update_progress(test_path, 50)
 
-        item = self.widget.path_items[test_path]
-        assert item.data(Qt.ItemDataRole.UserRole + 2) == 50
+        entry = self.widget.queue_model.get(test_path)
+        assert entry is not None
+        assert entry.progress == 50
 
         # Test status change from pending to processing
-        assert item.data(Qt.ItemDataRole.UserRole + 1) == "processing"
+        assert entry.status == FileStatus.PROCESSING
 
     def test_set_status(self):
         """Test status setting functionality"""
@@ -114,8 +116,9 @@ class TestFileListWidget:
         statuses = ["pending", "processing", "completed", "failed"]
         for status in statuses:
             self.widget.set_status(test_path, status)
-            item = self.widget.path_items[test_path]
-            assert item.data(Qt.ItemDataRole.UserRole + 1) == status
+            entry = self.widget.queue_model.get(test_path)
+            assert entry is not None
+            assert entry.status.value == status
 
     def test_get_item_status(self):
         """Test getting item status"""
@@ -309,7 +312,9 @@ class TestFileListWidget:
         # Simulate metadata loaded
         self.widget._on_metadata_loaded(test_path, test_metadata)
 
-        assert self.widget.metadata_cache[test_path] == test_metadata
+        entry = self.widget.queue_model.get(test_path)
+        assert entry is not None
+        assert entry.metadata == test_metadata
 
         # Check display updated
         item = self.widget.path_items[test_path]
@@ -362,7 +367,10 @@ class TestFileListWidgetMemoryManagement:
 
         # Verify data is present
         assert len(self.widget.path_items) == 2
-        assert len(self.widget.metadata_cache) == 2
+        assert len(self.widget.queue_model) == 2
+        first_entry = self.widget.queue_model.get(paths[0])
+        assert first_entry is not None
+        assert first_entry.metadata is not None
         assert self.widget.count() == 2
 
         # Clear the widget
@@ -370,7 +378,7 @@ class TestFileListWidgetMemoryManagement:
 
         # Verify everything is cleaned up
         assert len(self.widget.path_items) == 0
-        assert len(self.widget.metadata_cache) == 0
+        assert len(self.widget.queue_model) == 0
         assert self.widget.count() == 0
 
     def test_clear_allows_files_to_be_readded(self):
@@ -411,7 +419,7 @@ class TestFileListWidgetMemoryManagement:
         for path in paths:
             self.widget._on_metadata_loaded(path, {"duration": "00:01:00"})
 
-        assert len(self.widget.metadata_cache) == 3
+        assert len(self.widget.queue_model) == 3
 
         # Select and remove first two items
         self.widget.item(0).setSelected(True)
@@ -419,11 +427,11 @@ class TestFileListWidgetMemoryManagement:
         removed = self.widget.remove_selected()
 
         assert removed == 2
-        # Verify metadata_cache is also cleaned
-        assert len(self.widget.metadata_cache) == 1
-        assert paths[0] not in self.widget.metadata_cache
-        assert paths[1] not in self.widget.metadata_cache
-        assert paths[2] in self.widget.metadata_cache
+        # Verify the model store is also cleaned (entries + their metadata)
+        assert len(self.widget.queue_model) == 1
+        assert paths[0] not in self.widget.queue_model
+        assert paths[1] not in self.widget.queue_model
+        assert paths[2] in self.widget.queue_model
 
     def test_clear_completed_files_cleans_metadata_cache(self):
         """Test that clear_completed_files() cleans metadata_cache"""
@@ -447,11 +455,11 @@ class TestFileListWidgetMemoryManagement:
         removed = self.widget.clear_completed_files()
 
         assert removed == 2
-        # Verify metadata_cache is cleaned for completed files
-        assert len(self.widget.metadata_cache) == 1
-        assert paths[0] not in self.widget.metadata_cache
-        assert paths[2] not in self.widget.metadata_cache
-        assert paths[1] in self.widget.metadata_cache
+        # Verify the model store is cleaned for completed files
+        assert len(self.widget.queue_model) == 1
+        assert paths[0] not in self.widget.queue_model
+        assert paths[2] not in self.widget.queue_model
+        assert paths[1] in self.widget.queue_model
 
     def test_remove_failed_files_cleans_metadata_cache(self):
         """Test that remove_failed_files() cleans metadata_cache"""
@@ -475,11 +483,11 @@ class TestFileListWidgetMemoryManagement:
         removed = self.widget.remove_failed_files()
 
         assert removed == 2
-        # Verify metadata_cache is cleaned for failed files
-        assert len(self.widget.metadata_cache) == 1
-        assert paths[0] not in self.widget.metadata_cache
-        assert paths[2] not in self.widget.metadata_cache
-        assert paths[1] in self.widget.metadata_cache
+        # Verify the model store is cleaned for failed files
+        assert len(self.widget.queue_model) == 1
+        assert paths[0] not in self.widget.queue_model
+        assert paths[2] not in self.widget.queue_model
+        assert paths[1] in self.widget.queue_model
 
 
 class TestMetadataWorker:

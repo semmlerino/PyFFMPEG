@@ -21,6 +21,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from domain.status import FileStatus
+from file_queue import FileQueueModel, compute_display
 from metadata.probe import MetadataProbe
 from sizing.estimator import SizeEstimator
 
@@ -54,6 +56,11 @@ class MetadataWorker(QRunnable):
 class FileListWidget(QListWidget):
     """Drag & drop .ts files, reorder, context menu, and track per-file items.
     Enhanced with progress display and status indicators.
+
+    Domain state (status, progress, metadata) lives in a single ``FileQueueModel``
+    rather than being smeared across per-item ``UserRole`` slots and a parallel
+    cache. The widget keeps ``path_items`` purely as a path -> view-item map and
+    renders each item from the model.
     """
 
     # Signal emitted when file order changes
@@ -65,6 +72,9 @@ class FileListWidget(QListWidget):
         self.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
         self.setAlternatingRowColors(True)
         self.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+
+        # Single source of truth for domain state; path_items maps path -> view item.
+        self.queue_model: FileQueueModel = FileQueueModel()
         self.path_items: dict[str, QListWidgetItem] = {}
 
         # Enhanced colors for different states with better contrast
@@ -81,36 +91,32 @@ class FileListWidget(QListWidget):
         self.setSpacing(2)
 
         # Metadata support
-        self.metadata_cache: dict[str, VideoMetadata | None] = {}
         self.thread_pool: QThreadPool = QThreadPool()
         self.metadata_signals: MetadataSignals = MetadataSignals()
         _ = self.metadata_signals.metadata_loaded.connect(self._on_metadata_loaded)
 
     def add_path(self, path: str):
         """Add a new file path to the list with pending status."""
-        if path in self.path_items:
+        if path in self.queue_model:
             return
         fname = QFileInfo(path).fileName()
 
-        # Create item with initial display (metadata will be loaded asynchronously)
+        # Create item; the path is stored on the item so Qt-side reordering can
+        # be mapped back to model order. Status/progress/metadata live in the model.
         item = QListWidgetItem(f"{fname} • Loading...")
         item.setData(Qt.ItemDataRole.UserRole, path)
-        item.setData(Qt.ItemDataRole.UserRole + 1, "pending")  # Store status
-        item.setData(Qt.ItemDataRole.UserRole + 2, 0)  # Store progress percentage
-        item.setData(Qt.ItemDataRole.UserRole + 3, None)  # Store metadata
 
         # Set font for better readability
         font = item.font()
         font.setPointSize(font.pointSize() + 1)
         item.setFont(font)
 
-        # Set tooltip with file path
-        item.setToolTip(f"Path: {path}")
-
         _ = self.addItem(item)
         self.path_items[path] = item
+        _ = self.queue_model.add(path)
 
-        # Start metadata loading in background
+        # Render the initial (loading) state and start metadata loading.
+        self._update_item_display(path)
         self._load_metadata_async(path)
 
     @override
@@ -145,7 +151,7 @@ class FileListWidget(QListWidget):
             # Internal move - handle reordering
             super().dropEvent(event)
 
-            # Update our path_items mapping after internal move
+            # Sync our path_items map and model order after the internal move
             self._rebuild_path_items_mapping()
 
             # Emit signal when order changed
@@ -197,7 +203,7 @@ class FileListWidget(QListWidget):
                 row = self.row(item)
                 _ = self.takeItem(row)
                 _ = self.path_items.pop(path, None)
-                _ = self.metadata_cache.pop(path, None)
+                _ = self.queue_model.remove(path)
 
     @override
     def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:
@@ -267,16 +273,21 @@ class FileListWidget(QListWidget):
             pass
 
     def _rebuild_path_items_mapping(self):
-        """Rebuild the path_items mapping after internal reordering"""
+        """Rebuild the path_items map and the model order after a reorder."""
         self.path_items.clear()
 
-        # Rebuild mapping based on current order
+        # Rebuild mapping and capture the new display order from the view
+        order: list[str] = []
         for i in range(self.count()):
             item = self.item(i)
             if item:
                 path: str = cast("str", item.data(Qt.ItemDataRole.UserRole))
                 if path:
                     self.path_items[path] = item
+                    order.append(path)
+
+        # Keep the model's order in sync with the view
+        self.queue_model.reorder(order)
 
     def update_progress(self, path: str, progress: int):
         """Update the progress percentage for a file.
@@ -285,17 +296,17 @@ class FileListWidget(QListWidget):
             path: The file path
             progress: Progress percentage (0-100)
         """
-        if path not in self.path_items:
+        entry = self.queue_model.get(path)
+        item = self.path_items.get(path)
+        if entry is None or item is None:
             return
 
-        item = self.path_items[path]
-
         # Store the current progress
-        item.setData(Qt.ItemDataRole.UserRole + 2, progress)
+        entry.progress = progress
 
         # Update status if needed
-        if progress > 0 and item.data(Qt.ItemDataRole.UserRole + 1) == "pending":
-            item.setData(Qt.ItemDataRole.UserRole + 1, "processing")
+        if progress > 0 and entry.status == FileStatus.PENDING:
+            entry.status = FileStatus.PROCESSING
             item.setForeground(self.color_processing)
 
         # Update the displayed text using the unified method
@@ -308,28 +319,28 @@ class FileListWidget(QListWidget):
             path: The file path
             status: One of 'pending', 'processing', 'completed', 'failed', 'skipped'
         """
-        if path not in self.path_items:
+        entry = self.queue_model.get(path)
+        item = self.path_items.get(path)
+        if entry is None or item is None:
             return
 
-        item = self.path_items[path]
-
         # Store the status
-        item.setData(Qt.ItemDataRole.UserRole + 1, status)
+        entry.status = FileStatus(status)
 
         # Set color based on status
-        if status == "pending":
+        if entry.status == FileStatus.PENDING:
             item.setForeground(self.color_pending)
-        elif status == "processing":
+        elif entry.status == FileStatus.PROCESSING:
             item.setForeground(self.color_processing)
-        elif status == "completed":
+        elif entry.status == FileStatus.COMPLETED:
             item.setForeground(self.color_completed)
             # Make the text bold
             font = item.font()
             font.setBold(True)
             item.setFont(font)
-        elif status == "failed":
+        elif entry.status == FileStatus.FAILED:
             item.setForeground(self.color_failed)
-        elif status == "skipped":
+        elif entry.status == FileStatus.SKIPPED:
             item.setForeground(self.color_skipped)
 
         # Update the displayed text using the unified method
@@ -344,10 +355,8 @@ class FileListWidget(QListWidget):
         Returns:
             Status string or empty string if path not found
         """
-        if path not in self.path_items:
-            return ""
-
-        return self.path_items[path].data(Qt.ItemDataRole.UserRole + 1) or ""
+        entry = self.queue_model.get(path)
+        return entry.status.value if entry is not None else ""
 
     def add_files(self, file_paths: list[str]) -> None:
         """Add multiple files to the list"""
@@ -358,12 +367,12 @@ class FileListWidget(QListWidget):
     def clear(self) -> None:
         """Clear all items and reset internal tracking state.
 
-        Overrides QListWidget.clear() to also clean up path_items and
-        metadata_cache dictionaries, preventing memory leaks and ensuring
-        files can be re-added after clearing.
+        Overrides QListWidget.clear() to also reset the model and path_items
+        map, preventing memory leaks and ensuring files can be re-added after
+        clearing.
         """
         self.path_items.clear()
-        self.metadata_cache.clear()
+        self.queue_model.clear()
         super().clear()
 
     def remove_selected(self) -> int:
@@ -373,9 +382,9 @@ class FileListWidget(QListWidget):
 
         for item in selected_items:
             path: str = cast("str", item.data(Qt.ItemDataRole.UserRole))
-            if path in self.path_items:
-                del self.path_items[path]
-                _ = self.metadata_cache.pop(path, None)
+            if path in self.queue_model:
+                _ = self.queue_model.remove(path)
+                _ = self.path_items.pop(path, None)
                 _ = self.takeItem(self.row(item))
                 removed_count += 1
 
@@ -399,8 +408,8 @@ class FileListWidget(QListWidget):
             item = self.item(i)
             if item:
                 path: str = cast("str", item.data(Qt.ItemDataRole.UserRole))
-                status: str = cast("str", item.data(Qt.ItemDataRole.UserRole + 1))
-                if path and status == "pending":
+                entry = self.queue_model.get(path)
+                if path and entry is not None and entry.status == FileStatus.PENDING:
                     paths.append(path)
         return paths
 
@@ -466,20 +475,21 @@ class FileListWidget(QListWidget):
 
     def get_file_paths(self) -> list[str]:
         """Get all file paths in the list"""
-        return list(self.path_items.keys())
+        return self.queue_model.paths_in_order()
 
     def get_file_count(self) -> int:
         """Get the number of files in the list"""
-        return len(self.path_items)
+        return len(self.queue_model)
 
     def _load_metadata_async(self, path: str):
         """Load metadata for a file asynchronously"""
-        if path in self.metadata_cache:
-            # Already loaded or loading
+        entry = self.queue_model.get(path)
+        if entry is None or entry.metadata_requested:
+            # Unknown path or already loading/loaded
             return
 
-        # Mark as loading
-        self.metadata_cache[path] = None
+        # Mark as requested so the worker starts at most once
+        entry.metadata_requested = True
 
         # Create worker and submit to thread pool
         worker = MetadataWorker(path, self.metadata_signals)
@@ -488,9 +498,8 @@ class FileListWidget(QListWidget):
     def _on_metadata_loaded(self, file_path: str, metadata: object) -> None:
         """Handle metadata loading completion"""
         # Check if file was removed before metadata loaded (prevents memory leak)
-        if file_path not in self.path_items:
-            # Clean up any partial cache entry
-            _ = self.metadata_cache.pop(file_path, None)
+        entry = self.queue_model.get(file_path)
+        if entry is None:
             return
 
         # Validate and store metadata
@@ -499,58 +508,25 @@ class FileListWidget(QListWidget):
         if isinstance(metadata, dict):
             # Runtime validation - double cast through object to VideoMetadata
             # We trust that extract_video_metadata returns the correct structure
-            self.metadata_cache[file_path] = cast(
-                "VideoMetadata", cast("object", metadata)
-            )
+            entry.metadata = cast("VideoMetadata", cast("object", metadata))
         else:
-            self.metadata_cache[file_path] = None
+            entry.metadata = None
 
         # Update the display for this file
         self._update_item_display(file_path)
 
     def _update_item_display(self, path: str):
         """Update the display text for a file item based on its current state"""
-        if path not in self.path_items:
+        entry = self.queue_model.get(path)
+        item = self.path_items.get(path)
+        if entry is None or item is None:
             return
 
-        item = self.path_items[path]
         fname = QFileInfo(path).fileName()
-        status = item.data(Qt.ItemDataRole.UserRole + 1) or "pending"
-        progress = item.data(Qt.ItemDataRole.UserRole + 2) or 0
-        metadata = self.metadata_cache.get(path)
-
-        # Build display text based on status with visual indicators
-        if status == "pending":
-            if metadata:
-                # Show metadata for pending files
-                display_text = f"⏳ {self._format_file_with_metadata(fname, metadata)}"
-            else:
-                # Still loading metadata
-                display_text = f"🔄 {fname} • Loading..."
-        elif status == "processing":
-            # Show progress for processing files with progress indicator and metadata
-            if metadata:
-                display_text = f"🚀 {self._format_file_with_metadata(fname, metadata)} — {progress}%"
-            else:
-                display_text = f"🚀 {fname} — {progress}%"
-        elif status == "completed":
-            # Show completed status
-            display_text = f"✅ {fname} — Completed"
-        elif status == "failed":
-            # Show failed status
-            display_text = f"❌ {fname} — Failed"
-        elif status == "skipped":
-            # Show skipped status
-            display_text = f"⏭️ {fname} — Skipped"
-        else:
-            display_text = fname
-
-        item.setText(display_text)
-
-        # Store metadata in item for easy access
-        item.setData(Qt.ItemDataRole.UserRole + 3, metadata)
+        item.setText(compute_display(fname, entry))
 
         # Update tooltip with rich information
+        metadata = entry.metadata
         tooltip_lines = [f"Path: {path}"]
 
         if metadata:
@@ -567,53 +543,30 @@ class FileListWidget(QListWidget):
             if metadata.get("format_name", "") not in ["", "Unknown"]:
                 tooltip_lines.append(f"Format: {metadata['format_name']}")
 
-        tooltip_lines.append(f"Status: {status.title()}")
-        if status == "processing" and progress > 0:
-            tooltip_lines.append(f"Progress: {progress}%")
+        tooltip_lines.append(f"Status: {entry.status.value.title()}")
+        if entry.status == FileStatus.PROCESSING and entry.progress > 0:
+            tooltip_lines.append(f"Progress: {entry.progress}%")
 
         item.setToolTip("\n".join(tooltip_lines))
 
-    def _format_file_with_metadata(self, filename: str, metadata: VideoMetadata) -> str:
-        """Format filename with metadata for display"""
-        parts = [filename]
-
-        # Add duration
-        if metadata.get("duration") != "Unknown":
-            parts.append(metadata["duration"])
-
-        # Add resolution
-        width = metadata.get("width", 0)
-        height = metadata.get("height", 0)
-        if width > 0 and height > 0:
-            parts.append(f"{width}x{height}")
-
-        # Add codec
-        codec = metadata.get("codec", "").upper()
-        if codec and codec != "UNKNOWN":
-            parts.append(codec)
-
-        # Add bitrate
-        bitrate = metadata.get("bitrate", "")
-        if bitrate and bitrate != "Unknown":
-            parts.append(bitrate)
-
-        return " • ".join(parts)
-
     def get_file_metadata(self, path: str) -> VideoMetadata | None:
         """Get cached metadata for a file"""
-        return self.metadata_cache.get(path)
+        entry = self.queue_model.get(path)
+        return entry.metadata if entry is not None else None
 
     def update_all_display_with_settings(self, codec_idx: int, crf_value: int):
         """Update all file displays with estimated output sizes"""
-        for path in self.path_items:
-            metadata = self.metadata_cache.get(path)
+        for entry in self.queue_model.entries_in_order():
+            metadata = entry.metadata
             if metadata:
                 # Add estimated size to metadata display
                 estimated_size = SizeEstimator.estimate_output_size(
                     metadata, codec_idx, crf_value
                 )
                 if estimated_size:
-                    item = self.path_items[path]
+                    item = self.path_items.get(entry.path)
+                    if item is None:
+                        continue
                     current_text = item.text()
                     # Remove old size estimate if present
                     if " • Est:" in current_text:
@@ -625,8 +578,8 @@ class FileListWidget(QListWidget):
         total_bytes = 0
         count = 0
 
-        for path in self.path_items:
-            metadata = self.metadata_cache.get(path)
+        for entry in self.queue_model.entries_in_order():
+            metadata = entry.metadata
             if metadata and metadata.get("duration_seconds", 0) > 0:
                 estimated_size = SizeEstimator.estimate_output_size(
                     metadata, codec_idx, crf_value
@@ -663,63 +616,42 @@ class FileListWidget(QListWidget):
 
     def clear_completed_files(self) -> int:
         """Remove all completed files from the list"""
-        completed_paths: list[str] = []
+        completed_paths = self.queue_model.paths_with_status(FileStatus.COMPLETED)
 
-        for path, item in self.path_items.items():
-            status: str = cast("str", item.data(Qt.ItemDataRole.UserRole + 1))
-            if status == "completed":
-                completed_paths.append(path)
-
-        # Remove completed files
         for path in completed_paths:
-            if path in self.path_items:
-                item = self.path_items[path]
-                row = self.row(item)
-                _ = self.takeItem(row)
-                del self.path_items[path]
-                # Also remove from metadata cache
-                _ = self.metadata_cache.pop(path, None)
+            item = self.path_items.get(path)
+            if item is not None:
+                _ = self.takeItem(self.row(item))
+            _ = self.path_items.pop(path, None)
+            _ = self.queue_model.remove(path)
 
         return len(completed_paths)
 
     def remove_failed_files(self) -> int:
         """Remove all failed files from the list"""
-        failed_paths: list[str] = []
+        failed_paths = self.queue_model.paths_with_status(FileStatus.FAILED)
 
-        for path, item in self.path_items.items():
-            status: str = cast("str", item.data(Qt.ItemDataRole.UserRole + 1))
-            if status == "failed":
-                failed_paths.append(path)
-
-        # Remove failed files
         for path in failed_paths:
-            if path in self.path_items:
-                item = self.path_items[path]
-                row = self.row(item)
-                _ = self.takeItem(row)
-                del self.path_items[path]
-                # Also remove from metadata cache
-                _ = self.metadata_cache.pop(path, None)
+            item = self.path_items.get(path)
+            if item is not None:
+                _ = self.takeItem(self.row(item))
+            _ = self.path_items.pop(path, None)
+            _ = self.queue_model.remove(path)
 
         return len(failed_paths)
 
     def get_files_by_status(self, status: str) -> list[str]:
         """Get all file paths with the specified status"""
-        files: list[str] = []
-        for path, item in self.path_items.items():
-            item_status: str = cast("str", item.data(Qt.ItemDataRole.UserRole + 1))
-            if item_status == status:
-                files.append(path)
-        return files
+        return self.queue_model.paths_with_status(FileStatus(status))
 
     def get_status_counts(self) -> dict[str, int]:
         """Get count of files by status"""
         counts = {"pending": 0, "processing": 0, "completed": 0, "failed": 0}
 
-        for item in self.path_items.values():
-            status = item.data(Qt.ItemDataRole.UserRole + 1) or "pending"
-            if status in counts:
-                counts[status] += 1
+        for entry in self.queue_model.entries_in_order():
+            key = entry.status.value
+            if key in counts:
+                counts[key] += 1
 
         return counts
 
