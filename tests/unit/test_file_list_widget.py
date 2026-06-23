@@ -494,7 +494,7 @@ class TestMetadataWorker:
         worker = MetadataWorker(test_path, signals)
 
         with patch(
-            "codec_helpers.CodecHelpers.extract_video_metadata",
+            "metadata.probe.MetadataProbe.extract_video_metadata",
             return_value=test_metadata,
         ):
             worker.run()

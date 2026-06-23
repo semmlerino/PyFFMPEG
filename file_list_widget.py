@@ -21,10 +21,13 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from codec_helpers import CodecHelpers, VideoMetadata
+from metadata.probe import MetadataProbe
+from sizing.estimator import SizeEstimator
 
 if TYPE_CHECKING:
     from PySide6.QtGui import QDragEnterEvent, QDropEvent, QKeyEvent, QMouseEvent
+
+    from metadata.probe import VideoMetadata
 
 
 class MetadataSignals(QObject):
@@ -44,7 +47,7 @@ class MetadataWorker(QRunnable):
     @override
     def run(self):
         """Extract metadata and emit signal"""
-        metadata = CodecHelpers.extract_video_metadata(self.file_path)
+        metadata = MetadataProbe.extract_video_metadata(self.file_path)
         self.signals.metadata_loaded.emit(self.file_path, metadata)
 
 
@@ -606,7 +609,7 @@ class FileListWidget(QListWidget):
             metadata = self.metadata_cache.get(path)
             if metadata:
                 # Add estimated size to metadata display
-                estimated_size = CodecHelpers.estimate_output_size(
+                estimated_size = SizeEstimator.estimate_output_size(
                     metadata, codec_idx, crf_value
                 )
                 if estimated_size:
@@ -625,7 +628,7 @@ class FileListWidget(QListWidget):
         for path in self.path_items:
             metadata = self.metadata_cache.get(path)
             if metadata and metadata.get("duration_seconds", 0) > 0:
-                estimated_size = CodecHelpers.estimate_output_size(
+                estimated_size = SizeEstimator.estimate_output_size(
                     metadata, codec_idx, crf_value
                 )
                 if estimated_size:
@@ -638,7 +641,7 @@ class FileListWidget(QListWidget):
         if count == 0:
             return "Calculating..."
 
-        return CodecHelpers.format_file_size(total_bytes)
+        return SizeEstimator.format_file_size(total_bytes)
 
     def _parse_size_to_bytes(self, size_str: str) -> float:
         """Parse a size string back to bytes"""

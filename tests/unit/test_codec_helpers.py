@@ -11,6 +11,8 @@ import pytest
 
 from codec_helpers import CodecHelpers
 from config import EncodingConfig, ProcessConfig
+from metadata.probe import MetadataProbe
+from sizing.estimator import SizeEstimator
 from tests.fixtures.mocks import (
     MockEncoderDetection,
     MockGPUDetection,
@@ -786,7 +788,7 @@ class TestPresetMapping:
 class TestVideoMetadataExtraction:
     """Test video metadata extraction functionality"""
 
-    @patch("subprocess.run")
+    @patch("metadata.probe.subprocess.run")
     def test_extract_basic_metadata(self, mock_run):
         """Test extraction of basic video metadata"""
         mock_result = Mock()
@@ -807,7 +809,7 @@ class TestVideoMetadataExtraction:
         }"""
         mock_run.return_value = mock_result
 
-        metadata = CodecHelpers.extract_video_metadata("/test/video.mp4")
+        metadata = MetadataProbe.extract_video_metadata("/test/video.mp4")
 
         assert metadata is not None
         assert metadata["duration"] == "01:00:00"
@@ -817,7 +819,7 @@ class TestVideoMetadataExtraction:
         assert metadata["codec"] == "H264"
         assert "Mbps" in metadata["bitrate"]
 
-    @patch("subprocess.run")
+    @patch("metadata.probe.subprocess.run")
     def test_extract_metadata_no_video_stream(self, mock_run):
         """Test metadata extraction when no video stream exists"""
         mock_result = Mock()
@@ -831,28 +833,28 @@ class TestVideoMetadataExtraction:
         }"""
         mock_run.return_value = mock_result
 
-        metadata = CodecHelpers.extract_video_metadata("/test/audio.mp3")
+        metadata = MetadataProbe.extract_video_metadata("/test/audio.mp3")
         assert metadata is None
 
-    @patch("subprocess.run")
+    @patch("metadata.probe.subprocess.run")
     def test_extract_metadata_ffprobe_failure(self, mock_run):
         """Test metadata extraction when ffprobe fails"""
         mock_result = Mock()
         mock_result.returncode = 1
         mock_run.return_value = mock_result
 
-        metadata = CodecHelpers.extract_video_metadata("/test/invalid.mp4")
+        metadata = MetadataProbe.extract_video_metadata("/test/invalid.mp4")
         assert metadata is None
 
-    @patch("subprocess.run")
+    @patch("metadata.probe.subprocess.run")
     def test_extract_metadata_timeout(self, mock_run):
         """Test metadata extraction with timeout"""
         mock_run.side_effect = subprocess.TimeoutExpired("ffprobe", 30)
 
-        metadata = CodecHelpers.extract_video_metadata("/test/video.mp4")
+        metadata = MetadataProbe.extract_video_metadata("/test/video.mp4")
         assert metadata is None
 
-    @patch("subprocess.run")
+    @patch("metadata.probe.subprocess.run")
     def test_extract_metadata_invalid_json(self, mock_run):
         """Test metadata extraction with invalid JSON"""
         mock_result = Mock()
@@ -860,7 +862,7 @@ class TestVideoMetadataExtraction:
         mock_result.stdout = "not valid json"
         mock_run.return_value = mock_result
 
-        metadata = CodecHelpers.extract_video_metadata("/test/video.mp4")
+        metadata = MetadataProbe.extract_video_metadata("/test/video.mp4")
         assert metadata is None
 
 
@@ -873,7 +875,7 @@ class TestFileSizeEstimation:
             "duration_seconds": 3600,  # 1 hour
         }
 
-        size = CodecHelpers.estimate_output_size(metadata, 0, 20)  # H.264 NVENC
+        size = SizeEstimator.estimate_output_size(metadata, 0, 20)  # H.264 NVENC
 
         assert size is not None
         assert "MB" in size or "GB" in size
@@ -884,8 +886,8 @@ class TestFileSizeEstimation:
             "duration_seconds": 3600,
         }
 
-        size_h264 = CodecHelpers.estimate_output_size(metadata, 0, 20)
-        size_hevc = CodecHelpers.estimate_output_size(metadata, 1, 20)
+        size_h264 = SizeEstimator.estimate_output_size(metadata, 0, 20)
+        size_hevc = SizeEstimator.estimate_output_size(metadata, 1, 20)
 
         # Both should return valid sizes
         assert size_h264 is not None
@@ -898,8 +900,8 @@ class TestFileSizeEstimation:
         }
 
         # Lower CRF = higher quality = larger file
-        size_high_quality = CodecHelpers.estimate_output_size(metadata, 0, 15)
-        size_low_quality = CodecHelpers.estimate_output_size(metadata, 0, 30)
+        size_high_quality = SizeEstimator.estimate_output_size(metadata, 0, 15)
+        size_low_quality = SizeEstimator.estimate_output_size(metadata, 0, 30)
 
         # Both should return valid sizes (exact comparison depends on factors)
         assert size_high_quality is not None
@@ -911,7 +913,7 @@ class TestFileSizeEstimation:
             "duration_seconds": 0,
         }
 
-        size = CodecHelpers.estimate_output_size(metadata, 0, 20)
+        size = SizeEstimator.estimate_output_size(metadata, 0, 20)
         assert size is None
 
     def test_estimate_size_negative_duration(self):
@@ -920,7 +922,7 @@ class TestFileSizeEstimation:
             "duration_seconds": -100,
         }
 
-        size = CodecHelpers.estimate_output_size(metadata, 0, 20)
+        size = SizeEstimator.estimate_output_size(metadata, 0, 20)
         assert size is None
 
 
@@ -942,7 +944,7 @@ class TestDurationFormatting:
     )
     def test_format_duration(self, seconds, expected):
         """Test duration formatting"""
-        result = CodecHelpers._format_duration(seconds)
+        result = MetadataProbe._format_duration(seconds)
         assert result == expected
 
 
@@ -963,7 +965,7 @@ class TestBitrateFormatting:
     )
     def test_format_bitrate(self, bitrate_bps, expected_contains):
         """Test bitrate formatting"""
-        result = CodecHelpers._format_bitrate(bitrate_bps)
+        result = MetadataProbe._format_bitrate(bitrate_bps)
         assert expected_contains in result
 
 
@@ -981,7 +983,7 @@ class TestFileSizeFormatting:
     )
     def test_format_file_size(self, size_bytes, expected_contains):
         """Test file size formatting"""
-        result = CodecHelpers.format_file_size(size_bytes)
+        result = SizeEstimator.format_file_size(size_bytes)
         assert expected_contains in result
 
 

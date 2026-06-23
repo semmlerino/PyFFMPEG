@@ -160,6 +160,8 @@ include = [
     "output_buffer.py",
     "ui_update_manager.py",
     "domain",
+    "metadata",
+    "sizing",
 ]
 exclude = [
     "**/__pycache__",
