@@ -261,8 +261,8 @@ class TestBatchProcessing:
         self.tracker.start_batch(total_files)
 
         # Should initialize batch tracking
-        assert self.tracker.total_count == total_files
-        assert self.tracker.completed_count == 0
+        assert self.tracker.batch.total == total_files
+        assert self.tracker.batch.completed_count == 0
         assert self.tracker.batch_start_time is not None
 
     def test_process_registration(self):
@@ -280,7 +280,7 @@ class TestBatchProcessing:
             self.tracker.register_process(proc_id, path, duration)
 
         # All processes should be registered
-        assert len(self.tracker.processes) == 3
+        assert len(self.tracker.batch.processes) == 3
 
     def test_overall_progress_calculation(self):
         """Test overall batch progress calculation"""
@@ -451,7 +451,7 @@ class TestProgressTrackerPerformance:
 
         # Should complete quickly (less than 1 second for 100 processes)
         assert elapsed < 1.0
-        assert len(self.tracker.processes) == num_processes
+        assert len(self.tracker.batch.processes) == num_processes
 
     @pytest.mark.slow
     def test_frequent_progress_updates(self):
@@ -481,7 +481,7 @@ class TestFailureTracking:
 
     def test_failed_count_initial(self):
         """Test failed count starts at zero"""
-        assert self.tracker.failed_count == 0
+        assert self.tracker.batch.failed_count == 0
 
     def test_complete_process_success(self):
         """Test completing process successfully doesn't increment failed count"""
@@ -490,8 +490,8 @@ class TestFailureTracking:
 
         self.tracker.complete_process("proc_1", success=True)
 
-        assert self.tracker.failed_count == 0
-        assert self.tracker.completed_count == 1
+        assert self.tracker.batch.failed_count == 0
+        assert self.tracker.batch.completed_count == 1
 
     def test_complete_process_failure(self):
         """Test completing process with failure increments failed count"""
@@ -500,8 +500,8 @@ class TestFailureTracking:
 
         self.tracker.complete_process("proc_1", success=False)
 
-        assert self.tracker.failed_count == 1
-        assert self.tracker.completed_count == 1
+        assert self.tracker.batch.failed_count == 1
+        assert self.tracker.batch.completed_count == 1
 
     def test_mixed_success_and_failure(self):
         """Test mixed success and failure tracking"""
@@ -516,8 +516,8 @@ class TestFailureTracking:
         self.tracker.complete_process("proc_3", success=False)
         self.tracker.complete_process("proc_4", success=True)
 
-        assert self.tracker.completed_count == 5
-        assert self.tracker.failed_count == 2
+        assert self.tracker.batch.completed_count == 5
+        assert self.tracker.batch.failed_count == 2
 
     def test_failed_count_in_overall_progress(self):
         """Test failed count included in overall progress"""
@@ -566,7 +566,7 @@ class TestFailureTracking:
 
         # Progress should not be 100% for failed process
         # The failed count should be incremented
-        assert self.tracker.failed_count == 1
+        assert self.tracker.batch.failed_count == 1
 
     def test_reset_clears_failed_count(self):
         """Test reset clears failed count"""
@@ -576,13 +576,13 @@ class TestFailureTracking:
         self.tracker.complete_process("proc_0", success=False)
         self.tracker.complete_process("proc_1", success=False)
 
-        assert self.tracker.failed_count == 2
+        assert self.tracker.batch.failed_count == 2
 
         # Start new batch should reset
         self.tracker.start_batch(1)
 
-        assert self.tracker.failed_count == 0
-        assert self.tracker.completed_count == 0
+        assert self.tracker.batch.failed_count == 0
+        assert self.tracker.batch.completed_count == 0
 
 
 @pytest.mark.unit
@@ -603,8 +603,8 @@ class TestMarkFileSkippedVsFailed:
 
         self.tracker.mark_file_skipped()
 
-        assert self.tracker.completed_count == 1
-        assert self.tracker.failed_count == 0, (
+        assert self.tracker.batch.completed_count == 1
+        assert self.tracker.batch.failed_count == 0, (
             "mark_file_skipped should NOT increment failed_count"
         )
 
@@ -614,8 +614,8 @@ class TestMarkFileSkippedVsFailed:
 
         self.tracker.mark_file_failed()
 
-        assert self.tracker.completed_count == 1
-        assert self.tracker.failed_count == 1, (
+        assert self.tracker.batch.completed_count == 1
+        assert self.tracker.batch.failed_count == 1, (
             "mark_file_failed MUST increment failed_count"
         )
 
@@ -650,8 +650,8 @@ class TestMarkFileSkippedVsFailed:
         for _ in range(50):
             self.tracker.mark_file_skipped()
 
-        assert self.tracker.completed_count == 50
-        assert self.tracker.failed_count == 0
+        assert self.tracker.batch.completed_count == 50
+        assert self.tracker.batch.failed_count == 0
 
     def test_multiple_failures_counted_correctly(self):
         """Test that multiple failures are all counted."""
@@ -660,8 +660,8 @@ class TestMarkFileSkippedVsFailed:
         for _ in range(25):
             self.tracker.mark_file_failed()
 
-        assert self.tracker.completed_count == 25
-        assert self.tracker.failed_count == 25
+        assert self.tracker.batch.completed_count == 25
+        assert self.tracker.batch.failed_count == 25
 
     def test_mixed_processing_scenario(self):
         """Test realistic scenario with mixed successes, skips, and failures.
@@ -827,10 +827,10 @@ class TestProgressTrackerBatchManagement:
         """Test start_batch initializes tracker state"""
         self.tracker.start_batch(5)
 
-        assert self.tracker.total_count == 5
-        assert self.tracker.completed_count == 0
-        assert self.tracker.failed_count == 0
-        assert len(self.tracker.processes) == 0
+        assert self.tracker.batch.total == 5
+        assert self.tracker.batch.completed_count == 0
+        assert self.tracker.batch.failed_count == 0
+        assert len(self.tracker.batch.processes) == 0
 
     def test_start_batch_clears_previous_state(self):
         """Test start_batch clears previous batch state"""
@@ -839,24 +839,24 @@ class TestProgressTrackerBatchManagement:
         self.tracker.register_process("proc_0", "/test/video_0.ts", 600.0)
         self.tracker.complete_process("proc_0", success=False)
 
-        assert self.tracker.failed_count == 1
+        assert self.tracker.batch.failed_count == 1
 
         # Second batch
         self.tracker.start_batch(2)
 
-        assert self.tracker.total_count == 2
-        assert self.tracker.completed_count == 0
-        assert self.tracker.failed_count == 0
-        assert len(self.tracker.processes) == 0
+        assert self.tracker.batch.total == 2
+        assert self.tracker.batch.completed_count == 0
+        assert self.tracker.batch.failed_count == 0
+        assert len(self.tracker.batch.processes) == 0
 
     def test_register_process_adds_to_tracking(self):
         """Test register_process adds process to tracking"""
         self.tracker.start_batch(1)
         self.tracker.register_process("proc_123", "/test/video.ts", 600.0)
 
-        assert "proc_123" in self.tracker.processes
-        assert self.tracker.processes["proc_123"]["path"] == "/test/video.ts"
-        assert self.tracker.processes["proc_123"]["duration"] == 600.0
+        assert "proc_123" in self.tracker.batch.processes
+        assert self.tracker.batch.processes["proc_123"].path == "/test/video.ts"
+        assert self.tracker.batch.processes["proc_123"].duration == 600.0
 
     def test_complete_process_unknown_id(self):
         """Test complete_process with unknown process ID"""
@@ -866,7 +866,7 @@ class TestProgressTrackerBatchManagement:
         self.tracker.complete_process("unknown_proc", success=True)
 
         # State should be unchanged
-        assert self.tracker.completed_count == 0
+        assert self.tracker.batch.completed_count == 0
 
     def test_overall_progress_calculation(self):
         """Test overall progress percentage calculation"""

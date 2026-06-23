@@ -8,9 +8,10 @@ from __future__ import annotations
 
 import threading
 import time
-from typing import Any, cast
+from typing import Any
 
-from config import ProcessConfig, UIConfig
+from config import CodecIndex, ProcessConfig, UIConfig
+from domain.job import BatchState, ProcessState
 from logging_config import get_logger
 from output_buffer import ProcessOutputManager
 
@@ -23,12 +24,9 @@ class ProcessProgressTracker:
         from logging_config import PyFFMPEGLogger
 
         self.logger: PyFFMPEGLogger = get_logger()
-        # Use Any for dict values to allow dynamic process tracking data
-        self.processes: dict[str, dict[str, Any]] = {}  # pyright: ignore[reportExplicitAny]
+        # Aggregate batch state: counts + per-process state keyed by process_id.
+        self.batch: BatchState = BatchState()
         self.batch_start_time: float | None = None
-        self.completed_count: int = 0
-        self.failed_count: int = 0  # Track failures separately for UI breakdown
-        self.total_count: int = 0
         self._lock: threading.RLock = (
             threading.RLock()
         )  # Reentrant lock for thread safety
@@ -54,12 +52,17 @@ class ProcessProgressTracker:
         # Use Any for cached result to match return type flexibility
         self._last_overall_result: dict[str, Any] = {}  # pyright: ignore[reportExplicitAny]
 
+        # Per-process get_process_progress() result cache: process_id -> (result, time)
+        self._process_result_cache: dict[str, tuple[dict[str, Any], float]] = {}  # pyright: ignore[reportExplicitAny]
+
     def start_batch(self, total_files: int) -> None:
         """Start tracking a batch of processes"""
         self.batch_start_time = time.time()
-        self.completed_count = 0
-        self.failed_count = 0
-        self.total_count = total_files
+        # Reset counts only; active processes persist (matches legacy behavior where
+        # start_batch does not clear the process map).
+        self.batch.completed_count = 0
+        self.batch.failed_count = 0
+        self.batch.total = total_files
 
         # Reset ETA smoothing state to prevent stale data from previous batches
         self.prev_eta_values.clear()
@@ -72,46 +75,45 @@ class ProcessProgressTracker:
 
     def register_process(
         self, process_id: str, path: str, duration: float
-    ) -> dict[str, Any]:  # pyright: ignore[reportExplicitAny]
+    ) -> ProcessState:
         """Register a new process to track"""
         with self._lock:
-            self.processes[process_id] = {
-                "path": path,
-                "duration": duration,
-                "start_time": time.time(),
-                "current_pct": 0,
-                "fps": 0,
-                "last_frame": 0,
-                "last_fps_time": time.time(),
-                "elapsed_sec": 0,
-                "prev_eta_values": [],  # For ETA smoothing per process
-                "last_progress_time": 0.0,
-                "last_progress_value": 0.0,
-            }
-            return self.processes[process_id]
+            now = time.time()
+            state = ProcessState(
+                path=path,
+                duration=duration,
+                start_time=now,
+                last_fps_time=now,
+            )
+            self.batch.processes[process_id] = state
+            return state
 
     def force_progress_to_100(self, process_id: str) -> None:
         """Force a process progress to 100% for final display"""
         with self._lock:
-            if process_id in self.processes:
-                self.processes[process_id]["current_pct"] = 100
+            state = self.batch.processes.get(process_id)
+            if state is not None:
+                state.current_pct = 100
 
     def complete_process(self, process_id: str, success: bool = True) -> None:
         """Mark a process as completed (successfully or with failure)"""
         with self._lock:
-            if process_id in self.processes:
+            state = self.batch.processes.get(process_id)
+            if state is not None:
                 if success:
                     # Force progress to 100% for successful completion
-                    self.processes[process_id]["current_pct"] = 100
+                    state.current_pct = 100
                 else:
                     # Track failures separately for UI breakdown
-                    self.failed_count += 1
+                    self.batch.failed_count += 1
 
                 # ALWAYS count toward completion (including failures)
                 # This ensures progress bar reaches 100% even with failures
-                self.completed_count += 1
+                self.batch.completed_count += 1
 
-                del self.processes[process_id]
+                del self.batch.processes[process_id]
+                # Drop the per-process result cache entry alongside the state
+                _ = self._process_result_cache.pop(process_id, None)
 
                 # Clean up output buffer
                 self.output_manager.remove_buffer(process_id)
@@ -123,7 +125,7 @@ class ProcessProgressTracker:
         (e.g., output already exists with overwrite disabled).
         """
         with self._lock:
-            self.completed_count += 1
+            self.batch.completed_count += 1
 
     def mark_file_failed(self) -> None:
         """Mark a file as failed (counts toward completion AND failure tracking).
@@ -132,8 +134,8 @@ class ProcessProgressTracker:
         (e.g., FFmpeg not available, invalid input file).
         """
         with self._lock:
-            self.completed_count += 1
-            self.failed_count += 1
+            self.batch.completed_count += 1
+            self.batch.failed_count += 1
 
     def process_output(self, process_id: str, chunk: str) -> dict[str, Any]:  # pyright: ignore[reportExplicitAny]
         """
@@ -142,12 +144,12 @@ class ProcessProgressTracker:
         """
         # Acquire lock and copy process data to avoid race with complete_process()
         with self._lock:
-            if process_id not in self.processes:
+            state = self.batch.processes.get(process_id)
+            if state is None:
                 return {}
-            process = self.processes[process_id]
-            duration = cast("float", process["duration"])
-            start_time = cast("float", process["start_time"])
-            path = cast("str", process["path"])
+            duration = state.duration
+            start_time = state.start_time
+            path = state.path
 
         # Process buffer outside lock to avoid blocking other threads
         buffer = self.output_manager.get_buffer(process_id)
@@ -175,11 +177,12 @@ class ProcessProgressTracker:
 
         # Re-acquire lock to update process state (re-check it still exists)
         with self._lock:
-            if process_id not in self.processes:
+            state = self.batch.processes.get(process_id)
+            if state is None:
                 return {}  # Process was removed while we were processing
-            self.processes[process_id]["elapsed_sec"] = elapsed_sec
-            self.processes[process_id]["fps"] = fps
-            self.processes[process_id]["current_pct"] = pct
+            state.elapsed_sec = elapsed_sec
+            state.fps = fps
+            state.current_pct = pct
 
         # Prepare result with formatted times and progress data
         return {
@@ -199,9 +202,9 @@ class ProcessProgressTracker:
         """Force immediate batch processing for all active processes"""
         with self._lock:
             # Create a list copy to avoid modification during iteration
-            process_ids = list(self.processes.keys())
+            process_ids = list(self.batch.processes.keys())
             for process_id in process_ids:
-                if process_id in self.processes:  # Check if still exists
+                if process_id in self.batch.processes:  # Check if still exists
                     buffer = self.output_manager.get_buffer(process_id)
                     _ = buffer.force_process()
 
@@ -229,16 +232,16 @@ class ProcessProgressTracker:
             _ = self.output_manager.process_all_batches()
 
             # Calculate overall progress percentage (safe iteration under lock)
-            process_progress_sum: int = sum(
-                p["current_pct"] for p in self.processes.values()
+            process_progress_sum: float = sum(
+                state.current_pct for state in self.batch.processes.values()
             )
-            active_count = len(self.processes)
+            active_count = len(self.batch.processes)
 
             # Calculate weighted progress (completed files count as 100%)
-            if self.total_count > 0:  # Avoid division by zero
+            if self.batch.total > 0:  # Avoid division by zero
                 weighted_pct = (
-                    process_progress_sum + (self.completed_count * 100)
-                ) / self.total_count
+                    process_progress_sum + (self.batch.completed_count * 100)
+                ) / self.batch.total
             else:
                 weighted_pct = 0
 
@@ -317,10 +320,10 @@ class ProcessProgressTracker:
                 "total_eta": smoothed_eta,
                 "eta_str": self._format_time(smoothed_eta),
                 "active_count": active_count,
-                "completed_count": self.completed_count,
-                "failed_count": self.failed_count,
-                "success_count": self.completed_count - self.failed_count,
-                "total_count": self.total_count,
+                "completed_count": self.batch.completed_count,
+                "failed_count": self.batch.failed_count,
+                "success_count": self.batch.completed_count - self.batch.failed_count,
+                "total_count": self.batch.total,
             }
 
             # Cache the result (already under lock)
@@ -330,20 +333,18 @@ class ProcessProgressTracker:
             return result
 
     def get_codec_distribution(self, codec_map: dict[str, int]) -> dict[str, int]:
-        """Calculate distribution of active encoders by type (GPU/CPU)
+        """Calculate distribution of active encoders by type (GPU/CPU).
 
-        GPU codec indices: 0=H.264 NVENC, 1=HEVC NVENC, 2=AV1 NVENC, 5=H.264 QSV, 6=H.264 VAAPI
-        CPU codec indices: 3=H.264 CPU, 4=HEVC CPU, 7=ProRes, etc.
+        GPU vs CPU classification uses the registry-derived
+        ``CodecIndex.GPU_ENCODERS`` so codec facts live in a single place.
         """
-        # GPU encoders: NVENC (0, 1, 2), QSV (5), VAAPI (6)
-        GPU_CODEC_INDICES = (0, 1, 2, 5, 6)
         codec_counts = {"GPU": 0, "CPU": 0}
 
-        for _process_id, data in self.processes.items():
-            path = cast("str", data["path"])
+        for state in self.batch.processes.values():
+            path = state.path
             if path in codec_map:
                 codec_idx = codec_map[path]
-                codec_type = "GPU" if codec_idx in GPU_CODEC_INDICES else "CPU"
+                codec_type = "GPU" if codec_idx in CodecIndex.GPU_ENCODERS else "CPU"
                 codec_counts[codec_type] += 1
 
         return codec_counts
@@ -351,30 +352,25 @@ class ProcessProgressTracker:
     def get_process_progress(self, process_id: str) -> dict[str, Any] | None:  # pyright: ignore[reportExplicitAny]
         """Get progress information for a specific process"""
         with self._lock:
-            if process_id not in self.processes:
+            state = self.batch.processes.get(process_id)
+            if state is None:
                 return None
-
-            process = self.processes[process_id]
 
             # Check cache first
             current_time = time.time()
-            if (
-                "last_result" in process
-                and "last_result_time" in process
-                and current_time - cast("float", process["last_result_time"])
-                < 0.05  # 50ms cache
-            ):
-                return cast("dict[str, Any]", process["last_result"])  # pyright: ignore[reportExplicitAny]
+            cached = self._process_result_cache.get(process_id)
+            if cached is not None and current_time - cached[1] < 0.05:  # 50ms cache
+                return cached[0]
 
             # Get progress data while holding the lock
-            elapsed = current_time - cast("float", process["start_time"])
-            pct = cast("int", process["current_pct"])
+            elapsed = current_time - state.start_time
+            pct = state.current_pct
 
             # Apply the same smoothing algorithm used in overall progress
             if pct > 0:
                 # Calculate instantaneous rate if we have previous data
-                last_progress_value = cast("float", process["last_progress_value"])
-                last_progress_time = cast("float", process["last_progress_time"])
+                last_progress_value = state.last_progress_value
+                last_progress_time = state.last_progress_time
                 if last_progress_value > 0 and current_time > last_progress_time:
                     time_diff = current_time - last_progress_time
                     progress_diff = pct - last_progress_value
@@ -397,40 +393,36 @@ class ProcessProgressTracker:
                         )  # Max 12 hours for individual file
 
                         # Add to the list of recent ETAs for this process
-                        prev_eta_values = cast(
-                            "list[float]", process["prev_eta_values"]
-                        )
-                        prev_eta_values.append(raw_eta)
+                        state.prev_eta_values.append(raw_eta)
                         # Keep very small window for individual processes to be more responsive
-                        if len(prev_eta_values) > 2:
-                            _ = prev_eta_values.pop(0)
+                        if len(state.prev_eta_values) > 2:
+                            _ = state.prev_eta_values.pop(0)
 
                 # Use fallback calculation if we don't have enough data yet
-                prev_eta_values_list = cast("list[float]", process["prev_eta_values"])
-                if not prev_eta_values_list:
+                if not state.prev_eta_values:
                     basic_eta = (elapsed / pct) * (100 - pct)
-                    prev_eta_values_list.append(basic_eta)
+                    state.prev_eta_values.append(basic_eta)
 
                 # Calculate smoothed ETA using weighted moving average
                 weights = [
-                    i + 1 for i in range(len(prev_eta_values_list))
+                    i + 1 for i in range(len(state.prev_eta_values))
                 ]  # More weight to recent values
                 total_weight = sum(weights)
                 smoothed_eta = sum(
                     eta * (w / total_weight)
-                    for eta, w in zip(prev_eta_values_list, weights, strict=True)
+                    for eta, w in zip(state.prev_eta_values, weights, strict=True)
                 )
 
                 # Apply sanity check - ETA shouldn't increase significantly when progress is high
-                if pct > 80 and len(prev_eta_values_list) > 1:
+                if pct > 80 and len(state.prev_eta_values) > 1:
                     # Don't let ETA increase by more than 20% when we're near the end
-                    previous_eta = prev_eta_values_list[-2]
+                    previous_eta = state.prev_eta_values[-2]
                     if smoothed_eta > previous_eta * 1.2:
                         smoothed_eta = previous_eta * 1.2
 
                 # Store current values for next calculation
-                process["last_progress_time"] = current_time
-                process["last_progress_value"] = pct
+                state.last_progress_time = current_time
+                state.last_progress_value = pct
 
                 remain = smoothed_eta
             else:
@@ -440,19 +432,18 @@ class ProcessProgressTracker:
             result = {
                 "process_id": process_id,
                 "current_pct": pct,
-                "elapsed_sec": process.get("elapsed_sec", 0),
-                "duration": process["duration"],
-                "fps": process["fps"],
+                "elapsed_sec": state.elapsed_sec,
+                "duration": state.duration,
+                "fps": state.fps,
                 "elapsed": elapsed,
                 "elapsed_str": self._format_time(elapsed),
                 "remain": remain,
                 "remain_str": self._format_time(remain),
-                "path": process["path"],
+                "path": state.path,
             }
 
             # Cache the result (still under lock, process guaranteed to exist)
-            process["last_result"] = result
-            process["last_result_time"] = current_time
+            self._process_result_cache[process_id] = (result, current_time)
 
             return result
 

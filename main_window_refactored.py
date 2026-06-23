@@ -32,6 +32,7 @@ from PySide6.QtWidgets import (
 from config import AppConfig, LogConfig
 from conversion_controller import ConversionController
 from domain.settings import ConversionSettings
+from domain.status import FileStatus
 
 # Import our focused classes
 from file_list_widget import FileListWidget
@@ -723,9 +724,12 @@ class MainWindow(QMainWindow):
                 # Only update status and progress for pending/processing files
                 # Don't overwrite completed/failed status
                 current_status = self.file_list.get_item_status(path)
-                if progress_pct > 0 and current_status in ["pending", "processing"]:
-                    if current_status == "pending":
-                        self.file_list.set_status(path, "processing")
+                if progress_pct > 0 and current_status in (
+                    FileStatus.PENDING.value,
+                    FileStatus.PROCESSING.value,
+                ):
+                    if current_status == FileStatus.PENDING.value:
+                        self.file_list.set_status(path, FileStatus.PROCESSING.value)
                     self.file_list.update_progress(path, progress_pct)
 
     def _handle_ui_updates(self, updates: dict[str, object]) -> None:

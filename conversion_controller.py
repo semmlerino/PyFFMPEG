@@ -21,7 +21,9 @@ if TYPE_CHECKING:
     from process_manager import ProcessManager
     from process_monitor import ProcessMonitor
 
-from config import EncodingConfig, ValidationConfig
+from config import CodecIndex, EncodingConfig, ValidationConfig
+from domain.codec import codec_by_index
+from domain.status import FileStatus
 from encoding.arg_builder import CodecArgBuilder
 from hardware.probe import HARDWARE_PROBE
 from logging_config import PyFFMPEGLogger, get_logger
@@ -133,6 +135,16 @@ class ConversionController(QObject):
         """Set the file list widget for status updates"""
         self.file_list_widget = file_list_widget
 
+    def _set_file_status(self, path: str, status: FileStatus) -> None:
+        """Route a file-list status update through a single sink.
+
+        Centralizes the file-list-widget guard and maps the domain FileStatus
+        enum to the string value the widget currently consumes, so no status
+        string literals leak into the conversion workflow.
+        """
+        if self.file_list_widget:
+            _ = self.file_list_widget.set_status(path, status.value)
+
     def start_conversion(
         self, file_paths: list[str], settings: ConversionSettings
     ) -> bool:
@@ -164,8 +176,8 @@ class ConversionController(QObject):
             file_paths, settings.parallel_enabled, settings.max_parallel
         )
 
-        # Store conversion settings (unpacked onto the controller for now; Phase 4
-        # consolidates these into the domain objects).
+        # Spread the typed ConversionSettings onto individual controller
+        # attributes; the arg-builder and scheduler read these directly.
         self.codec_idx = settings.codec_idx
         self.hwdecode_idx = settings.hwdecode_idx
         self.crf_value = settings.crf_value
@@ -405,8 +417,7 @@ class ConversionController(QObject):
             self.log_message.emit("❌ FFmpeg not found in PATH - cannot process files")
             # Mark all remaining files as failed and update progress tracking
             for remaining_path in self.queue:
-                if self.file_list_widget:
-                    _ = self.file_list_widget.set_status(remaining_path, "failed")
+                self._set_file_status(remaining_path, FileStatus.FAILED)
                 # Count as failed (not skipped) for accurate progress breakdown
                 self.process_manager.progress_tracker.mark_file_failed()
             self.queue.clear()
@@ -432,8 +443,7 @@ class ConversionController(QObject):
                 self.log_message.emit(
                     f"⏭️ Skipped (output exists): {os.path.basename(file_path)}"
                 )
-                if self.file_list_widget:
-                    _ = self.file_list_widget.set_status(file_path, "skipped")
+                self._set_file_status(file_path, FileStatus.SKIPPED)
                 # Mark as completed for progress tracking (skipped counts toward total)
                 self.process_manager.progress_tracker.mark_file_skipped()
                 self._process_next()
@@ -442,8 +452,7 @@ class ConversionController(QObject):
         self.log_message.emit(f"📂 Preparing: {os.path.basename(file_path)}")
 
         # Update file list status to processing
-        if self.file_list_widget:
-            _ = self.file_list_widget.set_status(file_path, "processing")
+        self._set_file_status(file_path, FileStatus.PROCESSING)
 
         # Queue async prep worker to avoid blocking UI with subprocess calls
         # Worker will probe duration and detect audio codec in background
@@ -590,12 +599,15 @@ class ConversionController(QObject):
         )
 
     def _auto_balance_workload(self, file_paths: list[str], default_codec: int) -> None:
-        """Auto-balance workload between GPU and CPU encoders
+        """Auto-balance workload between GPU and CPU encoders.
 
         Uses the user's selected codec as a base:
-        - If user selected a GPU codec (NVENC/QSV/VAAPI), GPU files use that codec
-        - CPU files always use x264 (codec index 3) for software encoding
-        - AV1 NVENC (codec 2) requires RTX 40 series; falls back to H.264 NVENC if unavailable
+        - If the user selected a GPU codec (NVENC/QSV/VAAPI), GPU files use it
+        - CPU files always use x264 for software encoding
+        - AV1 NVENC requires RTX 40 series; falls back to H.264 NVENC if absent
+
+        Codec indices and display names come from the registry-derived
+        ``CodecIndex`` / ``codec_by_index`` so codec facts are not duplicated here.
         """
         self.log_message.emit("⚖️ Auto-balancing workload between GPU and CPU...")
 
@@ -603,37 +615,28 @@ class ConversionController(QObject):
         gpu_count = int(total_files * EncodingConfig.GPU_RATIO_DEFAULT)
         cpu_count = total_files - gpu_count
 
-        # Determine GPU codec based on user's selection
-        # GPU codecs: 0=H.264 NVENC, 1=HEVC NVENC, 2=AV1 NVENC, 5=H.264 QSV, 6=H.264 VAAPI
-        # CPU codecs: 3=x264, 4=ProRes
-        gpu_codec_indices = (0, 1, 2, 5, 6)
-        # Use user's GPU codec if selected, otherwise fallback to H.264 NVENC
-        gpu_codec = default_codec if default_codec in gpu_codec_indices else 0
+        # Use the user's GPU codec if they selected one, else fall back to H.264 NVENC
+        gpu_codec = (
+            default_codec
+            if default_codec in CodecIndex.GPU_ENCODERS
+            else CodecIndex.H264_NVENC
+        )
 
-        # AV1 NVENC (codec 2) requires RTX 40 series GPU
-        if gpu_codec == 2 and not HARDWARE_PROBE.detect_rtx40():
+        # AV1 NVENC requires an RTX 40 series GPU
+        if gpu_codec == CodecIndex.AV1_NVENC and not HARDWARE_PROBE.detect_rtx40():
             self.log_message.emit(
                 "⚠️ AV1 NVENC requires RTX 40 series - falling back to H.264 NVENC"
             )
-            gpu_codec = 0  # Fallback to H.264 NVENC
+            gpu_codec = CodecIndex.H264_NVENC
 
-        # Assign codecs based on position in queue
+        # Assign codecs based on position in queue (GPU first, then CPU x264)
         for i, path in enumerate(file_paths):
-            if i < gpu_count:
-                # Use user's selected GPU codec
-                self.file_codec_assignments[path] = gpu_codec
-            else:
-                # Use software x264 for CPU (codec index 3)
-                self.file_codec_assignments[path] = 3
+            self.file_codec_assignments[path] = (
+                gpu_codec if i < gpu_count else CodecIndex.X264_CPU
+            )
 
-        codec_names = {
-            0: "H.264 NVENC",
-            1: "HEVC NVENC",
-            2: "AV1 NVENC",
-            5: "H.264 QSV",
-            6: "H.264 VAAPI",
-        }
-        gpu_name = codec_names.get(gpu_codec, "GPU")
+        gpu_codec_obj = codec_by_index(gpu_codec)
+        gpu_name = gpu_codec_obj.display_name if gpu_codec_obj else "GPU"
         self.log_message.emit(
             f"📊 Balanced: {gpu_count} {gpu_name}, {cpu_count} x264 CPU"
         )
@@ -649,7 +652,7 @@ class ConversionController(QObject):
             if self.file_list_widget:
                 # Ensure progress shows 100% before marking as completed
                 _ = self.file_list_widget.update_progress(process_path, 100)
-                _ = self.file_list_widget.set_status(process_path, "completed")
+            self._set_file_status(process_path, FileStatus.COMPLETED)
 
             # Handle source file deletion if enabled - with ffprobe output verification
             if self.delete_source:
@@ -692,8 +695,7 @@ class ConversionController(QObject):
             )
 
             # Update file list status to failed
-            if self.file_list_widget:
-                _ = self.file_list_widget.set_status(process_path, "failed")
+            self._set_file_status(process_path, FileStatus.FAILED)
 
         # Continue processing (handles both parallel and sequential modes)
         # Always call _process_next() to properly detect conversion completion
