@@ -21,8 +21,9 @@ if TYPE_CHECKING:
     from process_manager import ProcessManager
     from process_monitor import ProcessMonitor
 
-from codec_helpers import CodecHelpers
 from config import EncodingConfig, ValidationConfig
+from encoding.arg_builder import CodecArgBuilder
+from hardware.probe import HARDWARE_PROBE
 from logging_config import PyFFMPEGLogger, get_logger
 from progress_tracker import ProcessProgressTracker
 
@@ -53,7 +54,7 @@ class ConversionPrepWorker(QRunnable):
         """Execute probe operations in background thread."""
         # These subprocess calls can take up to 30s each - run off main thread
         duration = ProcessProgressTracker.probe_duration(self.file_path) or 0.0
-        audio_args, audio_msg = CodecHelpers.get_audio_codec_args(
+        audio_args, audio_msg = CodecArgBuilder.get_audio_codec_args(
             self.file_path, self.codec_idx
         )
         self.signals.prep_complete.emit(self.file_path, duration, audio_args, audio_msg)
@@ -422,7 +423,7 @@ class ConversionController(QObject):
         # Pre-check: Skip file if output exists and overwrite is disabled
         # This provides clear feedback instead of FFmpeg's silent -n behavior
         if not self.overwrite_mode:
-            output_ext = CodecHelpers.get_output_extension(codec_idx)
+            output_ext = CodecArgBuilder.get_output_extension(codec_idx)
             input_name = os.path.splitext(os.path.basename(file_path))[0]
             output_path = os.path.join(
                 os.path.dirname(file_path), f"{input_name}_RC{output_ext}"
@@ -504,7 +505,7 @@ class ConversionController(QObject):
         For non-blocking operation, use _build_ffmpeg_args_with_audio instead.
         """
         # Get audio codec configuration (blocking subprocess call)
-        audio_args, audio_message = CodecHelpers.get_audio_codec_args(
+        audio_args, audio_message = CodecArgBuilder.get_audio_codec_args(
             input_path, codec_idx
         )
         return self._build_ffmpeg_args_with_audio(
@@ -530,7 +531,7 @@ class ConversionController(QObject):
         args = ["-y"] if self.overwrite_mode else ["-n"]
 
         # Add hardware acceleration if enabled
-        hw_args, hw_message = CodecHelpers.get_hardware_acceleration_args(
+        hw_args, hw_message = CodecArgBuilder.get_hardware_acceleration_args(
             self.hwdecode_idx
         )
         args.extend(hw_args)
@@ -552,7 +553,7 @@ class ConversionController(QObject):
             if self.threads > 0
             else self._optimize_threads_for_codec(codec_idx)
         )
-        encoder_args, encoder_message = CodecHelpers.get_encoder_configuration(
+        encoder_args, encoder_message = CodecArgBuilder.get_encoder_configuration(
             codec_idx,
             thread_count,
             self.parallel_enabled,
@@ -565,13 +566,12 @@ class ConversionController(QObject):
             self.log_message.emit(f"🎬 {encoder_message}")
 
         # Output file
-        output_ext = CodecHelpers.get_output_extension(codec_idx)
+        output_ext = CodecArgBuilder.get_output_extension(codec_idx)
         input_name = os.path.splitext(os.path.basename(input_path))[0]
         output_path = os.path.join(
             os.path.dirname(input_path), f"{input_name}_RC{output_ext}"
         )
         args.append(output_path)
-
         return args
 
     def _get_codec_for_path(self, path: str) -> int:
@@ -585,7 +585,7 @@ class ConversionController(QObject):
         if codec_idx is None:
             codec_idx = self.codec_idx
 
-        return CodecHelpers.optimize_threads_for_codec(
+        return CodecArgBuilder.optimize_threads_for_codec(
             codec_idx, self.parallel_enabled, self.file_codec_assignments
         )
 
@@ -611,7 +611,7 @@ class ConversionController(QObject):
         gpu_codec = default_codec if default_codec in gpu_codec_indices else 0
 
         # AV1 NVENC (codec 2) requires RTX 40 series GPU
-        if gpu_codec == 2 and not CodecHelpers.detect_rtx40_series():
+        if gpu_codec == 2 and not HARDWARE_PROBE.detect_rtx40():
             self.log_message.emit(
                 "⚠️ AV1 NVENC requires RTX 40 series - falling back to H.264 NVENC"
             )
@@ -660,7 +660,7 @@ class ConversionController(QObject):
                     codec_idx = self.process_manager.codec_map.get(
                         process_path, self.codec_idx
                     )
-                    output_ext = CodecHelpers.get_output_extension(codec_idx)
+                    output_ext = CodecArgBuilder.get_output_extension(codec_idx)
                     input_name = os.path.splitext(os.path.basename(process_path))[0]
                     output_path = os.path.join(
                         os.path.dirname(process_path), f"{input_name}_RC{output_ext}"

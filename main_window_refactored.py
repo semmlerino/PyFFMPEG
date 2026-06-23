@@ -29,13 +29,13 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from codec_helpers import GPUDetector
 from config import AppConfig, LogConfig
 from conversion_controller import ConversionController
 from domain.settings import ConversionSettings
 
 # Import our focused classes
 from file_list_widget import FileListWidget
+from hardware.gpu_detector import GPUDetector
 from process_manager import ProcessManager
 from process_monitor import ProcessMonitor
 from settings_panel import SettingsPanel
@@ -123,7 +123,7 @@ class MainWindow(QMainWindow):
         """Handle GPU detection result from async check.
 
         Updates status bar with GPU information for user feedback.
-        The CodecHelpers cache is already updated by GPUDetector.
+        The HARDWARE_PROBE cache is already updated by GPUDetector.
         """
         if has_gpu and gpu_name:
             # Show brief GPU info in status if not converting

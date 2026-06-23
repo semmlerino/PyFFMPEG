@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Unit tests for CodecHelpers class
+Unit tests for codec arg builder and hardware probe
 Tests hardware detection, encoder configuration, and fallback logic
 """
 
@@ -9,8 +9,9 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from codec_helpers import CodecHelpers
 from config import EncodingConfig, ProcessConfig
+from encoding.arg_builder import CodecArgBuilder
+from hardware.probe import HARDWARE_PROBE
 from metadata.probe import MetadataProbe
 from sizing.estimator import SizeEstimator
 from tests.fixtures.mocks import (
@@ -21,15 +22,15 @@ from tests.fixtures.mocks import (
 
 
 class TestCodecHelpers:
-    """Test suite for CodecHelpers static class"""
+    """Test suite for CodecArgBuilder static class"""
 
     def setup_method(self):
         """Clear cache before each test"""
-        CodecHelpers.clear_cache()
+        HARDWARE_PROBE.clear()
 
     def teardown_method(self):
         """Clear cache after each test"""
-        CodecHelpers.clear_cache()
+        HARDWARE_PROBE.clear()
 
 
 class TestOutputExtensions:
@@ -37,27 +38,27 @@ class TestOutputExtensions:
 
     def test_h264_extension(self):
         """Test H.264 codec extensions"""
-        assert CodecHelpers.get_output_extension(0) == ".mkv"  # H.264 NVENC
-        assert CodecHelpers.get_output_extension(3) == ".mkv"  # x264 CPU
-        assert CodecHelpers.get_output_extension(5) == ".mkv"  # H.264 QSV
-        assert CodecHelpers.get_output_extension(6) == ".mkv"  # H.264 VAAPI
+        assert CodecArgBuilder.get_output_extension(0) == ".mkv"  # H.264 NVENC
+        assert CodecArgBuilder.get_output_extension(3) == ".mkv"  # x264 CPU
+        assert CodecArgBuilder.get_output_extension(5) == ".mkv"  # H.264 QSV
+        assert CodecArgBuilder.get_output_extension(6) == ".mkv"  # H.264 VAAPI
 
     def test_hevc_extension(self):
         """Test HEVC codec extensions"""
-        assert CodecHelpers.get_output_extension(1) == ".mkv"  # HEVC NVENC
+        assert CodecArgBuilder.get_output_extension(1) == ".mkv"  # HEVC NVENC
 
     def test_av1_extension(self):
         """Test AV1 codec extensions"""
-        assert CodecHelpers.get_output_extension(2) == ".mkv"  # AV1 NVENC
+        assert CodecArgBuilder.get_output_extension(2) == ".mkv"  # AV1 NVENC
 
     def test_prores_extension(self):
         """Test ProRes codec extensions"""
-        assert CodecHelpers.get_output_extension(4) == ".mov"  # ProRes CPU
+        assert CodecArgBuilder.get_output_extension(4) == ".mov"  # ProRes CPU
 
     def test_unknown_codec_default(self):
         """Test default extension for unknown codecs"""
-        assert CodecHelpers.get_output_extension(99) == ".mkv"
-        assert CodecHelpers.get_output_extension(-1) == ".mkv"
+        assert CodecArgBuilder.get_output_extension(99) == ".mkv"
+        assert CodecArgBuilder.get_output_extension(-1) == ".mkv"
 
 
 class TestHardwareAcceleration:
@@ -67,11 +68,11 @@ class TestHardwareAcceleration:
     def test_auto_acceleration_with_nvidia(self, mock_subprocess):
         """Test auto hardware acceleration with NVIDIA GPU"""
         # Clear the GPU info cache first
-        CodecHelpers._gpu_info_cache = None
+        HARDWARE_PROBE.clear()
 
         mock_subprocess.return_value = MockGPUDetection.rtx4090_detected().encode()
 
-        args, message = CodecHelpers.get_hardware_acceleration_args(0)  # Auto
+        args, message = CodecArgBuilder.get_hardware_acceleration_args(0)  # Auto
 
         assert "-hwaccel" in args
         assert "cuda" in args
@@ -82,11 +83,11 @@ class TestHardwareAcceleration:
     def test_auto_acceleration_no_gpu(self, mock_subprocess):
         """Test auto hardware acceleration fallback when no GPU"""
         # Clear the GPU info cache first
-        CodecHelpers._gpu_info_cache = None
+        HARDWARE_PROBE.clear()
 
         mock_subprocess.side_effect = subprocess.CalledProcessError(1, "nvidia-smi")
 
-        args, message = CodecHelpers.get_hardware_acceleration_args(0)  # Auto
+        args, message = CodecArgBuilder.get_hardware_acceleration_args(0)  # Auto
 
         assert "-hwaccel" in args
         assert "auto" in args
@@ -94,14 +95,14 @@ class TestHardwareAcceleration:
 
     def test_explicit_nvidia_acceleration(self):
         """Test explicit NVIDIA acceleration"""
-        args, message = CodecHelpers.get_hardware_acceleration_args(1)  # NVIDIA
+        args, message = CodecArgBuilder.get_hardware_acceleration_args(1)  # NVIDIA
 
         assert args == ["-hwaccel", "cuda"]
         assert "CUDA" in message
 
     def test_explicit_qsv_acceleration(self):
         """Test explicit Intel QSV acceleration with surface output"""
-        args, message = CodecHelpers.get_hardware_acceleration_args(2)  # Intel QSV
+        args, message = CodecArgBuilder.get_hardware_acceleration_args(2)  # Intel QSV
 
         # QSV now includes hwaccel_output_format for proper hardware surface pipeline
         assert args == ["-hwaccel", "qsv", "-hwaccel_output_format", "qsv"]
@@ -111,7 +112,7 @@ class TestHardwareAcceleration:
     @patch("os.name", "posix")
     def test_vaapi_acceleration_linux(self):
         """Test VAAPI acceleration on Linux"""
-        args, message = CodecHelpers.get_hardware_acceleration_args(3)  # VAAPI
+        args, message = CodecArgBuilder.get_hardware_acceleration_args(3)  # VAAPI
 
         assert "-hwaccel" in args
         assert "vaapi" in args
@@ -121,7 +122,7 @@ class TestHardwareAcceleration:
     @patch("os.name", "nt")
     def test_vaapi_acceleration_windows_fallback(self):
         """Test VAAPI acceleration fallback on Windows"""
-        args, message = CodecHelpers.get_hardware_acceleration_args(3)  # VAAPI
+        args, message = CodecArgBuilder.get_hardware_acceleration_args(3)  # VAAPI
 
         assert "-hwaccel" in args
         assert "auto" in args
@@ -131,11 +132,11 @@ class TestHardwareAcceleration:
     def test_hardware_acceleration_timeout(self, mock_subprocess):
         """Test hardware acceleration with subprocess timeout"""
         # Clear the GPU info cache first
-        CodecHelpers._gpu_info_cache = None
+        HARDWARE_PROBE.clear()
 
         mock_subprocess.side_effect = subprocess.TimeoutExpired("nvidia-smi", 10)
 
-        args, message = CodecHelpers.get_hardware_acceleration_args(0)  # Auto
+        args, message = CodecArgBuilder.get_hardware_acceleration_args(0)  # Auto
 
         # When GPU detection times out, it falls back to auto
         assert "-hwaccel" in args
@@ -153,7 +154,7 @@ class TestAudioCodecConfiguration:
         mock_result.stdout = "aac"
         mock_subprocess.return_value = mock_result
 
-        args, message = CodecHelpers.get_audio_codec_args("/test/input.ts", 0)
+        args, message = CodecArgBuilder.get_audio_codec_args("/test/input.ts", 0)
 
         assert args == ["-c:a", "copy"]
         assert "aac" in message
@@ -166,7 +167,7 @@ class TestAudioCodecConfiguration:
         mock_result.stdout = "ac3"
         mock_subprocess.return_value = mock_result
 
-        args, message = CodecHelpers.get_audio_codec_args("/test/input.ts", 0)
+        args, message = CodecArgBuilder.get_audio_codec_args("/test/input.ts", 0)
 
         assert args == ["-c:a", "copy"]
         assert "ac3" in message
@@ -178,7 +179,9 @@ class TestAudioCodecConfiguration:
         mock_result.stdout = "mp3"  # Non-passthrough codec
         mock_subprocess.return_value = mock_result
 
-        args, message = CodecHelpers.get_audio_codec_args("/test/input.ts", 4)  # ProRes
+        args, message = CodecArgBuilder.get_audio_codec_args(
+            "/test/input.ts", 4
+        )  # ProRes
 
         assert args == ["-c:a", "pcm_s16le"]
         assert "PCM" in message
@@ -190,7 +193,7 @@ class TestAudioCodecConfiguration:
         mock_result.stdout = "mp3"
         mock_subprocess.return_value = mock_result
 
-        args, message = CodecHelpers.get_audio_codec_args("/test/input.ts", 0)
+        args, message = CodecArgBuilder.get_audio_codec_args("/test/input.ts", 0)
 
         expected_bitrate = f"{EncodingConfig.AUDIO_BITRATE_DEFAULT}k"
         assert args == ["-c:a", "aac", "-b:a", expected_bitrate]
@@ -204,7 +207,7 @@ class TestAudioCodecConfiguration:
             "ffprobe", ProcessConfig.SUBPROCESS_TIMEOUT
         )
 
-        args, message = CodecHelpers.get_audio_codec_args("/test/input.ts", 0)
+        args, message = CodecArgBuilder.get_audio_codec_args("/test/input.ts", 0)
 
         # Should fallback to AAC encoding
         expected_bitrate = f"{EncodingConfig.AUDIO_BITRATE_DEFAULT}k"
@@ -220,7 +223,7 @@ class TestEncoderConfiguration:
         """Test H.264 NVENC encoder configuration"""
         mock_subprocess.return_value = MockEncoderDetection.full_nvenc_support()
 
-        args, message = CodecHelpers.get_encoder_configuration(
+        args, message = CodecArgBuilder.get_encoder_configuration(
             0, 4, False, 18
         )  # H.264 NVENC (codec_idx=0)
 
@@ -235,7 +238,7 @@ class TestEncoderConfiguration:
         """Test HEVC NVENC encoder configuration"""
         mock_subprocess.return_value = MockEncoderDetection.full_nvenc_support()
 
-        args, message = CodecHelpers.get_encoder_configuration(
+        args, message = CodecArgBuilder.get_encoder_configuration(
             1, 4, False, 18
         )  # HEVC NVENC (codec_idx=1)
 
@@ -250,7 +253,7 @@ class TestEncoderConfiguration:
         """Test AV1 NVENC encoder configuration"""
         mock_subprocess.return_value = MockEncoderDetection.full_nvenc_support()
 
-        args, message = CodecHelpers.get_encoder_configuration(
+        args, message = CodecArgBuilder.get_encoder_configuration(
             2, 4, False, 18
         )  # AV1 NVENC (codec_idx=2)
 
@@ -262,7 +265,9 @@ class TestEncoderConfiguration:
 
     def test_x264_software_configuration(self):
         """Test x264 software encoder configuration"""
-        args, message = CodecHelpers.get_encoder_configuration(3, 6, False, 18)  # x264
+        args, message = CodecArgBuilder.get_encoder_configuration(
+            3, 6, False, 18
+        )  # x264
 
         assert "-c:v" in args
         assert "libx264" in args
@@ -274,7 +279,7 @@ class TestEncoderConfiguration:
 
     def test_x264_parallel_no_threads(self):
         """Test x264 in parallel mode doesn't set threads"""
-        args, _message = CodecHelpers.get_encoder_configuration(
+        args, _message = CodecArgBuilder.get_encoder_configuration(
             3, 0, True, 18
         )  # x264, thread_count=0 (means auto-detect)
 
@@ -287,7 +292,7 @@ class TestEncoderConfiguration:
         """Test ProRes encoder configuration"""
         mock_subprocess.return_value = MockEncoderDetection.software_only()
 
-        args, message = CodecHelpers.get_encoder_configuration(
+        args, message = CodecArgBuilder.get_encoder_configuration(
             4, 4, False, 18
         )  # ProRes
 
@@ -304,7 +309,7 @@ class TestEncoderConfiguration:
         """Test fallback to x264 when requested encoder unavailable"""
         mock_subprocess.return_value = MockEncoderDetection.software_only()  # No NVENC
 
-        args, message = CodecHelpers.get_encoder_configuration(
+        args, message = CodecArgBuilder.get_encoder_configuration(
             0, 4, False, 18
         )  # H.264 NVENC (codec_idx=0)
 
@@ -319,7 +324,7 @@ class TestEncoderConfiguration:
             "subprocess.check_output",
             side_effect=subprocess.CalledProcessError(1, "ffmpeg"),
         ):
-            args, message = CodecHelpers.get_encoder_configuration(1, 4, False, 18)
+            args, message = CodecArgBuilder.get_encoder_configuration(1, 4, False, 18)
 
             # Implementation returns the requested encoder even if detection fails
             assert "-c:v" in args
@@ -333,13 +338,13 @@ class TestThreadOptimization:
     def test_nvenc_thread_optimization(self):
         """Test NVENC encoders use minimal threads"""
         for codec_idx in [0, 1, 2]:  # All NVENC variants
-            threads = CodecHelpers.optimize_threads_for_codec(codec_idx, True, None)
+            threads = CodecArgBuilder.optimize_threads_for_codec(codec_idx, True, None)
             assert threads == 2
 
     @patch("os.cpu_count", return_value=16)
     def test_single_cpu_job_auto_threads(self, mock_cpu_count):
         """Test single CPU job uses most threads minus system reserve"""
-        threads = CodecHelpers.optimize_threads_for_codec(
+        threads = CodecArgBuilder.optimize_threads_for_codec(
             3, False, None
         )  # x264, not parallel
         assert threads == 12  # 16 - 4 reserved for system
@@ -354,7 +359,7 @@ class TestThreadOptimization:
             "/file4.ts": 3,  # CPU
         }
 
-        threads = CodecHelpers.optimize_threads_for_codec(3, True, file_assignments)
+        threads = CodecArgBuilder.optimize_threads_for_codec(3, True, file_assignments)
 
         # 3 CPU jobs, 16 cores -> (16-2)/3 = 14/3 = 4
         assert threads == 4
@@ -362,7 +367,7 @@ class TestThreadOptimization:
     @patch("os.cpu_count", return_value=None)
     def test_cpu_count_none_fallback(self, mock_cpu_count):
         """Test fallback when cpu_count returns None"""
-        threads = CodecHelpers.optimize_threads_for_codec(3, True, None)
+        threads = CodecArgBuilder.optimize_threads_for_codec(3, True, None)
 
         # Should use ProcessConfig.OPTIMAL_CPU_THREADS as fallback
         # For parallel with no assignments, cpu_jobs defaults to 2
@@ -375,7 +380,7 @@ class TestCachingMechanisms:
 
     def setup_method(self):
         """Clear caches before each test"""
-        CodecHelpers.clear_cache()
+        HARDWARE_PROBE.clear()
 
     @patch("subprocess.check_output")
     def test_encoder_detection_caching(self, mock_subprocess):
@@ -383,10 +388,10 @@ class TestCachingMechanisms:
         mock_subprocess.return_value = MockEncoderDetection.full_nvenc_support()
 
         # First call
-        result1 = CodecHelpers._get_available_encoders()
+        result1 = HARDWARE_PROBE.available_encoders()
 
         # Second call should use cache
-        result2 = CodecHelpers._get_available_encoders()
+        result2 = HARDWARE_PROBE.available_encoders()
 
         assert result1 == result2
         mock_subprocess.assert_called_once()  # Should only call subprocess once
@@ -397,10 +402,10 @@ class TestCachingMechanisms:
         mock_subprocess.return_value = MockGPUDetection.rtx4090_detected().encode()
 
         # First call
-        result1 = CodecHelpers._get_gpu_info()
+        result1 = HARDWARE_PROBE.gpu_info()
 
         # Second call should use cache
-        result2 = CodecHelpers._get_gpu_info()
+        result2 = HARDWARE_PROBE.gpu_info()
 
         assert result1 == result2
         mock_subprocess.assert_called_once()
@@ -411,28 +416,35 @@ class TestCachingMechanisms:
         mock_subprocess.return_value = MockGPUDetection.rtx4090_detected().encode()
 
         # First call
-        result1 = CodecHelpers.detect_rtx40_series()
+        result1 = HARDWARE_PROBE.detect_rtx40()
 
         # Second call should use cache
-        result2 = CodecHelpers.detect_rtx40_series()
+        result2 = HARDWARE_PROBE.detect_rtx40()
 
         assert result1 == result2 is True
         mock_subprocess.assert_called_once()
 
     def test_cache_clearing(self):
         """Test cache clearing functionality"""
-        # Populate cache
-        CodecHelpers._encoder_cache = "test_data"
-        CodecHelpers._gpu_info_cache = "test_gpu"
-        CodecHelpers._rtx40_detection_cache = True
+        # Populate cache via public API
+        HARDWARE_PROBE.update_cache(
+            has_gpu=True,
+            gpu_name="NVIDIA GeForce RTX 4090",
+            available_encoders="h264_nvenc",
+        )
+
+        # Verify cache is populated
+        assert HARDWARE_PROBE.get_cached_gpu_info() is not None
+        assert HARDWARE_PROBE.get_cached_encoder_info() is not None
+        assert HARDWARE_PROBE.is_rtx40_cached() is not None
 
         # Clear cache
-        CodecHelpers.clear_cache()
+        HARDWARE_PROBE.clear()
 
         # Verify cache is cleared
-        assert CodecHelpers._encoder_cache is None
-        assert CodecHelpers._gpu_info_cache is None
-        assert CodecHelpers._rtx40_detection_cache is None
+        assert HARDWARE_PROBE.get_cached_gpu_info() is None
+        assert HARDWARE_PROBE.get_cached_encoder_info() is None
+        assert HARDWARE_PROBE.is_rtx40_cached() is None
 
 
 class TestRTX40Detection:
@@ -456,25 +468,23 @@ class TestRTX40Detection:
     def test_rtx40_model_detection(self, mock_subprocess, gpu_model, expected):
         """Test RTX 40 series model detection"""
         # Clear cache before test
-        CodecHelpers._gpu_info_cache = None
-        CodecHelpers._rtx40_detection_cache = None
+        HARDWARE_PROBE.clear()
 
         gpu_info = f"GPU 0: NVIDIA GeForce {gpu_model}"
         mock_subprocess.return_value = gpu_info.encode()
 
-        result = CodecHelpers.detect_rtx40_series()
+        result = HARDWARE_PROBE.detect_rtx40()
         assert result == expected
 
     @patch("subprocess.check_output")
     def test_rtx40_detection_exception(self, mock_subprocess):
         """Test RTX40 detection with exception"""
         # Clear cache before test
-        CodecHelpers._gpu_info_cache = None
-        CodecHelpers._rtx40_detection_cache = None
+        HARDWARE_PROBE.clear()
 
         mock_subprocess.side_effect = subprocess.CalledProcessError(1, "nvidia-smi")
 
-        result = CodecHelpers.detect_rtx40_series()
+        result = HARDWARE_PROBE.detect_rtx40()
         assert not result
 
 
@@ -485,7 +495,7 @@ class TestHardwareTestMatrix:
     def test_hardware_configurations(self, hardware_config):
         """Test various hardware configurations"""
         # Clear cache before each test configuration
-        CodecHelpers.clear_cache()
+        HARDWARE_PROBE.clear()
 
         with patch("subprocess.check_output") as mock_subprocess:
             # Configure mocks based on test scenario
@@ -502,7 +512,7 @@ class TestHardwareTestMatrix:
             mock_subprocess.side_effect = [encoder_result, gpu_result]
 
             # Test encoder availability
-            encoders = CodecHelpers._get_available_encoders()
+            encoders = HARDWARE_PROBE.available_encoders()
             expected_codec = hardware_config["expected_primary_codec"]
             assert expected_codec in encoders
 
@@ -520,23 +530,23 @@ class TestCodecHelpersEdgeCases:
     def test_invalid_codec_indices(self):
         """Test handling of invalid codec indices"""
         # Should not crash and return reasonable defaults
-        extension = CodecHelpers.get_output_extension(-5)
+        extension = CodecArgBuilder.get_output_extension(-5)
         assert extension == ".mkv"
 
-        extension = CodecHelpers.get_output_extension(999)
+        extension = CodecArgBuilder.get_output_extension(999)
         assert extension == ".mkv"
 
     def test_crf_value_passthrough(self):
         """Test CRF value is passed through without clamping"""
         # Clear cache before test
-        CodecHelpers.clear_cache()
+        HARDWARE_PROBE.clear()
 
         with patch(
             "subprocess.check_output",
             return_value=MockEncoderDetection.full_nvenc_support(),
         ):
             # Test high CRF value is passed through as-is
-            args, _ = CodecHelpers.get_encoder_configuration(1, 4, False, 100)
+            args, _ = CodecArgBuilder.get_encoder_configuration(1, 4, False, 100)
 
             cq_idx = args.index("-cq") + 1
             cq_value = int(args[cq_idx])
@@ -545,26 +555,25 @@ class TestCodecHelpersEdgeCases:
     def test_empty_encoder_output(self):
         """Test handling of empty encoder detection output"""
         # Clear cache first
-        CodecHelpers._encoder_cache = None
+        HARDWARE_PROBE.clear()
 
         with patch("subprocess.check_output", return_value=""):
-            encoders = CodecHelpers._get_available_encoders()
+            encoders = HARDWARE_PROBE.available_encoders()
             # Empty output is still cached and returned as empty string
             assert encoders == ""
 
             # When encoder detection fails (empty output), it falls back to libx264
-            args, message = CodecHelpers.get_encoder_configuration(1, 4, False, 18)
+            args, message = CodecArgBuilder.get_encoder_configuration(1, 4, False, 18)
             assert "libx264" in args  # Falls back to x264
             assert "falling back" in message.lower()  # Should indicate fallback
 
     def test_malformed_gpu_output(self):
         """Test handling of malformed GPU detection output"""
         # Clear cache first
-        CodecHelpers._gpu_info_cache = None
-        CodecHelpers._rtx40_detection_cache = None
+        HARDWARE_PROBE.clear()
 
         with patch("subprocess.check_output", return_value=b"malformed gpu output"):
-            result = CodecHelpers.detect_rtx40_series()
+            result = HARDWARE_PROBE.detect_rtx40()
             assert not result
 
 
@@ -573,7 +582,7 @@ class TestQSVEncodingPipeline:
 
     def setup_method(self):
         """Clear cache before each test"""
-        CodecHelpers.clear_cache()
+        HARDWARE_PROBE.clear()
 
     @patch("subprocess.check_output")
     def test_qsv_encoding_with_full_pipeline(self, mock_subprocess):
@@ -581,7 +590,7 @@ class TestQSVEncodingPipeline:
         # Return string (text=True in check_output) with h264_qsv in the output
         mock_subprocess.return_value = "V..... h264_qsv             H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10 (Intel Quick Sync Video acceleration)"
 
-        args, message = CodecHelpers.get_encoder_configuration(
+        args, message = CodecArgBuilder.get_encoder_configuration(
             5,
             4,
             False,
@@ -616,8 +625,8 @@ class TestQSVEncodingPipeline:
         ]
 
         for preset_idx, expected_preset in preset_tests:
-            CodecHelpers.clear_cache()
-            args, _ = CodecHelpers.get_encoder_configuration(
+            HARDWARE_PROBE.clear()
+            args, _ = CodecArgBuilder.get_encoder_configuration(
                 5, 4, False, 20, preset_idx=preset_idx
             )
             preset_pos = args.index("-preset") + 1
@@ -630,7 +639,7 @@ class TestQSVEncodingPipeline:
             "V..... h264_qsv             H.264 / AVC (Intel QSV)"
         )
 
-        args, _ = CodecHelpers.get_encoder_configuration(
+        args, _ = CodecArgBuilder.get_encoder_configuration(
             5,
             4,
             False,
@@ -646,7 +655,7 @@ class TestVAAPIEncodingPipeline:
 
     def setup_method(self):
         """Clear cache before each test"""
-        CodecHelpers.clear_cache()
+        HARDWARE_PROBE.clear()
 
     @patch("subprocess.check_output")
     def test_vaapi_encoding_with_full_pipeline(self, mock_subprocess):
@@ -654,7 +663,7 @@ class TestVAAPIEncodingPipeline:
         # Return string (text=True in check_output) with h264_vaapi in the output
         mock_subprocess.return_value = "V..... h264_vaapi           H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10 (VAAPI)"
 
-        args, message = CodecHelpers.get_encoder_configuration(
+        args, message = CodecArgBuilder.get_encoder_configuration(
             6,
             4,
             False,
@@ -677,7 +686,7 @@ class TestVAAPIEncodingPipeline:
         """Test VAAPI uses custom device from environment variable"""
         mock_subprocess.return_value = "V..... h264_vaapi           H.264 / AVC (VAAPI)"
 
-        args, _ = CodecHelpers.get_encoder_configuration(6, 4, False, 20)
+        args, _ = CodecArgBuilder.get_encoder_configuration(6, 4, False, 20)
 
         device_pos = args.index("-vaapi_device") + 1
         assert args[device_pos] == "/dev/dri/renderD129"
@@ -687,7 +696,7 @@ class TestVAAPIEncodingPipeline:
         """Test VAAPI uses CQP rate control with proper QP value"""
         mock_subprocess.return_value = "V..... h264_vaapi           H.264 / AVC (VAAPI)"
 
-        args, _ = CodecHelpers.get_encoder_configuration(6, 4, False, 22)
+        args, _ = CodecArgBuilder.get_encoder_configuration(6, 4, False, 22)
 
         assert "-rc_mode" in args
         rc_pos = args.index("-rc_mode") + 1
@@ -702,7 +711,7 @@ class TestVAAPIEncodingPipeline:
         """Test VAAPI uses high profile for H.264"""
         mock_subprocess.return_value = "V..... h264_vaapi           H.264 / AVC (VAAPI)"
 
-        args, _ = CodecHelpers.get_encoder_configuration(6, 4, False, 20)
+        args, _ = CodecArgBuilder.get_encoder_configuration(6, 4, False, 20)
 
         profile_pos = args.index("-profile:v") + 1
         assert args[profile_pos] == "high"
@@ -713,14 +722,14 @@ class TestHEVC10BitMode:
 
     def setup_method(self):
         """Clear cache before each test"""
-        CodecHelpers.clear_cache()
+        HARDWARE_PROBE.clear()
 
     @patch("subprocess.check_output")
     def test_hevc_10bit_profile(self, mock_subprocess):
         """Test HEVC 10-bit uses main10 profile"""
         mock_subprocess.return_value = MockEncoderDetection.full_nvenc_support()
 
-        args, _message = CodecHelpers.get_encoder_configuration(
+        args, _message = CodecArgBuilder.get_encoder_configuration(
             1, 4, False, 18, hevc_10bit=True
         )
 
@@ -735,7 +744,7 @@ class TestHEVC10BitMode:
         """Test HEVC 8-bit uses main profile"""
         mock_subprocess.return_value = MockEncoderDetection.full_nvenc_support()
 
-        args, _ = CodecHelpers.get_encoder_configuration(
+        args, _ = CodecArgBuilder.get_encoder_configuration(
             1, 4, False, 18, hevc_10bit=False
         )
 
@@ -750,7 +759,7 @@ class TestPresetMapping:
 
     def setup_method(self):
         """Clear cache before each test"""
-        CodecHelpers.clear_cache()
+        HARDWARE_PROBE.clear()
 
     @pytest.mark.parametrize(
         ("preset_idx", "expected_nvenc", "expected_x264"),
@@ -769,16 +778,16 @@ class TestPresetMapping:
         mock_subprocess.return_value = MockEncoderDetection.full_nvenc_support()
 
         # Test NVENC
-        CodecHelpers.clear_cache()
-        args_nvenc, _ = CodecHelpers.get_encoder_configuration(
+        HARDWARE_PROBE.clear()
+        args_nvenc, _ = CodecArgBuilder.get_encoder_configuration(
             0, 4, False, 18, preset_idx=preset_idx
         )
         preset_pos = args_nvenc.index("-preset") + 1
         assert args_nvenc[preset_pos] == expected_nvenc
 
         # Test x264
-        CodecHelpers.clear_cache()
-        args_x264, _ = CodecHelpers.get_encoder_configuration(
+        HARDWARE_PROBE.clear()
+        args_x264, _ = CodecArgBuilder.get_encoder_configuration(
             3, 4, False, 18, preset_idx=preset_idx
         )
         preset_pos = args_x264.index("-preset") + 1
@@ -992,16 +1001,16 @@ class TestGPUDetectorAsync:
 
     def setup_method(self):
         """Clear cache before each test"""
-        CodecHelpers.clear_cache()
+        HARDWARE_PROBE.clear()
 
     def teardown_method(self):
         """Clear cache after each test"""
-        CodecHelpers.clear_cache()
+        HARDWARE_PROBE.clear()
 
-    @patch("codec_helpers.subprocess.run")
+    @patch("hardware.gpu_detector.subprocess.run")
     def test_gpu_detection_worker_finds_nvidia(self, mock_run):
         """Test GPUDetectionWorker successfully finds NVIDIA GPU"""
-        from codec_helpers import GPUDetectionSignals, GPUDetectionWorker
+        from hardware.gpu_detector import GPUDetectionSignals, GPUDetectionWorker
 
         # Mock successful GPU detection
         gpu_result = Mock()
@@ -1032,10 +1041,10 @@ class TestGPUDetectorAsync:
         assert "RTX 4090" in gpu_name
         assert "nvenc" in encoders.lower()
 
-    @patch("codec_helpers.subprocess.run")
+    @patch("hardware.gpu_detector.subprocess.run")
     def test_gpu_detection_worker_no_gpu(self, mock_run):
         """Test GPUDetectionWorker when no GPU is found"""
-        from codec_helpers import GPUDetectionSignals, GPUDetectionWorker
+        from hardware.gpu_detector import GPUDetectionSignals, GPUDetectionWorker
 
         # Mock failed GPU detection
         mock_run.side_effect = FileNotFoundError("nvidia-smi not found")
@@ -1056,10 +1065,10 @@ class TestGPUDetectorAsync:
         assert has_gpu is False
         assert gpu_name == ""
 
-    @patch("codec_helpers.subprocess.run")
+    @patch("hardware.gpu_detector.subprocess.run")
     def test_gpu_detection_worker_handles_timeout(self, mock_run):
         """Test GPUDetectionWorker handles timeout gracefully"""
-        from codec_helpers import GPUDetectionSignals, GPUDetectionWorker
+        from hardware.gpu_detector import GPUDetectionSignals, GPUDetectionWorker
 
         mock_run.side_effect = subprocess.TimeoutExpired("nvidia-smi", 2)
 
@@ -1079,57 +1088,59 @@ class TestGPUDetectorAsync:
         assert has_gpu is False
 
     def test_update_gpu_cache_with_gpu(self):
-        """Test update_gpu_cache populates caches correctly with GPU"""
-        CodecHelpers.update_gpu_cache(
+        """Test update_cache populates caches correctly with GPU"""
+        HARDWARE_PROBE.update_cache(
             has_gpu=True,
             gpu_name="NVIDIA GeForce RTX 4090",
             available_encoders="h264_nvenc\nhevc_nvenc\nav1_nvenc",
         )
 
         # Verify encoder cache
-        assert CodecHelpers._encoder_cache == "h264_nvenc\nhevc_nvenc\nav1_nvenc"
-        assert CodecHelpers._encoder_cache_success is True
+        assert (
+            HARDWARE_PROBE.get_cached_encoder_info()
+            == "h264_nvenc\nhevc_nvenc\nav1_nvenc"
+        )
 
         # Verify GPU cache
-        assert CodecHelpers._gpu_info_cache == "NVIDIA GeForce RTX 4090"
-        assert CodecHelpers._gpu_info_cache_success is True
+        assert HARDWARE_PROBE.get_cached_gpu_info() == "NVIDIA GeForce RTX 4090"
 
         # Verify RTX40 detection
-        assert CodecHelpers._rtx40_detection_cache is True
+        assert HARDWARE_PROBE.is_rtx40_cached() is True
 
     def test_update_gpu_cache_without_gpu(self):
-        """Test update_gpu_cache populates caches correctly without GPU"""
-        CodecHelpers.update_gpu_cache(has_gpu=False, gpu_name="", available_encoders="")
+        """Test update_cache populates caches correctly without GPU"""
+        HARDWARE_PROBE.update_cache(has_gpu=False, gpu_name="", available_encoders="")
 
         # Verify encoder cache
-        assert CodecHelpers._encoder_cache == ""
-        assert CodecHelpers._encoder_cache_success is False
+        assert HARDWARE_PROBE.get_cached_encoder_info() == ""
 
         # Verify GPU cache
-        assert CodecHelpers._gpu_info_cache == ""
-        assert CodecHelpers._gpu_info_cache_success is False
+        assert HARDWARE_PROBE.get_cached_gpu_info() == ""
 
         # Verify RTX40 detection
-        assert CodecHelpers._rtx40_detection_cache is False
+        assert HARDWARE_PROBE.is_rtx40_cached() is False
 
     def test_update_gpu_cache_rtx30_series(self):
-        """Test update_gpu_cache correctly detects RTX 30 series as not RTX40"""
-        CodecHelpers.update_gpu_cache(
+        """Test update_cache correctly detects RTX 30 series as not RTX40"""
+        HARDWARE_PROBE.update_cache(
             has_gpu=True,
             gpu_name="NVIDIA GeForce RTX 3090",
             available_encoders="h264_nvenc\nhevc_nvenc",
         )
 
         # RTX 3090 should NOT be detected as RTX40
-        assert CodecHelpers._rtx40_detection_cache is False
+        assert HARDWARE_PROBE.is_rtx40_cached() is False
 
     def test_gpu_detector_uses_cached_result(self):
         """Test GPUDetector uses cached result if available"""
-        from codec_helpers import GPUDetector
+        from hardware.gpu_detector import GPUDetector
 
         # Pre-populate cache
-        CodecHelpers._gpu_info_cache = "NVIDIA GeForce RTX 4090"
-        CodecHelpers._encoder_cache = "h264_nvenc"
+        HARDWARE_PROBE.update_cache(
+            has_gpu=True,
+            gpu_name="NVIDIA GeForce RTX 4090",
+            available_encoders="h264_nvenc",
+        )
 
         detector = GPUDetector()
         signal_received = []

@@ -174,7 +174,7 @@ class TestAutoBalanceLogic:
         self.controller = ConversionController(self.mock_process_manager)
         self.controller.auto_balance_enabled = True
 
-    @patch("codec_helpers.CodecHelpers.detect_rtx40_series")
+    @patch("hardware.probe.HardwareProbe.detect_rtx40")
     def test_auto_balance_with_rtx40(self, mock_rtx40_detection):
         """Test auto-balance with RTX 40 series GPU"""
         mock_rtx40_detection.return_value = True
@@ -201,7 +201,7 @@ class TestAutoBalanceLogic:
         assert abs(gpu_files - expected_gpu) <= 1  # Allow small variance
         assert abs(cpu_files - expected_cpu) <= 1
 
-    @patch("codec_helpers.CodecHelpers.detect_rtx40_series")
+    @patch("hardware.probe.HardwareProbe.detect_rtx40")
     def test_auto_balance_without_rtx40(self, mock_rtx40_detection):
         """Test auto-balance without RTX 40 series GPU"""
         mock_rtx40_detection.return_value = False
@@ -258,9 +258,9 @@ class TestFFmpegArgumentBuilding:
         self.controller.crf_value = 18
         self.controller.parallel_enabled = True
 
-    @patch("codec_helpers.CodecHelpers.get_hardware_acceleration_args")
-    @patch("codec_helpers.CodecHelpers.get_audio_codec_args")
-    @patch("codec_helpers.CodecHelpers.get_encoder_configuration")
+    @patch("encoding.arg_builder.CodecArgBuilder.get_hardware_acceleration_args")
+    @patch("encoding.arg_builder.CodecArgBuilder.get_audio_codec_args")
+    @patch("encoding.arg_builder.CodecArgBuilder.get_encoder_configuration")
     def test_build_ffmpeg_args_h264_nvenc(
         self, mock_encoder_config, mock_audio_config, mock_hw_config
     ):
@@ -276,7 +276,8 @@ class TestFFmpegArgumentBuilding:
         input_path = "/test/input.ts"
 
         with patch(
-            "codec_helpers.CodecHelpers.get_output_extension", return_value=".mp4"
+            "encoding.arg_builder.CodecArgBuilder.get_output_extension",
+            return_value=".mp4",
         ):
             args = self.controller._build_ffmpeg_args(input_path, 0)  # H.264 NVENC
 
@@ -298,9 +299,9 @@ class TestFFmpegArgumentBuilding:
         mock_audio_config.assert_called_once_with(input_path, 0)
         mock_encoder_config.assert_called_once()
 
-    @patch("codec_helpers.CodecHelpers.get_hardware_acceleration_args")
-    @patch("codec_helpers.CodecHelpers.get_audio_codec_args")
-    @patch("codec_helpers.CodecHelpers.get_encoder_configuration")
+    @patch("encoding.arg_builder.CodecArgBuilder.get_hardware_acceleration_args")
+    @patch("encoding.arg_builder.CodecArgBuilder.get_audio_codec_args")
+    @patch("encoding.arg_builder.CodecArgBuilder.get_encoder_configuration")
     def test_build_ffmpeg_args_x264_cpu(
         self, mock_encoder_config, mock_audio_config, mock_hw_config
     ):
@@ -319,7 +320,8 @@ class TestFFmpegArgumentBuilding:
         input_path = "/test/input.ts"
 
         with patch(
-            "codec_helpers.CodecHelpers.get_output_extension", return_value=".mp4"
+            "encoding.arg_builder.CodecArgBuilder.get_output_extension",
+            return_value=".mp4",
         ):
             args = self.controller._build_ffmpeg_args(input_path, 3)  # x264 CPU
 
@@ -336,7 +338,8 @@ class TestFFmpegArgumentBuilding:
         input_path = "/test/input.ts"
 
         with patch(
-            "codec_helpers.CodecHelpers.get_output_extension", return_value=".mp4"
+            "encoding.arg_builder.CodecArgBuilder.get_output_extension",
+            return_value=".mp4",
         ):
             # Output path is generated within _build_ffmpeg_args
             args = self.controller._build_ffmpeg_args(input_path, 0)
@@ -355,7 +358,7 @@ class TestFFmpegArgumentBuilding:
 
         for input_path, extension, expected in test_cases:
             with patch(
-                "codec_helpers.CodecHelpers.get_output_extension",
+                "encoding.arg_builder.CodecArgBuilder.get_output_extension",
                 return_value=extension,
             ):
                 # Output path is generated within _build_ffmpeg_args
@@ -469,7 +472,7 @@ class TestThreadOptimization:
         self.mock_process_manager = create_mock_process_manager()
         self.controller = ConversionController(self.mock_process_manager)
 
-    @patch("codec_helpers.CodecHelpers.optimize_threads_for_codec")
+    @patch("encoding.arg_builder.CodecArgBuilder.optimize_threads_for_codec")
     def test_optimize_threads_for_codec(self, mock_optimize):
         """Test thread optimization delegation"""
         mock_optimize.return_value = 6
@@ -484,7 +487,7 @@ class TestThreadOptimization:
             3, True, self.controller.file_codec_assignments
         )
 
-    @patch("codec_helpers.CodecHelpers.optimize_threads_for_codec")
+    @patch("encoding.arg_builder.CodecArgBuilder.optimize_threads_for_codec")
     def test_optimize_threads_nvenc(self, mock_optimize):
         """Test thread optimization for NVENC"""
         mock_optimize.return_value = 2
@@ -577,7 +580,7 @@ class TestSourceFileDeletion:
     @patch("os.remove")
     @patch("os.path.getsize")
     @patch("os.stat")
-    @patch("codec_helpers.CodecHelpers.get_output_extension")
+    @patch("encoding.arg_builder.CodecArgBuilder.get_output_extension")
     def test_delete_source_file_success(
         self, mock_ext, mock_stat, mock_getsize, mock_remove, mock_run
     ):
@@ -612,7 +615,7 @@ class TestSourceFileDeletion:
     @patch("os.remove")
     @patch("os.path.getsize")
     @patch("os.stat")
-    @patch("codec_helpers.CodecHelpers.get_output_extension")
+    @patch("encoding.arg_builder.CodecArgBuilder.get_output_extension")
     def test_delete_source_file_not_exists(
         self, mock_ext, mock_stat, mock_getsize, mock_remove, mock_run
     ):
@@ -649,7 +652,7 @@ class TestSourceFileDeletion:
     @patch("os.remove")
     @patch("os.path.getsize")
     @patch("os.stat")
-    @patch("codec_helpers.CodecHelpers.get_output_extension")
+    @patch("encoding.arg_builder.CodecArgBuilder.get_output_extension")
     def test_delete_source_file_permission_error(
         self, mock_ext, mock_stat, mock_getsize, mock_remove, mock_run
     ):
@@ -988,10 +991,10 @@ class TestConversionControllerIntegration:
         self.mock_process_manager = create_mock_process_manager()
         self.controller = ConversionController(self.mock_process_manager)
 
-    @patch("codec_helpers.CodecHelpers.get_hardware_acceleration_args")
-    @patch("codec_helpers.CodecHelpers.get_audio_codec_args")
-    @patch("codec_helpers.CodecHelpers.get_encoder_configuration")
-    @patch("codec_helpers.CodecHelpers.get_output_extension")
+    @patch("encoding.arg_builder.CodecArgBuilder.get_hardware_acceleration_args")
+    @patch("encoding.arg_builder.CodecArgBuilder.get_audio_codec_args")
+    @patch("encoding.arg_builder.CodecArgBuilder.get_encoder_configuration")
+    @patch("encoding.arg_builder.CodecArgBuilder.get_output_extension")
     def test_full_conversion_workflow(
         self, mock_extension, mock_encoder, mock_audio, mock_hw
     ):
@@ -1071,9 +1074,9 @@ class TestPriorityMapping:
         priority_names = {0: "normal", 1: "low", 2: "high"}
         assert priority_names[2] == "high"
 
-    @patch("codec_helpers.CodecHelpers.get_hardware_acceleration_args")
-    @patch("codec_helpers.CodecHelpers.get_encoder_configuration")
-    @patch("codec_helpers.CodecHelpers.get_output_extension")
+    @patch("encoding.arg_builder.CodecArgBuilder.get_hardware_acceleration_args")
+    @patch("encoding.arg_builder.CodecArgBuilder.get_encoder_configuration")
+    @patch("encoding.arg_builder.CodecArgBuilder.get_output_extension")
     def test_priority_applied_correctly_on_process_start(
         self, mock_ext, mock_encoder, mock_hw
     ):
@@ -1230,7 +1233,7 @@ class TestOutputMapUsage:
     @patch("os.remove")
     @patch("os.path.getsize")
     @patch("os.stat")
-    @patch("codec_helpers.CodecHelpers.get_output_extension")
+    @patch("encoding.arg_builder.CodecArgBuilder.get_output_extension")
     def test_output_map_used_over_reconstruction(
         self, mock_ext, mock_stat, mock_getsize, mock_remove
     ):
@@ -1264,7 +1267,7 @@ class TestOutputMapUsage:
     @patch("os.remove")
     @patch("os.path.getsize")
     @patch("os.stat")
-    @patch("codec_helpers.CodecHelpers.get_output_extension")
+    @patch("encoding.arg_builder.CodecArgBuilder.get_output_extension")
     def test_fallback_to_reconstruction_when_output_map_empty(
         self, mock_ext, mock_stat, mock_getsize, mock_remove
     ):

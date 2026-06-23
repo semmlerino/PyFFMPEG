@@ -18,7 +18,7 @@ from PySide6.QtWidgets import QApplication
 
 # Import project modules for testing
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-from codec_helpers import CodecHelpers
+from hardware.probe import HARDWARE_PROBE
 from process_manager import ProcessManager
 
 
@@ -126,21 +126,21 @@ def sample_ffmpeg_output():
 
 @pytest.fixture
 def codec_helpers_with_cache():
-    """Provide CodecHelpers with pre-populated cache for testing"""
+    """Provide HARDWARE_PROBE with pre-populated cache for testing"""
     # Clear any existing cache
-    CodecHelpers.clear_cache()
+    HARDWARE_PROBE.clear()
 
     # Pre-populate with test data
-    CodecHelpers._encoder_cache = (
-        "h264_nvenc\nhevc_nvenc\nav1_nvenc\nlibx264\nprores_ks"
+    HARDWARE_PROBE.update_cache(
+        has_gpu=True,
+        gpu_name="GPU 0: NVIDIA GeForce RTX 4090",
+        available_encoders="h264_nvenc\nhevc_nvenc\nav1_nvenc\nlibx264\nprores_ks",
     )
-    CodecHelpers._gpu_info_cache = "GPU 0: NVIDIA GeForce RTX 4090"
-    CodecHelpers._rtx40_detection_cache = True
 
-    yield CodecHelpers
+    yield HARDWARE_PROBE
 
     # Cleanup cache after test
-    CodecHelpers.clear_cache()
+    HARDWARE_PROBE.clear()
 
 
 @pytest.fixture

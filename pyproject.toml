@@ -88,7 +88,7 @@ markers = [
 target-version = "py312"
 line-length = 88
 indent-width = 4
-extend-exclude = ["BB", "archive", "codec_helpers_backup.py"]
+extend-exclude = ["BB", "archive", "codec_helpers_backup.py", "codec_helpers.py"]
 
 [tool.ruff.lint]
 select = [
@@ -153,13 +153,14 @@ include = [
     "process_monitor.py",
     "process_manager.py",
     "progress_tracker.py",
-    "codec_helpers.py",
     "file_list_widget.py",
     "config.py",
     "logging_config.py",
     "output_buffer.py",
     "ui_update_manager.py",
     "domain",
+    "hardware",
+    "encoding",
     "metadata",
     "sizing",
 ]

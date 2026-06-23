@@ -22,9 +22,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from codec_helpers import CodecHelpers
 from config import AppConfig, EncodingConfig, ProcessConfig
 from domain.codec import CODEC_REGISTRY
+from hardware.probe import HARDWARE_PROBE
 
 
 class SettingsPanel(QObject):
@@ -727,7 +727,7 @@ class SettingsPanel(QObject):
         # Use cached result only to avoid blocking UI (returns None if not yet cached)
         codec_idx = settings.get("codec_idx", 0)
         if isinstance(codec_idx, int) and codec_idx == 2:
-            rtx40_cached = CodecHelpers.is_rtx40_cached()
+            rtx40_cached = HARDWARE_PROBE.is_rtx40_cached()
             # Only reject if cache explicitly shows no RTX40 (False)
             # If cache is None (not yet determined), allow it - detection will run at conversion time
             if rtx40_cached is False:

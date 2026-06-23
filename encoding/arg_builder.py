@@ -1,191 +1,21 @@
-#!/usr/bin/env python3
+"""FFmpeg argument builder for codec and hardware acceleration selection.
+
+All methods are stateless (pure inputs → CLI args) so they are safe to call
+from any thread. Hardware detection is delegated to HARDWARE_PROBE.
 """
-Codec and encoding helpers for PyFFMPEG
-Provides utility functions for codec selection, hardware acceleration detection,
-and encoder configuration to reduce duplication in the main application.
-"""
+
+from __future__ import annotations
 
 import os
 import subprocess
-import time
-from typing import ClassVar, override
 
-from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal
-
-from config import CodecIndex, EncodingConfig, HardwareConfig, ProcessConfig
+from config import CodecIndex, EncodingConfig, ProcessConfig
 from domain.codec import codec_by_index
+from hardware.probe import HARDWARE_PROBE
 
 
-class GPUDetectionSignals(QObject):
-    """Signals for GPU detection worker."""
-
-    detection_complete: ClassVar[Signal] = Signal(
-        bool, str, str
-    )  # has_gpu, gpu_name, available_encoders
-
-
-class GPUDetectionWorker(QRunnable):
-    """Worker to detect GPU and available encoders in a background thread.
-
-    Prevents UI freezes when probing nvidia-smi and ffmpeg encoders on first use.
-    """
-
-    def __init__(self, signals: GPUDetectionSignals):
-        super().__init__()
-        self.signals: GPUDetectionSignals = signals
-
-    @override
-    def run(self) -> None:
-        """Probe GPU and encoders, then emit result."""
-        gpu_name = ""
-        has_gpu = False
-        available_encoders = ""
-
-        # Detect GPU via nvidia-smi
-        try:
-            result = subprocess.run(
-                ["nvidia-smi", "--query-gpu=name", "--format=csv,noheader,nounits"],
-                capture_output=True,
-                text=True,
-                timeout=HardwareConfig.GPU_DETECTION_TIMEOUT,
-                check=False,
-            )
-            if result.returncode == 0 and result.stdout.strip():
-                gpu_name = result.stdout.strip().split("\n")[0]
-                has_gpu = True
-        except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
-            pass
-
-        # Detect available encoders via ffmpeg
-        try:
-            result = subprocess.run(
-                ["ffmpeg", "-encoders"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                timeout=ProcessConfig.SUBPROCESS_TIMEOUT,
-                check=False,
-            )
-            if result.returncode == 0:
-                available_encoders = result.stdout.lower()
-        except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
-            pass
-
-        self.signals.detection_complete.emit(has_gpu, gpu_name, available_encoders)
-
-
-class GPUDetector(QObject):
-    """Async GPU and encoder detection to prevent UI freezes.
-
-    Usage:
-        detector = GPUDetector(parent)
-        detector.gpu_detected.connect(on_gpu_detected)
-        detector.detect_async()
-
-        def on_gpu_detected(has_gpu, gpu_name, encoders):
-            # Update CodecHelpers cache
-            CodecHelpers.update_gpu_cache(has_gpu, gpu_name, encoders)
-    """
-
-    # Signal emitted when detection completes
-    gpu_detected: ClassVar[Signal] = Signal(
-        bool, str, str
-    )  # has_gpu, gpu_name, available_encoders
-
-    def __init__(self, parent: QObject | None = None):
-        super().__init__(parent)
-        self._detection_signals: GPUDetectionSignals | None = None
-
-    def detect_async(self) -> None:
-        """Start async GPU detection.
-
-        If cache already exists, emits signal immediately.
-        Otherwise runs detection in background thread.
-        """
-        # Check if already cached using public accessor
-        if CodecHelpers.has_cached_info():
-            # Emit cached results using public accessors
-            cached_gpu_info = CodecHelpers.get_cached_gpu_info()
-            has_gpu = bool(cached_gpu_info)
-            gpu_name = ""
-            if has_gpu and cached_gpu_info:
-                # Try to extract GPU name from cached info
-                for model in HardwareConfig.RTX40_MODELS:
-                    if model in cached_gpu_info:
-                        gpu_name = model
-                        break
-            self.gpu_detected.emit(
-                has_gpu, gpu_name, CodecHelpers.get_cached_encoder_info() or ""
-            )
-            return
-
-        # Run detection in background
-        self._detection_signals = GPUDetectionSignals()
-        _ = self._detection_signals.detection_complete.connect(
-            self._on_detection_complete
-        )
-        worker = GPUDetectionWorker(self._detection_signals)
-        QThreadPool.globalInstance().start(worker)
-
-    def _on_detection_complete(
-        self, has_gpu: bool, gpu_name: str, available_encoders: str
-    ) -> None:
-        """Handle detection result and update cache."""
-        # Update CodecHelpers cache
-        CodecHelpers.update_gpu_cache(has_gpu, gpu_name, available_encoders)
-        # Emit signal for UI handling
-        self.gpu_detected.emit(has_gpu, gpu_name, available_encoders)
-
-
-class CodecHelpers:
-    """Helper class for codec selection, hardware acceleration, and encoder configuration"""
-
-    # Cache TTL settings (in seconds)
-    # Success cache is longer - hardware doesn't change often
-    _CACHE_TTL_SUCCESS: float = 300.0  # 5 minutes for successful detection
-    # Failure cache is shorter - allows retry after transient errors
-    _CACHE_TTL_FAILURE: float = 30.0  # 30 seconds for failed detection
-
-    # Cache for expensive detection operations (with timestamps)
-    _encoder_cache: str | None = None
-    _encoder_cache_time: float = 0.0
-    _encoder_cache_success: bool = False
-
-    _gpu_info_cache: str | None = None
-    _gpu_info_cache_time: float = 0.0
-    _gpu_info_cache_success: bool = False
-
-    _rtx40_detection_cache: bool | None = None
-    _rtx40_detection_cache_time: float = 0.0
-
-    @staticmethod
-    def has_cached_info() -> bool:
-        """Check if GPU or encoder info has been cached.
-
-        Used by GPUDetector to avoid redundant detection if cache exists.
-        """
-        return (
-            CodecHelpers._gpu_info_cache is not None
-            or CodecHelpers._encoder_cache is not None
-        )
-
-    @staticmethod
-    def get_cached_gpu_info() -> str | None:
-        """Get cached GPU info string.
-
-        Returns:
-            Cached GPU info or None if not cached.
-        """
-        return CodecHelpers._gpu_info_cache
-
-    @staticmethod
-    def get_cached_encoder_info() -> str | None:
-        """Get cached encoder info string.
-
-        Returns:
-            Cached encoder string or None if not cached.
-        """
-        return CodecHelpers._encoder_cache
+class CodecArgBuilder:
+    """Builds FFmpeg CLI arguments for codec selection, hardware acceleration, and audio."""
 
     @staticmethod
     def get_output_extension(codec_idx: int) -> str:
@@ -204,7 +34,7 @@ class CodecHelpers:
         try:
             if hwdecode_idx == 0:  # Auto
                 # Use cached GPU detection for better performance
-                gpu_info = CodecHelpers._get_gpu_info()
+                gpu_info = HARDWARE_PROBE.gpu_info()
                 if gpu_info and "GPU" in gpu_info:
                     args.extend(["-hwaccel", "cuda"])
                     message = "Using CUDA hardware acceleration (cached detection)"
@@ -346,7 +176,7 @@ class CodecHelpers:
 
         try:
             # Get cached or detect available encoders
-            available_encoders = CodecHelpers._get_available_encoders()
+            available_encoders = HARDWARE_PROBE.available_encoders()
 
             # H.264 NVENC
             if (
@@ -598,162 +428,3 @@ class CodecHelpers:
             2, (cpu_count - 2) // cpu_jobs
         )  # Leave 2 threads for system
         return threads_per_job
-
-    @staticmethod
-    def _get_available_encoders() -> str:
-        """Get available encoders with TTL-based caching for performance.
-
-        Uses different TTLs for success vs failure to allow retry after transient errors
-        while avoiding repeated expensive calls during normal operation.
-        """
-        now = time.time()
-
-        # Check if cache is still valid
-        if CodecHelpers._encoder_cache is not None:
-            ttl = (
-                CodecHelpers._CACHE_TTL_SUCCESS
-                if CodecHelpers._encoder_cache_success
-                else CodecHelpers._CACHE_TTL_FAILURE
-            )
-            if (now - CodecHelpers._encoder_cache_time) < ttl:
-                return CodecHelpers._encoder_cache
-
-        try:
-            encoders_output = subprocess.check_output(
-                ["ffmpeg", "-encoders"],
-                text=True,
-                stderr=subprocess.STDOUT,
-                timeout=ProcessConfig.SUBPROCESS_TIMEOUT,
-            )
-            CodecHelpers._encoder_cache = encoders_output.lower()
-            CodecHelpers._encoder_cache_time = now
-            CodecHelpers._encoder_cache_success = True
-            return CodecHelpers._encoder_cache
-        except (subprocess.TimeoutExpired, subprocess.CalledProcessError, OSError):
-            # Cache the failure with shorter TTL to allow retry
-            CodecHelpers._encoder_cache = ""
-            CodecHelpers._encoder_cache_time = now
-            CodecHelpers._encoder_cache_success = False
-            return ""
-
-    @staticmethod
-    def _get_gpu_info() -> str:
-        """Get GPU information with TTL-based caching.
-
-        Uses different TTLs for success vs failure to allow retry after transient errors.
-        """
-        now = time.time()
-
-        # Check if cache is still valid
-        if CodecHelpers._gpu_info_cache is not None:
-            ttl = (
-                CodecHelpers._CACHE_TTL_SUCCESS
-                if CodecHelpers._gpu_info_cache_success
-                else CodecHelpers._CACHE_TTL_FAILURE
-            )
-            if (now - CodecHelpers._gpu_info_cache_time) < ttl:
-                return CodecHelpers._gpu_info_cache
-
-        try:
-            gpu_info = subprocess.check_output(
-                ["nvidia-smi", "-q"], timeout=HardwareConfig.GPU_DETECTION_TIMEOUT
-            ).decode("utf-8")
-            CodecHelpers._gpu_info_cache = gpu_info
-            CodecHelpers._gpu_info_cache_time = now
-            CodecHelpers._gpu_info_cache_success = True
-            return gpu_info
-        except (subprocess.TimeoutExpired, subprocess.CalledProcessError, OSError):
-            CodecHelpers._gpu_info_cache = ""
-            CodecHelpers._gpu_info_cache_time = now
-            CodecHelpers._gpu_info_cache_success = False
-            return ""
-
-    @staticmethod
-    def detect_rtx40_series() -> bool:
-        """Detect if system has RTX 40 series GPU for AV1 encoding support with TTL caching.
-
-        Cache inherits TTL from _get_gpu_info() since it depends on that data.
-        """
-        now = time.time()
-
-        # Check if cache is still valid (use same TTL as GPU info since it depends on it)
-        if (
-            CodecHelpers._rtx40_detection_cache is not None
-            and (now - CodecHelpers._rtx40_detection_cache_time)
-            < CodecHelpers._CACHE_TTL_SUCCESS
-        ):
-            return CodecHelpers._rtx40_detection_cache
-
-        try:
-            gpu_info = CodecHelpers._get_gpu_info()
-            has_rtx40 = any(gpu in gpu_info for gpu in HardwareConfig.RTX40_MODELS)
-            CodecHelpers._rtx40_detection_cache = has_rtx40
-            CodecHelpers._rtx40_detection_cache_time = now
-            return has_rtx40
-        except Exception:
-            CodecHelpers._rtx40_detection_cache = False
-            CodecHelpers._rtx40_detection_cache_time = now
-            return False
-
-    @staticmethod
-    def is_rtx40_cached() -> bool | None:
-        """Check if RTX40 detection result is cached (returns None if not cached).
-
-        Use this for UI validation to avoid blocking the main thread.
-        Returns True/False if cached, None if detection hasn't run yet.
-        """
-        return CodecHelpers._rtx40_detection_cache
-
-    @staticmethod
-    def clear_cache() -> None:
-        """Clear all cached detection results - useful for testing or system changes"""
-        CodecHelpers._encoder_cache = None
-        CodecHelpers._encoder_cache_time = 0.0
-        CodecHelpers._encoder_cache_success = False
-
-        CodecHelpers._gpu_info_cache = None
-        CodecHelpers._gpu_info_cache_time = 0.0
-        CodecHelpers._gpu_info_cache_success = False
-
-        CodecHelpers._rtx40_detection_cache = None
-        CodecHelpers._rtx40_detection_cache_time = 0.0
-
-    @staticmethod
-    def update_gpu_cache(has_gpu: bool, gpu_name: str, available_encoders: str) -> None:
-        """Update GPU and encoder caches from async detection results.
-
-        Called by GPUDetector after background detection completes.
-
-        Args:
-            has_gpu: Whether a GPU was detected
-            gpu_name: Name of the detected GPU (e.g., "RTX 4090")
-            available_encoders: Lowercase string of available encoders from ffmpeg
-        """
-        now = time.time()
-
-        # Update encoder cache
-        if available_encoders:
-            CodecHelpers._encoder_cache = available_encoders
-            CodecHelpers._encoder_cache_time = now
-            CodecHelpers._encoder_cache_success = True
-        else:
-            CodecHelpers._encoder_cache = ""
-            CodecHelpers._encoder_cache_time = now
-            CodecHelpers._encoder_cache_success = False
-
-        # Update GPU info cache - store GPU name if detected
-        if has_gpu and gpu_name:
-            CodecHelpers._gpu_info_cache = gpu_name
-            CodecHelpers._gpu_info_cache_time = now
-            CodecHelpers._gpu_info_cache_success = True
-
-            # Update RTX40 detection cache
-            is_rtx40 = any(model in gpu_name for model in HardwareConfig.RTX40_MODELS)
-            CodecHelpers._rtx40_detection_cache = is_rtx40
-            CodecHelpers._rtx40_detection_cache_time = now
-        else:
-            CodecHelpers._gpu_info_cache = ""
-            CodecHelpers._gpu_info_cache_time = now
-            CodecHelpers._gpu_info_cache_success = False
-            CodecHelpers._rtx40_detection_cache = False
-            CodecHelpers._rtx40_detection_cache_time = now
