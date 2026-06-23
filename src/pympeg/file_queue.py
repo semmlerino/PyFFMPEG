@@ -10,6 +10,7 @@ from this model instead of smearing status/progress/metadata across per-item
 
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -36,55 +37,47 @@ class FileEntry:
 class FileQueueModel:
     """Ordered store of :class:`FileEntry` keyed by path.
 
-    Maintains a ``path -> index`` map kept in sync with the entry order so
-    lookups stay O(1) while display order is preserved across reordering.
+    Backed by a single insertion-ordered ``dict`` (Python 3.7+ preserves
+    insertion order). Display order is simply the dict's iteration order, so
+    lookups stay O(1) without a parallel ``path -> index`` map to keep in sync.
     """
 
     def __init__(self) -> None:
-        self._entries: list[FileEntry] = []
-        self._index: dict[str, int] = {}
+        self._entries: dict[str, FileEntry] = {}
 
     def __len__(self) -> int:
         return len(self._entries)
 
     def __contains__(self, path: str) -> bool:
-        return path in self._index
+        return path in self._entries
 
     def add(self, path: str) -> FileEntry | None:
         """Append a new pending entry; return it, or ``None`` if already present."""
-        if path in self._index:
+        if path in self._entries:
             return None
         entry = FileEntry(path=path)
-        self._index[path] = len(self._entries)
-        self._entries.append(entry)
+        self._entries[path] = entry
         return entry
 
     def get(self, path: str) -> FileEntry | None:
         """Return the (mutable) entry for ``path``, or ``None`` if absent."""
-        idx = self._index.get(path)
-        return self._entries[idx] if idx is not None else None
+        return self._entries.get(path)
 
     def remove(self, path: str) -> bool:
         """Remove ``path`` if present; return whether anything was removed."""
-        idx = self._index.get(path)
-        if idx is None:
-            return False
-        del self._entries[idx]
-        self._reindex()
-        return True
+        return self._entries.pop(path, None) is not None
 
     def clear(self) -> None:
         """Drop all entries."""
         self._entries.clear()
-        self._index.clear()
 
     def paths_in_order(self) -> list[str]:
         """Return file paths in current display order."""
-        return [e.path for e in self._entries]
+        return list(self._entries)
 
     def entries_in_order(self) -> list[FileEntry]:
         """Return a shallow copy of the entries in current display order."""
-        return list(self._entries)
+        return list(self._entries.values())
 
     def reorder(self, ordered_paths: list[str]) -> None:
         """Reorder entries to match ``ordered_paths`` (e.g. after a view move).
@@ -93,34 +86,24 @@ class FileQueueModel:
         named in ``ordered_paths`` keep their relative order and are appended at
         the end, so the model can never silently lose an entry.
         """
-        by_path = {e.path: e for e in self._entries}
-        new_entries: list[FileEntry] = []
-        seen: set[str] = set()
+        new_entries: dict[str, FileEntry] = {}
         for path in ordered_paths:
-            entry = by_path.get(path)
-            if entry is not None and path not in seen:
-                new_entries.append(entry)
-                seen.add(path)
-        for entry in self._entries:
-            if entry.path not in seen:
-                new_entries.append(entry)
-                seen.add(entry.path)
+            entry = self._entries.get(path)
+            if entry is not None and path not in new_entries:
+                new_entries[path] = entry
+        for path, entry in self._entries.items():
+            if path not in new_entries:
+                new_entries[path] = entry
         self._entries = new_entries
-        self._reindex()
 
     def paths_with_status(self, status: FileStatus) -> list[str]:
         """Return paths whose entry has the given status, in display order."""
-        return [e.path for e in self._entries if e.status == status]
+        return [path for path, entry in self._entries.items() if entry.status == status]
 
     def status_counts(self) -> dict[FileStatus, int]:
         """Return a count of entries per :class:`FileStatus` (all keys present)."""
-        counts = dict.fromkeys(FileStatus, 0)
-        for entry in self._entries:
-            counts[entry.status] += 1
-        return counts
-
-    def _reindex(self) -> None:
-        self._index = {e.path: i for i, e in enumerate(self._entries)}
+        counts = Counter(entry.status for entry in self._entries.values())
+        return {status: counts.get(status, 0) for status in FileStatus}
 
 
 def format_file_with_metadata(filename: str, metadata: VideoMetadata) -> str:
