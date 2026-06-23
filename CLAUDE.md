@@ -15,7 +15,7 @@ PyFFMPEG is a PySide6-based GUI application for batch video conversion using FFm
 
 ### Supporting Modules
 - **`process_manager.py`**: `ProcessManager` class handles FFmpeg process creation, monitoring, and lifecycle management. Emits signals for UI updates with enhanced timer management.
-- **`progress_tracker.py`**: `ProcessProgressTracker` class parses FFmpeg output to calculate progress percentages and ETAs using regex patterns with smoothing algorithms.
+- **`progress_tracker.py`**: `ProcessProgressTracker` class turns FFmpeg `-progress` output (parsed by `output_buffer.py`) into progress percentages and ETAs with smoothing algorithms.
 - **`codec_helpers.py`**: `CodecHelpers` static class with caching for expensive operations. Provides codec selection, hardware acceleration detection, and encoder configuration utilities.
 - **`file_list_widget.py`**: `FileListWidget` extends QListWidget with drag-and-drop support, status tracking, progress display, and comprehensive method implementation.
 
@@ -135,9 +135,18 @@ The application uses Qt's signal-slot pattern extensively for loose coupling:
 - UI updates are batched using adaptive `QTimer` intervals for performance optimization
 
 ### Progress Tracking System
-Progress calculation uses regex parsing of FFmpeg output:
-- `TIME_RE = re.compile(r'time=(\d{2}):(\d{2}):(\d{2}\.\d{2})')` for time progress
-- `FPS_RE = re.compile(r'fps=\s*(\d+)')` for frames per second
+Progress is driven by FFmpeg's machine-readable `-progress pipe:1` stream (one
+`key=value` per line on stdout), parsed in `output_buffer.py`:
+- `out_time_us` (microseconds; the legacy `out_time_ms` spelling also carries
+  microseconds) → elapsed seconds, plus `fps`, `frame`, `speed`, and `progress`
+  (`continue`/`end`). A carry-over rule reassembles `key=value` lines split
+  across QProcess reads; `force_process()` flushes the final (possibly
+  unterminated) block.
+- `probe_duration()` (ffprobe) supplies the total used to turn elapsed seconds
+  into a percentage; 100% is forced on process finish, since `out_time` never
+  quite reaches the source duration.
+- stdout carries only this progress stream (`SeparateChannels`); stderr carries
+  human log lines and the MPEGTS timing-warning detection.
 - ETA smoothing using weighted moving averages with configurable window sizes
 - Batch state reset in `initialize_batch()` prevents stale ETA data between conversion runs
 - Pre-process tracking via `mark_file_skipped()` and `mark_file_failed()` for files that don't spawn FFmpeg processes
