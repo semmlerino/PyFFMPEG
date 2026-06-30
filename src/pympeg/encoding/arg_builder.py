@@ -27,7 +27,9 @@ class CodecArgBuilder:
         include_b_frame_count: bool,
     ) -> list[str]:
         """Build shared NVENC quality/rate-control options."""
-        rc_mode = "constqp" if nvenc_settings.rc_mode == "cqp" else nvenc_settings.rc_mode
+        rc_mode = (
+            "constqp" if nvenc_settings.rc_mode == "cqp" else nvenc_settings.rc_mode
+        )
         args = ["-rc", rc_mode]
 
         if rc_mode == "constqp":

@@ -11,7 +11,6 @@ import shutil
 import subprocess
 from collections import deque
 from dataclasses import dataclass
-from pathlib import Path
 from threading import RLock
 from typing import TYPE_CHECKING, ClassVar, override
 
@@ -37,41 +36,27 @@ class ProcessCompletion:
 def _discover_ffmpeg() -> str | None:
     """Locate a working ffmpeg executable, or return None if none is found.
 
-    Uses ``shutil.which`` to honour PATH (covering both ``ffmpeg`` and the
-    Windows ``ffmpeg.exe`` spelling), then falls back to common hardcoded
-    Windows install locations gated by ``Path.is_file`` so we never launch
-    ``-version`` against a path that doesn't exist. Each surviving candidate is
-    confirmed with ``ffmpeg -version``; the first candidate that exits 0 wins.
-    A broken earlier candidate does not abort discovery — we fall through to the
-    next one.
+    Uses ``shutil.which`` to honour PATH, then confirms the candidate with
+    ``ffmpeg -version`` before caching it. Linux package managers install the
+    binary as ``ffmpeg``; stale Windows ``.exe`` fallbacks are intentionally not
+    probed after the repository migration.
     """
-    candidates: list[str | None] = [shutil.which("ffmpeg"), shutil.which("ffmpeg.exe")]
-    candidates += [
-        p
-        for p in (
-            r"C:\ffmpeg\bin\ffmpeg.exe",
-            r"C:\Program Files\ffmpeg\bin\ffmpeg.exe",
-            r"C:\Program Files (x86)\ffmpeg\bin\ffmpeg.exe",
-        )
-        if Path(p).is_file()
-    ]
+    cmd = shutil.which("ffmpeg")
+    if cmd is None:
+        return None
 
-    seen: set[str] = set()
-    for cmd in candidates:
-        if cmd is None or cmd in seen:
-            continue
-        seen.add(cmd)
-        try:
-            result = subprocess.run(
-                [cmd, "-version"],
-                check=False,
-                capture_output=True,
-                timeout=2,
-            )
-        except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
-            continue
-        if result.returncode == 0:
-            return cmd
+    try:
+        result = subprocess.run(
+            [cmd, "-version"],
+            check=False,
+            capture_output=True,
+            timeout=2,
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+        return None
+
+    if result.returncode == 0:
+        return cmd
 
     return None
 
@@ -497,19 +482,6 @@ class ProcessManager(QObject):
 
         # Emit signal for UI handling
         self.output_ready.emit(process, chunk)
-
-    def _using_windows_ffmpeg(self) -> bool:
-        """Check if we're using Windows FFmpeg executable"""
-        ffmpeg_cmd = self._get_ffmpeg_command()
-        if not ffmpeg_cmd:
-            return False
-        # Check if it's an exe or contains Windows/Program Files paths
-        return (
-            ffmpeg_cmd.endswith(".exe")
-            or "Windows" in ffmpeg_cmd
-            or "Program Files" in ffmpeg_cmd
-            or ffmpeg_cmd.startswith("C:\\")
-        )
 
     def _get_ffmpeg_command(self) -> str | None:
         """Get cached FFmpeg command or detect it"""

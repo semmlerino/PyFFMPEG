@@ -926,6 +926,7 @@ class TestFFmpegAsyncDetection:
         worker = FFmpegDetectionWorker(signals)
         worker.run()
 
+        mock_which.assert_called_once_with("ffmpeg")
         assert len(signal_received) == 1
         assert signal_received[0][0] is True
         assert signal_received[0][1] == "ffmpeg"  # First candidate that confirmed
@@ -959,14 +960,8 @@ class TestFFmpegAsyncDetection:
         """Test FFmpegDetectionWorker handles timeout gracefully"""
         import subprocess
 
-        # Two distinct PATH candidates: first times out, second succeeds.
-        mock_which.side_effect = ["ffmpeg", "ffmpeg.exe"]
-        mock_result = Mock()
-        mock_result.returncode = 0
-        mock_run.side_effect = [
-            subprocess.TimeoutExpired(cmd="ffmpeg", timeout=2),
-            mock_result,
-        ]
+        mock_which.return_value = "ffmpeg"
+        mock_run.side_effect = subprocess.TimeoutExpired(cmd="ffmpeg", timeout=2)
 
         signals = FFmpegDetectionSignals()
         signal_received = []
@@ -979,9 +974,10 @@ class TestFFmpegAsyncDetection:
         worker = FFmpegDetectionWorker(signals)
         worker.run()
 
+        mock_which.assert_called_once_with("ffmpeg")
         assert len(signal_received) == 1
-        assert signal_received[0][0] is True  # Found on second candidate
-        assert signal_received[0][1] == "ffmpeg.exe"
+        assert signal_received[0][0] is False
+        assert "not found" in signal_received[0][1].lower()
 
     def test_on_ffmpeg_detected_caches_success(self):
         """Test that _on_ffmpeg_detected caches successful result"""

@@ -287,9 +287,9 @@ class ConversionController(QObject):
         for path in file_paths:
             output_dir = os.path.dirname(path) or os.getcwd()
             with contextlib.suppress(OSError):
-                estimated_size_by_dir[output_dir] = (
-                    estimated_size_by_dir.get(output_dir, 0) + os.path.getsize(path)
-                )
+                estimated_size_by_dir[output_dir] = estimated_size_by_dir.get(
+                    output_dir, 0
+                ) + os.path.getsize(path)
 
         for output_dir, estimated_output_size in estimated_size_by_dir.items():
             try:
